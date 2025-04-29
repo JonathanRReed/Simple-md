@@ -1,0 +1,70 @@
+/* OLED Black & Neon Theme for Simple-md */
+QWidget {
+    background-color: #000000;
+    color: #f8f8ff;
+    /* font-family removed: use system default */
+    font-size: 13pt;
+}
+
+QTextEdit, QTextBrowser {
+    background-color: #0a0f29;
+    color: #f8f8ff;
+    border: 1px solid #260b41;
+    border-radius: 8px;
+    selection-background-color: #260b41;
+    selection-color: #ff4dc4;
+}
+
+QListWidget {
+    background-color: rgba(10, 15, 41, 0.95);
+    color: #f8f8ff;
+    border: 2px solid #3399ff;
+    border-radius: 10px;
+    font-size: 12pt;
+}
+QListWidget::item:selected {
+    background: #ff4dc4;
+    color: #000000;
+}
+
+QMenuBar {
+    background: #000000;
+    color: #ffd24d;
+}
+QMenuBar::item:selected {
+    background: #3399ff;
+    color: #000000;
+}
+QMenu {
+    background: #0a0f29;
+    color: #9933ff;
+    border: 1px solid #3399ff;
+}
+QMenu::item:selected {
+    background: #ff4dc4;
+    color: #000000;
+}
+
+QScrollBar:vertical, QScrollBar:horizontal {
+    background: #260b41;
+    border: none;
+    width: 10px;
+}
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: #3399ff;
+    min-height: 20px;
+    border-radius: 5px;
+}
+QScrollBar::add-line, QScrollBar::sub-line {
+    background: none;
+}
+
+QWidget:focus {
+    outline: 2px solid #4dfff0;
+}
+
+/* Glassmorphism effect for popups (approximation) */
+QListWidget, QMenu {
+    background: rgba(10, 15, 41, 0.92);
+    /* backdrop-filter: blur(8px); */
+}

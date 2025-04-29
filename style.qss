@@ -1,0 +1,2 @@
+
+QToolButton:focus { outline: 2px solid #39ff14; }
