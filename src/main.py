@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QSplitter, QTextEdit, QFileDialog, QMessageBox, QMenuBar, QListWidget,
     QToolBar, QToolButton, QMenu, QDialog, QVBoxLayout, QLineEdit, QListWidgetItem, QLabel, QPushButton, QHBoxLayout
 )
-from PyQt6.QtGui import QAction, QTextCursor, QKeyEvent, QFontDatabase, QFont, QSyntaxHighlighter, QTextCharFormat, QColor
+from PyQt6.QtGui import QAction, QTextCursor, QKeyEvent, QFontDatabase, QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QIcon
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import markdown2
@@ -151,6 +151,7 @@ class MarkdownEditor(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Simple-md")
+        self.setWindowIcon(QIcon('resources/icon.png'))
         self.resize(1000, 700)
         self._load_custom_fonts()
         self._setup_ui()
