@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QSplitter, QTextEdit, QFileDialog, QMessageBox, QMenuBar, QListWidget,
@@ -77,7 +78,6 @@ class MarkdownHighlighter(QSyntaxHighlighter):
         self.rules.append((r'==[^=]+==', fmt))
 
     def highlightBlock(self, text):
-        import re
         for pattern, fmt in self.rules:
             for match in re.finditer(pattern, text):
                 start, end = match.start(), match.end()
@@ -151,8 +151,9 @@ class MarkdownEditor(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Simple-md")
-        self.setWindowIcon(QIcon('resources/icon.png'))
+        self.setWindowIcon(QIcon(str(RESOURCES_DIR / 'icon2.png')))
         self.resize(1000, 700)
+        self.current_file = None
         self._load_custom_fonts()
         self._setup_ui()
         self._setup_menu()
@@ -189,27 +190,6 @@ class MarkdownEditor(QMainWindow):
         toolbar.setMovable(False)
         toolbar.setFloatable(False)
         # --- Frosted Glass and Softer Neon Styling ---
-        toolbar.setStyleSheet('''
-            QToolBar {
-                background: rgba(0,0,0,0.85); /* frosted glass effect */
-                border-bottom: 1px solid #3ad7ff;
-            }
-            QToolButton {
-                color: #b6eaff;
-                background: transparent;
-                font-weight: bold;
-                padding: 6px 16px;
-                border-radius: 4px;
-            }
-            QToolButton:focus {
-                outline: 2px solid #a08cff;
-                background: rgba(40,40,60,0.7);
-            }
-            QToolButton:hover {
-                background: rgba(30,30,50,0.7);
-                color: #a08cff;
-            }
-        ''')
         # Add text-only actions to toolbar
         toolbar.addAction('New', self.new_file)
         toolbar.addAction('Open', self.open_file)
@@ -225,6 +205,8 @@ class MarkdownEditor(QMainWindow):
         info_action = QAction('Info', self)
         info_action.triggered.connect(self.show_info_dialog)
         toolbar.addAction(info_action)
+
+        self.update_preview()
 
     def _setup_menu(self):
         menu_bar = QMenuBar(self)
@@ -247,7 +229,7 @@ class MarkdownEditor(QMainWindow):
         file_menu.addAction(save_as_action)
 
         export_menu = file_menu.addMenu("Export As")
-        export_md_action = QAction("Markdown (.md)", self)
+        export_md_action = QAction("Markdown / MDX (.md/.mdx)", self)
         export_md_action.triggered.connect(self.export_markdown)
         export_menu.addAction(export_md_action)
         export_html_action = QAction("HTML (.html)", self)
@@ -491,24 +473,207 @@ class MarkdownEditor(QMainWindow):
             return self.handle_editor_keypress(event)
         return super().eventFilter(obj, event)
 
+    def _looks_like_mdx(self, text: str) -> bool:
+        if self.current_file and str(self.current_file).lower().endswith('.mdx'):
+            return True
+        if re.search(r'^\s*(import|export)\s', text, flags=re.MULTILINE):
+            return True
+        if re.search(r'^\s*<\s*[A-Z][A-Za-z0-9_.-]*\b', text, flags=re.MULTILINE):
+            return True
+        return False
+
+    def _mdx_to_markdown(self, text: str):
+        if not self._looks_like_mdx(text):
+            return text, False
+
+        original = text
+
+        out_lines = []
+        in_component = None
+        in_fence = False
+        for line in text.splitlines():
+            if re.match(r'^\s*```', line):
+                in_fence = not in_fence
+                out_lines.append(line)
+                continue
+
+            if not in_fence:
+                if re.match(r'^\s*(import|export)\s', line):
+                    continue
+                line = re.sub(r'\{/\*([\s\S]*?)\*/\}', r'<!--\1-->', line)
+
+            if in_component is not None:
+                out_lines.append(line)
+                if re.search(rf'^\s*</\s*{re.escape(in_component)}\s*>\s*$', line):
+                    out_lines.append('```')
+                    in_component = None
+                continue
+
+            if not in_fence:
+                m = re.match(r'^\s*<\s*([A-Z][A-Za-z0-9_.-]*)\b', line)
+                if m:
+                    tag = m.group(1)
+                    out_lines.append('```jsx')
+                    out_lines.append(line)
+                    if re.search(r'/\s*>\s*$', line) or re.search(rf'</\s*{re.escape(tag)}\s*>\s*$', line):
+                        out_lines.append('```')
+                    else:
+                        in_component = tag
+                    continue
+
+            out_lines.append(line)
+
+        if in_component is not None:
+            out_lines.append('```')
+
+        rendered = '\n'.join(out_lines)
+        return rendered, rendered != original
+
+    def _coerce_save_extension(self, file_path: str, selected_filter: str) -> str:
+        p = Path(file_path)
+        if p.suffix:
+            return file_path
+
+        selected = (selected_filter or '').lower()
+        if '.mdx' in selected:
+            return str(p.with_suffix('.mdx'))
+        return str(p.with_suffix('.md'))
+
     def update_preview(self):
         md_text = self.editor.toPlainText()
+        md_text, mdx_changed = self._mdx_to_markdown(md_text)
         # Preprocess: convert mermaid code blocks to <div class="mermaid">...</div>
-        import re
         def mermaid_replacer(match):
             code = match.group(1)
             return f'<div class="mermaid">{code}</div>'
         md_text_mermaid = re.sub(r'```mermaid\n([\s\S]*?)```', mermaid_replacer, md_text)
         # Render Markdown to HTML
-        html = self.markdown(md_text_mermaid)
+        if md_text_mermaid.strip():
+            html = self.markdown(md_text_mermaid)
+        else:
+            html = (
+                '<section class="welcome">'
+                '<h1>Simple-md</h1>'
+                '<p class="lead">Start typing on the left to see a live preview here.</p>'
+                '<div class="cards">'
+                '<div class="card"><div class="title">Markdown</div><div class="body">Headings, lists, links, tables, code blocks.</div></div>'
+                '<div class="card"><div class="title">Math</div><div class="body">Inline <code>$E=mc^2$</code> and block <code>$$...$$</code>.</div></div>'
+                '<div class="card"><div class="title">Mermaid</div><div class="body">Use <code>```mermaid</code> fences to render diagrams.</div></div>'
+                '</div>'
+                '</section>'
+            )
+        mdx_note = ''
+        if self._looks_like_mdx(self.editor.toPlainText()) and mdx_changed:
+            mdx_note = '<div class="note">MDX preview: component blocks are shown as <code>jsx</code> code.</div>'
         # Inject MathJax and Mermaid.js scripts
         html_head = '''
         <head>
         <meta charset="utf-8">
         <style>
-            body { background: #000; color: #b6eaff; font-family: sans-serif; }
-            code, pre { font-family: sans-serif; }
-            .mermaid { background: #111; border-radius: 8px; margin: 1em 0; padding: 1em; }
+            :root {
+                --bg0: #070910;
+                --bg1: #0b1020;
+                --panel: rgba(255,255,255,0.06);
+                --text: #e8f0ff;
+                --muted: rgba(232,240,255,0.78);
+                --link: #6ecbff;
+                --accent: #a08cff;
+                --border: rgba(110, 203, 255, 0.22);
+                --codebg: rgba(255,255,255,0.08);
+            }
+            html { background: var(--bg0); }
+            body {
+                margin: 0;
+                padding: 24px 18px 44px 18px;
+                background: transparent;
+                color: var(--text);
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                line-height: 1.65;
+                -webkit-font-smoothing: antialiased;
+                position: relative;
+            }
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                z-index: -1;
+                background:
+                    radial-gradient(900px 600px at 18% 8%, rgba(58,215,255,0.10), transparent 58%),
+                    radial-gradient(900px 600px at 85% 12%, rgba(160,140,255,0.10), transparent 58%),
+                    linear-gradient(180deg, var(--bg0), var(--bg1));
+            }
+            .doc {
+                max-width: 980px;
+                margin: 0 auto;
+                background: rgba(255,255,255,0.02);
+                border: 1px solid rgba(110, 203, 255, 0.16);
+                border-radius: 16px;
+                padding: 18px 18px;
+                box-shadow: 0 10px 34px rgba(0,0,0,0.35);
+            }
+            .note {
+                background: rgba(160,140,255,0.10);
+                border: 1px solid rgba(160,140,255,0.35);
+                color: var(--muted);
+                padding: 10px 12px;
+                border-radius: 10px;
+                margin: 0 0 16px 0;
+            }
+            a { color: var(--link); text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            h1, h2, h3, h4 { letter-spacing: -0.01em; margin: 1.2em 0 0.55em 0; }
+            h1 { font-size: 2.0em; }
+            h2 { font-size: 1.55em; }
+            h3 { font-size: 1.25em; }
+            p { margin: 0.7em 0; color: var(--muted); }
+            hr { border: none; border-top: 1px solid var(--border); margin: 1.4em 0; }
+            blockquote {
+                margin: 1em 0;
+                padding: 0.75em 1em;
+                background: rgba(110,203,255,0.08);
+                border: 1px solid var(--border);
+                border-left: 3px solid var(--accent);
+                border-radius: 12px;
+                color: var(--muted);
+            }
+            pre {
+                background: var(--codebg);
+                border: 1px solid var(--border);
+                padding: 14px 16px;
+                border-radius: 12px;
+                overflow: auto;
+            }
+            code {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                font-size: 0.95em;
+            }
+            pre code { font-size: 0.92em; }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 1em 0;
+                overflow: hidden;
+                border-radius: 12px;
+                border: 1px solid var(--border);
+                background: rgba(255,255,255,0.03);
+            }
+            th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+            th { text-align: left; color: var(--text); background: rgba(255,255,255,0.04); }
+            tr:last-child td { border-bottom: none; }
+            img { max-width: 100%; border-radius: 12px; }
+            .mermaid { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; margin: 1em 0; padding: 1em; }
+            .welcome h1 { margin: 0.2em 0 0.2em 0; font-size: 2.0em; }
+            .welcome .lead { margin: 0.2em 0 1.0em 0; color: var(--muted); }
+            .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+            .card {
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(110, 203, 255, 0.16);
+                border-radius: 14px;
+                padding: 12px 12px;
+            }
+            .card .title { font-weight: 700; color: var(--text); margin-bottom: 6px; }
+            .card .body { color: var(--muted); }
+            @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } }
         </style>
         <!-- MathJax -->
         <script type="text/javascript" id="MathJax-script" async
@@ -520,7 +685,7 @@ class MarkdownEditor(QMainWindow):
         </script>
         </head>
         '''
-        html_full = f'<!DOCTYPE html><html>{html_head}<body>{html}</body></html>'
+        html_full = f'<!DOCTYPE html><html>{html_head}<body><main class="doc">{mdx_note}{html}</main></body></html>'
         self.preview.setHtml(html_full)
 
     def new_file(self):
@@ -528,7 +693,12 @@ class MarkdownEditor(QMainWindow):
         self.current_file = None
 
     def open_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Markdown File", str(BASE_DIR), "Markdown Files (*.md)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Markdown/MDX File",
+            str(BASE_DIR),
+            "Markdown / MDX Files (*.md *.mdx);;Markdown Files (*.md);;MDX Files (*.mdx);;All Files (*)"
+        )
         if file_path:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -548,9 +718,15 @@ class MarkdownEditor(QMainWindow):
             self.save_file_as()
 
     def save_file_as(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save Markdown File", str(BASE_DIR), "Markdown Files (*.md)")
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Save Markdown/MDX File",
+            str(BASE_DIR),
+            "Markdown Files (*.md);;MDX Files (*.mdx);;All Files (*)"
+        )
         if file_path:
             try:
+                file_path = self._coerce_save_extension(file_path, selected_filter)
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(self.editor.toPlainText())
                 self.current_file = file_path
@@ -558,9 +734,15 @@ class MarkdownEditor(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")
 
     def export_markdown(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "Export as Markdown", str(BASE_DIR), "Markdown Files (*.md)")
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export as Markdown/MDX",
+            str(BASE_DIR),
+            "Markdown Files (*.md);;MDX Files (*.mdx);;All Files (*)"
+        )
         if file_path:
             try:
+                file_path = self._coerce_save_extension(file_path, selected_filter)
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(self.editor.toPlainText())
             except Exception as e:
@@ -570,7 +752,8 @@ class MarkdownEditor(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(self, "Export as HTML", str(BASE_DIR), "HTML Files (*.html)")
         if file_path:
             try:
-                html = self.markdown(self.editor.toPlainText())
+                md_text, _ = self._mdx_to_markdown(self.editor.toPlainText())
+                html = self.markdown(md_text)
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(html)
             except Exception as e:
@@ -583,7 +766,8 @@ class MarkdownEditor(QMainWindow):
                 # QTextDocument for HTML to PDF
                 from PyQt6.QtGui import QTextDocument
                 doc = QTextDocument()
-                html = self.markdown(self.editor.toPlainText())
+                md_text, _ = self._mdx_to_markdown(self.editor.toPlainText())
+                html = self.markdown(md_text)
                 doc.setHtml(html)
                 printer = None
                 try:
@@ -832,6 +1016,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     # Apply QSS theme
     qss_path = RESOURCES_DIR / "style.qss"
+    if not qss_path.exists():
+        qss_path = BASE_DIR / "style.qss"
     if qss_path.exists():
         with open(qss_path, "r") as f:
             app.setStyleSheet(f.read())

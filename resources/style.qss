@@ -1,23 +1,67 @@
 /* OLED Black & Neon Theme for Simple-md */
 QWidget {
-    background-color: #000000;
-    color: #f8f8ff;
+    background-color: #070910;
+    color: #e8f0ff;
     /* font-family removed: use system default */
     font-size: 13pt;
 }
 
+QMainWindow {
+    background-color: #070910;
+}
+
+QToolBar {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(110, 203, 255, 0.18);
+    border-left: none;
+    border-right: none;
+    padding: 6px;
+}
+
+QToolButton {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(110, 203, 255, 0.18);
+    border-radius: 8px;
+    padding: 6px 12px;
+    margin: 2px 4px;
+    color: #e8f0ff;
+}
+
+QToolButton:hover {
+    background: rgba(110, 203, 255, 0.10);
+    border: 1px solid rgba(110, 203, 255, 0.35);
+}
+
+QToolButton:pressed {
+    background: rgba(160, 140, 255, 0.14);
+    border: 1px solid rgba(160, 140, 255, 0.45);
+}
+
+QToolButton:checked {
+    background: rgba(160, 140, 255, 0.16);
+    border: 1px solid rgba(160, 140, 255, 0.55);
+}
+
 QTextEdit, QTextBrowser {
     background-color: #0a0f29;
-    color: #f8f8ff;
+    color: #e8f0ff;
     border: 1px solid #260b41;
     border-radius: 8px;
     selection-background-color: #260b41;
     selection-color: #ff4dc4;
 }
 
+QSplitter::handle {
+    background: rgba(110, 203, 255, 0.07);
+}
+
+QSplitter::handle:hover {
+    background: rgba(110, 203, 255, 0.12);
+}
+
 QListWidget {
     background-color: rgba(10, 15, 41, 0.95);
-    color: #f8f8ff;
+    color: #e8f0ff;
     border: 2px solid #3399ff;
     border-radius: 10px;
     font-size: 12pt;
@@ -60,7 +104,7 @@ QScrollBar::add-line, QScrollBar::sub-line {
 }
 
 QWidget:focus {
-    outline: 2px solid #4dfff0;
+    outline: none;
 }
 
 /* Glassmorphism effect for popups (approximation) */
