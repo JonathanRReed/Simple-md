@@ -1,7 +1,18 @@
 # Simple-md
 
-I built Simple-md because I couldn’t find a simple Markdown editor & viewer that fit my needs.
 This app includes support for math (LaTeX via MathJax) & Mermaid diagrams, so you can write & preview equations & graphs right in your notes.
+It also supports opening and saving MDX files for viewing.
+
+## Features
+
+- **Live split view**: editor (left) + HTML preview (right)
+- **Markdown**: rendered via `markdown2`
+- **MathJax**: inline and block LaTeX in the preview
+- **Mermaid**: diagrams in the preview using fenced ` ```mermaid ` blocks
+- **MDX viewing**: open/save `.mdx` files
+  - `import` / `export` lines are ignored for preview rendering
+  - JSX component blocks are displayed as fenced `jsx` code blocks
+  - Components are **not executed** (this is a viewer, not a React runtime)
 
 **Main dependencies used:**
 
@@ -12,22 +23,25 @@ This app includes support for math (LaTeX via MathJax) & Mermaid diagrams, so yo
 - MathJax (for math rendering, loaded in the preview)
 - Mermaid.js (for diagrams, loaded in the preview)
 
-**To run:**
+## To run
 
-1. Install dependencies:
+### Option A: Virtual environment (recommended)
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+python3 src/main.py
+```
 
-2. Start the app:
+### Option B: User install
 
-   ```bash
-   python src/main.py
-   ```
+```bash
+python3 -m pip install -r requirements.txt
+python3 src/main.py
+```
 
 This program was made by Jonathan Reed.  
-A product of Hello.World Consulting.
 
 **MIT License**.
 
