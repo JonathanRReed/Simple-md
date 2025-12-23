@@ -1,114 +1,363 @@
-/* OLED Black & Neon Theme for Simple-md */
+/* ============================================
+   Simple-md Premium Theme
+   A refined, modern dark theme with glassmorphism
+   ============================================ */
+
+/* === Color Variables (conceptual reference) ===
+   --bg-deep: #0d0f14
+   --bg-primary: #12151c
+   --bg-elevated: #1a1e28
+   --bg-glass: rgba(26, 30, 40, 0.85)
+   --text-primary: #e4e8f1
+   --text-muted: #8892a8
+   --accent-primary: #6c8cff
+   --accent-secondary: #a78bfa
+   --border-subtle: rgba(255, 255, 255, 0.06)
+   --border-accent: rgba(108, 140, 255, 0.25)
+   --success: #34d399
+   --warning: #fbbf24
+*/
+
+/* === Base Styling === */
 QWidget {
-    background-color: #070910;
-    color: #e8f0ff;
-    /* font-family removed: use system default */
+    background-color: #0d0f14;
+    color: #e4e8f1;
     font-size: 13pt;
+    selection-background-color: rgba(108, 140, 255, 0.35);
+    selection-color: #ffffff;
 }
 
 QMainWindow {
-    background-color: #070910;
+    background-color: #0d0f14;
 }
 
+/* === Toolbar - Premium Glass Effect === */
 QToolBar {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(110, 203, 255, 0.18);
-    border-left: none;
-    border-right: none;
-    padding: 6px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(26, 30, 40, 0.95),
+        stop:1 rgba(18, 21, 28, 0.98));
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 8px 12px;
+    spacing: 6px;
 }
 
+QToolBar::separator {
+    background: rgba(255, 255, 255, 0.08);
+    width: 1px;
+    margin: 4px 8px;
+}
+
+/* === Toolbar Buttons === */
 QToolButton {
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(110, 203, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
-    padding: 6px 12px;
-    margin: 2px 4px;
-    color: #e8f0ff;
+    padding: 8px 14px;
+    margin: 2px;
+    color: #c0c8d8;
+    font-weight: 500;
 }
 
 QToolButton:hover {
-    background: rgba(110, 203, 255, 0.10);
-    border: 1px solid rgba(110, 203, 255, 0.35);
+    background: rgba(108, 140, 255, 0.12);
+    border: 1px solid rgba(108, 140, 255, 0.25);
+    color: #e4e8f1;
 }
 
 QToolButton:pressed {
-    background: rgba(160, 140, 255, 0.14);
-    border: 1px solid rgba(160, 140, 255, 0.45);
+    background: rgba(108, 140, 255, 0.18);
+    border: 1px solid rgba(108, 140, 255, 0.35);
+    color: #ffffff;
 }
 
 QToolButton:checked {
-    background: rgba(160, 140, 255, 0.16);
-    border: 1px solid rgba(160, 140, 255, 0.55);
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    color: #a78bfa;
 }
 
+QToolButton:focus {
+    outline: none;
+    border: 1px solid rgba(108, 140, 255, 0.45);
+}
+
+/* === Editor & Text Areas === */
 QTextEdit, QTextBrowser {
-    background-color: #0a0f29;
-    color: #e8f0ff;
-    border: 1px solid #260b41;
-    border-radius: 8px;
-    selection-background-color: #260b41;
-    selection-color: #ff4dc4;
+    background-color: #12151c;
+    color: #e4e8f1;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0px;
+    padding: 16px 20px;
+    line-height: 1.6;
 }
 
+QTextEdit:focus, QTextBrowser:focus {
+    border: 1px solid rgba(108, 140, 255, 0.25);
+    outline: none;
+}
+
+/* === Splitter === */
 QSplitter::handle {
-    background: rgba(110, 203, 255, 0.07);
+    background: rgba(255, 255, 255, 0.04);
+    width: 3px;
 }
 
 QSplitter::handle:hover {
-    background: rgba(110, 203, 255, 0.12);
+    background: rgba(108, 140, 255, 0.25);
 }
 
-QListWidget {
-    background-color: rgba(10, 15, 41, 0.95);
-    color: #e8f0ff;
-    border: 2px solid #3399ff;
-    border-radius: 10px;
-    font-size: 12pt;
-}
-QListWidget::item:selected {
-    background: #ff4dc4;
-    color: #000000;
+QSplitter::handle:pressed {
+    background: rgba(108, 140, 255, 0.4);
 }
 
+/* === Menu Bar - Refined === */
 QMenuBar {
-    background: #000000;
-    color: #ffd24d;
+    background: #0d0f14;
+    color: #c0c8d8;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 4px 8px;
 }
+
+QMenuBar::item {
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin: 2px;
+}
+
 QMenuBar::item:selected {
-    background: #3399ff;
-    color: #000000;
+    background: rgba(108, 140, 255, 0.12);
+    color: #e4e8f1;
 }
+
+QMenuBar::item:pressed {
+    background: rgba(108, 140, 255, 0.18);
+}
+
+/* === Menus - Glassmorphism === */
 QMenu {
-    background: #0a0f29;
-    color: #9933ff;
-    border: 1px solid #3399ff;
+    background: rgba(18, 21, 28, 0.96);
+    color: #e4e8f1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 6px;
 }
+
+QMenu::item {
+    padding: 8px 32px 8px 16px;
+    border-radius: 6px;
+    margin: 2px 4px;
+}
+
 QMenu::item:selected {
-    background: #ff4dc4;
-    color: #000000;
+    background: rgba(108, 140, 255, 0.15);
+    color: #ffffff;
 }
 
-QScrollBar:vertical, QScrollBar:horizontal {
-    background: #260b41;
-    border: none;
-    width: 10px;
+QMenu::separator {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 6px 12px;
 }
-QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-    background: #3399ff;
-    min-height: 20px;
+
+QMenu::indicator {
+    width: 16px;
+    height: 16px;
+    margin-left: 8px;
+}
+
+/* === List Widgets - Glass Panels === */
+QListWidget {
+    background: rgba(18, 21, 28, 0.95);
+    color: #e4e8f1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 8px;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 2px 4px;
+}
+
+QListWidget::item:selected {
+    background: rgba(108, 140, 255, 0.18);
+    color: #ffffff;
+}
+
+QListWidget::item:hover:!selected {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* === Scrollbars - Minimal Modern === */
+QScrollBar:vertical {
+    background: transparent;
+    width: 12px;
+    margin: 4px 2px 4px 2px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background: rgba(255, 255, 255, 0.12);
+    min-height: 40px;
     border-radius: 5px;
-}
-QScrollBar::add-line, QScrollBar::sub-line {
-    background: none;
+    margin: 0 2px;
 }
 
+QScrollBar::handle:vertical:hover {
+    background: rgba(108, 140, 255, 0.35);
+}
+
+QScrollBar::handle:vertical:pressed {
+    background: rgba(108, 140, 255, 0.5);
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+    height: 12px;
+    margin: 2px 4px 2px 4px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal {
+    background: rgba(255, 255, 255, 0.12);
+    min-width: 40px;
+    border-radius: 5px;
+    margin: 2px 0;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: rgba(108, 140, 255, 0.35);
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background: rgba(108, 140, 255, 0.5);
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+
+/* === Line Edits - Search Boxes === */
+QLineEdit {
+    background: rgba(255, 255, 255, 0.04);
+    color: #e4e8f1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14pt;
+}
+
+QLineEdit:focus {
+    border: 1px solid rgba(108, 140, 255, 0.45);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+QLineEdit::placeholder {
+    color: #6b7280;
+}
+
+/* === Push Buttons === */
+QPushButton {
+    background: rgba(108, 140, 255, 0.12);
+    color: #e4e8f1;
+    border: 1px solid rgba(108, 140, 255, 0.25);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+}
+
+QPushButton:hover {
+    background: rgba(108, 140, 255, 0.2);
+    border: 1px solid rgba(108, 140, 255, 0.4);
+    color: #ffffff;
+}
+
+QPushButton:pressed {
+    background: rgba(108, 140, 255, 0.28);
+}
+
+QPushButton:focus {
+    outline: none;
+    border: 1px solid rgba(108, 140, 255, 0.55);
+}
+
+/* === Labels === */
+QLabel {
+    color: #c0c8d8;
+    background: transparent;
+}
+
+/* === Dialogs - Premium Glass === */
+QDialog {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(18, 21, 28, 0.98),
+        stop:1 rgba(13, 15, 20, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+}
+
+/* === Tooltips === */
+QToolTip {
+    background: rgba(26, 30, 40, 0.95);
+    color: #e4e8f1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+/* === Focus States - Accessibility === */
 QWidget:focus {
     outline: none;
 }
 
-/* Glassmorphism effect for popups (approximation) */
-QListWidget, QMenu {
-    background: rgba(10, 15, 41, 0.92);
-    /* backdrop-filter: blur(8px); */
+/* === Message Box === */
+QMessageBox {
+    background: #12151c;
+}
+
+QMessageBox QLabel {
+    color: #e4e8f1;
+}
+
+QMessageBox QPushButton {
+    min-width: 80px;
+}
+
+/* === File Dialogs === */
+QFileDialog {
+    background: #12151c;
+}
+
+QFileDialog QListView, QFileDialog QTreeView {
+    background: rgba(18, 21, 28, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+/* === Status Bar (if added) === */
+QStatusBar {
+    background: #0d0f14;
+    color: #8892a8;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 4px 12px;
+}
+
+QStatusBar::item {
+    border: none;
 }
