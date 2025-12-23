@@ -20,20 +20,20 @@ ICONS_DIR = RESOURCES_DIR / 'icons'
 class MarkdownHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Softer OLED/neon palette
-        self.heading = QColor('#3ad7ff')
-        self.bold = QColor('#a08cff')
-        self.italic = QColor('#b6eaff')
-        self.code = QColor('#8afff7')
-        self.blockquote = QColor('#8c8cff')
-        self.listitem = QColor('#7fffd4')
-        self.link = QColor('#6ecbff')
-        self.image = QColor('#8cffa0')
-        self.strikethrough = QColor('#b0b0b0')
-        self.hr = QColor('#444')
-        self.footnote = QColor('#ffb86b')
-        self.taskbox = QColor('#b6eaff')
-        self.highlight = QColor('#fff799')
+        # Premium refined palette - softer, more readable colors
+        self.heading = QColor('#7aa2f7')      # Soft blue
+        self.bold = QColor('#bb9af7')         # Soft purple
+        self.italic = QColor('#9ece6a')       # Soft green
+        self.code = QColor('#7dcfff')         # Cyan
+        self.blockquote = QColor('#9aa5ce')   # Muted blue-gray
+        self.listitem = QColor('#73daca')     # Teal
+        self.link = QColor('#7aa2f7')         # Soft blue
+        self.image = QColor('#9ece6a')        # Soft green
+        self.strikethrough = QColor('#565f89')  # Muted gray
+        self.hr = QColor('#3b4261')           # Dark separator
+        self.footnote = QColor('#e0af68')     # Warm amber
+        self.taskbox = QColor('#7dcfff')      # Cyan
+        self.highlight = QColor('#e0af68')    # Warm amber
         self.rules = []
         # Headings
         fmt = QTextCharFormat(); fmt.setForeground(self.heading); fmt.setFontWeight(QFont.Weight.Bold)
@@ -154,10 +154,17 @@ class MarkdownEditor(QMainWindow):
         self.setWindowIcon(QIcon(str(RESOURCES_DIR / 'icon2.png')))
         self.resize(1000, 700)
         self.current_file = None
+        # Debounce timer to prevent preview flickering
+        from PyQt6.QtCore import QTimer
+        self._preview_timer = QTimer()
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(150)  # 150ms debounce
+        self._preview_timer.timeout.connect(self._do_update_preview)
         self._load_custom_fonts()
         self._setup_ui()
         self._setup_menu()
         self._setup_syntax_popup()
+        self.setAcceptDrops(True)  # Enable drag-and-drop
 
     def _load_custom_fonts(self):
         # Load all TTF fonts from resources/TTF
@@ -175,6 +182,7 @@ class MarkdownEditor(QMainWindow):
         self.editor.setFont(font)
         self.preview = QWebEngineView()
         self.editor.textChanged.connect(self.update_preview)
+        self.editor.textChanged.connect(self._update_status_bar)
         self.editor.installEventFilter(self)
         # Attach Markdown syntax highlighter
         self.highlighter = MarkdownHighlighter(self.editor.document())
@@ -189,7 +197,6 @@ class MarkdownEditor(QMainWindow):
         toolbar = self.addToolBar('Main Toolbar')
         toolbar.setMovable(False)
         toolbar.setFloatable(False)
-        # --- Frosted Glass and Softer Neon Styling ---
         # Add text-only actions to toolbar
         toolbar.addAction('New', self.new_file)
         toolbar.addAction('Open', self.open_file)
@@ -206,7 +213,43 @@ class MarkdownEditor(QMainWindow):
         info_action.triggered.connect(self.show_info_dialog)
         toolbar.addAction(info_action)
 
-        self.update_preview()
+        # Add status bar with document info
+        from PyQt6.QtWidgets import QStatusBar
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.setStyleSheet('''
+            QStatusBar {
+                background: #0d0f14;
+                color: #6b7280;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+                padding: 4px 12px;
+                font-size: 12px;
+            }
+            QStatusBar::item {
+                border: none;
+            }
+        ''')
+        self.word_count_label = QLabel("0 words")
+        self.char_count_label = QLabel("0 chars")
+        self.file_label = QLabel("Untitled")
+        self.status_bar.addWidget(self.file_label)
+        self.status_bar.addPermanentWidget(self.word_count_label)
+        self.status_bar.addPermanentWidget(QLabel("  |  "))
+        self.status_bar.addPermanentWidget(self.char_count_label)
+
+        self._do_update_preview()  # Initial render (bypass debounce)
+
+    def _update_status_bar(self):
+        """Update status bar with word and character count."""
+        text = self.editor.toPlainText()
+        words = len(text.split()) if text.strip() else 0
+        chars = len(text)
+        self.word_count_label.setText(f"{words:,} words")
+        self.char_count_label.setText(f"{chars:,} chars")
+        if self.current_file:
+            self.file_label.setText(Path(self.current_file).name)
+        else:
+            self.file_label.setText("Untitled")
 
     def _setup_menu(self):
         menu_bar = QMenuBar(self)
@@ -275,19 +318,24 @@ class MarkdownEditor(QMainWindow):
         self.syntax_popup.hide()
         self.syntax_popup.setStyleSheet('''
             QListWidget {
-                background: rgba(0,0,0,0.9);
-                color: #b6eaff;
-                border: 2px solid #3ad7ff;
+                background: rgba(18, 21, 28, 0.96);
+                color: #e4e8f1;
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 font-size: 14px;
-                border-radius: 6px;
+                border-radius: 12px;
+                padding: 6px;
+            }
+            QListWidget::item {
+                padding: 8px 12px;
+                border-radius: 8px;
+                margin: 2px;
             }
             QListWidget::item:selected {
-                background: rgba(60,60,90,0.8);
-                color: #a08cff;
+                background: rgba(108, 140, 255, 0.18);
+                color: #ffffff;
             }
-            QListWidget::item:hover {
-                background: rgba(30,30,50,0.7);
-                color: #a08cff;
+            QListWidget::item:hover:!selected {
+                background: rgba(255, 255, 255, 0.06);
             }
         ''')
         self.syntax_popup.itemClicked.connect(self.insert_selected_syntax)
@@ -381,32 +429,51 @@ class MarkdownEditor(QMainWindow):
         dialog.setWindowTitle("Command Palette")
         dialog.setStyleSheet('''
             QDialog {
-                background: rgba(0,0,0,0.92);
-                border: 2px solid #3ad7ff;
-                border-radius: 10px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 rgba(18, 21, 28, 0.98),
+                    stop:1 rgba(13, 15, 20, 0.98));
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
             }
             QLineEdit {
-                background: rgba(20,20,30,0.92);
-                color: #b6eaff;
-                border: 2px solid #3ad7ff;
-                padding: 6px;
-                font-size: 16px;
-                border-radius: 6px;
+                background: rgba(255, 255, 255, 0.05);
+                color: #e4e8f1;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 12px 16px;
+                font-size: 15px;
+                border-radius: 12px;
+                margin-bottom: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid rgba(108, 140, 255, 0.45);
+                background: rgba(255, 255, 255, 0.07);
+            }
+            QLineEdit::placeholder {
+                color: #6b7280;
             }
             QListWidget {
-                background: rgba(0,0,0,0.93);
-                color: #b6eaff;
+                background: transparent;
+                color: #e4e8f1;
                 border: none;
-                font-size: 15px;
+                font-size: 14px;
+                outline: none;
+            }
+            QListWidget::item {
+                padding: 10px 14px;
+                border-radius: 8px;
+                margin: 2px 0;
             }
             QListWidget::item:selected {
-                background: rgba(60,60,90,0.8);
-                color: #a08cff;
+                background: rgba(108, 140, 255, 0.18);
+                color: #ffffff;
+            }
+            QListWidget::item:hover:!selected {
+                background: rgba(255, 255, 255, 0.05);
             }
             QLabel {
-                color: #a08cff;
-                font-size: 13px;
-                padding: 2px 0 4px 0;
+                color: #8892a8;
+                font-size: 12px;
+                padding: 4px 0;
             }
         ''')
         layout = QVBoxLayout()
@@ -540,6 +607,11 @@ class MarkdownEditor(QMainWindow):
         return str(p.with_suffix('.md'))
 
     def update_preview(self):
+        """Debounced preview update - waits for typing to pause before rendering."""
+        self._preview_timer.start()
+
+    def _do_update_preview(self):
+        """Actually render the preview (called after debounce delay)."""
         md_text = self.editor.toPlainText()
         md_text, mdx_changed = self._mdx_to_markdown(md_text)
         # Preprocess: convert mermaid code blocks to <div class="mermaid">...</div>
@@ -553,127 +625,349 @@ class MarkdownEditor(QMainWindow):
         else:
             html = (
                 '<section class="welcome">'
+                '<div class="welcome-header">'
                 '<h1>Simple-md</h1>'
+                '<p class="tagline">A premium Markdown & MDX viewer</p>'
+                '</div>'
                 '<p class="lead">Start typing on the left to see a live preview here.</p>'
                 '<div class="cards">'
-                '<div class="card"><div class="title">Markdown</div><div class="body">Headings, lists, links, tables, code blocks.</div></div>'
-                '<div class="card"><div class="title">Math</div><div class="body">Inline <code>$E=mc^2$</code> and block <code>$$...$$</code>.</div></div>'
-                '<div class="card"><div class="title">Mermaid</div><div class="body">Use <code>```mermaid</code> fences to render diagrams.</div></div>'
+                '<div class="card">'
+                '<div class="card-icon">&#9998;</div>'
+                '<div class="card-content">'
+                '<div class="title">Markdown</div>'
+                '<div class="body">Headings, lists, links, tables, code blocks, and more.</div>'
+                '</div>'
+                '</div>'
+                '<div class="card">'
+                '<div class="card-icon">&#8747;</div>'
+                '<div class="card-content">'
+                '<div class="title">Math</div>'
+                '<div class="body">Inline <code>$E=mc^2$</code> and block <code>$$...$$</code> equations.</div>'
+                '</div>'
+                '</div>'
+                '<div class="card">'
+                '<div class="card-icon">&#9670;</div>'
+                '<div class="card-content">'
+                '<div class="title">Mermaid</div>'
+                '<div class="body">Use <code>```mermaid</code> fences to render diagrams.</div>'
+                '</div>'
+                '</div>'
+                '</div>'
+                '<div class="keyboard-hints">'
+                '<span class="hint"><kbd>/</kbd> Syntax popup</span>'
+                '<span class="hint"><kbd>[[</kbd> WikiLinks</span>'
+                '<span class="hint"><kbd>$$</kbd> Math blocks</span>'
                 '</div>'
                 '</section>'
             )
         mdx_note = ''
         if self._looks_like_mdx(self.editor.toPlainText()) and mdx_changed:
-            mdx_note = '<div class="note">MDX preview: component blocks are shown as <code>jsx</code> code.</div>'
-        # Inject MathJax and Mermaid.js scripts
+            mdx_note = '<div class="note"><span class="note-icon">&#9432;</span> MDX preview: component blocks are shown as <code>jsx</code> code.</div>'
+        # Premium HTML styling with refined theme
         html_head = '''
         <head>
         <meta charset="utf-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
             :root {
-                --bg0: #070910;
-                --bg1: #0b1020;
-                --panel: rgba(255,255,255,0.06);
-                --text: #e8f0ff;
-                --muted: rgba(232,240,255,0.78);
-                --link: #6ecbff;
-                --accent: #a08cff;
-                --border: rgba(110, 203, 255, 0.22);
-                --codebg: rgba(255,255,255,0.08);
+                --bg-deep: #0d0f14;
+                --bg-primary: #12151c;
+                --bg-elevated: #1a1e28;
+                --bg-glass: rgba(26, 30, 40, 0.75);
+                --text-primary: #e4e8f1;
+                --text-secondary: #a0a8b8;
+                --text-muted: #6b7280;
+                --accent-blue: #7aa2f7;
+                --accent-purple: #bb9af7;
+                --accent-teal: #73daca;
+                --accent-amber: #e0af68;
+                --border-subtle: rgba(255, 255, 255, 0.06);
+                --border-medium: rgba(255, 255, 255, 0.1);
+                --code-bg: rgba(255, 255, 255, 0.05);
+                --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             }
-            html { background: var(--bg0); }
+            
+            * { box-sizing: border-box; }
+            
+            html {
+                background: var(--bg-deep);
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,255,255,0.12) transparent;
+            }
+            
+            ::-webkit-scrollbar { width: 8px; height: 8px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { 
+                background: rgba(255,255,255,0.12); 
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover { background: rgba(122, 162, 247, 0.35); }
+            
             body {
                 margin: 0;
-                padding: 24px 18px 44px 18px;
-                background: transparent;
-                color: var(--text);
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                line-height: 1.65;
+                padding: 32px 24px 48px 24px;
+                background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-primary) 100%);
+                color: var(--text-primary);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 15px;
+                line-height: 1.7;
                 -webkit-font-smoothing: antialiased;
-                position: relative;
+                -moz-osx-font-smoothing: grayscale;
+                min-height: 100vh;
             }
-            body::before {
-                content: "";
-                position: fixed;
-                inset: 0;
-                z-index: -1;
-                background:
-                    radial-gradient(900px 600px at 18% 8%, rgba(58,215,255,0.10), transparent 58%),
-                    radial-gradient(900px 600px at 85% 12%, rgba(160,140,255,0.10), transparent 58%),
-                    linear-gradient(180deg, var(--bg0), var(--bg1));
-            }
+            
             .doc {
-                max-width: 980px;
+                max-width: 820px;
                 margin: 0 auto;
-                background: rgba(255,255,255,0.02);
-                border: 1px solid rgba(110, 203, 255, 0.16);
-                border-radius: 16px;
-                padding: 18px 18px;
-                box-shadow: 0 10px 34px rgba(0,0,0,0.35);
+                background: var(--bg-glass);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid var(--border-subtle);
+                border-radius: 20px;
+                padding: 32px 36px;
+                box-shadow: var(--shadow);
             }
-            .note {
-                background: rgba(160,140,255,0.10);
-                border: 1px solid rgba(160,140,255,0.35);
-                color: var(--muted);
-                padding: 10px 12px;
-                border-radius: 10px;
-                margin: 0 0 16px 0;
+            
+            /* === Typography === */
+            h1, h2, h3, h4, h5, h6 {
+                color: var(--text-primary);
+                font-weight: 600;
+                letter-spacing: -0.02em;
+                margin: 1.5em 0 0.6em 0;
+                line-height: 1.3;
             }
-            a { color: var(--link); text-decoration: none; }
-            a:hover { text-decoration: underline; }
-            h1, h2, h3, h4 { letter-spacing: -0.01em; margin: 1.2em 0 0.55em 0; }
-            h1 { font-size: 2.0em; }
-            h2 { font-size: 1.55em; }
-            h3 { font-size: 1.25em; }
-            p { margin: 0.7em 0; color: var(--muted); }
-            hr { border: none; border-top: 1px solid var(--border); margin: 1.4em 0; }
+            h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
+            h1 { font-size: 2.2em; font-weight: 700; }
+            h2 { font-size: 1.65em; }
+            h3 { font-size: 1.35em; }
+            h4 { font-size: 1.15em; }
+            
+            p { margin: 0.9em 0; color: var(--text-secondary); }
+            
+            a { 
+                color: var(--accent-blue); 
+                text-decoration: none;
+                transition: color 0.2s ease;
+            }
+            a:hover { 
+                color: var(--accent-purple);
+                text-decoration: underline; 
+            }
+            
+            strong { color: var(--text-primary); font-weight: 600; }
+            em { font-style: italic; }
+            
+            /* === Lists === */
+            ul, ol { 
+                margin: 1em 0; 
+                padding-left: 1.5em;
+                color: var(--text-secondary);
+            }
+            li { margin: 0.4em 0; }
+            li::marker { color: var(--accent-teal); }
+            
+            /* === Horizontal Rule === */
+            hr { 
+                border: none; 
+                height: 1px;
+                background: linear-gradient(90deg, transparent, var(--border-medium), transparent);
+                margin: 2em 0; 
+            }
+            
+            /* === Blockquote === */
             blockquote {
-                margin: 1em 0;
-                padding: 0.75em 1em;
-                background: rgba(110,203,255,0.08);
-                border: 1px solid var(--border);
-                border-left: 3px solid var(--accent);
-                border-radius: 12px;
-                color: var(--muted);
+                margin: 1.5em 0;
+                padding: 1em 1.25em;
+                background: rgba(122, 162, 247, 0.06);
+                border-left: 3px solid var(--accent-blue);
+                border-radius: 0 12px 12px 0;
+                color: var(--text-secondary);
+                font-style: italic;
             }
-            pre {
-                background: var(--codebg);
-                border: 1px solid var(--border);
-                padding: 14px 16px;
-                border-radius: 12px;
-                overflow: auto;
-            }
+            blockquote p { margin: 0.5em 0; }
+            blockquote p:first-child { margin-top: 0; }
+            blockquote p:last-child { margin-bottom: 0; }
+            
+            /* === Code === */
             code {
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-                font-size: 0.95em;
+                font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
+                font-size: 0.9em;
+                background: var(--code-bg);
+                padding: 0.2em 0.5em;
+                border-radius: 6px;
+                color: var(--accent-teal);
             }
-            pre code { font-size: 0.92em; }
+            
+            pre {
+                background: var(--code-bg);
+                border: 1px solid var(--border-subtle);
+                border-radius: 12px;
+                padding: 18px 20px;
+                overflow-x: auto;
+                margin: 1.5em 0;
+            }
+            pre code {
+                background: none;
+                padding: 0;
+                font-size: 0.88em;
+                line-height: 1.6;
+                color: var(--text-secondary);
+            }
+            
+            /* === Tables === */
             table {
                 width: 100%;
                 border-collapse: collapse;
-                margin: 1em 0;
-                overflow: hidden;
+                margin: 1.5em 0;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid var(--border-subtle);
                 border-radius: 12px;
-                border: 1px solid var(--border);
-                background: rgba(255,255,255,0.03);
+                overflow: hidden;
             }
-            th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-            th { text-align: left; color: var(--text); background: rgba(255,255,255,0.04); }
+            th, td { 
+                padding: 12px 16px; 
+                text-align: left;
+                border-bottom: 1px solid var(--border-subtle); 
+            }
+            th { 
+                background: rgba(255, 255, 255, 0.04); 
+                color: var(--text-primary);
+                font-weight: 600;
+                font-size: 0.9em;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
             tr:last-child td { border-bottom: none; }
-            img { max-width: 100%; border-radius: 12px; }
-            .mermaid { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; margin: 1em 0; padding: 1em; }
-            .welcome h1 { margin: 0.2em 0 0.2em 0; font-size: 2.0em; }
-            .welcome .lead { margin: 0.2em 0 1.0em 0; color: var(--muted); }
-            .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-            .card {
-                background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(110, 203, 255, 0.16);
-                border-radius: 14px;
-                padding: 12px 12px;
+            tr:hover td { background: rgba(255, 255, 255, 0.02); }
+            
+            /* === Images === */
+            img { 
+                max-width: 100%; 
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             }
-            .card .title { font-weight: 700; color: var(--text); margin-bottom: 6px; }
-            .card .body { color: var(--muted); }
-            @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } }
+            
+            /* === Mermaid Diagrams === */
+            .mermaid { 
+                background: rgba(255, 255, 255, 0.03); 
+                border: 1px solid var(--border-subtle); 
+                border-radius: 16px; 
+                margin: 1.5em 0; 
+                padding: 1.5em;
+                text-align: center;
+            }
+            
+            /* === Notes/Alerts === */
+            .note {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: rgba(187, 154, 247, 0.08);
+                border: 1px solid rgba(187, 154, 247, 0.25);
+                color: var(--text-secondary);
+                padding: 12px 16px;
+                border-radius: 12px;
+                margin: 0 0 20px 0;
+                font-size: 0.92em;
+            }
+            .note-icon {
+                color: var(--accent-purple);
+                font-size: 1.1em;
+            }
+            
+            /* === Welcome Screen === */
+            .welcome {
+                text-align: center;
+                padding: 20px 0;
+            }
+            .welcome-header {
+                margin-bottom: 8px;
+            }
+            .welcome h1 {
+                font-size: 2.8em;
+                margin: 0;
+                background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .welcome .tagline {
+                color: var(--text-muted);
+                font-size: 1em;
+                margin: 8px 0 0 0;
+                font-weight: 400;
+            }
+            .welcome .lead {
+                font-size: 1.1em;
+                color: var(--text-secondary);
+                margin: 24px 0 32px 0;
+            }
+            
+            .cards {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+                text-align: left;
+            }
+            .card {
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid var(--border-subtle);
+                border-radius: 16px;
+                padding: 20px;
+                transition: all 0.25s ease;
+            }
+            .card:hover {
+                background: rgba(255, 255, 255, 0.05);
+                border-color: var(--border-medium);
+                transform: translateY(-2px);
+            }
+            .card-icon {
+                font-size: 1.5em;
+                margin-bottom: 12px;
+                color: var(--accent-blue);
+            }
+            .card .title {
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+                font-size: 1.05em;
+            }
+            .card .body {
+                color: var(--text-muted);
+                font-size: 0.9em;
+                line-height: 1.5;
+            }
+            
+            .keyboard-hints {
+                display: flex;
+                justify-content: center;
+                gap: 24px;
+                margin-top: 32px;
+                flex-wrap: wrap;
+            }
+            .hint {
+                color: var(--text-muted);
+                font-size: 0.85em;
+            }
+            kbd {
+                display: inline-block;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid var(--border-medium);
+                border-radius: 6px;
+                padding: 3px 8px;
+                font-family: inherit;
+                font-size: 0.9em;
+                margin-right: 6px;
+                color: var(--text-secondary);
+            }
+            
+            @media (max-width: 700px) {
+                .cards { grid-template-columns: 1fr; }
+                .doc { padding: 24px 20px; }
+                body { padding: 20px 16px 32px 16px; }
+            }
         </style>
         <!-- MathJax -->
         <script type="text/javascript" id="MathJax-script" async
@@ -691,37 +985,77 @@ class MarkdownEditor(QMainWindow):
     def new_file(self):
         self.editor.clear()
         self.current_file = None
+        self._update_status_bar()
+        self._update_window_title()
+
+    def _load_file(self, file_path):
+        """Load a markdown/mdx file into the editor."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self.editor.setPlainText(f.read())
+            self.current_file = file_path
+            self._update_status_bar()
+            self._update_window_title()
+            return True
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to open file:\n{e}")
+            return False
+
+    def _update_window_title(self):
+        """Update window title with current file name."""
+        if self.current_file:
+            self.setWindowTitle(f"Simple-md - {Path(self.current_file).name}")
+        else:
+            self.setWindowTitle("Simple-md")
+
+    def dragEnterEvent(self, event):
+        """Accept drag events for markdown/mdx files."""
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.isLocalFile():
+                    path = url.toLocalFile().lower()
+                    if path.endswith('.md') or path.endswith('.mdx'):
+                        event.acceptProposedAction()
+                        return
+        event.ignore()
+
+    def dropEvent(self, event):
+        """Handle dropped markdown/mdx files."""
+        for url in event.mimeData().urls():
+            if url.isLocalFile():
+                file_path = url.toLocalFile()
+                if file_path.lower().endswith(('.md', '.mdx')):
+                    self._load_file(file_path)
+                    break
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Open Markdown/MDX File",
-            str(BASE_DIR),
+            str(Path.home()),  # Start from home directory
             "Markdown / MDX Files (*.md *.mdx);;Markdown Files (*.md);;MDX Files (*.mdx);;All Files (*)"
         )
         if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    self.editor.setPlainText(f.read())
-                self.current_file = file_path
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to open file:\n{e}")
+            self._load_file(file_path)
 
     def save_file(self):
         if self.current_file:
             try:
                 with open(self.current_file, 'w', encoding='utf-8') as f:
                     f.write(self.editor.toPlainText())
+                self.status_bar.showMessage("Saved!", 2000)  # Show for 2 seconds
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")
         else:
             self.save_file_as()
 
     def save_file_as(self):
+        # Start from current file's directory or home
+        start_dir = str(Path(self.current_file).parent) if self.current_file else str(Path.home())
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Save Markdown/MDX File",
-            str(BASE_DIR),
+            start_dir,
             "Markdown Files (*.md);;MDX Files (*.mdx);;All Files (*)"
         )
         if file_path:
@@ -730,6 +1064,9 @@ class MarkdownEditor(QMainWindow):
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(self.editor.toPlainText())
                 self.current_file = file_path
+                self._update_status_bar()
+                self._update_window_title()
+                self.status_bar.showMessage("Saved!", 2000)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")
 
@@ -797,36 +1134,51 @@ class MarkdownEditor(QMainWindow):
         dialog.setWindowTitle("Markdown Palette")
         dialog.setStyleSheet('''
             QDialog {
-                background: rgba(0,0,0,0.92);
-                border: 2px solid #3ad7ff;
-                border-radius: 10px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 rgba(18, 21, 28, 0.98),
+                    stop:1 rgba(13, 15, 20, 0.98));
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
             }
             QLineEdit {
-                background: rgba(20,20,30,0.92);
-                color: #b6eaff;
-                border: 2px solid #3ad7ff;
-                padding: 6px;
-                font-size: 16px;
-                border-radius: 6px;
+                background: rgba(255, 255, 255, 0.05);
+                color: #e4e8f1;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 12px 16px;
+                font-size: 15px;
+                border-radius: 12px;
+                margin-bottom: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid rgba(108, 140, 255, 0.45);
+                background: rgba(255, 255, 255, 0.07);
+            }
+            QLineEdit::placeholder {
+                color: #6b7280;
             }
             QListWidget {
-                background: rgba(0,0,0,0.93);
-                color: #b6eaff;
+                background: transparent;
+                color: #e4e8f1;
                 border: none;
-                font-size: 15px;
+                font-size: 14px;
+                outline: none;
+            }
+            QListWidget::item {
+                padding: 10px 14px;
+                border-radius: 8px;
+                margin: 2px 0;
             }
             QListWidget::item:selected {
-                background: rgba(60,60,90,0.8);
-                color: #a08cff;
+                background: rgba(108, 140, 255, 0.18);
+                color: #ffffff;
             }
-            QListWidget::item:hover {
-                background: rgba(30,30,50,0.7);
-                color: #a08cff;
+            QListWidget::item:hover:!selected {
+                background: rgba(255, 255, 255, 0.05);
             }
             QLabel {
-                color: #a08cff;
-                font-size: 13px;
-                padding: 2px 0 4px 0;
+                color: #8892a8;
+                font-size: 12px;
+                padding: 4px 0;
             }
         ''')
         layout = QVBoxLayout()
@@ -915,32 +1267,42 @@ class MarkdownEditor(QMainWindow):
         dialog.setModal(True)
         dialog.setStyleSheet('''
             QDialog {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #181828, stop:1 #10101a);
-                border: 2px solid #3ad7ff;
-                border-radius: 18px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 rgba(18, 21, 28, 0.99),
+                    stop:1 rgba(13, 15, 20, 0.99));
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
             }
-            QLabel, QTextEdit {
-                color: #b6eaff;
-                font-size: 15px;
+            QLabel {
+                color: #e4e8f1;
+                font-size: 14px;
+                background: transparent;
             }
             QTextEdit {
-                background: #10101a;
-                border: 1px solid #3ad7ff;
-                border-radius: 8px;
-                padding: 8px;
-                margin-bottom: 12px;
+                background: rgba(255, 255, 255, 0.04);
+                color: #a0a8b8;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 12px;
+                font-size: 13px;
+                line-height: 1.5;
             }
             QPushButton {
-                background: #181828;
-                color: #a08cff;
-                border: 1px solid #3ad7ff;
-                border-radius: 5px;
-                padding: 6px 18px;
-                font-weight: bold;
+                background: rgba(108, 140, 255, 0.12);
+                color: #e4e8f1;
+                border: 1px solid rgba(108, 140, 255, 0.25);
+                border-radius: 10px;
+                padding: 10px 24px;
+                font-weight: 600;
+                font-size: 14px;
             }
             QPushButton:hover {
-                background: #222244;
-                color: #fff799;
+                background: rgba(108, 140, 255, 0.2);
+                border: 1px solid rgba(108, 140, 255, 0.4);
+                color: #ffffff;
+            }
+            QPushButton:pressed {
+                background: rgba(108, 140, 255, 0.28);
             }
         ''')
         layout = QVBoxLayout()
@@ -986,24 +1348,24 @@ Tips:
         )
         layout.addWidget(info_text)
         # --- Custom Card Footer (Text Only) ---
-        layout.addSpacing(12)
-        prod_label = QLabel('<span style="color:#b6eaff;font-size:18px;font-weight:bold;background:transparent;">A product of <span style="color:#a08cff;font-weight:bold;">Hello.World Consulting</span></span>')
+        layout.addSpacing(16)
+        prod_label = QLabel('<span style="color:#e4e8f1;font-size:16px;font-weight:600;background:transparent;">A product of <span style="color:#7aa2f7;font-weight:600;">Hello.World Consulting</span></span>')
         prod_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         prod_label.setStyleSheet("background: transparent; margin-bottom: 4px;")
         layout.addWidget(prod_label)
-        author_label = QLabel('<span style="color:#d1b1ff;font-style:italic;font-size:16px;background:transparent;">Made by Jonathan Reed</span>')
+        author_label = QLabel('<span style="color:#a0a8b8;font-style:italic;font-size:14px;background:transparent;">Made by Jonathan Reed</span>')
         author_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         author_label.setStyleSheet("background: transparent; margin-bottom: 4px;")
         layout.addWidget(author_label)
-        link_label = QLabel('<a href="https://helloworldfirm.com" style="color:#3af7ff;font-size:18px;font-weight:bold;background:transparent;">helloworldfirm.com</a>')
+        link_label = QLabel('<a href="https://helloworldfirm.com" style="color:#7aa2f7;font-size:14px;font-weight:500;background:transparent;">helloworldfirm.com</a>')
         link_label.setOpenExternalLinks(True)
         link_label.setTextInteractionFlags(link_label.textInteractionFlags() | Qt.TextInteractionFlag.TextSelectableByMouse)
         link_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         link_label.setStyleSheet("background: transparent; margin-bottom: 4px;")
         layout.addWidget(link_label)
-        copyright_label = QLabel('<span style="color:#888;font-size:14px;background:transparent;">2025 &copy; All Rights Reserved</span>')
+        copyright_label = QLabel('<span style="color:#6b7280;font-size:12px;background:transparent;">2025 &copy; All Rights Reserved</span>')
         copyright_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        copyright_label.setStyleSheet("background: transparent; margin-bottom: 4px;")
+        copyright_label.setStyleSheet("background: transparent; margin-bottom: 8px;")
         layout.addWidget(copyright_label)
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(dialog.accept)
