@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import html as html_lib
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QSplitter, QTextEdit, QFileDialog, QMessageBox, QMenuBar, QListWidget,
@@ -190,8 +191,8 @@ class MarkdownEditor(QMainWindow):
         splitter.addWidget(self.preview)
         splitter.setSizes([600, 400])
         self.setCentralWidget(splitter)
-        # Use markdown2 for robust Markdown support
-        self.markdown = markdown2.markdown
+        # Use markdown2 while escaping raw HTML before it reaches WebEngine.
+        self.markdown = self._render_markdown_safely
 
         # Add a text-only toolbar for core actions
         toolbar = self.addToolBar('Main Toolbar')
@@ -610,18 +611,20 @@ class MarkdownEditor(QMainWindow):
         """Debounced preview update - waits for typing to pause before rendering."""
         self._preview_timer.start()
 
+    @staticmethod
+    def _render_markdown_safely(markdown_text):
+        """Render Markdown while preventing raw HTML/script execution."""
+
+        escaped_markdown = html_lib.escape(markdown_text, quote=False)
+        return markdown2.markdown(escaped_markdown)
+
     def _do_update_preview(self):
         """Actually render the preview (called after debounce delay)."""
         md_text = self.editor.toPlainText()
         md_text, mdx_changed = self._mdx_to_markdown(md_text)
-        # Preprocess: convert mermaid code blocks to <div class="mermaid">...</div>
-        def mermaid_replacer(match):
-            code = match.group(1)
-            return f'<div class="mermaid">{code}</div>'
-        md_text_mermaid = re.sub(r'```mermaid\n([\s\S]*?)```', mermaid_replacer, md_text)
         # Render Markdown to HTML
-        if md_text_mermaid.strip():
-            html = self.markdown(md_text_mermaid)
+        if md_text.strip():
+            html = self.markdown(md_text)
         else:
             html = (
                 '<section class="welcome">'
@@ -969,14 +972,6 @@ class MarkdownEditor(QMainWindow):
                 body { padding: 20px 16px 32px 16px; }
             }
         </style>
-        <!-- MathJax -->
-        <script type="text/javascript" id="MathJax-script" async
-            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-        <!-- Mermaid.js -->
-        <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        window.addEventListener('DOMContentLoaded', () => { mermaid.initialize({ startOnLoad: true, theme: 'dark' }); });
-        </script>
         </head>
         '''
         html_full = f'<!DOCTYPE html><html>{html_head}<body><main class="doc">{mdx_note}{html}</main></body></html>'
