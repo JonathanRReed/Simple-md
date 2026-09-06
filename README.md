@@ -1,31 +1,10 @@
 # Simple-md
 
-This app includes support for math (LaTeX via MathJax) & Mermaid diagrams, so you can write & preview equations & graphs right in your notes.
-It also supports opening and saving MDX files for viewing.
+A Python desktop Markdown editor with a live split preview. Write LaTeX equations and Mermaid diagrams alongside notes, or open and save MDX files.
 
-## Features
+MDX support is viewing only. The preview ignores `import` and `export` lines and displays JSX components as fenced code. It never executes those components as React.
 
-- **Live split view**: editor (left) + HTML preview (right)
-- **Markdown**: rendered via `markdown2`
-- **MathJax**: inline and block LaTeX in the preview
-- **Mermaid**: diagrams in the preview using fenced ` ```mermaid ` blocks
-- **MDX viewing**: open/save `.mdx` files
-  - `import` / `export` lines are ignored for preview rendering
-  - JSX component blocks are displayed as fenced `jsx` code blocks
-  - Components are **not executed** (this is a viewer, not a React runtime)
-
-**Main dependencies used:**
-
-- Python 3
-- PyQt6 (for the UI)
-- PyQt6-WebEngine (for the HTML/JS preview)
-- markdown2 (for Markdown to HTML conversion)
-- MathJax (for math rendering, loaded in the preview)
-- Mermaid.js (for diagrams, loaded in the preview)
-
-## To run
-
-### Option A: Virtual environment (recommended)
+## Run
 
 ```bash
 python3 -m venv .venv
@@ -34,16 +13,13 @@ python3 -m pip install -r requirements.txt
 python3 src/main.py
 ```
 
-### Option B: User install
+The UI uses PyQt6 and PyQt6-WebEngine. `markdown2` renders Markdown; MathJax and Mermaid.js render equations and fenced `mermaid` blocks in the preview.
 
-```bash
-python3 -m pip install -r requirements.txt
-python3 src/main.py
-```
+Made by Jonathan Reed.
 
-This program was made by Jonathan Reed.  
+## License
 
-**MIT License**.
+MIT License
 
 Copyright (c) 2025 Jonathan Ray Reed
 
