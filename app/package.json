@@ -1,0 +1,168 @@
+{
+  "name": "simple-md",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Markdown and read-only MDX viewer and Markdown editor",
+  "productName": "Simple-md",
+  "main": "dist/main.mjs",
+  "type": "commonjs",
+  "scripts": {
+    "build": "bun run build.ts",
+    "start": "bun run build.ts && electron .",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "build:native": "bun run build/native.mjs",
+    "pack": "bun run build/local-pack.mjs --dir",
+    "pack:plan": "bun run build/local-pack.mjs --dir --dry-run",
+    "dist": "bun run build/local-pack.mjs --dist",
+    "bench": "bun run bench.ts",
+    "test:packaging": "bun test build/packaging.test.mjs",
+    "test:asar": "bun run build/verify-asar-worker.mjs",
+    "check:rust": "cargo check --locked --manifest-path native/Cargo.toml",
+    "test:rust": "cargo test --locked --manifest-path native/Cargo.toml"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/common": "^1.5.3",
+    "@lezer/highlight": "^1.2.5",
+    "@lezer/markdown": "^1.8.1",
+    "@mdit/plugin-alert": "^2.0.3",
+    "@mdit/plugin-footnote": "^1.1.3",
+    "@mdit/plugin-katex": "^1.1.4",
+    "@mdit/plugin-tasklist": "^1.1.4",
+    "@replit/codemirror-vim": "^6.4.0",
+    "@types/bun": "^1.4.3",
+    "@types/katex": "^0.16.8",
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^26.6.5",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "dompurify": "^3.4.17",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "katex": "^0.19.0",
+    "markdown-it": "^15.0.3",
+    "pele": "^1.8.0",
+    "shiki": "^4.5.0"
+  },
+  "author": "Jonathan Ray Reed",
+  "license": "MIT",
+  "build": {
+    "appId": "com.jonathanreed.simplemd",
+    "productName": "Simple-md",
+    "copyright": "© Jonathan Ray Reed. MIT License.",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "extraResources": [
+      {
+        "from": "../LICENSE",
+        "to": "LICENSE"
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown",
+          "mdown",
+          "mkd",
+          "mdx"
+        ],
+        "name": "Markdown document",
+        "role": "Editor",
+        "description": "Markdown document",
+        "mimeType": "text/markdown"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "../resources/icon0.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "The Command-Shift-Space shortcut asks Finder which Markdown file is selected for preview.",
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Markdown document",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "net.daringfireball.markdown",
+              "public.markdown"
+            ],
+            "CFBundleTypeExtensions": [
+              "md",
+              "markdown",
+              "mdown",
+              "mkd",
+              "mdx"
+            ]
+          }
+        ]
+      },
+      "identity": null,
+      "notarize": false
+    },
+    "dmg": {
+      "sign": false
+    },
+    "win": {
+      "icon": "../resources/icon1.ico",
+      "target": [
+        "nsis"
+      ],
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "icon": "../resources/icon2.png",
+      "category": "Office",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown"
+      ],
+      "executableName": "simple-md",
+      "syncDesktopName": true,
+      "executableArgs": [
+        "%f"
+      ],
+      "desktop": {
+        "entry": {
+          "Keywords": "Markdown;MDX;Editor;Notes;",
+          "StartupNotify": "true"
+        }
+      },
+      "maintainer": "Jonathan R. Reed <130617826+JonathanRReed@users.noreply.github.com>"
+    },
+    "forceCodeSigning": false,
+    "publish": null
+  },
+  "desktopName": "simple-md.desktop",
+  "homepage": "https://github.com/JonathanRReed/Simple-md"
+}

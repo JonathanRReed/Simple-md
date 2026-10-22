@@ -1,0 +1,21 @@
+{
+  "name": "simple-md-workspace",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "setup": "bun install --cwd app --frozen-lockfile",
+    "start": "bun run --cwd app start",
+    "build": "bun run --cwd app build",
+    "build:native": "bun run --cwd app build:native",
+    "typecheck": "bun run --cwd app typecheck",
+    "test": "bun run --cwd app test",
+    "test:packaging": "bun run --cwd app test:packaging",
+    "test:asar": "bun run --cwd app test:asar",
+    "check:rust": "bun run --cwd app check:rust",
+    "test:rust": "bun run --cwd app test:rust",
+    "pack": "bun run --cwd app pack",
+    "pack:plan": "bun run --cwd app pack:plan",
+    "dist": "bun run --cwd app dist",
+    "bench": "bun run --cwd app bench"
+  }
+}

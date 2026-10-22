@@ -1,0 +1,72 @@
+name: Desktop checks and unsigned artifacts
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS-arm64
+            os: macos-15
+          - name: macOS-x64
+            os: macos-15-intel
+          - name: Windows-x64
+            os: windows-2025
+          - name: Linux-x64
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.3"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Install locked dependencies
+        run: bun run setup
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Test
+        run: bun run test
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path app/native/Cargo.toml --check
+      - name: Check Rust
+        run: bun run check:rust
+      - name: Test Rust
+        run: bun run test:rust
+      - name: Verify host and unsigned packaging plan
+        run: bun run pack:plan
+      - name: Build and package unsigned artifacts
+        run: bun run dist
+      - name: Upload unsigned artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Simple-md-unsigned-${{ matrix.name }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            app/release/*.dmg
+            app/release/*.zip
+            app/release/*.exe
+            app/release/*.AppImage
+            app/release/*.deb

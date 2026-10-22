@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: https: http:; font-src 'self' data:"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Simple-md</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="motion.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <div class="tb-side"></div>
+      <div class="tb-title">
+        <span id="name"></span><span id="dirty" title="Unsaved changes" hidden>●</span>
+        <span id="hint"></span>
+      </div>
+      <div class="tb-side tb-right">
+        <div id="modes" class="seg" role="radiogroup" aria-label="Editing mode" hidden>
+          <button type="button" role="radio" data-mode="live" aria-checked="true">Live</button>
+          <button type="button" role="radio" data-mode="split" aria-checked="false">Split</button>
+          <button type="button" role="radio" data-mode="source" aria-checked="false">Source</button>
+        </div>
+        <button id="preferences-btn" type="button" class="text-button">Preferences</button>
+        <button id="edit-btn" type="button" class="pill" hidden>Edit</button>
+      </div>
+    </header>
+
+    <div id="banner" role="status" hidden></div>
+    <div id="findbar" hidden>
+      <input id="find-input" type="search" placeholder="Find in note" aria-label="Find in note" spellcheck="false" />
+    </div>
+
+    <main id="stage">
+      <section id="read" class="pane">
+        <div id="read-scroll" class="scroller">
+          <article id="doc" class="prose" hidden></article>
+          <div id="empty">
+            <p class="hint-title">Simple-md</p>
+            <div class="empty-actions">
+              <button id="open-file" type="button" class="pill">Open file</button>
+              <button id="new-note" type="button" class="pill">New note</button>
+            </div>
+            <p id="open-hint" class="faint"></p>
+            <p class="faint">You can also drop a Markdown file here.</p>
+            <button id="empty-preferences" type="button" class="text-button">Preferences</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="edit" class="pane" hidden data-mode="live">
+        <div id="editor-host"></div>
+        <div id="preview-pane" hidden>
+          <div id="preview-scroll" class="scroller"><article id="preview" class="prose"></article></div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="preferences" aria-labelledby="preferences-title">
+      <div class="preferences-header">
+        <h1 id="preferences-title">Preferences</h1>
+      </div>
+      <div class="preferences-content">
+        <fieldset>
+          <legend>Appearance</legend>
+          <div class="pref-row"><label for="pref-theme">Theme</label><select id="pref-theme" autofocus><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+          <div class="pref-row"><label for="pref-typeface">Reading typeface</label><select id="pref-typeface"><option value="sans">Sans serif</option><option value="serif">Serif</option></select></div>
+          <div class="pref-row"><label for="pref-width">Reading width</label><select id="pref-width"><option value="narrow">Narrow</option><option value="normal">Normal</option><option value="wide">Wide</option></select></div>
+          <div class="pref-row"><label for="pref-zoom">Text size</label><div class="pref-zoom"><input id="pref-zoom" type="range" min="70" max="180" step="5" /><output id="pref-zoom-value" for="pref-zoom">100%</output></div></div>
+        </fieldset>
+        <fieldset>
+          <legend>Editing</legend>
+          <div class="pref-row"><label for="pref-mode">Default editing mode</label><select id="pref-mode"><option value="live">Live</option><option value="split">Split</option><option value="source">Source</option></select></div>
+          <label class="pref-row" for="pref-autosave"><span>Autosave<span class="pref-detail">Save changes to named notes as you write.</span></span><input id="pref-autosave" type="checkbox" /></label>
+          <label class="pref-row" for="pref-vim"><span>Vim key bindings</span><input id="pref-vim" type="checkbox" /></label>
+          <label class="pref-row" for="pref-spellcheck"><span>Spellcheck</span><input id="pref-spellcheck" type="checkbox" /></label>
+        </fieldset>
+        <fieldset>
+          <legend>File preview and integration</legend>
+          <label class="pref-row" for="pref-spacePreview"><span>Space preview<span id="pref-space-note" class="pref-detail"></span></span><input id="pref-spacePreview" type="checkbox" aria-describedby="pref-space-note" /></label>
+          <label class="pref-row" for="pref-launchAtLogin"><span>Launch at login<span class="pref-detail">Keep Simple-md ready in the menu bar or tray.</span></span><input id="pref-launchAtLogin" type="checkbox" /></label>
+          <div class="pref-shortcut"><label for="pref-shortcut">Global shortcut</label><div class="pref-shortcut-input"><input id="pref-shortcut" type="text" spellcheck="false" autocomplete="off" aria-describedby="pref-shortcut-help" /><button id="pref-shortcut-apply" type="button" class="pill">Apply</button></div><p id="pref-shortcut-help" class="pref-detail"></p></div>
+        </fieldset>
+      </div>
+      <div class="preferences-footer"><p id="pref-status" role="status" aria-live="polite">Changes save automatically.</p><button id="pref-done" type="button" class="pill">Done</button></div>
+    </dialog>
+
+    <div id="picker" hidden>
+      <div class="picker-card">
+        <input
+          id="picker-input"
+          type="text"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="picker-list"
+          aria-autocomplete="list"
+          aria-label="Command"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <ul id="picker-list" role="listbox"></ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
