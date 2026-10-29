@@ -32,7 +32,8 @@ Do not install both copies at once.
    - Remote and neighboring images, an empty file and a file larger than 4 MB.
 2. In File Explorer, press Alt+P and select each file. If needed, enable
    "Show preview handlers in preview pane" in Folder Options, View.
-   Expect formatted Markdown or readable literal source, never a blank pane.
+   For nonempty files, expect formatted Markdown or readable literal source.
+   An empty file may have an empty pane.
    Math may be formatted; Mermaid stays code. MDX never runs. Images from the
    network or neighboring files must not load. No alerts, browser windows or network requests.
 3. Resize the pane and scroll. Switch Windows between light and dark appearance.

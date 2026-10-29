@@ -177,6 +177,7 @@ struct Resources {
     controller: Option<ICoreWebView2Controller>,
     timer: usize,
     rendered: bool,
+    expected_navigation: bool,
     data: Option<PathBuf>,
     started: bool,
 }
@@ -827,6 +828,7 @@ fn configure(
             &mut token,
         )?;
         let lease = ModuleLease::new();
+        let weak = Rc::downgrade(state);
         view.add_NavigationStarting(
             &NavigationStartingEventHandler::create(Box::new(move |_, args| {
                 let _keep_loaded = &lease;
@@ -838,13 +840,20 @@ fn configure(
                         args.Uri(&mut uri)?;
                         let text = uri.to_string();
                         CoTaskMemFree(Some(uri.0.cast()));
-                        // NavigateToString uses about:blank. Nothing else may navigate.
+                        let Some(state) = weak.upgrade().filter(|s| s.current(generation)) else {
+                            return args.SetCancel(true);
+                        };
+                        // NavigateToString may report a synthetic data URI at NavigationStarting.
+                        // Only our two explicit host loads may replace the document. Author DOM
+                        // does not exist before either load starts, so it cannot race this permit.
+                        let expected =
+                            std::mem::take(&mut state.resources.borrow_mut().expected_navigation);
                         let text = text?;
-                        let blocked = text != "about:blank" && !text.starts_with("about:blank#");
+                        let blocked = !expected && !text.starts_with("about:blank#");
                         log(if blocked {
                             "Navigation blocked"
                         } else {
-                            "NavigationStarting about:blank"
+                            "Host document or fragment navigation"
                         });
                         args.SetCancel(blocked)
                     })(),
@@ -972,7 +981,11 @@ fn configure(
                     if !state.current(generation) {
                         return Ok(());
                     }
-                    state.resources.borrow_mut().rendered = true;
+                    {
+                        let mut r = state.resources.borrow_mut();
+                        r.rendered = true;
+                        r.expected_navigation = true;
+                    }
                     view.NavigateToString(&HSTRING::from(html))
                 })();
                 if let Err(error) = result {
@@ -1006,6 +1019,7 @@ fn configure(
         }
         controller.SetIsVisible(false)?;
         // Host ExecuteScript runs with document scripting disabled. This page has no author DOM.
+        state.resources.borrow_mut().expected_navigation = true;
         view.NavigateToString(w!("<!doctype html><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">"))?;
         Ok(())
     }
@@ -1233,7 +1247,11 @@ mod tests {
             assert_eq!(state.resources.borrow().timer, 0);
             preview.Unload()?;
             assert!(!IsWindow(Some(child)).as_bool());
-            init.Initialize(&stream, STGM_READ.0)?;
+            let second = SHCreateMemStream(Some(
+                b"# Rendered preview\n\n$x^2$\n\n<script>inert</script>",
+            ))
+            .unwrap();
+            init.Initialize(&second, STGM_READ.0)?;
             preview.SetWindow(parent, &rect)?;
             preview.DoPreview()?;
             let current = state.generation.get();
@@ -1254,6 +1272,30 @@ mod tests {
             }
             assert_eq!(state.resources.borrow().timer, 0);
             assert!(state.resources.borrow().rendered || !state.current(current));
+            if SimpleMDWebView2Available().as_bool() {
+                assert!(
+                    state.current(current),
+                    "Installed WebView2 did not render; inspect preview.log"
+                );
+                let controller = state
+                    .resources
+                    .borrow()
+                    .controller
+                    .clone()
+                    .expect("Static controller");
+                let view = controller.CoreWebView2()?;
+                let mut title = PWSTR::null();
+                view.DocumentTitle(&mut title)?;
+                let title_text = title.to_string();
+                CoTaskMemFree(Some(title.0.cast()));
+                assert_eq!(title_text?, "Rendered preview");
+                let settings = view.Settings()?;
+                let mut enabled = BOOL(1);
+                settings.IsScriptEnabled(&mut enabled)?;
+                assert!(!enabled.as_bool());
+                settings.IsWebMessageEnabled(&mut enabled)?;
+                assert!(!enabled.as_bool());
+            }
             preview.Unload()?;
             assert!(state.resources.borrow().input.is_none());
             DestroyWindow(parent)?;

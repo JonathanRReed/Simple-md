@@ -1,7 +1,10 @@
 !include "StrFunc.nsh"
-${StrStr}
-${UnStrStr}
-${UnStrRep}
+!ifdef BUILD_UNINSTALLER
+  ${UnStrStr}
+  ${UnStrRep}
+!else
+  ${StrStr}
+!endif
 
 !macro customInstallMode
   StrCpy $isForceCurrentInstall "1"

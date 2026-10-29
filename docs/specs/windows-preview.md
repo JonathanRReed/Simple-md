@@ -29,7 +29,7 @@ All COM and window work stays on the owning STA. Never block the host message lo
 - The app build bundles `app/src/shared/render-browser.ts` into one browser IIFE and embeds it in the DLL. It uses the same `renderStaticHtml` and `sanitizeAuthorHtmlStatic` as Quick Look, with `filePath = null`. There is no file bridge or image embedding.
 - The host calls `ExecuteScript` in an empty `about:blank` document with document scripting disabled. WebView2 permits host-issued script even with `IsScriptEnabled = false`. Source enters as UTF-16 JavaScript string escapes. It is never evaluated or inserted into the bootstrap DOM. The bundled parser treats MDX as text.
 - Only the bootstrap enables web messages. The host accepts its string result once, verifies the origin, disables messages and navigates to the completed static HTML. The final page has no scripts or native bridge. Its CSP is Quick Look's exact `default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:`. Inline CSS follows `prefers-color-scheme`.
-- Resource requests receive synthetic 403 responses; navigation outside `about:blank` and new windows are blocked. Host objects, developer tools, dialogs and context menus are disabled. Remote and neighboring images never load. Outputs above 1,900,000 UTF-8 bytes retain source, below WebView2's 2 MB `NavigateToString` limit.
+- Resource requests receive synthetic 403 responses; only the two host-issued document loads and in-page fragments may navigate. New windows are blocked. WebView2 may report a synthetic data URI for `NavigateToString` at `NavigationStarting`, even though the resulting document is `about:blank`. Author DOM does not exist before either host navigation starts, so it cannot consume a pending host load. Host objects, developer tools, dialogs and context menus are disabled. Remote and neighboring images never load. Outputs above 1,900,000 UTF-8 bytes retain source, below WebView2's 2 MB `NavigateToString` limit.
 - Use a WebView2 user data folder compatible with low integrity, not the install directory, and clean it up.
 
 ## Install
@@ -48,7 +48,7 @@ Source: `.audit/research/e-os-integration.md`, Windows section (local only).
 
 The Windows CI job checks clippy with warnings denied, portable content tests,
 a hidden-window COM lifecycle test with real asynchronous startup and deterministic
-fallback/stale-generation checks, and standalone plus NSIS install/uninstall.
+fallback/stale-generation checks and rendered title/script settings when the runtime is present, and standalone plus NSIS install/uninstall.
 The Electron-free JS differential compares the embedded browser bundle with the
 Quick Look API on shared fixtures and inspects hostile output as parsed HTML.
 None of these establishes low-integrity Explorer rendering. The owner follows
