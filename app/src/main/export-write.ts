@@ -11,7 +11,7 @@ export async function writeExportAtomic(target: string, data: Buffer | string, o
     }) : null;
     if (stat && !stat.isFile()) throw new Error("Export can replace only a regular file.");
     const handle = await fs.promises.open(temporary, "wx", 0o666);
-    try { if (stat) await handle.chmod(stat.mode & 0o777); await handle.writeFile(data); await handle.sync(); } finally { await handle.close(); }
+    try { await handle.writeFile(data); if (stat) await handle.chmod(stat.mode & 0o7777); await handle.sync(); } finally { await handle.close(); }
     if (overwrite) {
       await fs.promises.rename(temporary, target);
     } else {

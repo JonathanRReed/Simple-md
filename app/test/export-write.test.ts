@@ -8,9 +8,11 @@ test.skipIf(process.platform === "win32")("export preserves target permissions a
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "smd-export-mode-"));
   try {
     const target = path.join(dir, "out.html");
-    await fs.writeFile(target, "Old", { mode: 0o640 });
-    await writeExportAtomic(target, "New", true);
-    expect((await fs.stat(target)).mode & 0o777).toBe(0o640);
+    for (const mode of [0o640, 0o2640]) {
+      await fs.writeFile(target, "Old"); await fs.chmod(target, mode);
+      await writeExportAtomic(target, "New", true);
+      expect((await fs.stat(target)).mode & 0o7777).toBe(mode);
+    }
     await fs.unlink(target);
     await writeExportAtomic(target, "Created", false);
     expect((await fs.stat(target)).mode & 0o777).toBe(0o666 & ~process.umask());
