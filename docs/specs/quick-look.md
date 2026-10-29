@@ -1,6 +1,6 @@
 # macOS Quick Look extensions
 
-Feasibility spike in milestone 0. Full build right after milestone 3. Security review required before merge.
+Feasibility spike done in milestone 0. Full build right after milestone 3. Security review required before merge.
 
 ## Build without Xcode
 
@@ -21,11 +21,11 @@ Build both architectures for the matching release (arm64 and x86_64).
 
 ## Spike acceptance (milestone 0)
 
-A Developer ID-signed `.appex` with a placeholder preview, inside a throwaway host app, must:
+A Developer ID-signed `.appex` with a placeholder preview (done in M0; see SPIKE.md), inside a throwaway host app, must:
 
 1. be discovered by `pluginkit -m`,
 2. be admitted by the sandbox, and
-3. render a fixture page in a sandboxed WKWebView when you press Space on a `.md` file in Finder.
+3. render a fixture page when you press Space on a `.md` file in Finder.
 
 Unregister it afterwards. If any step fails, stop and report the exact error before choosing another approach.
 
@@ -40,13 +40,18 @@ electron-builder skips `Contents/PlugIns` while signing (`app-builder-lib/out/ma
 
 ## Preview extension
 
-- `QLPreviewingController` with a WKWebView. It runs the same browser bundle of the render core (see the render-core constraint in PLAN.md) and the same `sanitizeAuthorHtml()`.
+Decided after the M0 spike (`app/native/quicklook/SPIKE.md`): a data-based preview.
+
+- `Info.plist` sets `QLIsDataBasedPreview = true`. A `QLPreviewProvider` returns an HTML `QLPreviewReply`, and Quick Look displays it. There is no WKWebView in the extension and no script in the page.
+- The extension evaluates the browser bundle of the render core in JavaScriptCore to produce HTML, including Shiki highlighting and KaTeX, then applies the author HTML policy before replying. JavaScriptCore has no DOM, so DOMPurify cannot run here. M4 must choose how to enforce the same policy (`docs/specs/sanitizer.md`) without a DOM, for example a policy walker over a pure-JS HTML tokenizer in the render-core bundle, and prove parity with DOMPurify's output on every sanitizer fixture with a differential test. CSP and Quick Look's script-free display are defense in depth, not the sanitizer. The spike measured about 7.5 ms per warm render and about 64 ms for context creation plus first render.
+- The only entitlement is `com.apple.security.app-sandbox`. No network entitlement.
+- The reply's CSP denies scripts and remote loads. KaTeX fonts are embedded as data URLs with `font-src data:`.
+- Mermaid diagrams render as code blocks in Quick Look. If Pele can render SVG without a DOM later, inline that SVG.
 - Works with the main app not running. Needs no Accessibility or Automation permission.
-- Makes no network requests. Remote images are off here regardless of the app setting.
+- Makes no network requests. Remote images are never fetched.
 - Shows local images only where the sandbox grants access. Otherwise it shows a placeholder.
 - Uses the system appearance with the default theme. It does not read the user config.
-- Declares UTIs for Markdown and for MDX. MDX needs its own exported or imported UTI in `extendInfo`.
-- Calls the completion handler after content is ready or after an error, with a bounded timeout.
+- Declares UTIs for Markdown and for MDX. MDX needs its own exported or imported UTI in `extendInfo`. Other installed previewers (for example FluxMarkdown) may already claim `.md` and `.mdx`; document how to pick SimpleMD in System Settings > Login Items & Extensions.
 - Opening the file in the app works from Quick Look's standard "Open with SimpleMD" button.
 
 ## Thumbnail extension

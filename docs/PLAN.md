@@ -79,7 +79,7 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 
 | Area | Decision |
 | --- | --- |
-| macOS preview | `docs/specs/quick-look.md`. Quick Look preview (WKWebView) and thumbnail (Core Text) extensions, built with Command Line Tools only. |
+| macOS preview | `docs/specs/quick-look.md`. A data-based Quick Look preview: the extension renders HTML with the shared render core in JavaScriptCore and Quick Look displays it. No WKWebView, no scripts, no network entitlement. Diagrams show as code blocks in Quick Look; pressing Enter opens the file in SimpleMD with full diagrams. Plus a thumbnail (Core Text) extension. Built with Command Line Tools only. Chosen after the M0 spike: about 39 ms to ready versus about 615 ms for WKWebView, with App Sandbox as the only entitlement. |
 | Windows preview | `docs/specs/windows-preview.md`. Rust Explorer preview pane handler using WebView2, with a fallback if the spike fails. |
 | Peek removal | The experimental Windows Space hook is deleted in milestone 0. The macOS Accessibility hook is deleted once Quick Look passes its fixture set. After both are gone, delete `peek.ts`, `peek-request.ts`, the `peek` intent and peek hide-on-close. The Rust side then ships only the CLI and the Windows handler. |
 | Tray | The app stays resident by default on macOS so warm opens stay fast. |
@@ -93,16 +93,16 @@ Full method: `docs/specs/perf-harness.md`.
 
 | Gate | Target | Baseline on 2026-10-28 (contended host) |
 | --- | --- | --- |
-| Warm open to first readable, normal files | p95 < 150 ms | 20 to 65 ms median |
-| First screen readable, files up to 20 MB | p95 < 200 ms | about 900 ms for a 2 MB file on first open |
-| Cold launch to first readable | p95 < 800 ms | 519 ms small note, 717 ms 100k live editor (medians) |
+| Warm open to first readable, normal files | p95 < 150 ms | 24 to 31 ms visible; 505 ms while hidden in the tray (M0) |
+| First screen readable, files up to 20 MB | p95 < 200 ms | 54 ms at 2 MB; 740 ms at 20 MB with 9 of 20 opens failing (M0) |
+| Cold launch to first readable | p95 < 800 ms | 479 ms (M0) |
 | Switch to an already-open 100k tab | p95 < 50 ms | not built yet |
-| Typing in a 100k document, one and two panes | input-to-next-paint p95 < 16 ms | 6.0 ms median, 8.7 ms p95 (beforeinput to rAF, a lower bound) |
-| Memory, one document, settled | physical footprint summed over app processes < 200 MB | not yet measured for the real app; a bare editor probe measured about 139 MB |
+| Typing in a 100k document, one and two panes | input-to-next-paint p95 < 16 ms | 24 ms median, 32 ms p95 by Event Timing, identical in Source mode, so M3 first calibrates against an empty-textarea control (M0) |
+| Memory, one document, settled | physical footprint summed over app processes < 200 MB (stretch goal 150 MB) | 159 MB (433 MB summed RSS), measured in M0 |
 
 - Memory uses physical footprint, the same measure as Activity Monitor's Memory column. Windows uses private working set. Summed RSS is recorded beside it but is not the gate, because shared framework pages are counted many times. An empty Electron window measures 365 MB summed RSS.
 - Absolute gates run locally on the owner's MacBook through `bun run perf:gate`, and the JSON receipt is attached to each PR. Hosted CI only catches relative regressions.
-- Until the end of milestone 3, a PR must not regress any gate. From then on, gates block merges. The owner reconfirms the 200 MB target after milestone 0 measures the real app.
+- Until the end of milestone 3, a PR must not regress any gate. From then on, gates block merges. The owner confirmed the 200 MB target after M0 measured 159 MB, with 150 MB as a stretch goal for M3.
 
 ## Do not build
 
@@ -151,7 +151,7 @@ Each milestone is one branch and one PR to `main`, except where it is split belo
    - Start with DocumentSession extraction and no UI changes: distinct `DocumentId`, `PaneId`, `RevisionId` and `RequestId` types, IPC authority from the sender, and stale replies rejected per document revision.
    - Then: `node:crypto` hashing, incremental block identities and live decorations, first screen first, readable text before highlighting, viewport-triggered diagrams, fine-grained Shiki, removal of the Side by side double render, and one shared cache budget.
    - Gates become blocking at the end of M3.
-4. **Quick Look** (moved up). Preview and thumbnail extensions, then deletion of the Accessibility hook and the macOS peek path. Security review required.
+4. **Quick Look** (moved up). Data-based preview and thumbnail extensions, then deletion of the Accessibility hook and the macOS peek path. Security review required.
 5. **Native-feeling window**, as three PRs:
    - 5a: tabs and panes.
    - 5b: Settings window, context menus, share, accent, recents and find pasteboard.
@@ -192,7 +192,6 @@ The hard gate:
 - Milestone 0: rename the GitHub repository to SimpleMD.
 - After milestone 1: approve publishing the unsigned 0.x prerelease.
 - End of milestone 2: run the Windows preview spike on Windows hardware.
-- Milestone 0 and onward: reconfirm the memory target once the real app is measured.
 - Milestone 7: verify Windows behavior on Windows hardware, and Linux later.
 - Milestone 8: store notarization credentials with `xcrun notarytool store-credentials simplemd-notary`, using an Apple ID app-specific password and team `AJ9VWBRNZN`.
 
