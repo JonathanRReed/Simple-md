@@ -13,13 +13,14 @@ function makeControl(def: ConfigDefinition): HTMLInputElement | HTMLSelectElemen
     return select;
   }
   const input = document.createElement("input");
-  if (def.kind === "number") { input.type = "number"; input.min = String(def.min); input.max = String(def.max); input.step = "any"; }
-  else input.type = "checkbox";
+  if (def.kind === "number") { input.type = "number"; input.min = String(def.min); input.max = String(def.max); input.step = String(def.step < 1 ? 0.01 : def.step); }
+  else { input.type = "checkbox"; input.setAttribute("role", "switch"); }
   return input;
 }
 function sync(snapshot: SettingsSnapshot): void {
   settings = snapshot.settings;
   document.documentElement.style.setProperty("--accent", snapshot.accent);
+  document.documentElement.style.colorScheme = settings.theme === "system" ? "light dark" : settings.theme;
   for (const [, def] of configEntries) {
     const input = controls.get(def.setting)!;
     const value = settings[def.setting];
@@ -47,21 +48,39 @@ for (const [key, def] of configEntries) {
     fieldset.append(legend, group); form.append(fieldset); groups.set(def.group, group);
   }
   const row = document.createElement("div"); row.className = "row";
-  const label = document.createElement("label"); label.htmlFor = key; label.textContent = def.label;
+  const label = document.createElement("label"); label.htmlFor = key; label.textContent = def.setting === "theme" ? "Color scheme" : def.label.replace(/ \(.*\)/, "");
   const input = makeControl(def); input.id = key; controls.set(def.setting, input);
-  row.append(label, input); group.append(row);
+  const control = document.createElement("span"); control.className = "control";
+  control.append(input);
+  if (input instanceof HTMLSelectElement) control.classList.add("popup");
+  if (def.kind === "number" && /\(.*\)/.test(def.label)) {
+    const unit = document.createElement("span"); unit.className = "unit"; unit.id = `${key}-unit`;
+    unit.textContent = def.label.includes("(px)") ? "px" : "characters";
+    input.setAttribute("aria-describedby", unit.id); control.append(unit);
+  }
+  row.append(label, control); group.append(row);
   input.addEventListener("change", async () => {
     const error = document.querySelector<HTMLElement>("#save-error")!;
     if (!input.checkValidity()) { input.reportValidity(); return; }
     const value = def.setting === "readingStyle" && input instanceof HTMLInputElement ? (input.checked ? "github" : "editorial")
       : def.kind === "boolean" && input instanceof HTMLInputElement ? input.checked
       : def.kind === "number" && input instanceof HTMLInputElement ? input.valueAsNumber : input.value;
+    const restoreFocus = document.activeElement === input;
     input.disabled = true;
     try { sync(await bridge.set({ [def.setting]: value })); error.hidden = true; }
     catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save settings."; error.hidden = false; sync(await bridge.get()); }
-    finally { input.disabled = false; }
+    finally { input.disabled = false; if (restoreFocus && document.activeElement === document.body) input.focus(); }
   });
 }
+const advanced = document.createElement("fieldset");
+const advancedTitle = document.createElement("legend"); advancedTitle.textContent = "Advanced";
+const advancedGroup = document.createElement("div"); advancedGroup.className = "group advanced";
+const configButton = document.createElement("button"); configButton.type = "button"; configButton.textContent = "Config file";
+configButton.setAttribute("aria-expanded", "false"); configButton.setAttribute("aria-controls", "config-details");
+const configDetails = document.querySelector<HTMLElement>("footer")!;
+configDetails.id = "config-details"; configDetails.hidden = true;
+configButton.addEventListener("click", () => { configDetails.hidden = !configDetails.hidden; configButton.setAttribute("aria-expanded", String(!configDetails.hidden)); });
+advancedGroup.append(configButton, configDetails); advanced.append(advancedTitle, advancedGroup); form.append(advanced);
 form.addEventListener("submit", event => event.preventDefault());
 bridge.subscribe(sync);
 void bridge.get().then(sync).catch(error => { const target = document.querySelector<HTMLElement>("#save-error")!; target.hidden = false; target.textContent = String(error); });

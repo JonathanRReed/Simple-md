@@ -72,6 +72,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const hintEl = $("hint");
   const modesEl = $("modes");
   const editBtn = $("edit-btn");
+  const modeMenu = container.querySelector<HTMLSelectElement>(".mode-menu")!;
+  readScroll.title = "Enter to edit";
 
   const root = container;
 
@@ -312,22 +314,29 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   // ───────── chrome ─────────
 
   function updateHint(): void {
+    hintEl.hidden = pane.view === "edit" || !doc.hasDoc;
     if (pane.view === "edit") {
       hintEl.textContent = "";
       return;
     }
     const words = (doc.readText.match(/\S+/g) ?? []).length;
     const minutes = Math.max(1, Math.round(words / 230));
-    hintEl.textContent = doc.hasDoc ? `${words.toLocaleString()} words · ${minutes} min${doc.readOnlyReason ? " · read only" : " · ⏎ to edit"}` : "";
+    hintEl.textContent = doc.hasDoc ? `${words.toLocaleString()} words · ${minutes} min${doc.readOnlyReason ? " · read only" : ""}` : "";
   }
 
   function updateChrome(): void {
     nameEl.textContent = doc.meta.name;
+    root.dataset.view = pane.view;
+    container.querySelector<HTMLElement>(".pane-toolbar")!.title = doc.meta.path ?? doc.meta.name;
+    readScroll.title = isReadOnly() ? "Read only" : "Enter to edit";
+    modeMenu.hidden = pane.view !== "edit";
+    modeMenu.value = pane.mode;
     dirtyEl.hidden = !doc.dirty;
     modesEl.hidden = pane.view !== "edit";
     editBtn.hidden = pane.view !== "read" || !doc.hasDoc || isReadOnly();
     for (const b of modesEl.querySelectorAll<HTMLButtonElement>("button")) {
       b.setAttribute("aria-checked", String(b.dataset.mode === pane.mode));
+      b.tabIndex = b.dataset.mode === pane.mode ? 0 : -1;
     }
     readPane.hidden = pane.view !== "read";
     editPane.hidden = pane.view !== "edit";
@@ -359,6 +368,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       }
     }
     updateChrome();
+    pane.editor?.refreshLayout();
   }
 
   function setDirty(next: boolean): void {
@@ -732,9 +742,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     pane.editor?.setText(next, true);
     setDirty(doc.readText !== doc.savedText);
     await renderRead(doc.readText, true);
-    // Pulse the re-rendered checkbox (same ordinal in the fresh DOM) as press feedback.
     if (disposed || id !== pane.documentId) return;
-    docEl.querySelectorAll(".task-list-item-checkbox")[index]?.classList.add("task-pulse");
     if (!disposed && id === pane.documentId) scheduleAutosave();
   }
 
@@ -982,6 +990,18 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   modesEl.addEventListener("click", (e) => {
     const mode = (e.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset.mode as EditMode | undefined;
     if (mode) setMode(mode);
+  });
+  modesEl.addEventListener("keydown", e => {
+    const modes: EditMode[] = ["live", "split", "source"];
+    const index = modes.indexOf(pane.mode);
+    const next = e.key === "Home" ? modes[0] : e.key === "End" ? modes[2]
+      : ["ArrowRight", "ArrowDown"].includes(e.key) ? modes[(index + 1) % modes.length]
+      : ["ArrowLeft", "ArrowUp"].includes(e.key) ? modes[(index + modes.length - 1) % modes.length] : undefined;
+    if (next) { e.preventDefault(); setMode(next); modesEl.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus(); }
+  });
+  modeMenu.addEventListener("change", () => {
+    const mode = modeMenu.value;
+    if (mode === "live" || mode === "split" || mode === "source") setMode(mode);
   });
   editBtn.addEventListener("click", () => void showEdit());
 

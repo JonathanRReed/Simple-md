@@ -30,13 +30,17 @@
       <div class="document-pane">
         <div class="pane-toolbar">
           <div class="pane-name"><span id="name"></span><span id="dirty" title="Unsaved changes" hidden>●</span></div>
-          <span id="hint" hidden></span>
+          <div class="pane-controls">
           <div id="modes" class="seg" role="radiogroup" aria-label="Editing mode" hidden>
-            <button type="button" role="radio" data-mode="live" aria-checked="true">Live</button>
-            <button type="button" role="radio" data-mode="split" aria-checked="false">Side by side</button>
-            <button type="button" role="radio" data-mode="source" aria-checked="false">Source</button>
+            <button type="button" role="radio" data-mode="live" aria-checked="true" title="Live preview">Live</button>
+            <button type="button" role="radio" data-mode="split" aria-checked="false" title="Side by side" aria-label="Side by side">Side</button>
+            <button type="button" role="radio" data-mode="source" aria-checked="false" title="Source">Source</button>
           </div>
-          <button id="edit-btn" type="button" class="pill" hidden>Edit</button>
+          <select class="mode-menu" aria-label="Editing mode" title="Editing mode" hidden>
+            <option value="live">Live</option><option value="split">Side by side</option><option value="source">Source</option>
+          </select>
+          <button id="edit-btn" type="button" class="pill" title="Edit document (Enter)" hidden>Edit</button>
+          </div>
         </div>
         <div id="banner" role="status" hidden></div>
         <div class="pane-content">
@@ -61,6 +65,7 @@
         </div>
       </section>
         </div>
+        <footer class="pane-status"><span id="hint" hidden></span></footer>
       </div>
     </template>
 

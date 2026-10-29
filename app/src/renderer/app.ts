@@ -39,7 +39,12 @@ function syncChrome(): void {
       else document.documentElement.dataset[key] = element.dataset[key];
     }
   }
+  const tabFocused = strip.contains(document.activeElement);
+  const closeFocused = document.activeElement?.classList.contains("tab-close");
   const ids = layout.tabs;
+  const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
+  windowTitle.textContent = ids.length === 1 ? controller?.meta.name ?? "SimpleMD" : "SimpleMD";
+  windowTitle.title = ids.length === 1 ? controller?.meta.path ?? "" : "";
   strip.hidden = ids.length <= 1;
   strip.replaceChildren(...ids.map((id, index) => {
     const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
@@ -49,6 +54,8 @@ function syncChrome(): void {
     const button = document.createElement("div");
     button.className = "tab";
     button.dataset.documentId = String(id);
+    button.dataset.dirty = String(!!dirty);
+    button.setAttribute("aria-label", `${meta?.name ?? "Untitled"}${dirty ? ", unsaved changes" : ""}`);
     button.setAttribute("role", "tab");
     button.setAttribute("aria-selected", String(controller?.documentId === id));
     button.setAttribute("aria-controls", `document-${id}`);
@@ -60,12 +67,22 @@ function syncChrome(): void {
     const close = document.createElement("button");
     close.type = "button";
     close.className = "tab-close";
-    close.textContent = dirty ? "●" : "×";
+    if (dirty) {
+      const dot = document.createElement("span"); dot.className = "tab-dirty"; dot.setAttribute("aria-hidden", "true"); close.append(dot);
+    } else {
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      icon.setAttribute("viewBox", "0 0 12 12"); icon.setAttribute("width", "12"); icon.setAttribute("height", "12"); icon.setAttribute("aria-hidden", "true");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      for (const [name, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(name, value);
+      icon.append(path); close.append(icon);
+    }
+    close.tabIndex = controller?.documentId === id ? 0 : -1;
     close.setAttribute("aria-label", `Close ${title.textContent}`);
     close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
     button.append(title, close);
     button.addEventListener("click", () => void api.activateTab(id));
     button.addEventListener("keydown", e => {
+      if (e.target !== button) return;
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void api.activateTab(id); }
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         e.preventDefault(); const next = ids[(index + (e.key === "ArrowRight" ? 1 : -1) + ids.length) % ids.length];
@@ -74,6 +91,7 @@ function syncChrome(): void {
     });
     return button;
   }));
+  if (tabFocused) strip.querySelector<HTMLElement>(closeFocused ? '.tab[aria-selected="true"] .tab-close' : '.tab[aria-selected="true"]')?.focus({ preventScroll: true });
   for (const [id, pane] of panes) pane.element.dataset.active = String(id === layout.activePane);
 }
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {
