@@ -70,11 +70,12 @@ function groupRawWrappers(groups: Token[][]): Token[][] {
 export interface RenderedDoc extends RenderedHtml { title: string }
 export interface RenderedBlock extends RenderedHtml {
   key: string;
+  fingerprint?: string;
   /** Zero-based, end-exclusive source lines, including frontmatter offset. */
   sourceRange: [number, number];
 }
 export interface MdxResult { ranges: MdxRange[]; error?: MdxParseError }
-export interface RenderedBlocks { title: string; blocks: RenderedBlock[]; mdx?: MdxResult }
+export interface RenderedBlocks { title: string; blocks: RenderedBlock[]; mdx?: MdxResult; stream?: number }
 const resolveLang = (info: string) => {
   const raw = info.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
   return LANGUAGE_ALIASES[raw] ?? raw;
@@ -87,11 +88,12 @@ const escapeHtml = (s: string) =>
 const FRAGMENT_PREFIX = "user-content-";
 
 export function createRenderCore(services: RenderServices = {}) {
+  let highlighting = true;
   const md = createMarkdownParser((code, rawLang) => {
     const lang = resolveLang(rawLang);
     if (lang === "mermaid") return `<pre class="mermaid">${escapeHtml(code)}</pre>`;
     if (!lang || code.length > MAX_HIGHLIGHT_CHARS) return "";
-    return services.highlight?.(code, lang) ?? "";
+    return highlighting ? services.highlight?.(code, lang) ?? "" : "";
   });
 
   const previewNodes = new WeakMap<Token, RenderNode>();
@@ -257,7 +259,8 @@ export function createRenderCore(services: RenderServices = {}) {
     return ranges;
   }
 
-  async function renderBlocks(src: string, filePath: string | null): Promise<RenderedBlocks> {
+  async function renderBlocks(src: string, filePath: string | null, highlighted = true): Promise<RenderedBlocks> {
+    highlighting = highlighted;
     const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
     const isMdx = filePath !== null && /\.mdx$/i.test(filePath);
     services.mark?.("mdx-parse-start");
@@ -278,7 +281,7 @@ export function createRenderCore(services: RenderServices = {}) {
       const renderChild = async (preview: MdxPreview, inline: boolean): Promise<RenderNode> => {
         const childEnv = { ...env, mdxNodes: preview.nodes };
         const childTokens = inline ? md.parseInline(preview.text.trim(), childEnv) : md.parse(preview.text, childEnv);
-        await services.prepareHighlighting?.(childTokens);
+        if (highlighted) await services.prepareHighlighting?.(childTokens);
         return planSequence(childTokens, childEnv, false);
       };
       const preview = await mapMdxPreview(validBody, usable, renderChild);
@@ -290,7 +293,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const tokens = md.parse(text, env);
     services.mark?.("parse-end");
     services.mark?.("highlight-prepare-start");
-    await services.prepareHighlighting?.(tokens);
+    if (highlighted) await services.prepareHighlighting?.(tokens);
     services.mark?.("highlight-prepare-end");
 
     // Balance nesting rather than source maps so generated footnote sections stay intact.
@@ -305,6 +308,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const balancedGroups = groupRawWrappers(groups);
     const lineCount = 1 + (body.match(/\r\n|[\r\n]/g)?.length ?? 0);
     const offset = src.replace(/^\uFEFF/, "").slice(0, src.replace(/^\uFEFF/, "").length - body.length).match(/\r\n|[\r\n]/g)?.length ?? 0;
+    highlighting = highlighted;
     services.mark?.("html-serialize-start");
     const blocks: RenderedBlock[] = [];
     const seenKeys = new Map<string, number>();
@@ -314,14 +318,15 @@ export function createRenderCore(services: RenderServices = {}) {
     }
     for (const group of balancedGroups) {
       const key = hash(JSON.stringify(tokenState(group)) + (hasAuthor(group) ? JSON.stringify(env.urls) : ""));
-      let rendered = blockCache.get(key);
+      const cacheKey = `${highlighted ? "highlight" : "plain"}:${key}`;
+      let rendered = blockCache.get(cacheKey);
       if (rendered === undefined) {
         const html = md.renderer.render(group, md.options, env);
         rendered = { html, urls: env.urls };
         if (hasAuthor(group)) rendered.content = planSequence(group, env, false);
         const bytes = byteLength(key) + byteLength(rendered.html) + (rendered.content ? byteLength(JSON.stringify(rendered.content)) : 0);
         if (bytes <= BLOCK_CACHE_MAX_BYTES) {
-          blockCache.set(key, rendered);
+          blockCache.set(cacheKey, rendered);
           blockCacheBytes += bytes;
           while (blockCacheBytes > BLOCK_CACHE_MAX_BYTES) {
             const oldest = blockCache.keys().next();
@@ -335,7 +340,7 @@ export function createRenderCore(services: RenderServices = {}) {
       seenKeys.set(key, seen + 1);
       const maps = group.flatMap((token) => token.map ? [token.map] : []);
       const sourceRange: [number, number] = maps.length ? [offset + sourceLine(Math.min(...maps.map((m) => m[0]))), offset + sourceLine(Math.max(...maps.map((m) => m[1])))] : [offset + lineCount - 1, offset + lineCount - 1];
-      blocks.push({ key: seen ? `${key}~${seen}` : key, ...rendered, urls: env.urls, sourceRange });
+      blocks.push({ key: seen ? `${key}~${seen}` : key, fingerprint: hash(rendered.html + (rendered.content ? JSON.stringify(rendered.content) : "")), ...rendered, urls: env.urls, sourceRange });
     }
     if (mdx?.error) {
       const html = `<div class="mdx-error"><span class="mdx-label">Incomplete MDX</span><pre>${escapeHtml(src.slice(mdx.error.start, mdx.error.end))}</pre></div>`;
@@ -346,6 +351,7 @@ export function createRenderCore(services: RenderServices = {}) {
   }
 
   async function renderBody(text: string, baseDir: string | undefined): Promise<RenderedHtml> {
+    highlighting = true;
     const env: RenderEnv = { baseDir, urls: services.urls?.(baseDir, false) ?? {} };
     const tokens = md.parse(text, env);
     await services.prepareHighlighting?.(tokens);

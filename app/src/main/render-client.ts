@@ -1,3 +1,4 @@
+import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
 import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
 import { isMdxResult } from "../shared/mdx-ranges.js";
 import type { MdxResult } from "../shared/render-core.js";
@@ -20,6 +21,7 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
+  if (value.kind === "stream-next") return isBlockUpdate(value.value);
   if (value.kind === "mdx-ranges") return isMdxResult(value.value);
   if (value.kind === "fragment") return isRenderedHtml(value.value);
   if (value.kind !== "blocks" || typeof value.value !== "object" || value.value === null) return false;
@@ -46,6 +48,18 @@ export class RenderClient {
   async renderBlocks(text: string, filePath: string | null): Promise<RenderedBlocks> {
     const response = await this.request({ kind: "blocks", text, filePath });
     if (response?.kind !== "blocks") throw new Error("Invalid block render response");
+    return response.value;
+  }
+
+  async startBlocks(text: string, filePath: string | null): Promise<RenderedBlocks> {
+    const response = await this.request({ kind: "stream-start", text, filePath });
+    if (response?.kind !== "blocks") throw new Error("Invalid stream response");
+    return response.value;
+  }
+
+  async nextBlocks(stream: number): Promise<BlockUpdate> {
+    const response = await this.request({ kind: "stream-next", stream });
+    if (response?.kind !== "stream-next") throw new Error("Invalid stream update");
     return response.value;
   }
 
@@ -163,3 +177,6 @@ export const warmUp = () => client.warmUp();
 export const disposeRenderer = (): Promise<void> => client.dispose();
 
 export const mdxRanges = (text: string) => client.mdxRanges(text);
+
+export const startBlocks = (text: string, filePath: string | null) => client.startBlocks(text, filePath);
+export const nextBlocks = (stream: number) => client.nextBlocks(stream);

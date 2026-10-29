@@ -1,3 +1,5 @@
+import { BlockStreams } from "./block-stream.js";
+import type { BlockUpdate } from "../shared/block-update.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import { findMdxRanges } from "../shared/mdx-ranges.js";
 import type { MdxResult } from "../shared/render-core.js";
@@ -9,6 +11,8 @@ export type RenderCommand =
   | { kind: "blocks"; text: string; filePath: string | null }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
   | { kind: "mdx-ranges"; text: string }
+  | { kind: "stream-start"; text: string; filePath: string | null }
+  | { kind: "stream-next"; stream: number }
   | { kind: "warmup" };
 
 export type RenderRequest = RenderCommand & { id: number };
@@ -17,17 +21,26 @@ export type RenderResponse =
   | { id: number; kind: "blocks"; value: RenderedBlocks }
   | { id: number; kind: "fragment"; value: RenderedHtml }
   | { id: number; kind: "mdx-ranges"; value: MdxResult }
+  | { id: number; kind: "stream-next"; value: BlockUpdate }
   | { id: number; kind: "warmup" }
   | { id: number; kind: "error"; message: string };
 
 const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
+const streams = new BlockStreams();
+
 port.on("message", async (request: RenderRequest) => {
   perfMark("worker-receive", { requestId: request.id });
   try {
     let response: RenderResponse;
     switch (request.kind) {
+      case "stream-start":
+        response = { id: request.id, kind: "blocks", value: await streams.start(request.text, request.filePath) };
+        break;
+      case "stream-next":
+        response = { id: request.id, kind: "stream-next", value: await streams.next(request.stream) };
+        break;
       case "blocks":
         response = { id: request.id, kind: "blocks", value: await renderBlocks(request.text, request.filePath) };
         break;

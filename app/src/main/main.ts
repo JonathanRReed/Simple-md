@@ -31,7 +31,7 @@ import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-
 import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
+import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { PeekHelper, type PeekRequest } from "./peek.js";
@@ -293,6 +293,7 @@ const baseUrlOf = (file: string | null) =>
   file ? pathToFileURL(path.dirname(file)).href.replace(/\/?$/, "/") : null;
 
 async function payloadFor(file: string | null, text: string, intent: OpenIntent, fromDisk = false, readOnlyReason?: string): Promise<DocPayload> {
+  let stream: number | undefined;
   let title: string;
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
@@ -309,13 +310,14 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks, mdx } = await renderBlocks(text, file));
-      if (stat) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
+      ({ title, blocks, mdx, stream } = await (intent === "peek" ? startBlocks(text, file) : renderBlocks(text, file)));
+      if (stat && stream === undefined) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks, mdx } = await renderBlocks(text, file));
+    ({ title, blocks, mdx, stream } = await (intent === "peek" ? startBlocks(text, file) : renderBlocks(text, file)));
   }
   return {
+    stream,
     documentId: current.documentId,
     path: file,
     name: file ? path.basename(file) : "Untitled",
@@ -914,6 +916,11 @@ function registerIpc(): void {
     if (!mainSender(e) || id !== current.documentId || typeof value !== "boolean") return;
     dirty = value;
     updateTitle();
+  });
+  handle("smd:next-blocks", (stream, id) => {
+    ipcDocument(id);
+    if (typeof stream !== "number" || !Number.isSafeInteger(stream) || stream < 1) throw new TypeError("Expected render stream.");
+    return nextBlocks(stream);
   });
   handle("smd:render-blocks", async (value, id) => {
     const text = ipcText(value);

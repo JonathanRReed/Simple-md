@@ -1,3 +1,4 @@
+import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
 import { type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
@@ -113,12 +114,18 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
   let cursor = el.firstChild;
   for (const block of blocks) {
     let node = prev.get(block.key);
+    if (node && node.dataset.fingerprint !== (block.fingerprint ?? block.key)) {
+      destroyDiagrams(node);
+      mountRenderedHtml(node, block, settings.remoteImages);
+      fresh.push(node);
+    }
     if (!node) {
       node = document.createElement("div");
       node.className = "block";
       mountRenderedHtml(node, block, settings.remoteImages);
       fresh.push(node);
     }
+    node.dataset.fingerprint = block.fingerprint ?? block.key;
     node.dataset.sourceStart = String(block.sourceRange[0]);
     node.dataset.sourceEnd = String(block.sourceRange[1]);
     prev.delete(block.key);
@@ -136,6 +143,31 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
   void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
     if (id === documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
   });
+}
+
+async function appendStream(payload: DocPayload, id: number): Promise<void> {
+  const stream = payload.stream;
+  if (stream === undefined) return;
+  let blocks = payload.blocks;
+  const seq = readRenderSeq;
+  try {
+    while (id === documentId && seq === readRenderSeq && view === "read") {
+      const update = await simplemd.nextBlocks(stream, id);
+      if (id !== documentId || seq !== readRenderSeq || view !== "read") return;
+      if (update.kind === "done") {
+        lastGoodBlocks = blocks;
+        simplemd.perfMarker(id, "fully-highlighted");
+        root.dataset.fullyHighlighted = payload.path ?? "";
+        root.dataset.renderComplete = payload.path ?? "";
+        return;
+      }
+      blocks = applyBlockUpdate(blocks, update);
+      mountBlocks(docEl, blocks);
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    }
+  } catch {
+    if (id === documentId && seq === readRenderSeq) toast("Couldn't finish this preview.");
+  }
 }
 
 function renderRead(text: string, keepScroll: boolean): Promise<void> {
@@ -402,6 +434,8 @@ async function onDoc(payload: DocPayload): Promise<void> {
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
   delete root.dataset.firstReadable;
+  delete root.dataset.fullyHighlighted;
+  delete root.dataset.renderComplete;
   hasDoc = true;
   readText = payload.text;
   savedText = payload.text;
@@ -427,12 +461,16 @@ async function onDoc(payload: DocPayload): Promise<void> {
   }
   simplemd.perfMarker(id, "renderer-mount");
   // This marker does not await fonts, highlighting completion checks or diagram work.
-  // The current worker still highlights before sending the payload.
+
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (id !== documentId) return;
     root.dataset.firstReadable = payload.path ?? "";
     simplemd.perfMarker(id, "first-readable");
-    if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
+    if (payload.stream !== undefined) void appendStream(payload, id);
+    else {
+      root.dataset.renderComplete = payload.path ?? "";
+      if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
+    }
   }));
   const sourceOnly = payload.intent === "edit" && !isReadOnly() && settings.mode === "source";
   const visibleRoot = payload.intent === "edit" && !isReadOnly() ? settings.mode === "split" ? previewEl : editorHost : docEl;
