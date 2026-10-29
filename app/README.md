@@ -46,6 +46,11 @@ is integrated. Math, Mermaid fences, MDX, and image syntax appear as source.
 No document code executes and no remote images load. The final renderer must
 show a placeholder when the sandbox cannot read a local image.
 
+The packaged check on macOS 27.2 passes preview attribution and MDX thumbnails.
+Markdown thumbnails currently route to Apple's Text extension despite SimpleMD's
+selected election. This remains an open qualification gate. See the
+[fixture report](native/quicklook/evidence/m4/REPORT.md).
+
 When another previewer such as FluxMarkdown is installed, choose SimpleMD in
 System Settings > General > Login Items & Extensions > Quick Look. macOS may
 keep the existing previewer selected after installing SimpleMD.

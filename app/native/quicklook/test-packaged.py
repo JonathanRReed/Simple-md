@@ -51,6 +51,15 @@ results = []
 for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixture.mdx",
                  "large.md", "empty.md", "non-utf8.md", "not-markdown.txt"]:
     fixture = fixtures / filename
+    # Request the thumbnail before preview generation can populate the shared cache.
+    tick = time.perf_counter()
+    thumbnail = run(["qlmanage", "-t", "-x", "-s", "512", "-o", str(pngs), str(fixture)])
+    thumbnail_ms = (time.perf_counter() - tick) * 1000
+    (root / (filename + "-thumbnail.txt")).write_text(thumbnail.stdout + thumbnail.stderr)
+    image = pngs / (filename + ".png")
+    assert image.exists(), filename
+    dimensions = struct.unpack(">II", image.read_bytes()[16:24])
+    assert max(dimensions) == 512, (filename, dimensions)
     before = {w["kCGWindowNumber"] for w in window_list()}
     with (root / (filename + "-preview.txt")).open("w") as output:
         launched = time.time()
@@ -72,14 +81,6 @@ for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixtur
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
-    tick = time.perf_counter()
-    thumbnail = run(["qlmanage", "-t", "-x", "-s", "512", "-o", str(pngs), str(fixture)])
-    thumbnail_ms = (time.perf_counter() - tick) * 1000
-    (root / (filename + "-thumbnail.txt")).write_text(thumbnail.stdout + thumbnail.stderr)
-    image = pngs / (filename + ".png")
-    assert image.exists(), filename
-    dimensions = struct.unpack(">II", image.read_bytes()[16:24])
-    assert max(dimensions) == 512, (filename, dimensions)
     results.append(dict(fixture=filename, preview_launch_epoch=launched,
                         capture_bound_ms=round(capture_ms, 3),
                         thumbnail_wall_ms=round(thumbnail_ms, 3), thumbnail_pixels=dimensions))
@@ -90,26 +91,35 @@ runtime = run(["/usr/bin/log", "show", "--start", start, "--style", "compact", "
                '(process == "sandboxd" AND eventMessage CONTAINS "SimpleMDQL") OR '
                '(process == "secinitd" AND eventMessage CONTAINS "SimpleMDQL")'])
 (root / "runtime.txt").write_text(runtime.stdout + runtime.stderr)
+failures = []
 for result in results:
     name = re.escape(result["fixture"])
     preview = re.findall(r"Preview ready file=" + name + r" .*?elapsed_ms=([0-9.]+)", runtime.stdout)
     drawn = re.findall(r"Thumbnail drawn file=" + name + r" elapsed_ms=([0-9.]+)", runtime.stdout)
     if result["fixture"].endswith(".txt"):
-        assert not preview and not drawn, result
+        if preview or drawn:
+            failures.append(result["fixture"] + ": SimpleMD claimed plain text")
     else:
-        assert preview and drawn, result
+        if not preview:
+            failures.append(result["fixture"] + ": no SimpleMD preview receipt")
+        if not drawn:
+            failures.append(result["fixture"] + ": no SimpleMD thumbnail receipt")
+    if preview:
         ready_line = next(line for line in runtime.stdout.splitlines() if "Preview ready file=" + result["fixture"] + " " in line)
         ready_date = " ".join(ready_line.split()[:2])
         ready_epoch = datetime.datetime.strptime(ready_date, "%Y-%m-%d %H:%M:%S.%f").timestamp()
         result["launch_to_reply_ms"] = round((ready_epoch - result["preview_launch_epoch"]) * 1000, 3)
         result["preview_provider_ms"] = float(preview[-1])
+    if drawn:
         result["thumbnail_provider_ms"] = float(drawn[-1])
     result["simplemd_preview"] = bool(preview)
     result["simplemd_thumbnail"] = bool(drawn)
 assert "read_bytes=4194304 truncated=true" in runtime.stdout
-assert re.search(r"Thumbnail preparing file=large.md bytes=65536 ", runtime.stdout)
+if not re.search(r"Thumbnail preparing file=large.md bytes=65536 ", runtime.stdout):
+    failures.append("large.md: no runtime receipt for the 64 KB thumbnail cap")
 assert re.search(r"Preview ready file=non-utf8.md .*invalid_utf8=true", runtime.stdout)
 assert not main_processes(), main_processes()
 (root / "timings.json").write_text(json.dumps(results, indent=2) + "\n")
 (root / "main-app-closed.txt").write_text("No process executable ending /Contents/MacOS/SimpleMD before or after the complete fixture sequence.\n")
 print(json.dumps(results, indent=2))
+assert not failures, failures
