@@ -168,6 +168,28 @@ await test("live-open-defers-read-render", async () => {
   assert.equal(fs.readFileSync(file, "utf8"), note, "Live-to-read changed the source bytes.");
 });
 
+await test("quit-with-late-renderer-markers", async () => {
+  const file = fixture("late-markers/first.md", "# First\n");
+  const target = fixture("late-markers/second.md", "# Second\n\nA complete read view.\n");
+  const previous = process.env.SMD_PERF;
+  process.env.SMD_PERF = "1";
+  try {
+    await launch("quit-with-late-renderer-markers", file, [
+      evaluate(`window.simplemd.onDoc(payload => { window.smokeQuitDocumentId = payload.documentId; });
+        assert(await window.simplemd.openPath(${quote(target)}, 'peek'), 'Second document did not open.');
+        await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(target)}, 'Second document did not paint.');
+        window.setInterval(() => window.simplemd.perfMarker(window.smokeQuitDocumentId, 'diagrams-ready'), 1);`),
+      { menuQuit: true },
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.SMD_PERF;
+    else process.env.SMD_PERF = previous;
+  }
+  const logs = fs.readFileSync(path.join(root, "quit-with-late-renderer-markers/electron.log"), "utf8");
+  assert(logs.includes("quit-worker-stopped"), "Quit did not finish worker cleanup.");
+  assert(!logs.includes("TypeError"), "Late markers reached the disposed document registry.");
+});
+
 await test("driver-assertion-failure", async () => {
   const file = fixture("driver-check/note.md", note);
   await launch("driver-assertion-failure", file, [

@@ -849,7 +849,7 @@ function createTray(): void {
 // ───────── ipc ─────────
 
 function mainSender(e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): boolean {
-  return !!win && !win.isDestroyed() && e.sender === win.webContents && e.senderFrame === win.webContents.mainFrame;
+  return !quitting && !!win && !win.isDestroyed() && e.sender === win.webContents && e.senderFrame === win.webContents.mainFrame;
 }
 
 function ipcText(value: unknown): string {
@@ -1060,7 +1060,7 @@ if (!app.requestSingleInstanceLock()) {
     disposeRenderer();
   });
   app.on("activate", () => {
-    if (win) reveal();
+    if (win && !quitting) reveal();
   });
   app.on("window-all-closed", () => {});
 
