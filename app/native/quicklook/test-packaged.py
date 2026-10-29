@@ -82,10 +82,19 @@ for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixtur
         launched = time.time()
         process = subprocess.Popen(["qlmanage", "-p", str(fixture)], stdout=output, stderr=subprocess.STDOUT)
         try:
-            time.sleep(4)
-            candidates = [w for w in window_list() if w["kCGWindowNumber"] not in before
+            deadline = time.monotonic() + 60
+            candidates = []
+            while time.monotonic() < deadline:
+                candidates = [w for w in window_list() if w["kCGWindowNumber"] not in before
                           and w["kCGWindowOwnerName"] in ["qlmanage", "QuickLookUIService", "Quick Look"]
                           and w["kCGWindowBounds"]["Height"] > 100]
+                if candidates:
+                    break
+                if process.poll() is not None:
+                    break
+                time.sleep(0.2)
+            # Allow layout and fonts to settle after the panel appears.
+            time.sleep(5)
             (root / (filename + "-windows.json")).write_text(json.dumps(candidates, indent=2) + "\n")
             assert len(candidates) == 1, (filename, candidates)
             run(["screencapture", "-x", "-o", "-l", str(candidates[0]["kCGWindowNumber"]),
@@ -109,7 +118,7 @@ runtime = run(["/usr/bin/log", "show", "--start", start, "--style", "compact", "
                '(process == "secinitd" AND eventMessage CONTAINS "SimpleMDQL") OR '
                '(process == "com.apple.quicklook.ThumbnailsAgent" AND (eventMessage CONTAINS "simplemd" OR eventMessage CONTAINS "TextExtension"))'])
 (root / "runtime.txt").write_text(runtime.stdout + runtime.stderr)
-failures = []
+failures = [line for line in runtime.stdout.splitlines() if "Preview failed file=" in line]
 for result in results:
     name = re.escape(result["fixture"])
     preview = re.findall(r"Preview ready file=" + name + r" .*?elapsed_ms=([0-9.]+)", runtime.stdout)

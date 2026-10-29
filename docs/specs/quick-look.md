@@ -185,7 +185,11 @@ Source: `.audit/research/e-os-integration.md`, Quick Look sections (local only).
 ## Static renderer integration contract
 
 The extension bundles `app/src/shared/render-browser.ts` with
-`bun build --target browser --format iife --minify` into its Resources directory.
+`NODE_ENV=production bun build --target browser --conditions worker --production
+--format iife` into its Resources directory. The worker condition selects micromark's DOM-free
+entity decoder. The browser condition alone selects a decoder that needs
+`document`, which JavaScriptCore does not provide. Production resolution also
+excludes micromark's debug implementation, which requires `console`.
 `globalThis.SimpleMDRenderCore.renderStaticHtml` returns `Promise<string>`.
 Swift creates one JavaScriptCore context per extension process and accesses it
 only on the serial render queue. A trusted wrapper observes the promise result.

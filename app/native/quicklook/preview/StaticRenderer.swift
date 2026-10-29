@@ -48,10 +48,14 @@ final class StaticRenderer {
         context.exception = nil
         let started = ProcessInfo.processInfo.systemUptime
         let options = ["truncated": source.truncated, "invalidUtf8": source.invalidUtf8]
-        guard let result = render.call(withArguments: [source.text, filePath, options]),
-              context.exception == nil, let value = result.forProperty("html"), value.isString,
+        let result = render.call(withArguments: [source.text, filePath, options])
+        func resultError() -> String? {
+            let error = result?.forProperty("error")
+            return error?.isString == true ? error?.toString() : nil
+        }
+        guard context.exception == nil, let value = result?.forProperty("html"), value.isString,
               let html = value.toString(), !html.isEmpty else {
-            throw Self.failure(context.exception?.toString() ?? "Static renderer promise did not produce HTML")
+            throw Self.failure(context.exception?.toString() ?? resultError() ?? "Static renderer promise did not produce HTML")
         }
         let rendered = ProcessInfo.processInfo.systemUptime
         let urls = imageUrls.call(withArguments: [html])?.toArray() as? [String] ?? []

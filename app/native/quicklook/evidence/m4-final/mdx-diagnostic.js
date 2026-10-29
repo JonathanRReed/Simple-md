@@ -1,0 +1,2 @@
+load("/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/Resources/render-core.js");
+SimpleMDRenderCore.renderStaticHtml("---\ntitle: MDX\n---\nimport Widget from \"./widget.js\"\n\n# An inert MDX page\n\n<Widget onClick={() => alert(\"never\")} />\n", "/project/fixture.mdx").then(html => print(JSON.stringify({bytes:html.length})), error => print(JSON.stringify({error:String(error),stack:error.stack})));

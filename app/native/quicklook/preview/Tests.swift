@@ -14,6 +14,9 @@ struct PreviewTests {
             try bytes.write(to: file)
             return try PreviewSource.read(file)
         }
+        let coldMdx = try read(Data("---\ntitle: MDX\n---\nimport Widget from \"./widget.js\"\n\n# An inert MDX page\n\n<Widget onClick={() => alert(\"never\")} />\n".utf8))
+        let coldMdxHTML = try renderer.html(source: coldMdx, filePath: file.path + "x")
+        precondition(coldMdxHTML.contains("mdx-component") && coldMdxHTML.contains("Widget"))
         let empty = try read(Data())
         precondition(empty.text.isEmpty && empty.bytesRead == 0 && !empty.truncated && !empty.invalidUtf8)
         let invalid = try read(Data([0x61, 0xff, 0x62]))

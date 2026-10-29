@@ -20,12 +20,16 @@ for suffix in preview thumbnail; do
 done
 pluginkit -m -A -D -vv -i "$flux" > "$evidence/flux-before.txt"
 grep -q '^     com.xykong.Markdown.QuickLook' "$evidence/flux-before.txt"
+run_started="$(date '+%Y-%m-%d %H:%M:%S')"
 scratch="$(mktemp -d /tmp/simplemd-m4-test.XXXXXX)"
 cleanup() {
     status=$?
     trap - EXIT
     set +e
     {
+        /usr/bin/log show --start "$run_started" --style compact --info --debug \
+          --predicate 'subsystem == "com.jonathanreed.simplemd.quicklook" OR (process == "sandboxd" AND eventMessage CONTAINS "SimpleMDQL") OR (process == "secinitd" AND eventMessage CONTAINS "SimpleMDQL") OR (process == "com.apple.quicklook.ThumbnailsAgent" AND (eventMessage CONTAINS "simplemd" OR eventMessage CONTAINS "TextExtension"))' \
+          > "$evidence/runtime-cleanup.txt" 2>&1
         pluginkit -e default -i "$flux"
         for suffix in preview thumbnail; do
             pluginkit -e default -i "$id.$suffix"

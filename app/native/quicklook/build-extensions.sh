@@ -23,7 +23,7 @@ for kind in Preview Thumbnail; do
         sources=("$source_dir/preview/PreviewProvider.swift" "$source_dir/preview/PreviewSource.swift" "$source_dir/preview/StaticRenderer.swift")
         frameworks=(-framework Cocoa -framework QuickLookUI -framework JavaScriptCore -framework ImageIO)
         mkdir -p "$extension/Contents/Resources"
-        bun build "$source_dir/../../src/shared/render-browser.ts" --target browser --format iife --minify \
+        NODE_ENV=production bun build "$source_dir/../../src/shared/render-browser.ts" --target browser --conditions worker --production --format iife \
             --outfile "$extension/Contents/Resources/render-core.js"
     else
         cp "$source_dir/thumbnail/Info.plist" "$extension/Contents/Info.plist"
