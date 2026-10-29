@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { BrowserWindow } from "electron";
 import { makeDocumentId, makePaneId, makeRevisionId, type DocPayload, type Settings } from "../shared/types.js";
 import { renderBlocks } from "./render-client.js";
@@ -106,21 +105,4 @@ export function createExportJobs(here: string, getSettings: () => Settings) {
   return { makeHtml, makePdf, withPrintWindow };
 }
 
-export async function writeExportAtomic(target: string, data: Buffer | string, overwrite: boolean): Promise<void> {
-  const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
-  try {
-    const handle = await fs.promises.open(temporary, "wx", 0o600);
-    try { await handle.writeFile(data); await handle.sync(); } finally { await handle.close(); }
-    if (overwrite) {
-      const stat = await fs.promises.lstat(target).catch((error: unknown) => {
-        if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
-        throw error;
-      });
-      if (stat && !stat.isFile()) throw new Error("Export can replace only a regular file.");
-      await fs.promises.rename(temporary, target);
-    } else {
-      // link is an atomic no-clobber publish, including when another writer wins.
-      await fs.promises.link(temporary, target);
-    }
-  } finally { await fs.promises.rm(temporary, { force: true }); }
-}
+export { writeExportAtomic } from "./export-write.js";
