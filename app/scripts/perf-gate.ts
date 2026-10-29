@@ -1,3 +1,4 @@
+import { calibratedTyping, typingInput, typingLetters, typingProbe, typingRecord, type InputMethod } from "./perf-typing";
 import assert from "node:assert/strict";
 import type { KeyboardInputEvent } from "electron";
 import { execFileSync } from "node:child_process";
@@ -25,19 +26,25 @@ export function summarizeEventTiming(record: { counts: { keydown: number; before
   function summarize(name: "keydown" | "beforeinput") {
     const durations = record.events.filter((event) => event.name === name).map((event) => event.duration).sort((a, b) => a - b);
     const total = record.counts[name];
-    const censored = Math.max(0, total - durations.length);
-    // Some Chromium versions do not expose beforeinput in Event Timing.
-    // A DOM beforeinput counter alone does not prove API support.
-    const unsupported = name === "beforeinput" && durations.length === 0;
+    if (!Number.isSafeInteger(total) || total < 0 || durations.length > total || durations.some(value => !Number.isFinite(value) || value < 16)) throw new Error("Invalid Event Timing denominator or duration");
+    const censored = total - durations.length;
     const quantile = (fraction: number): EventQuantile | null => {
-      if (!total || unsupported) return null;
+      if (!total) return null;
       const rank = Math.ceil(total * fraction);
       const value = durations[rank - censored - 1];
       return value === undefined ? { lower: 0, upper: 16, upperExclusive: true } : { lower: value, upper: value, upperExclusive: false };
     };
-    return { total, reported: durations.length, censoredBelow16: unsupported ? null : censored, p50: quantile(0.5), p95: quantile(0.95), p99: quantile(0.99), reason: unsupported ? "beforeinput is not exposed by this Event Timing implementation; the rAF probe remains a separate lower bound." : "Trusted DOM event counts supply the denominator. Unreported durations are censored below 16 ms, with 8 ms quantization." };
+    return { total, reported: durations.length, censoredBelow16: censored, p50: quantile(0.5), p95: quantile(0.95), p99: quantile(0.99), reason: "Trusted DOM event counts supply the denominator. Unreported durations are censored below 16 ms, with 8 ms quantization." };
   }
   return { keydown: summarize("keydown"), beforeinput: summarize("beforeinput") };
+}
+function parseTiming(record: unknown): ReturnType<typeof summarizeEventTiming> {
+  if (typeof record !== "object" || record === null || !("events" in record) || !Array.isArray(record.events) || !("counts" in record) || typeof record.counts !== "object" || record.counts === null || !("keydown" in record.counts) || typeof record.counts.keydown !== "number" || !("beforeinput" in record.counts) || typeof record.counts.beforeinput !== "number" || !("supported" in record) || !Array.isArray(record.supported) || !record.supported.includes("event")) throw new Error("Missing trusted Event Timing evidence");
+  const events = record.events.map((event: unknown) => {
+    if (typeof event !== "object" || event === null || !("name" in event) || typeof event.name !== "string" || !("duration" in event) || typeof event.duration !== "number") throw new Error("Invalid Event Timing entry");
+    return { name: event.name, duration: event.duration };
+  });
+  return summarizeEventTiming({ counts: { keydown: record.counts.keydown, beforeinput: record.counts.beforeinput }, events });
 }
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repo = path.dirname(appRoot);
@@ -70,6 +77,13 @@ export function readableSample(events: DriverEvent[], start: number, expectedPat
   if (!arrival || !readable || readable.elapsedMs < arrival.elapsedMs) throw new Error(`Missing matching first-readable marker: ${expectedPath}`);
   return readable.elapsedMs - start;
 }
+export function residentTiming(events: DriverEvent[], start: number, file: string) {
+  const externalMs = readableSample(events, start, file);
+  const arrival = events.find(event => event.elapsedMs >= start && event.data.marker === "file-open-arrival" && event.data.path === file);
+  if (!arrival) throw new Error(`Missing file-open arrival: ${file}`);
+  const deliveryMs = arrival.elapsedMs - start;
+  return { ms: externalMs, externalMs, deliveryMs, afterArrivalMs: externalMs - deliveryMs };
+}
 function assertDocument(file: string, text: string): DriverStep {
   const heading = /^# (.+)$/m.exec(text.replace(/^\uFEFF/, ""))?.[1];
   return evaluate(`${waitFor}
@@ -89,24 +103,32 @@ function keys(keyCode: string, modifiers: KeyboardInputEvent["modifiers"] = []):
 
 export async function perfGate(): Promise<void> {
   const smoke = process.argv.includes("--smoke");
-  const count = smoke ? 2 : 20;
+  const count = Number(process.argv.find(arg => arg.startsWith("--samples="))?.split("=")[1] ?? (smoke ? 2 : 20));
+  if (!Number.isSafeInteger(count) || count < 2) throw new Error("At least two samples are required");
+  const only = process.argv.find(arg => arg.startsWith("--only="))?.split("=")[1];
+  const includes = (name: string) => !only || only.split(",").includes(name);
+  if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing"].includes(name))) throw new Error("Unknown performance subset");
+  const electronSwitch = process.argv.find(arg => arg.startsWith("--electron-switch="))?.split("=")[1];
+  if (electronSwitch && !["disable-backgrounding-occluded-windows", "disable-renderer-backgrounding", "disable-background-timer-throttling"].includes(electronSwitch)) throw new Error("Unknown Electron performance switch");
+  const fixtureFilter = process.argv.find(arg => arg.startsWith("--fixtures="))?.split("=")[1]?.split(",");
   fs.mkdirSync(path.join(repo, ".audit"), { recursive: true });
   const root = fs.mkdtempSync(path.join(repo, ".audit/perf-"));
   const fixtureDirectory = path.join(root, "fixtures");
   const manifest = writePerfFixtures(fixtureDirectory);
   const fixtureText = perfFixtures();
+  if (fixtureFilter?.some(name => !Object.hasOwn(fixtureText, name))) throw new Error("Unknown performance fixture");
   const executable = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
   const sourceDirtyHash = dirtyHash();
-  const samples: { state: State; fixture: string; sample: number; ms: number; cache: object; loadAverage: number[]; run: string }[] = [];
+  const samples: { state: State; fixture: string; sample: number; ms: number; externalMs: number; deliveryMs: number; afterArrivalMs: number | null; cache: object; loadAverage: number[]; run: string }[] = [];
   const memory: { run: string; at: number; processes: unknown; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
-  const typing: { mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
+  const typing: { method: InputMethod; controls: { kind: string; eventTiming: ReturnType<typeof summarizeEventTiming>; raw: unknown }[]; frameMs: number; displayFrameMs: number; mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
   const runs: object[] = [];
   const failures: string[] = [];
   const failedSamples: { state: State; fixture: string; sample: number; run: string; error: string }[] = [];
   const runResults = new Map<string, Awaited<ReturnType<typeof measureDriverRun>>>();
   const loadAtBarrier = new Map<string, number[]>();
   const receipt = {
-    schemaVersion: 1, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
+    schemaVersion: 2, subset: only ?? null, sampleCount: count, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
     revision: command("git", ["rev-parse", "HEAD"]), branch: command("git", ["branch", "--show-current"]), dirtyPatchHash: sourceDirtyHash,
     memoryHelper: { sha256: null as string | null, sourceSha256: sha256(fs.readFileSync(path.join(appRoot, "native/src/bin/perf-memory.rs"))) },
     lockfileHash: sha256(fs.readFileSync(path.join(appRoot, "bun.lock"))), dist: treeHash(path.join(appRoot, "dist")),
@@ -117,6 +139,7 @@ export async function perfGate(): Promise<void> {
       osFileCache: "Not purged. Process cold does not mean filesystem cold.",
       fresh: "New user-data and NODE_COMPILE_CACHE directories, worker inherits this compile-cache directory. No disk render cache, Shiki starts unloaded, no retained DOM.",
       reused: "Explicit seed process exits cleanly and flushes compile and disk render caches, then a new process uses those directories. Shiki and DOM start empty in each process.",
+      residentClock: "The gate keeps parent acknowledgement to first-readable. deliveryMs and afterArrivalMs split command delivery from work after file-open-arrival; neither is subtracted from the gate.",
       resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
     },
@@ -142,10 +165,18 @@ export async function perfGate(): Promise<void> {
     const startedLoad = os.loadavg();
     const partialEvents: DriverEvent[] = [];
     let result: Awaited<ReturnType<typeof measureDriverRun>>;
-    try { result = await measureDriverRun({ executable, args: [appRoot, file], cwd: appRoot, env, logPath: path.join(directory, "electron.log"), timeoutMs: 600_000,
+    try { result = await measureDriverRun({ executable, args: [...(electronSwitch ? [`--${electronSwitch}`] : []), appRoot, file], cwd: appRoot, env, logPath: path.join(directory, "electron.log"), timeoutMs: 600_000,
       onEvent(event) {
         partialEvents.push(event);
         if (event.data.kind === "barrier" && typeof event.data.name === "string") loadAtBarrier.set(event.data.name, os.loadavg());
+        if (event.data.kind === "record" && event.data.name === "environment") {
+          const value = event.data.value;
+          if (typeof value !== "object" || value === null || !("displays" in value) || !Array.isArray(value.displays) || !("versions" in value) || typeof value.versions !== "object" || value.versions === null || !("electron" in value.versions) || !("node" in value.versions)) throw new Error("Invalid runtime diagnostics");
+          if (!process.argv.includes("--compare-throttling")) assert.equal("backgroundThrottling" in value && value.backgroundThrottling, false, "Tray window must disable renderer throttling");
+          receipt.host.displays = value.displays;
+          receipt.host.displayRefreshRate = value.displays.map(display => ({ id: display.id, hz: display.displayFrequency }));
+          receipt.versions.electron = value.versions.electron; receipt.versions.appNode = value.versions.node;
+        }
         if (event.data.kind !== "memory") return;
         const processes = event.data.processes;
         if (!Array.isArray(processes) || !processes.length) throw new Error("Missing app.getAppMetrics processes");
@@ -184,7 +215,8 @@ export async function perfGate(): Promise<void> {
   function addSample(state: State, fixture: string, sample: number, result: Awaited<ReturnType<typeof launch>>, run: string, file: string, barrier?: string) {
     const start = barrier ? result.barriers[barrier] : 0;
     if (start === undefined) throw new Error(`Missing barrier ${barrier}`);
-    samples.push({ state, fixture, sample, ms: readableSample(result.events, start, file), run, loadAverage: barrier ? loadAtBarrier.get(barrier) ?? os.loadavg() : os.loadavg(), cache: { profile: state.includes("fresh") ? "fresh" : "reused", compile: state.includes("fresh") ? "empty at spawn" : "seeded", diskRender: state === "resident-new-file-miss" ? "miss" : "see read-and-hash-end markers", shiki: state.startsWith("process-cold") ? "new worker; warmup may race foreground" : "resident, languages reused", retainedDOM: state === "resident-visible" || state === "resident-hidden" ? "same-file mount may reuse blocks" : "document replaced" } });
+    const timing = state.startsWith("process-cold") ? { ms: readableSample(result.events, start, file), externalMs: readableSample(result.events, start, file), deliveryMs: 0, afterArrivalMs: null } : residentTiming(result.events, start, file);
+    samples.push({ state, fixture, sample, ...timing, run, loadAverage: barrier ? loadAtBarrier.get(barrier) ?? os.loadavg() : os.loadavg(), cache: { backgroundThrottling: ["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling") ? sample % 2 === 0 : "app default", profile: state.includes("fresh") ? "fresh" : "reused", compile: state.includes("fresh") ? "empty at spawn" : "seeded", diskRender: state === "resident-new-file-miss" ? "miss" : "see read-and-hash-end markers", shiki: state.startsWith("process-cold") ? "new worker; warmup may race foreground" : "resident, languages reused", retainedDOM: state === "resident-visible" || state === "resident-hidden" ? "same-file mount may reuse blocks" : "document replaced" } });
   }
   async function attempt(name: string, operation: () => Promise<void>) {
     console.log(`perf: ${name}`);
@@ -198,8 +230,8 @@ export async function perfGate(): Promise<void> {
     const smallFile = path.join(fixtureDirectory, "small.md");
     const coldFiles = ["small.md", "medium.md"];
     const reused = profile("cold-reused");
-    await launch("seed-reused", smallFile, reused, [assertDocument(smallFile, fixtureText["small.md"]!), evaluate(`await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "medium.md"))}, 'peek');`), assertDocument(path.join(fixtureDirectory, "medium.md"), fixtureText["medium.md"]!), { wait: 500 }]);
-    for (let i = 0; i < count; i++) {
+    if (includes("cold")) await launch("seed-reused", smallFile, reused, [assertDocument(smallFile, fixtureText["small.md"]!), evaluate(`await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "medium.md"))}, 'peek');`), assertDocument(path.join(fixtureDirectory, "medium.md"), fixtureText["medium.md"]!), { wait: 500 }]);
+    for (let i = 0; includes("cold") && i < count; i++) {
       for (const state of ["process-cold-fresh-profile", "process-cold-reused-profile"] as const) await attempt(`${state}-${i}`, async () => {
         const fixture = coldFiles[i % coldFiles.length]!;
         const file = path.join(fixtureDirectory, fixture);
@@ -210,11 +242,12 @@ export async function perfGate(): Promise<void> {
     }
     const normal = smoke ? ["small.md", "unicode.md"] : Object.keys(fixtureText).filter((name) => !["huge.md", "ceiling.md", "typing-100k.md"].includes(name));
     for (const state of ["resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A"] as const) {
+      if (!includes(state)) continue;
       const names = state === "resident-new-file-miss" && !smoke ? [...normal, "huge.md", "ceiling.md"] : normal;
-      for (const fixture of names) await attempt(`${state}/${fixture}`, async () => {
+      for (const fixture of names.filter(name => !fixtureFilter || fixtureFilter.includes(name))) await attempt(`${state}/${fixture}`, async () => {
         const run = `${state}-${fixture}`;
         const scheduled: { file: string; sample: number; barrier: string }[] = [];
-        const steps: DriverStep[] = [assertDocument(smallFile, fixtureText["small.md"]!)];
+        const steps: DriverStep[] = [{ diagnostics: "environment" }, assertDocument(smallFile, fixtureText["small.md"]!)];
         const original = path.join(fixtureDirectory, fixture);
         if (state !== "resident-new-file-miss") steps.push(evaluate(`if (!(await window.simplemd.openPath(${quote(original)}, 'peek'))) throw new Error('Warm seed failed');`), assertDocument(original, fixtureText[fixture]!));
         for (let sample = 0; sample < count; sample++) {
@@ -224,6 +257,7 @@ export async function perfGate(): Promise<void> {
             steps.push(evaluate(`if (!(await window.simplemd.openPath(${quote(file)}, 'peek'))) throw new Error('A seed open failed');`), assertDocument(file, fixtureText[fixture]!), evaluate(`if (!(await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "typing-100k.md"))}, 'peek'))) throw new Error('B seed open failed');`));
           }
           const barrier = `${state}-${sample}-${fixture}`;
+          if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
           if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: 30 }, { visibility: false });
           const assertion = assertDocument(file, fixtureText[fixture]!);
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
@@ -252,34 +286,50 @@ export async function perfGate(): Promise<void> {
         }
       });
     }
-    await attempt("settled-memory", async () => {
+    if (includes("memory")) await attempt("settled-memory", async () => {
       const file = path.join(fixtureDirectory, "medium.md");
       await launch("settled-memory", file, profile("memory-profile", "live"), [
         evaluate(`${waitFor} await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]')); if (document.documentElement.dataset.documentPath !== ${quote(file)} || document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() !== ${quote(fixtureText['medium.md'])}) throw new Error('Wrong settled memory document');`),
         { wait: 5000 }, ...Array.from({ length: 5 }, (_, i): DriverStep[] => [{ memory: `settled-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
-    for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) await attempt(`typing-${mode}-${position}`, async () => {
+    const calibration = path.join(root, "calibration");
+    if (includes("typing")) {
+      fs.mkdirSync(calibration);
+      const entry = path.join(calibration, "control.ts");
+      fs.writeFileSync(entry, `import { EditorView } from ${quote(path.join(appRoot, 'node_modules/@codemirror/view/dist/index.js'))};
+        import { EditorState } from ${quote(path.join(appRoot, 'node_modules/@codemirror/state/dist/index.js'))};
+        if (document.body.dataset.control === 'codemirror') window.controlView = new EditorView({ state: EditorState.create({doc: ''}), parent: document.body });
+        else document.body.appendChild(document.createElement('textarea'));
+      `);
+      const build = await Bun.build({ entrypoints: [entry], outdir: calibration, target: "browser", format: "esm" });
+      if (!build.success) throw new Error(build.logs.join("\n"));
+      for (const kind of ["textarea", "codemirror"]) fs.writeFileSync(path.join(calibration, `${kind}.html`), `<!doctype html><html><body data-control="${kind}"><script type="module" src="./control.js"></script></body></html>`);
+    }
+    for (const mode of includes("typing") ? smoke ? ["source"] : ["live", "source", "split"] : []) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) for (const method of ["native", "cdp"] as const) await attempt(`typing-${method}-${mode}-${position}`, async () => {
       const text = fixtureText["typing-100k.md"]!;
       const file = path.join(fixtureDirectory, `typing-${mode}-${position}.md`);
       fs.writeFileSync(file, text);
       const at = position === "top" ? 0 : position === "middle" ? 50_000 : text.length;
-      const steps: DriverStep[] = [evaluate(`${waitFor}
+      const steps: DriverStep[] = [{ diagnostics: "environment" }, evaluate(`${waitFor}
         await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]'));
         const content = document.querySelector('.cm-content');
         const view = content.cmTile?.root?.view;
         if (!view || view.state.doc.length !== 100000) throw new Error('100k editor driver unavailable');
         view.dispatch({ selection: { anchor: ${at} }, scrollIntoView: true }); view.focus();
-        window.perfEvents = []; window.perfCounts = { keydown: 0, beforeinput: 0 }; window.perfRaf = [];
-        window.perfObserver = new PerformanceObserver(list => { for (const e of list.getEntries()) if (e.name === 'keydown' || e.name === 'beforeinput') window.perfEvents.push(e.toJSON()); });
-        window.perfObserver.observe({ type: 'event', durationThreshold: 16 });
-        for (const name of ['keydown', 'beforeinput']) content.addEventListener(name, e => {
-          if (e.isTrusted) window.perfCounts[name]++;
-          if (name === 'beforeinput') { const start = performance.now(); requestAnimationFrame(() => window.perfRaf.push(performance.now() - start)); }
+        ${typingProbe}
+        window.perfFrames = [];
+        await new Promise(resolve => {
+          let previous; const tick = now => { if (previous !== undefined) window.perfFrames.push(now - previous); previous = now;
+            if (window.perfFrames.length >= 30) resolve(); else requestAnimationFrame(tick); }; requestAnimationFrame(tick);
         });
-      `), { wait: 200 }];
-      const letters = smoke ? "abcd" : "abcdefghijklmnopqrstuvwxyz0123456789abcd";
-      for (const letter of letters) steps.push(...keys(letter.toUpperCase()).slice(0, 1), { input: { type: "char", keyCode: letter } }, ...keys(letter.toUpperCase()).slice(1), { wait: 25 });
+      `)];
+      const letters = smoke ? "abcd" : typingLetters;
+      for (const letter of letters) steps.push(...typingInput(letter, method), { wait: 25 });
+      // Let Chromium deliver Event Timing entries before classifying omissions as censored.
+      steps.push({ wait: 150 }, evaluate(`${waitFor} await waitFor(() => window.perfRaf.length === ${letters.length}); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));`),
+        { record: { name: "paced-typing", eval: `({...${typingRecord}, frames: window.perfFrames})` } },
+        evaluate("window.perfObserver.disconnect();"));
       // A burst, selection replacement, backspace, and undo all exercise real input.
       for (const letter of "burst") steps.push(...keys(letter.toUpperCase()).slice(0, 1), { input: { type: "char", keyCode: letter } }, ...keys(letter.toUpperCase()).slice(1));
       steps.push({ wait: 700 }, ...keys("Backspace"), ...keys("Z", [mod]), { wait: 100 });
@@ -298,16 +348,41 @@ export async function perfGate(): Promise<void> {
         await waitFor(() => document.querySelector('#dirty').hidden);
         await new Promise(r => setTimeout(r, 200));
       `), { record: { name: "typing", eval: `({ supported: PerformanceObserver.supportedEntryTypes, counts: window.perfCounts, events: window.perfEvents, lowerBound: window.perfRaf, finalText: document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() })` } }, { shot: path.join(root, `typing-${mode}-${position}.png`) });
-      const result = await launch(`typing-${mode}-${position}`, file, profile(`typing-${mode}-${position}-profile`, mode), steps, "edit");
+      for (const kind of ["textarea", "codemirror"]) {
+        steps.push({ page: path.join(calibration, `${kind}.html`) }, evaluate(`${waitFor}
+          await waitFor(() => document.querySelector('textarea, .cm-content'));
+          const content = document.querySelector('textarea, .cm-content'); content.focus();
+          await document.fonts.ready;
+          await new Promise(resolve => { let frames = 0; const tick = () => ++frames === 30 ? resolve() : requestAnimationFrame(tick); requestAnimationFrame(tick); });
+          ${typingProbe}
+        `));
+        for (const letter of letters) steps.push(...typingInput(letter, method), { wait: 25 });
+        steps.push({ wait: 150 }, evaluate(`${waitFor} await waitFor(() => window.perfRaf.length === ${letters.length});
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const actual = document.querySelector('textarea')?.value ?? window.controlView.state.doc.toString();
+          if (actual !== ${quote(letters)}) throw new Error('Control typing text mismatch');
+        `), { record: { name: `control-${kind}`, eval: typingRecord } }, evaluate("window.perfObserver.disconnect();"));
+      }
+      const result = await launch(`typing-${method}-${mode}-${position}`, file, profile(`typing-${method}-${mode}-${position}-profile`, mode), steps, "edit");
       const record = recordValue(result.events, "typing");
+      const paced = recordValue(result.events, "paced-typing");
       if (typeof record !== "object" || record === null || !("events" in record) || !Array.isArray(record.events) || !("lowerBound" in record) || !("finalText" in record) || record.finalText !== expected) throw new Error("Missing or invalid typing evidence");
       assert.equal(fs.readFileSync(file, "utf8"), expected, "Final saved typing bytes differ");
-      if (!("counts" in record) || typeof record.counts !== "object" || record.counts === null || !("keydown" in record.counts) || typeof record.counts.keydown !== "number" || !("beforeinput" in record.counts) || typeof record.counts.beforeinput !== "number") throw new Error("Missing trusted typing counts");
-      const events = record.events.map((event: unknown) => {
-        if (typeof event !== "object" || event === null || !("name" in event) || typeof event.name !== "string" || !("duration" in event) || typeof event.duration !== "number") throw new Error("Invalid Event Timing entry");
-        return { name: event.name, duration: event.duration };
+      const eventTiming = parseTiming(paced);
+      if (typeof paced !== "object" || paced === null || !("frames" in paced) || !Array.isArray(paced.frames) || !paced.frames.every(value => typeof value === "number")) throw new Error("Missing frame calibration");
+      const frameMs = percentile(paced.frames, 0.5);
+      if (!frameMs || frameMs <= 0) throw new Error("Invalid frame calibration");
+      if (eventTiming.keydown.total !== letters.length || eventTiming.beforeinput.total !== letters.length) throw new Error("Editor event counts differ from injected input");
+      const controls = ["textarea", "codemirror"].map(kind => {
+        const raw = recordValue(result.events, `control-${kind}`);
+        const eventTiming = parseTiming(raw);
+        if (eventTiming.keydown.total !== letters.length || eventTiming.beforeinput.total !== letters.length) throw new Error("Control event counts differ from injected input");
+        return { kind, eventTiming, raw };
       });
-      typing.push({ mode, position, eventTiming: summarizeEventTiming({ counts: { keydown: record.counts.keydown, beforeinput: record.counts.beforeinput }, events }), rawEventTiming: record, lowerBound: record.lowerBound, finalSha256: sha256(fs.readFileSync(file)), expectedSha256: sha256(expected) });
+      const environment = recordValue(result.events, "environment");
+      if (typeof environment !== "object" || environment === null || !("display" in environment) || typeof environment.display !== "object" || environment.display === null || !("displayFrequency" in environment.display) || typeof environment.display.displayFrequency !== "number" || !Number.isFinite(environment.display.displayFrequency) || environment.display.displayFrequency <= 0) throw new Error("Missing window display refresh rate");
+      const displayFrameMs = 1000 / environment.display.displayFrequency;
+      typing.push({ method, controls, frameMs, displayFrameMs, mode, position, eventTiming, rawEventTiming: paced, lowerBound: "lowerBound" in paced ? paced.lowerBound : null, finalSha256: sha256(fs.readFileSync(file)), expectedSha256: sha256(expected) });
     });
   } catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
   for (const state of ["process-cold-fresh-profile", "process-cold-reused-profile"] as const) receipt.gates[state] = summarizeGate(samples.filter((sample) => sample.state === state).map((sample) => sample.ms), 800, smoke ? 2 : 20);
@@ -317,17 +392,27 @@ export async function perfGate(): Promise<void> {
   }
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);
   receipt.gates.memory = { ...summarizeGate(memory.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(memory.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(memory.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
-  for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
-    const sample = typing.find((value) => value.mode === mode && value.position === position);
+  for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
+    const sample = typing.find((value) => value.method === method && value.mode === mode && value.position === position);
     const keydown = sample?.eventTiming.keydown;
     const p95 = keydown?.p95;
-    receipt.gates[`typing/${mode}/${position}`] = {
-      status: sample && [sample.eventTiming.keydown, sample.eventTiming.beforeinput].every((event) => event.p95 && (event.p95.upper < 16 || event.p95.upper === 16 && event.p95.upperExclusive)) ? "pass" : "fail",
-      median: keydown?.p50 ?? null, p95: p95 ?? null, p99: keydown?.p99 ?? null, target: 16,
-      eventTiming: sample?.eventTiming ?? null,
+    receipt.gates[`typing/${method}/${mode}/${position}`] = {
+      ...calibratedTyping(p95 ?? null, sample?.controls.find(value => value.kind === "textarea")?.eventTiming.keydown.p95 ?? null, sample?.displayFrameMs ?? null, keydown?.total ?? 0, smoke ? 4 : 40),
+      median: keydown?.p50 ?? null, p95: p95 ?? null, p99: keydown?.p99 ?? null,
+      eventTiming: sample?.eventTiming ?? null, controls: sample?.controls ?? null, observedFrameMs: sample?.frameMs ?? null,
       lowerBound: sample && Array.isArray(sample.lowerBound) ? { median: percentile(sample.lowerBound, 0.5), p95: percentile(sample.lowerBound, 0.95), p99: percentile(sample.lowerBound, 0.99) } : null,
-      reason: !sample ? "Typing run failed or produced no verified saved document." : "Strict 16 ms qualification is limited by Event Timing's reporting floor and 8 ms quantization; beforeinput support is reported separately.",
     };
+  }
+  if (process.argv.includes("--compare-throttling")) {
+    for (const state of ["resident-hidden", "resident-new-file-miss"]) for (const fixture of state === "resident-hidden" ? normalFixtures.filter(name => !fixtureFilter || fixtureFilter.includes(name)) : fixtureFilter ?? [...normalFixtures, "huge.md", "ceiling.md"]) {
+      delete receipt.gates[`${state}/${fixture}`];
+      if (state === "resident-new-file-miss") delete receipt.gates[`first-screen/${fixture}`];
+      for (const throttled of [true, false]) receipt.gates[`${state}/${fixture}/throttling-${throttled}`] = summarizeGate(samples.filter(sample => sample.state === state && sample.fixture === fixture && "backgroundThrottling" in sample.cache && sample.cache.backgroundThrottling === throttled).map(sample => sample.ms), state === "resident-hidden" ? 150 : 200, smoke ? 2 : 20);
+    }
+  }
+  if (only) for (const name of Object.keys(receipt.gates)) {
+    const group = name.startsWith("process-cold") ? "cold" : name.startsWith("first-screen/") ? "resident-new-file-miss" : name.split("/")[0]!;
+    if (!includes(group) || fixtureFilter && name.includes("/") && !name.startsWith("typing/") && !fixtureFilter.includes(name.split("/")[1]!)) delete receipt.gates[name];
   }
   receipt.gates["tab-switch-100k"] = { status: "n/a", reason: "Not applicable yet. Tabs do not exist.", target: 50 };
   receipt.gates["typing-two-panes"] = { status: "n/a", reason: "Not applicable yet. Two document panes do not exist. Split is the existing source plus preview mode.", target: 16 };
