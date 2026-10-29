@@ -91,8 +91,19 @@ function assertDocument(file: string, text: string): DriverStep {
     await waitFor(() => document.documentElement.dataset.firstReadable === file && document.documentElement.dataset.documentPainted === file);
     if (document.documentElement.dataset.documentPath !== file) throw new Error('Wrong perf file');
     if (document.querySelector('#doc h1')?.textContent !== ${quote(heading)}) throw new Error('Failed perf heading render');
-    await waitFor(() => !document.querySelector('#doc pre.mermaid'));
+    // First-readable has already been recorded. Exercise lazy diagrams through
+    // real scrolling, keeping diagram correctness outside the timed region.
+    const scroller = document.querySelector('#read-scroll');
+    const top = scroller.scrollTop;
+    const diagramCount = document.querySelectorAll('#doc pre.mermaid, #doc .diagram').length;
+    try {
+      for (const node of document.querySelectorAll('#doc pre.mermaid')) {
+        node.scrollIntoView({ block: 'center' });
+        await waitFor(() => !node.isConnected);
+      }
+    } finally { scroller.scrollTop = top; }
     if ([...document.querySelectorAll('#doc .diagram-error')].some(el => !el.hidden)) throw new Error('Failed perf diagram render');
+    if (document.querySelectorAll('#doc .diagram-canvas svg').length !== diagramCount) throw new Error('Missing perf diagram SVG');
     if (${quote(file.endsWith("math.md"))} && !document.querySelector('#doc .katex')) throw new Error('Failed perf math render');
     if (${quote(file.endsWith("fences.md") || file.endsWith("small.md"))} && !document.querySelector('#doc .shiki')) throw new Error('Failed perf highlight render');
   `);
