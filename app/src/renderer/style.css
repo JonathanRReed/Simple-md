@@ -496,22 +496,6 @@ body[data-platform="darwin"] .picker-card {
   pointer-events: none;
 }
 
-/* Press feedback after a read-view checkbox toggle. */
-@keyframes task-pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.25);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-.prose .task-pulse {
-  animation: task-pulse 200ms ease-out;
-}
-
 .markdown-alert {
   --alert: var(--accent);
   margin: 0 0 1.1em;
@@ -915,6 +899,9 @@ details.frontmatter pre {
     font-size: 11.5pt;
   }
   .titlebar,
+  .pane-status,
+  .pane-toolbar,
+  #tabs,
   #banner,
   #findbar,
   #picker,
@@ -1159,6 +1146,7 @@ body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; pa
   .pane-toolbar .seg { display: none; }
   .mode-menu:not([hidden]) { display: block; }
 }
+#stage[data-panes="1"] .document-pane { container-type: normal; }
 #stage[data-panes="1"] .pane-toolbar { height: 0; padding: 0; border: 0; }
 #stage[data-panes="1"] .pane-toolbar::before { display: none; }
 #stage[data-panes="1"] .pane-controls { position: fixed; inset: 6px 12px auto auto; z-index: 2; }

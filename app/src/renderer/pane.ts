@@ -743,7 +743,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     await renderRead(doc.readText, true);
     // Pulse the re-rendered checkbox (same ordinal in the fresh DOM) as press feedback.
     if (disposed || id !== pane.documentId) return;
-    docEl.querySelectorAll(".task-list-item-checkbox")[index]?.classList.add("task-pulse");
     if (!disposed && id === pane.documentId) scheduleAutosave();
   }
 
