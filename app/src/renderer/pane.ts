@@ -772,6 +772,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
       invalidateExport();
+      gitStatus = { available: true, active: false };
       void refreshChanges();
     }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };

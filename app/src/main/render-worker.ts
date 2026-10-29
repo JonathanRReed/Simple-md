@@ -34,9 +34,9 @@ export type RenderResponse =
 const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
-let incremental: { filePath: string | null; mdx?: boolean; blocks: IncrementalBlocks } | undefined;
+let incremental: { filePath: string | null; mdx: boolean; blocks: IncrementalBlocks } | undefined;
 const streams = new BlockStreams((text, filePath, result) => {
-  incremental = { filePath, blocks: new IncrementalBlocks() };
+  incremental = { filePath, mdx: /\.mdx$/i.test(filePath ?? ""), blocks: new IncrementalBlocks() };
   incremental.blocks.seed(text, result);
 });
 
@@ -57,8 +57,9 @@ port.on("message", async (request: RenderRequest) => {
         response = { id: request.id, kind: "stream-next", value: await streams.next(request.stream) };
         break;
       case "blocks": {
-        if (!incremental || incremental.filePath !== request.filePath || incremental.mdx !== request.mdx) incremental = { filePath: request.filePath, mdx: request.mdx, blocks: new IncrementalBlocks() };
-        const { result } = await incremental.blocks.render(request.text, request.filePath, request.mdx);
+        const mdx = request.mdx ?? /\.mdx$/i.test(request.filePath ?? "");
+        if (!incremental || incremental.filePath !== request.filePath || incremental.mdx !== mdx) incremental = { filePath: request.filePath, mdx, blocks: new IncrementalBlocks() };
+        const { result } = await incremental.blocks.render(request.text, request.filePath, mdx);
         const known = new Map(request.known?.map(block => [block.key, block.fingerprint]));
         const delta = blockDelta(result.blocks.filter(block => block.fingerprint !== undefined && known.get(block.key) === block.fingerprint), result);
         response = { id: request.id, kind: "blocks-delta", value: delta };

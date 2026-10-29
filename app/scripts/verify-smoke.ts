@@ -6,6 +6,7 @@ import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { cliRuntime } from "../src/main/cli-runtime";
 import type { DriverStep } from "../src/main/driver";
 
 type Step = DriverStep;
@@ -60,19 +61,20 @@ function fixture(name: string, text: string): string {
   return file;
 }
 
-async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source"): Promise<void> {
+async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source", options: { env?: NodeJS.ProcessEnv; prepare?: (profile: string) => void } = {}): Promise<void> {
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({
     mode: initialMode, autosave: false, launchAtLogin: false,
   }));
+  options.prepare?.(profile);
   const done = path.join(output, "done.png");
   const drive = path.join(output, "drive.json");
   const last = steps.at(-1);
   const sequence = last && "menuQuit" in last ? [...steps.slice(0, -1), { shot: done }, last] : [...steps, { shot: done }];
   fs.writeFileSync(drive, JSON.stringify(sequence, null, 2));
-  const env: NodeJS.ProcessEnv = { ...process.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: intent, SMD_TRACE: "1" };
+  const env: NodeJS.ProcessEnv = { ...process.env, ...options.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: intent, SMD_TRACE: "1" };
   delete env.ELECTRON_RUN_AS_NODE;
   let logs = "";
   let injected = false;
@@ -126,6 +128,9 @@ async function launch(name: string, file: string, steps: Step[], intent: "read" 
     if (change) assert(injected, "External-change fixture was not written.");
   } finally {
     if (poll) clearInterval(poll);
+    const runtime = cliRuntime(profile);
+    for (const name of ["state.json", "ipc.sock"]) fs.rmSync(path.join(runtime, name), { force: true });
+    try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error; }
   }
 }
 
@@ -144,6 +149,42 @@ async function test(name: string, run: () => Promise<void>): Promise<void> {
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 const note = "# Smoke edit note\n\nOriginal text.\n";
+
+if (process.platform !== "win32") await test("m6-security-git-is-lazy", async () => {
+  const file = fixture("m6-security-git-lazy/note.md", note);
+  const marker = path.join(root, "git-invoked");
+  const bin = path.join(root, "git-probe-bin"); fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, "git"), `#!${process.execPath}\nimport fs from 'node:fs'; fs.writeFileSync(${quote(marker)}, 'invoked'); process.exit(1);`, { mode: 0o700 });
+  const options = { env: { PATH: bin + path.delimiter + process.env.PATH } };
+  await launch("m6-security-git-mount", file, [
+    { nativeMenuState: { path: ["View", "Show Changes Since Last Commit"], enabled: true, checked: false } },
+  ], "read", undefined, 0, "source", options);
+  assert(!fs.existsSync(marker), "Mount or menu inspection invoked Git.");
+  await launch("m6-security-git-explicit", file, [
+    { nativeMenu: ["View", "Show Changes Since Last Commit"] },
+    evaluate(`const id = Number(document.querySelector('.document-pane').dataset.documentId); for (let i = 0; (await window.simplemd.gitStatus(id)).available; i++) { assert(i < 200, 'Explicit Git failure was not reported.'); await new Promise(resolve => setTimeout(resolve, 25)); }`),
+  ], "read", undefined, 0, "source", options);
+  assert(fs.existsSync(marker), "Explicit Git action did not invoke Git.");
+});
+
+if (process.platform !== "win32") await test("m6-security-cli-unavailable", async () => {
+  const file = fixture("m6-security-cli-unavailable/note.md", note);
+  await launch("m6-security-cli-unavailable", file, [
+    evaluate(`assert(document.querySelector('#doc h1')?.textContent === 'Smoke edit note', 'CLI failure blocked the document.');`),
+  ], "read", undefined, 0, "source", { prepare(profile) { fs.mkdirSync(cliRuntime(profile), { mode: 0o755 }); } });
+  assert(fs.readFileSync(path.join(root, "m6-security-cli-unavailable/electron.log"), "utf8").includes("CLI unavailable"));
+});
+
+await test("m6-security-change-size", async () => {
+  const file = fixture("m6-security-change-size/note.md", "# Large\n\n" + "x".repeat(2 * 1024 * 1024));
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: path.dirname(file), stdio: "pipe" });
+  git("init"); git("config", "user.name", "Smoke"); git("config", "user.email", "smoke@example.invalid");
+  git("add", "note.md"); git("commit", "-m", "baseline"); fs.appendFileSync(file, "\nEdited.");
+  await launch("m6-security-change-size", file, [
+    { nativeMenu: ["View", "Show Changes Since Last Commit"] },
+    evaluate(`await waitFor(() => document.querySelector('#change-count').textContent === 'Change highlights are off above 2 MB.', 'Size note did not appear.'); assert(!document.querySelector('.change-highlight'), 'Large document was highlighted.');`),
+  ]);
+});
 
 await test("m6b-watch-highlights", async () => {
   const before = "# Delivery plan\n\n## Ready\n\nThe foundation is complete.\n\n## Next\n\nReview the export path.\n";
@@ -168,7 +209,7 @@ await test("m6b-watch-highlights", async () => {
     evaluate(`window.simplemd.command('mark-seen'); await waitFor(() => document.querySelector('#changes').hidden, 'Mark Seen did not clear marks.');
       assert(!document.querySelector('.cm-line.change-highlight'), 'Editor marks survived Mark Seen.');`),
     evaluate(`const id = Number(document.querySelector('.document-pane').dataset.documentId);
-      assert(!(await window.simplemd.gitStatus(id)).available, 'Outside-repo toggle is enabled.');
+      assert((await window.simplemd.gitStatus(id)).available, 'Saved file lacks an optimistic Git action.');
       assert(!(await window.simplemd.headChanges(id, true)).available, 'Outside-repo HEAD read succeeded.');
       await window.simplemd.openPath(${quote(other)}, 'read');
       await window.simplemd.openPath(${quote(file)}, 'read');`),
@@ -1349,7 +1390,6 @@ const contextBase = { selectionPresent: false, editable: false, linkURL: "", ima
 await test("native-menu-rebuilds", async () => {
   const a = fixture("native-menu-rebuilds/a.md", note), b = fixture("native-menu-rebuilds/b.md", "# Recent\n");
   await launch("native-menu-rebuilds", a, [
-    // The async Git check legitimately refreshes the menu once; let it settle before capturing.
     evaluate(`await waitFor(() => document.querySelector('.document-pane[data-active=true]')?.dataset.documentId, 'No active document');
       await window.simplemd.gitStatus(Number(document.querySelector('.document-pane[data-active=true]').dataset.documentId));`),
     { nativeMenus: "capture" },

@@ -105,7 +105,7 @@ test("Windows URL and CLI paths reject UNC and device names before filesystem ac
 test.skipIf(process.platform === "win32")("runtime uses private user storage and ignores stale PID 1", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-stale-")), runtime = cliRuntime(root);
   try {
-    expect(runtime.startsWith(os.tmpdir() + path.sep)).toBe(true);
+    expect(runtime.startsWith((process.platform === "darwin" ? os.tmpdir() : process.env.XDG_RUNTIME_DIR ?? path.join(os.homedir(), ".cache", "simplemd-cli")) + path.sep)).toBe(true);
     fs.mkdirSync(runtime, { mode: 0o700 });
     fs.writeFileSync(path.join(runtime, "state.json"), JSON.stringify({ pid: 1 }), { mode: 0o600 });
     const prepared = await prepareCliRuntime("unused", root);
@@ -166,4 +166,16 @@ test.skipIf(process.platform === "win32")("runtime cleanup removes its empty dir
     expect(fs.existsSync(runtime)).toBe(false);
     server.close();
   } finally { fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test.skipIf(process.platform === "win32")("a live listener is never reclaimed even if the PID is stale", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-live-")), runtime = cliRuntime(root);
+  const server = await startCliServer({ binary: "unused", profile: root, dispatch: async () => undefined });
+  try {
+    const state = JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8")); state.pid = 1;
+    fs.writeFileSync(path.join(runtime, "state.json"), JSON.stringify(state));
+    await expect(prepareCliRuntime("unused", root)).rejects.toThrow("stale");
+    expect(fs.existsSync(path.join(runtime, "ipc.sock"))).toBe(true);
+    expect(JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8")).secret).toBe(state.secret);
+  } finally { server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
 });

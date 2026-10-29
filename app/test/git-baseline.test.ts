@@ -91,3 +91,30 @@ test("Git receives a minimal environment and mandatory no-fetch hardening", asyn
     for (const key of ["GIT_DIR", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_EXEC_PATH", "GIT_CEILING_DIRECTORIES", "GIT_SSH", "NODE_OPTIONS"]) expect(call.env[key]).toBeUndefined();
   } finally { for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]; Object.assign(process.env, saved); }
 });
+
+test("ext transport cannot run its command while reading a missing object", async () => {
+  const { dir, git } = await repository();
+  const file = path.join(dir, "note.md"), marker = path.join(dir, "ext-executed");
+  await fs.writeFile(file, "Committed"); git("add", "."); git("commit", "-m", "fixture");
+  const blob = git("rev-parse", "HEAD:note.md");
+  await fs.unlink(path.join(dir, ".git/objects", blob.slice(0, 2), blob.slice(2)));
+  git("config", "extensions.partialClone", "origin"); git("config", "remote.origin.promisor", "true");
+  git("config", "remote.origin.url", `ext::sh -c touch% ${marker}`); git("config", "protocol.ext.allow", "always");
+  expect((await readGitBaseline(file)).available).toBe(false);
+  expect(await fs.exists(marker)).toBe(false);
+});
+test("older Git without no-lazy-fetch fails closed", async () => {
+  const dir = await directory(), file = path.join(dir, "note.md"); await fs.writeFile(file, "Note");
+  await fs.writeFile(path.join(dir, "git"), `#!${process.execPath}\nprocess.stderr.write('unknown option: --no-lazy-fetch'); process.exit(129);`, { mode: 0o700 });
+  const previous = process.env.PATH;
+  try {
+    process.env.PATH = dir;
+    expect(await readGitBaseline(file)).toEqual({ available: false, reason: "This Git version cannot safely read HEAD. Update Git to use change highlights." });
+  } finally { process.env.PATH = previous; }
+});
+test("document mount never requests Git status and status inspection never invokes Git", async () => {
+  const pane = await fs.readFile(path.resolve(import.meta.dir, "../src/renderer/pane.ts"), "utf8");
+  expect(pane.includes("simplemd.gitStatus(")).toBe(false);
+  const main = await fs.readFile(path.resolve(import.meta.dir, "../src/main/main.ts"), "utf8");
+  expect(main.includes('handle("smd:git-status", id => ipcSession(id).gitStatus)')).toBe(true);
+});

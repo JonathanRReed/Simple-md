@@ -10,7 +10,7 @@ function gitEnvironment(): NodeJS.ProcessEnv {
   for (const [key, value] of Object.entries(process.env)) {
     if (["PATH", "HOME", "LANG"].includes(key) || /^LC_[A-Z_]+$/.test(key)) env[key] = value;
   }
-  return { ...env, GIT_NO_LAZY_FETCH: "1", GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_ATTR_NOSYSTEM: "1" };
+  return { ...env, GIT_NO_LAZY_FETCH: "1", GIT_ALLOW_PROTOCOL: "", GIT_NO_REPLACE_OBJECTS: "1", GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_ATTR_NOSYSTEM: "1" };
 }
 function git(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {

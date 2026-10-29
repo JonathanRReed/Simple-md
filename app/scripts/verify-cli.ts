@@ -88,10 +88,25 @@ try {
     saved: async () => { assert.equal(waiter.child.exitCode, null); assert.equal(second.child.exitCode, null); },
     closed: async () => { assert.equal(await waiter.done, 0, waiter.errors()); assert.equal(await second.done, 0, second.errors()); },
   });
-  const stdinText = "# Stdin\n\nUnsaved text.\n";
+  const capacityWaiters: ReturnType<typeof run>[] = [];
+  await session("waiter-capacity", [
+    { barrier: "waiters" }, painted(file),
+    evalStep(`await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId));`),
+    { barrier: "waiters-closed" },
+  ], {
+    waiters: async env => {
+      for (let i = 0; i < 20; i++) { capacityWaiters.push(run(cli, ["--wait", file], env)); await new Promise(resolve => setTimeout(resolve, 80)); }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      for (const waiter of capacityWaiters) assert.equal(waiter.child.exitCode, null);
+      await ok(env, [file]);
+    },
+    "waiters-closed": async () => { for (const waiter of capacityWaiters) assert.equal(await waiter.done, 0, waiter.errors()); },
+  });
+  const stdinText = "# Stdin\n\n<Widget />\n\n![local](./secret.png)\n";
   const savedStdin = path.join(root, "stdin-saved.md");
   await session("stdin-save-as-wait", [
     { barrier: "stdin" }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="name"]')?.textContent === 'pipe.mdx'); assert(!document.documentElement.dataset.documentPath, 'Stdin acquired a disk path');`),
+    evalStep(`window.simplemd.command('mode-split'); await waitFor(() => document.querySelector('#preview .mdx-component')); assert(![...document.querySelectorAll('#preview img')].some(image => /^file:/i.test(image.getAttribute('src') || '')), 'Piped image acquired a local path');`),
     { savePath: savedStdin },
     { save: true }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="name"]')?.textContent === 'stdin-saved.md');`),
     { barrier: "save-as" },
@@ -124,7 +139,12 @@ try {
       assert(fs.readFileSync(html, "utf8").includes('>Same</h1>'));
       assert(fs.readFileSync(pdf).subarray(0, 5).equals(Buffer.from("%PDF-")));
       const duplicate = run(cli, ["export", file, "--format", "html", "-o", html], env); assert.equal(await duplicate.done, 1);
+      if (process.platform !== "win32") fs.chmodSync(html, 0o640);
       await ok(env, ["export", file, "--format", "html", "-o", html, "--force"]);
+      if (process.platform !== "win32") {
+        assert.equal(fs.statSync(html).mode & 0o777, 0o640);
+        assert.equal(fs.statSync(pdf).mode & 0o777, 0o666 & ~process.umask());
+      }
       const wrong = net.createConnection(path.join(env.SMD_CLI_RUNTIME!, "ipc.sock"));
       await new Promise<void>(resolve => wrong.once("connect", resolve));
       const closed = new Promise<void>(resolve => wrong.once("close", resolve));

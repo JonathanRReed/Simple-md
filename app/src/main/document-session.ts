@@ -111,10 +111,10 @@ export class DocumentSession {
       }
       const moved = target !== this.path;
       if (moved) {
-      this.markSeen();
-      this.gitStatus = { available: true, active: false };
-    }
-    this.path = target;
+        this.markSeen();
+        this.gitStatus = { available: true, active: false };
+      }
+      this.path = target;
       this.diskText = text;
       this.conflict = false;
       this.dirty = this.text !== text;

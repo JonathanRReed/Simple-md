@@ -97,7 +97,16 @@ pub fn parse(
     }
     let file = files[0];
     #[cfg(windows)]
-    if [Some(file), output.as_deref()].into_iter().flatten().any(|v| v.starts_with(['\\', '/']) && v.as_bytes().get(1).is_some_and(|b| *b == b'\\' || *b == b'/')) {
+    if [Some(file), output.as_deref()]
+        .into_iter()
+        .flatten()
+        .any(|v| {
+            v.starts_with(['\\', '/'])
+                && v.as_bytes()
+                    .get(1)
+                    .is_some_and(|b| *b == b'\\' || *b == b'/')
+        })
+    {
         return Err("UNC and device paths are forbidden".into());
     }
     if export {
