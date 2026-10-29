@@ -5,10 +5,15 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 let helper: ChildProcessWithoutNullStreams | undefined;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let sequence = 0;
+// Saves are bursty; keep the helper only briefly so it does not sit in the process tree.
+const IDLE_MS = 30_000;
 const pending = new Map<number, { resolve(): void; reject(error: Error): void }>();
 
 export function stopMetadataHelper(): void {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = undefined;
   const child = helper;
   helper = undefined;
   child?.kill();
@@ -50,6 +55,7 @@ function startHelper(): ChildProcessWithoutNullStreams {
 }
 
 export async function copyMetadata(source: string, target: string): Promise<void> {
+  if (idleTimer) clearTimeout(idleTimer);
   const child = startHelper();
   const id = ++sequence;
   const timer = setTimeout(() => { if (helper === child) stopMetadataHelper(); }, 5000);
@@ -58,5 +64,8 @@ export async function copyMetadata(source: string, target: string): Promise<void
       pending.set(id, { resolve, reject });
       child.stdin.write(JSON.stringify({ id, source, target }) + "\n");
     });
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+    if (helper === child && pending.size === 0) idleTimer = setTimeout(stopMetadataHelper, IDLE_MS);
+  }
 }

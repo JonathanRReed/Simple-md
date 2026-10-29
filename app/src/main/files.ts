@@ -59,7 +59,10 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
     if (stat) await readDiskText(target);
     const handle = await fs.promises.open(tmp, "wx", stat ? stat.mode & 0o7777 : 0o666);
     try {
-      if (stat && process.platform === "darwin") await copyMetadata(target, tmp);
+      if (stat && process.platform === "darwin") {
+        // Losing tags or xattrs is better than losing the save.
+        await copyMetadata(target, tmp).catch((err) => console.error("simplemd: could not preserve file metadata", err));
+      }
       await handle.truncate(0);
       await handle.writeFile(text, "utf8");
       if (stat) await handle.chmod(stat.mode & 0o7777);
