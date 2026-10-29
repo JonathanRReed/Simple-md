@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
-  win: { isVisible?: () => boolean; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste">> },
+  win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
   file: string,
   toPdf: (target: string) => Promise<void>,
   toHtml?: (target: string) => Promise<void>,
@@ -16,6 +16,9 @@ export async function runDriver(
   const needsBarrier = steps.some((step) => "barrier" in step);
   const lines = needsBarrier ? createInterface({ input: process.stdin }) : undefined;
   const acknowledgements = lines?.[Symbol.asyncIterator]();
+  let restoreSend: (() => void) | undefined;
+  let removeDiagnostics: (() => void) | undefined;
+  const flushStarted = new Map<number, number>();
   try {
     for (const step of steps) {
       if ("quit" in step) return "complete";
@@ -24,7 +27,40 @@ export async function runDriver(
         requestQuit();
         return "menu-quit";
       }
-      if ("paste" in step) {
+      if ("page" in step) {
+        if (!win.webContents.loadFile) throw new Error("Driver page navigation unavailable");
+        await win.webContents.loadFile(step.page);
+      } else if ("throttling" in step) {
+        if (!win.webContents.setBackgroundThrottling) throw new Error("Background throttling control unavailable");
+        win.webContents.setBackgroundThrottling(step.throttling);
+      } else if ("diagnostics" in step) {
+        const { screen, powerMonitor, app, ipcMain } = await import("electron");
+        if (!restoreSend && win.webContents.send) {
+          const original = win.webContents.send;
+          win.webContents.send = (channel, ...args: unknown[]) => {
+            if (channel === "smd:flush-request" && typeof args[0] === "number") {
+              flushStarted.set(args[0], performance.now());
+              console.log(`smd-perf ${JSON.stringify({ kind: "flush-request", id: args[0] })}`);
+            }
+            original.call(win.webContents, channel, ...args);
+          };
+          restoreSend = () => { win.webContents.send = original; };
+        }
+        removeDiagnostics?.();
+        const onFlush = (_event: Electron.IpcMainEvent, id: number, result: { documentId?: number; dirty?: boolean; conflict?: boolean; text?: string }) => {
+          const started = flushStarted.get(id);
+          flushStarted.delete(id);
+          console.log(`smd-perf ${JSON.stringify({ kind: "flush-response", id, roundTripMs: started === undefined ? null : performance.now() - started, documentId: result?.documentId, dirty: result?.dirty, conflict: result?.conflict, textLength: result?.text?.length })}`);
+        };
+        ipcMain.on("smd:flush-response", onFlush);
+        removeDiagnostics = () => { ipcMain.removeListener("smd:flush-response", onFlush); };
+        console.log(`smd-perf ${JSON.stringify({ kind: "record", name: step.diagnostics, value: {
+          backgroundThrottling: win.webContents.getBackgroundThrottling?.(),
+          displays: screen.getAllDisplays(), display: win.getBounds ? screen.getDisplayMatching(win.getBounds()) : null,
+          versions: process.versions, thermalState: powerMonitor.getCurrentThermalState(),
+          switches: Object.fromEntries(["disable-renderer-backgrounding", "disable-backgrounding-occluded-windows", "disable-background-timer-throttling"].map(name => [name, app.commandLine.hasSwitch(name)])),
+        } })}`);
+      } else if ("paste" in step) {
         if (!win.webContents.paste) throw new Error("Paste is unavailable.");
         const { clipboard, ClipboardItem } = await import("electron");
         const previous = await Promise.all((await clipboard.read()).map(async (item) => new ClipboardItem(Object.fromEntries(
@@ -78,5 +114,5 @@ export async function runDriver(
       }
     }
     return "complete";
-  } finally { lines?.close(); }
+  } finally { removeDiagnostics?.(); restoreSend?.(); lines?.close(); }
 }

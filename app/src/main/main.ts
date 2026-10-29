@@ -159,6 +159,8 @@ function createWindow(): BrowserWindow {
       preload: path.join(here, "preload.cjs"),
       sandbox: true,
       contextIsolation: true,
+      // Tray opens must not wait for a throttled renderer round trip.
+      backgroundThrottling: false,
     },
   });
   if (!mac) {

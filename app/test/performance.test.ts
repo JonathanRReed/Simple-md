@@ -42,7 +42,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { measureDriverRun } from "../bench";
-import { percentile, readableSample, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
+import { percentile, readableSample, residentTiming, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
 import { fixtureManifest, perfFixtures, sha256, writePerfFixtures } from "../scripts/perf-fixtures";
 
 describe("performance gate receipts", () => {
@@ -64,6 +64,9 @@ describe("performance gate receipts", () => {
       { elapsedMs: 30, data: { marker: "first-readable", path: "/new.md" } },
     ];
     expect(readableSample(events, 5, "/new.md")).toBe(25);
+    expect(residentTiming(events, 5, "/new.md")).toEqual({ ms: 25, externalMs: 25, deliveryMs: 5, afterArrivalMs: 20 });
+    expect(residentTiming(events, 0, "/new.md")).toEqual({ ms: 30, externalMs: 30, deliveryMs: 10, afterArrivalMs: 20 });
+    expect(() => residentTiming(events, 31, "/new.md")).toThrow();
     expect(() => readableSample(events, 5, "/old.md")).toThrow();
     expect(() => readableSample(events, 31, "/new.md")).toThrow();
   });
@@ -72,8 +75,8 @@ describe("performance gate receipts", () => {
     expect(result.keydown.total).toBe(40);
     expect(result.keydown.p95).toEqual({ lower: 0, upper: 16, upperExclusive: true });
     expect(result.keydown.p99).toEqual({ lower: 24, upper: 24, upperExclusive: false });
-    expect(result.beforeinput.p95).toBeNull();
-    expect(result.beforeinput.reason).toContain("not exposed");
+    expect(result.beforeinput.censoredBelow16).toBe(40);
+    expect(result.beforeinput.p95).toEqual({ lower: 0, upper: 16, upperExclusive: true });
   });
   test("binds generated and committed fixture bytes to the manifest", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-perf-fixtures-"));
@@ -101,4 +104,39 @@ describe("performance gate receipts", () => {
       await expect(run(`console.log('smd-perf not-json'); setInterval(() => {}, 1000);`)).rejects.toThrow();
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
   });
+});
+
+import { calibratedTyping } from "../scripts/perf-typing";
+import { runDriver } from "../src/main/driver";
+
+test("calibrated typing keeps censoring bounds, requires evidence, and catches added frames", () => {
+  const exact = (value: number) => ({ lower: value, upper: value, upperExclusive: false });
+  const censored = { lower: 0, upper: 16, upperExclusive: true };
+  expect(calibratedTyping(exact(32), exact(24), 1000 / 120, 40).status).toBe("pass");
+  expect(calibratedTyping(exact(48), exact(24), 1000 / 120, 40).status).toBe("fail");
+  expect(calibratedTyping(censored, censored, 1000 / 120, 40).excessP95Ms).toEqual({ lower: 0, upper: 16 });
+  expect(calibratedTyping(exact(24), censored, 1000 / 120, 40).status).toBe("fail");
+  expect(calibratedTyping(exact(24), null, 1000 / 120, 40).status).toBe("fail");
+  expect(calibratedTyping(exact(24), exact(24), null, 40).status).toBe("fail");
+  expect(calibratedTyping(exact(24), exact(24), NaN, 40).status).toBe("fail");
+  expect(calibratedTyping(exact(24), exact(24), 0, 40).status).toBe("fail");
+  expect(calibratedTyping(exact(24), exact(24), 1000 / 120, 39).status).toBe("fail");
+  expect(() => summarizeEventTiming({ counts: { keydown: 0, beforeinput: 0 }, events: [{ name: "keydown", duration: 24 }] })).toThrow();
+});
+
+test("driver alternates actual renderer throttling and loads calibration pages in sequence", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-perf-driver-"));
+  try {
+    const file = path.join(root, "drive.json");
+    fs.writeFileSync(file, JSON.stringify([{ throttling: true }, { throttling: false }, { page: "/control.html" }]));
+    const received: unknown[] = [];
+    await runDriver({ webContents: {
+      executeJavaScript: async () => undefined,
+      capturePage: async () => { throw new Error("No screenshot expected"); },
+      sendInputEvent: () => {},
+      setBackgroundThrottling: value => { received.push(value); },
+      loadFile: async file => { received.push(file); },
+    } }, file, async () => {});
+    expect(received).toEqual([true, false, "/control.html"]);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

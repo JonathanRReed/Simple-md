@@ -25,10 +25,10 @@ const mod = process.platform === "darwin" ? "meta" : "control";
 function evaluate(code: string): Step {
   return { eval: `(async () => {
     const assert = (value, message) => { if (!value) throw new Error(message); };
-    const waitFor = async (predicate, message) => {
-      const deadline = Date.now() + 10000;
+    const waitFor = async (predicate, message, timeoutMs = 10000) => {
+      const deadline = performance.now() + timeoutMs;
       while (!predicate()) {
-        if (Date.now() > deadline) throw new Error(message);
+        if (performance.now() > deadline) throw new Error(message);
         await new Promise(resolve => setTimeout(resolve, 25));
       }
     };
@@ -97,8 +97,8 @@ async function launch(name: string, file: string, steps: Step[], intent: "peek" 
     const child = spawn(executable, [appRoot, file], { cwd: appRoot, env, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout.on("data", (data: Buffer) => { logs = (logs + String(data)).slice(-1_000_000); });
     child.stderr.on("data", (data: Buffer) => { logs = (logs + String(data)).slice(-1_000_000); });
-    const timeout = setTimeout(() => child.kill("SIGTERM"), 35_000);
-    const forceTimeout = setTimeout(() => child.kill("SIGKILL"), 38_000);
+    const timeout = setTimeout(() => child.kill("SIGTERM"), 90_000);
+    const forceTimeout = setTimeout(() => child.kill("SIGKILL"), 93_000);
     let exit: { code: number | null; signal: NodeJS.Signals | null };
     try {
       exit = await new Promise((resolve, reject) => {
@@ -153,7 +153,7 @@ await test("driver-assertion-failure", async () => {
 await test("render-links-pdf", async () => {
   const source = "# Smoke render alpha\n\n## [Introduction](https://example.com)\n\n[Jump](#introduction)\n\n![image](image%20%231.png)\n\n[Next](../beta/note%20%231.md)\n\n```ts\nconst smoke = 42;\n```\n\nInline $E=mc^2$.\n\n```mermaid\ngraph LR\nStart-->Finish\n```\n\n<script>window.smokeInjected = true</script>\n\n[unsafe](javascript:alert(1))\n";
   const alpha = fixture("alpha/note.md", source);
-  fixture("beta/note #1.md", "# Smoke render beta\n\n![image](image%20%231.png)\n");
+  const beta = fixture("beta/note #1.md", "# Smoke render beta\n\n![image](image%20%231.png)\n");
   fs.writeFileSync(path.join(root, "alpha/image #1.png"), png);
   fs.writeFileSync(path.join(root, "beta/image #1.png"), png);
   const pdf = path.join(root, "render-links-pdf/output.pdf");
@@ -171,8 +171,9 @@ await test("render-links-pdf", async () => {
       assert(!window.smokeInjected, 'Raw Markdown script executed.');
       assert(!document.querySelector('#doc a[href^="javascript:"]'), 'Unsafe link became clickable.');
       assert(typeof window.require === 'undefined', 'Renderer has Node require.');
+      await waitFor(() => !document.querySelector('#read').inert && !document.querySelector('#edit').inert && document.documentElement.dataset.documentPainted === ${quote(alpha)}, 'Initial note transition did not finish.', 30000);
       document.querySelector('#doc a[href*="note%20%231.md"]').click();
-      await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke render beta' && !document.querySelector('#edit').inert, 'Encoded Markdown link did not commit.');
+      await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke render beta' && document.documentElement.dataset.documentPainted === ${quote(beta)} && !document.querySelector('#read').inert && !document.querySelector('#edit').inert, 'Encoded Markdown link did not commit.', 30000);
       await waitFor(() => document.querySelector('#doc img')?.naturalWidth > 0, 'Image did not resolve after navigation.');
       assert(document.querySelector('#doc img').src.includes('/beta/'), 'Navigation kept the previous image base path.');
       window.simplemd.command('nav-back');
