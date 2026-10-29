@@ -1170,7 +1170,7 @@ for (const native of [false, true]) await test(`tabs-last-close-${native ? "nati
     evaluate(`window.residentToken = 'same renderer';`),
     native ? { closeWindow: true } : evaluate(`window.simplemd.command('close-tab');`),
     { wait: 200 }, { windowCount: 1 }, { visibility: false },
-    evaluate(`assert(document.querySelectorAll('.cm-editor').length === 0 && document.querySelectorAll('[role="tab"]').length === 0, 'Closed layout was retained');
+    evaluate(`assert(document.querySelectorAll('.cm-editor').length === 0 && document.querySelectorAll('[role="tab"]').length === 0, 'Closed layout was retained'); assert(document.documentElement.dataset.documentPath === undefined, 'Closed window retained document identity');
       await window.simplemd.openPath(${quote(file)}, 'edit');
       await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)}, 'Resident window did not reopen');
       assert(window.residentToken === 'same renderer', 'Reopen replaced resident renderer');`),

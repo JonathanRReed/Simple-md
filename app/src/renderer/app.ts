@@ -33,11 +33,9 @@ function syncChrome(): void {
   if (!layout) return;
   const controller = active();
   const element = panes.get(layout.activePane)?.element;
-  if (element) {
-    for (const key of ["documentPath", "documentPainted", "firstReadable", "fullyHighlighted", "renderComplete", "documentId", "revisionId"]) {
-      if (element.dataset[key] === undefined) delete document.documentElement.dataset[key];
-      else document.documentElement.dataset[key] = element.dataset[key];
-    }
+  for (const key of ["documentPath", "documentPainted", "firstReadable", "fullyHighlighted", "renderComplete", "documentId", "revisionId"]) {
+    if (element?.dataset[key] === undefined) delete document.documentElement.dataset[key];
+    else document.documentElement.dataset[key] = element.dataset[key];
   }
   const tabFocused = strip.contains(document.activeElement);
   const ids = layout.tabs;
