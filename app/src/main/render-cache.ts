@@ -12,7 +12,7 @@ interface CacheEntry extends RenderedBlocks {
   sourceHash: string;
 }
 
-export const RENDER_CACHE_VERSION = 3;
+export const RENDER_CACHE_VERSION = 4;
 const MAX_ENTRIES = 24;
 const MAX_BYTES = 16 * 1024 * 1024;
 const ENVELOPE_BYTES = Buffer.byteLength(JSON.stringify({ version: RENDER_CACHE_VERSION, entries: {} }));

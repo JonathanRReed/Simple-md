@@ -851,11 +851,22 @@ async function boot(): Promise<void> {
         .then(() => document.fonts.ready)
         .then(() => Promise.all([...docEl.querySelectorAll("img")].filter((image) => image.hasAttribute("src") || image.currentSrc || image.closest("picture")?.querySelector("source[srcset]")).map(async (image) => {
           image.loading = "eager";
-          if (!image.complete) await new Promise<void>((resolve, reject) => {
-            image.addEventListener("load", () => resolve(), { once: true });
-            image.addEventListener("error", () => reject(new Error("An image could not be loaded for printing.")), { once: true });
-          });
-          await image.decode();
+          try {
+            if (!image.complete) await new Promise<void>((resolve, reject) => {
+              const finish = (error?: Error) => {
+                clearTimeout(timer);
+                image.removeEventListener("load", loaded);
+                image.removeEventListener("error", failed);
+                error ? reject(error) : resolve();
+              };
+              const loaded = () => finish();
+              const failed = () => finish(new Error("An image could not be loaded for printing."));
+              const timer = setTimeout(() => finish(new Error("An image timed out while loading for printing.")), 5000);
+              image.addEventListener("load", loaded, { once: true });
+              image.addEventListener("error", failed, { once: true });
+            });
+            await image.decode();
+          } catch (error) { console.warn("simplemd: skipped print image", error); }
         })))
         .then(() => simplemd.printReady())
         .catch((error: unknown) => simplemd.printReady(error instanceof Error ? error.message : "Print rendering failed."));

@@ -70,3 +70,14 @@ describe("shared author URL resolver", () => {
     expect(mdx.blocks.map((b) => b.sourceRange)).toEqual([[0, 3], [6, 7], [8, 9], [10, 11]]);
   });
 });
+
+test("folder root lookup is reused until explicitly invalidated", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "smd-root-cache-"));
+  try {
+    const initial = urlContext(temp);
+    fs.mkdirSync(path.join(temp, ".git"));
+    expect(urlContext(temp)).toBe(initial);
+    invalidateUrlContext(temp);
+    expect(urlContext(temp).rootUrl).toBe(pathToFileURL(temp + path.sep).href);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});

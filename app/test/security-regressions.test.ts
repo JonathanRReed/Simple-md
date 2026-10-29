@@ -129,3 +129,16 @@ test.skipIf(process.platform !== "darwin")("metadata copy never propagates immut
     Bun.spawnSync(["chflags", "nouchg", source, target]);
   }
 });
+
+test.skipIf(process.platform === "win32")("a FIFO image is skipped without blocking the remaining export", async () => {
+  const dir = await fixture();
+  const fifo = path.join(dir, "pipe.png");
+  expect(Bun.spawnSync(["mkfifo", fifo]).exitCode).toBe(0);
+  const image = path.join(dir, "ok.png");
+  await fs.writeFile(image, Buffer.from([1, 2, 3]));
+  const sources = [fifo, image].map(file => pathToFileURL(file).href);
+  const warnings: string[] = [];
+  const embedded = await embedLocalImages(sources, { baseUrl: pathToFileURL(dir + path.sep).href }, warning => warnings.push(warning));
+  expect(embedded).toEqual([sources[0], "data:image/png;base64,AQID"]);
+  expect(warnings[0]).toContain("regular files");
+});

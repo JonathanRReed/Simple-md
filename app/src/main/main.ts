@@ -505,8 +505,9 @@ async function openLink(href: string, intent: OpenIntent = "edit"): Promise<bool
   const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
   if (!resolved || !resolved.startsWith("file:")) return false;
   try {
-    const target = await containedLocalFile(resolved, urlContext(path.dirname(current.path)));
-    return isMarkdown(target) ? openFile(target, intent) : false;
+    const canonical = await containedLocalFile(resolved, urlContext(path.dirname(current.path)));
+    const target = fileURLToPath(resolved);
+    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent) : false;
   } catch {
     return false;
   }
