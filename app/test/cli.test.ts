@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -112,6 +112,8 @@ test.skipIf(process.platform === "win32")("runtime uses private user storage and
     fs.mkdirSync(runtime, { mode: 0o700 });
     fs.writeFileSync(path.join(runtime, "state.json"), JSON.stringify({ pid: 1 }), { mode: 0o600 });
     const prepared = await prepareCliRuntime("unused", root);
+    expect(fs.statSync(runtime).uid).toBe(process.getuid?.());
+    expect(fs.statSync(runtime).mode & 0o777).toBe(0o700);
     expect(JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8")).pid).toBe(process.pid);
     prepared.cleanup();
   } finally { fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
@@ -130,11 +132,13 @@ test.skipIf(process.platform === "win32")("refused socket is stale even when its
 
 test.skipIf(process.platform === "win32")("a squatted runtime disables only the optional CLI server", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-squatted-")), runtime = cliRuntime(root);
+  const report = spyOn(console, "error").mockImplementation(() => {});
   try {
     fs.mkdirSync(runtime, { mode: 0o755 });
     expect(await startOptionalCliServer({ binary: "unused", profile: root, dispatch: async () => undefined })).toBeUndefined();
+    expect(report).toHaveBeenCalledWith("simplemd: CLI unavailable", expect.objectContaining({ message: "Unsafe CLI runtime directory." }));
     expect(fs.statSync(runtime).mode & 0o777).toBe(0o755);
-  } finally { fs.rmdirSync(runtime); fs.rmSync(root, { recursive: true, force: true }); }
+  } finally { report.mockRestore(); fs.rmdirSync(runtime); fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test.skipIf(process.platform === "win32")("authenticated waiters have a separate 256-connection cap", async () => {

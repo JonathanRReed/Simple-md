@@ -49,7 +49,8 @@ describe("host-only packaging", () => {
     }
     expect(() => packageMode(["--dir", "--dist"])).toThrow("Usage");
     expect(localEnvironment({ PATH: "/bin", CSC_NAME: "private", CSC_LINK: "private", APPLE_ID: "private", WIN_CSC_LINK: "private", GH_TOKEN: "private", GITHUB_TOKEN: "private", AZURE_CLIENT_SECRET: "private", CSC_IDENTITY_AUTO_DISCOVERY: "true", csc_link: "private" }))
-      .toEqual({ PATH: "/bin", CSC_IDENTITY_AUTO_DISCOVERY: "false" });
+      .toEqual({ PATH: "/bin", CSC_IDENTITY_AUTO_DISCOVERY: "false", CSC_FOR_PULL_REQUEST: "true" });
+    expect(localEnvironment({ CSC_FOR_PULL_REQUEST: "true" }, "Developer ID Application: Test").CSC_FOR_PULL_REQUEST).toBeUndefined();
   });
   test("keeps the bootstrap, worker chunks, and MIT license in package inputs", () => {
     const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
@@ -100,6 +101,25 @@ describe("host-only packaging", () => {
   });
 });
 
+test.skipIf(process.platform !== "darwin")("PR packaging permits only credential-free ad-hoc signing", async () => {
+  const { isSignAllowed } = await import("app-builder-lib/out/codeSign/macCodeSign.js");
+  const saved = { ...process.env };
+  try {
+    delete process.env.CSC_FOR_PULL_REQUEST;
+    process.env.GITHUB_BASE_REF = "main";
+    expect(isSignAllowed(false)).toBe(false);
+    Object.assign(process.env, localEnvironment(process.env));
+    expect(isSignAllowed(false)).toBe(true);
+    const clean = localEnvironment(process.env, "Developer ID Application: Test");
+    delete process.env.CSC_FOR_PULL_REQUEST;
+    Object.assign(process.env, clean);
+    expect(isSignAllowed(false)).toBe(false);
+  } finally {
+    for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+    Object.assign(process.env, saved);
+  }
+});
+
 describe("Linux launch integration", () => {
   test("prints a single-file association and escapes desktop Exec metacharacters", () => {
     const entry = desktopEntry('/home/test/My "notes" $cash` %app\\.AppImage');
@@ -146,7 +166,7 @@ test("the package file filter excludes the browser render bundle from app.asar",
     }
     const archive = path.join(dir, "app.asar");
     await createPackageFromFiles(source, archive, files);
-    const packed = listPackage(archive);
+    const packed = listPackage(archive).map(name => name.split(path.sep).join("/"));
     expect(packed).toContain("/dist/render-worker.mjs");
     expect(packed).not.toContain("/dist/render-core.js");
   } finally { await fs.rm(dir, { recursive: true, force: true }); }

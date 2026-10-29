@@ -111,8 +111,7 @@ jobs:
         run: bun run setup
       - name: Typecheck
         run: bun run typecheck
-      - name: Build simplemd-helper for save metadata
-        if: runner.os == 'macOS'
+      - name: Build release CLI and native helper before tests
         run: bun run build:native
       - name: Test
         if: runner.os != 'Linux'
