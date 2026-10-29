@@ -1,4 +1,0 @@
-Bundled 688 modules in 48ms
-
-  quicklook-test-env.js  9.73 MB  (entry point)
-

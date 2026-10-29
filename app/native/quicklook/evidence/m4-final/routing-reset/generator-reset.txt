@@ -1,2 +1,0 @@
-qlmanage: resetting quicklookd
-qlmanage: call reset on cache

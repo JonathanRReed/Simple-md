@@ -1,3 +1,0 @@
-swift-driver version: 1.168.6 Timestamp               Ty Process[PID:TID]
-2026-10-29 02:15:00.626 Df SimpleMDQLThumbnail[62477:e9be0a] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail preparing file=custom.mdx bytes=37 size=512.000000x512.000000 scale=1.000000
-2026-10-29 02:15:00.645 Df SimpleMDQLThumbnail[62477:e9be0a] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail drawn file=custom.mdx elapsed_ms=22.013458

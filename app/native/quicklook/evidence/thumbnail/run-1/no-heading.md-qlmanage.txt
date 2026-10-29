@@ -1,4 +1,0 @@
-Testing Quick Look thumbnails with files:
-	/Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/evidence/thumbnail/run-1/fixtures/no-heading.md
-* /Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/evidence/thumbnail/run-1/fixtures/no-heading.md produced one thumbnail
-Done producing thumbnails

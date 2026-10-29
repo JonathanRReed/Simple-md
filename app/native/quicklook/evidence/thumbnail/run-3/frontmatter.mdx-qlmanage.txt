@@ -1,4 +1,0 @@
-Testing Quick Look thumbnails with files using server:
-	/Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/evidence/thumbnail/run-3/fixtures/frontmatter.mdx
-* /Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/evidence/thumbnail/run-3/fixtures/frontmatter.mdx produced one thumbnail
-Done producing thumbnails

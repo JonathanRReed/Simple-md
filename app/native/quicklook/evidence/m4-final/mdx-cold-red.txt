@@ -1,2 +1,0 @@
-error: input file '/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/preview/StaticRenderer.swift' was modified during the build
-error: input file '/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/preview/StaticRenderer.swift' was modified during the build

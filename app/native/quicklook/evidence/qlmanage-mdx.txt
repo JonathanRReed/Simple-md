@@ -1,3 +1,0 @@
-Command: /usr/bin/qlmanage -p /tmp/simplemd-qlspike-evidence-b8791dd9/fixtures/fixture.mdx
-Closed this test proxy after 6 seconds.
-Exit: 0

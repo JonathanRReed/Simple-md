@@ -1,3 +1,0 @@
-Timestamp               Ty Process[PID:TID]
-2026-10-29 02:13:11.177 Df SimpleMDQLThumbnail[57754:e97074] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail preparing file=custom.mdx bytes=37 size=512.000000x512.000000 scale=1.000000
-2026-10-29 02:13:11.186 Df SimpleMDQLThumbnail[57754:e97074] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail drawn file=custom.mdx elapsed_ms=10.487250

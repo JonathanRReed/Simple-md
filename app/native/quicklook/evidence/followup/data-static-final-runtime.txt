@@ -1,5 +1,0 @@
-Timestamp               Ty Process[PID:TID]
-2026-10-28 19:56:45.301 Df SimpleMDQLPreview[51683:b2940f] [com.jonathanreed.simplemd.qlspike:data] Data preparing fixture.md pid=51683
-2026-10-28 19:56:45.301 Df SimpleMDQLPreview[51683:b2940f] [com.jonathanreed.simplemd.qlspike:data] Data preparing fixture.md pid=51683
-2026-10-28 19:56:45.302 Df SimpleMDQLPreview[51683:b2940f] [com.jonathanreed.simplemd.qlspike:data] Data ready bytes=896
-2026-10-28 19:56:45.302 Df SimpleMDQLPreview[51683:b2940f] [com.jonathanreed.simplemd.qlspike:data] Data ready bytes=896

@@ -1,7 +1,0 @@
-/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/preview/StaticRenderer.swift:44:67: error: cannot find 'start' in scope
-42 |         self.imageUrls = imageUrls
-43 |         self.embedImages = embedImages
-44 |         logger.notice("Renderer initialized context_ms=\((created-start)*1000) bundle_read_ms=\((read-created)*1000) bundle_eval_ms=\((evaluated-read)*1000) bundle_bytes=\(code.utf8.count)")
-   |                                                                   `- error: cannot find 'start' in scope
-45 |     }
-46 | 

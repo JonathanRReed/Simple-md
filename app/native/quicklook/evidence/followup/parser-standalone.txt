@@ -1,7 +1,0 @@
-render=0 setup_ms=80.62899112701416 render_ms=15.253067016601562 input_bytes=10467 output_bytes=11606
-render=1 setup_ms=80.62899112701416 render_ms=4.4890642166137695 input_bytes=10467 output_bytes=11606
-render=2 setup_ms=80.62899112701416 render_ms=5.215048789978027 input_bytes=10467 output_bytes=11606
-render=3 setup_ms=80.62899112701416 render_ms=6.012916564941406 input_bytes=10467 output_bytes=11606
-render=4 setup_ms=80.62899112701416 render_ms=4.18698787689209 input_bytes=10467 output_bytes=11606
-render=5 setup_ms=80.62899112701416 render_ms=4.166960716247559 input_bytes=10467 output_bytes=11606
-math_and_highlight=pass

@@ -4,20 +4,9 @@ Feasibility spike done in milestone 0. Full build right after milestone 3. Secur
 
 ## Build without Xcode
 
-The Command Line Tools include Swift and the macOS SDK with `QuickLookUI`, `WebKit` and `QuickLookThumbnailing`. Compile each extension with `swiftc` and write its `Info.plist` by hand. The research spike compiled successfully with:
-
-```sh
-SDK="$(xcrun --sdk macosx --show-sdk-path)"
-xcrun swiftc -sdk "$SDK" -target arm64-apple-macos13.0 \
-  -parse-as-library -application-extension \
-  -module-name SimpleMDPreview \
-  -framework Cocoa -framework QuickLookUI -framework WebKit \
-  -Xlinker -e -Xlinker _NSExtensionMain \
-  PreviewController.swift \
-  -o SimpleMD.app/Contents/PlugIns/SimpleMDPreview.appex/Contents/MacOS/SimpleMDPreview
-```
-
-Build both architectures for the matching release (arm64 and x86_64).
+The Command Line Tools include Swift and the macOS SDK. Production extensions
+build through `app/native/quicklook/build-extensions.sh` with `swiftc`, hand-written
+plists and both arm64 and x86_64 slices targeting macOS 13. No Xcode is required.
 
 ## Spike acceptance (milestone 0)
 
@@ -83,7 +72,7 @@ Remote resources are always disabled, including generated Markdown images.
 The document embeds the default light and dark theme, follows
 `prefers-color-scheme`, and includes KaTeX CSS with all 20 WOFF2 fonts as data URLs only when the sanitized
 body contains generated math. Its CSP is exactly
-`default-src 'none'; style-src 'unsafe-inline'; img-src data: file:; font-src data:`.
+`default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:`.
 Mermaid fences become `<pre><code class="language-mermaid">` with escaped source.
 Copy buttons are removed. No page script, external stylesheet or font file is
 needed. Regenerate embedded assets with
@@ -158,11 +147,12 @@ The extension passes truncation and UTF-8 decoding flags to `renderStaticHtml`.
 The page shows those notices before the document. It follows the display host's
 system appearance through CSS, without reading app preferences.
 
-After rendering, `staticImageUrls(html)` enumerates resolved image URLs from the
-sanitized document. Swift reads them within its existing sandbox grant. It accepts
+After rendering, `staticImageUrls(tree)` enumerates resolved image URLs from the
+sanitized tree returned by `prepareStaticPreview`. The same tree passes to image
+assembly, so author content is parsed once. Swift reads them within its existing sandbox grant. It accepts
 PNG, JPEG, GIF and WebP, with at most 32 candidates, 2 MB per file, 8 MB total,
 8,192 pixels per dimension and 16,777,216 pixels per image. SVG and other formats
-use placeholders. `embedStaticImages(html, resources)` inserts host-supplied raster
+use placeholders. `embedStaticImages(tree, resources)` inserts host-supplied raster
 data URLs and replaces missing, denied, remote or unsupported images with escaped
 alt text in an "Image unavailable" box. Picture sources cannot override that image.
 There is no native file bridge in JavaScript and no additional sandbox entitlement.
@@ -193,11 +183,14 @@ entity decoder. The browser condition alone selects a decoder that needs
 `document`, which JavaScriptCore does not provide. Production resolution also
 excludes micromark's debug implementation, which requires `console`.
 `globalThis.SimpleMDRenderCore.renderStaticHtml` returns `Promise<string>`.
-Swift creates one JavaScriptCore context per extension process and accesses it
-only on the serial render queue. A trusted wrapper observes the promise result.
-JavaScriptCore drains the bundle's ECMAScript promise jobs at the outer call
-boundary. The bundle uses no asynchronous host I/O. A missing result or exception
-fails the request instead of displaying partial HTML. Source and paths enter as
+Swift creates a fresh JavaScriptCore context for each request on a concurrent
+queue. The JavaScriptCore execution watchdog terminates work after a 1.5-second
+deadline, including bundle evaluation. The context is discarded after that request.
+A trusted wrapper observes the promise result at the outer call boundary. The
+bundle uses no asynchronous host I/O. A timeout, missing result or exception
+returns escaped plain-text source with a short notice. Later previews use their
+own contexts and cannot wait behind a slow render.
+Source and paths enter as
 arguments, never evaluated code.
 
 The synchronous escaped-source stub is removed. The bare-context test and the
@@ -212,3 +205,23 @@ remains unqualified. The final runs used Apple's text thumbnail provider for
 Markdown and MDX, despite matching declared UTIs. See the
 [qualification report](../../app/native/quicklook/evidence/m4-final/REPORT.md)
 for screenshots, timing stages, declaration comparisons, and cleanup receipts.
+
+## Security limits
+
+Preview output removes local navigation targets from anchors and other link-like
+attributes, including generated Markdown links. Fragments, HTTP, HTTPS and mailto
+remain available. Video and source URLs are removed. The host embeds only bounded
+raster images, so the final CSP permits data images only. App-minted theme markers
+preserve light and dark logo visibility after replacing image URLs with data URLs.
+
+Both fragment allocators remember the next suffix for each base ID. The static
+sanitizer flattens nesting after depth 512 while retaining text and sanitized
+elements. The native deadline covers parser and serializer work as well as
+highlighting. UTF-8 truncation backs off an incomplete final character. Preview
+and thumbnail logs mark filenames and error descriptions private.
+
+The host exports only SimpleMD's MDX type. It does not import FluxMarkdown's MDX
+declaration. Both extensions still support that installed type in
+`QLSupportedContentTypes`, so files already classified by FluxMarkdown remain
+eligible. Final packaging verification runs after the build without depending on
+`afterSign`, and the full `SIMPLEMD_SIGN_IDENTITY` value selects extension signing.

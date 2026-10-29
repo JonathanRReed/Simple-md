@@ -1,1 +1,0 @@
-qlmanage: call reset on cache

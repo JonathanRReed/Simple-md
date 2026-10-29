@@ -1,4 +1,0 @@
-Bundled 678 modules in 43ms
-
-  quicklook-debug.js  9.71 MB  (entry point)
-

@@ -1,2 +1,0 @@
-Optional(<_UTCoreType 0x20a45ad30> net.daringfireball.markdown (not dynamic, declared))
-Optional(<_UTCoreType 0x20a45ad30> net.daringfireball.markdown (not dynamic, declared))

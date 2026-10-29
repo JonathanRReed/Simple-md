@@ -1,4 +1,0 @@
-d5dce3d3288160d76baf9b38c4279748a215585d617f460da215e6e80361faad  app/release/mac-arm64/SimpleMD.app/Contents/Resources/app.asar
-754052c0cab19e0ff7f6cad28f26e5912e6373e49b72b8be6dbfe11402dec4ed  app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
-996cab7ec5705a10fd054d46dcf256a824fa01b7053556df2cafa85586b51a76  app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/Resources/render-core.js
-813d5515c8250f390018ec91fee7e391c42aba3884fe40953cc061d9b03aa8ff  app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail

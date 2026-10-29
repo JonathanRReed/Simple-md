@@ -1,6 +1,0 @@
---prepared:/private/tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
---prepared:/private/tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
---validated:/private/tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
---validated:/private/tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
-/tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app: valid on disk
-/tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app: satisfies its Designated Requirement

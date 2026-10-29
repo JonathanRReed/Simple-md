@@ -1,1 +1,0 @@
-PASS: all report links resolve; both fixture tables have ten SimpleMD previews, one system text preview, no custom thumbnails, and eleven panel PNGs. Cleanup audit passes. No em dash.

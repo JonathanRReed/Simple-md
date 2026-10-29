@@ -1,8 +1,0 @@
-failed to scan /tmp/simplemd-ql-thumbnail-9cad2633-scale/SimpleMDQLSpike.app: -10814
- from spotlightREMOVE /Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app existed=True
-REMOVE /tmp/simplemd-ql-thumbnail-9cad2633-scale/SimpleMDQLSpike.app existed=True
-REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike existed=True
-REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.preview existed=True
-REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.thumbnail existed=True
-qlmanage: call reset on cache
-Final status: 0

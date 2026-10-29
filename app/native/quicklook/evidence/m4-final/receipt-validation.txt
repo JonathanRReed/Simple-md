@@ -1,1 +1,0 @@
-Valid receipt "app/native/quicklook/evidence/m4-final/RECEIPT.md" for subject "Packaged source f4cabca01e0f143c5b5334b1bf045636d9420c63 in /Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3; ad-hoc and Developer ID artifacts identified in artifact-adhoc.json and artifact-developer-id.json.": 8 required layers.

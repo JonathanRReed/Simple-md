@@ -1,2 +1,0 @@
-git diff --exit-code f4cabca -- app/src app/native/quicklook/preview app/native/quicklook/thumbnail app/native/quicklook/build-extensions.sh app/package.json app/build/quicklook.mjs app/build/quicklook-verify.mjs
-Exit 0. No packaged source changes after f4cabca01e0f143c5b5334b1bf045636d9420c63.

@@ -1,4 +1,0 @@
-Testing Quick Look thumbnails with files using server:
-	/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.preview/Data/Documents/m4-final-image/readable-image.md
-* /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.preview/Data/Documents/m4-final-image/readable-image.md produced one thumbnail
-Done producing thumbnails

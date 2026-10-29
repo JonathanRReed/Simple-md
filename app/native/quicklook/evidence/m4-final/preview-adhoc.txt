@@ -1,2 +1,0 @@
-Swift/ErrorType.swift:254: Fatal error: Error raised at top level: Error Domain=SimpleMDStaticRenderer Code=1 "Static renderer promise did not produce HTML" UserInfo={NSLocalizedDescription=Static renderer promise did not produce HTML}
-app/native/quicklook/preview/check.sh: line 9:  9137 Trace/BPT trap: 5          "$scratch/check" "$1"

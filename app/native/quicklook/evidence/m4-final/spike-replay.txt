@@ -1,7 +1,0 @@
-/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app/Contents/PlugIns/SimpleMDQLThumbnail.appex: replacing existing signature
-/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app: replacing existing signature
---prepared:/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
---validated:/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
-/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app: valid on disk
-/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app: satisfies its Designated Requirement
-qlmanage: call reset on cache
