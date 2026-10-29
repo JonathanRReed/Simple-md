@@ -1,3 +1,4 @@
+import { FlushWaiters } from "./flush-waiters.js";
 import { menuState } from "./menu-state.js";
 import { watchWindowTheme } from "./window-theme.js";
 import { readFindText, writeFindText } from "./find-pasteboard.js";
@@ -88,12 +89,12 @@ const windows = new Map<number, WindowContext>();
 const windowScope = new AsyncLocalStorage<WindowContext>();
 let frontmost: WindowContext;
 function context(): WindowContext { return windowScope.getStore() ?? frontmost; }
-const currentSession = () => registry.get(context().mainPane.documentId)!;
-function syncLayout(): void {
-  const active = context().layout.active;
-  if (active) Object.assign(context().mainPane, active);
-  send("smd:layout", context().layout.state);
-  if (active) updateTitle();
+const currentSession = (host = context()) => registry.get(host.mainPane.documentId)!;
+function syncLayout(host = context()): void {
+  const active = host.layout.active;
+  if (active) Object.assign(host.mainPane, active);
+  sendTo(host, "smd:layout", host.layout.state);
+  if (active) updateTitle(host);
   refreshMenus();
 }
 function createDocumentWindow(): WindowContext {
@@ -105,7 +106,7 @@ function createDocumentWindow(): WindowContext {
     mainPane: { paneId: makePaneId(0), documentId: empty.documentId },
     rendererReady: false, loaded, markLoaded,
   };
-  windowScope.run(host, () => { host.win = createWindow(); });
+  host.win = createWindow(host);
   windows.set(host.win.webContents.id, host);
   frontmost = host;
   return host;
@@ -113,9 +114,10 @@ function createDocumentWindow(): WindowContext {
 let quitting = false;
 let settingsWindow: ReturnType<typeof createSettingsWindow> | undefined;
 
-const send = (channel: string, ...args: unknown[]) => {
-  if (context().win && !context().win.isDestroyed()) context().win.webContents.send(channel, ...args);
-};
+function sendTo(host: WindowContext, channel: string, ...args: unknown[]): void {
+  if (host.win && !host.win.isDestroyed()) host.win.webContents.send(channel, ...args);
+}
+const send = (channel: string, ...args: unknown[]) => sendTo(context(), channel, ...args);
 
 // ───────── settings ─────────
 
@@ -198,7 +200,7 @@ function overlayColors(): { color: string; symbolColor: string; height: number }
   };
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(host: WindowContext): BrowserWindow {
   const mac = process.platform === "darwin";
   const w = new BrowserWindow({
     width: 860,
@@ -240,12 +242,12 @@ function createWindow(): BrowserWindow {
     w.webContents.send("smd:context-request", host.nativeContext);
   });
   w.webContents.setWindowOpenHandler(({ url }) => {
-    openLink(url);
+    void openLink(url, "edit", false, currentSession(host), host);
     return { action: "deny" };
   });
   w.webContents.on("will-navigate", (e, url) => {
     e.preventDefault();
-    openLink(url);
+    void openLink(url, "edit", false, currentSession(host), host);
   });
 
   let boundsTimer: NodeJS.Timeout | undefined;
@@ -267,7 +269,7 @@ function createWindow(): BrowserWindow {
   w.on("close", (e) => {
     if (quitting) return;
     e.preventDefault();
-    void windowScope.run(windows.get(w.webContents.id)!, () => documents.run(() => closeDocumentWindow()));
+    void documents.run(() => closeDocumentWindow(host));
   });
   const webContentsId = w.webContents.id;
   w.on("closed", () => {
@@ -292,22 +294,22 @@ async function hideCurrentWindow(): Promise<void> {
   }
 }
 
-async function closeTab(id = currentSession().documentId): Promise<boolean> {
+async function closeTab(id = currentSession().documentId, host = context()): Promise<boolean> {
   const doc = registry.get(id);
-  if (!doc || !(await transition(() => settle(doc)))) return false;
-  context().layout.remove(id);
+  if (!doc || !(await transition(() => settle(doc, false, host), host))) return false;
+  host.layout.remove(id);
   registry.remove(id);
   releaseDocumentDelta(id);
-  send("smd:closed", id);
-  syncLayout();
-  if (!context().layout.state.tabs.length) {
-    finishClosedWindow(context());
+  sendTo(host, "smd:closed", id);
+  syncLayout(host);
+  if (!host.layout.state.tabs.length) {
+    finishClosedWindow(host);
   }
   return true;
 }
-async function closeDocumentWindow(): Promise<void> {
-  for (const id of [...context().layout.state.tabs]) if (!(await closeTab(id))) return;
-  if (!context().layout.state.tabs.length) finishClosedWindow(context());
+async function closeDocumentWindow(host = context()): Promise<void> {
+  for (const id of [...host.layout.state.tabs]) if (!(await closeTab(id, host))) return;
+  if (!host.layout.state.tabs.length) finishClosedWindow(host);
 }
 function finishClosedWindow(host: WindowContext): void {
   if (host.win.isDestroyed()) return;
@@ -324,50 +326,50 @@ function finishClosedWindow(host: WindowContext): void {
 
 // ───────── renderer round trips ─────────
 
-const flushWaiters = new Map<RequestId, (r: FlushResult | null) => void>();
+const flushWaiters = new FlushWaiters();
 let flushSeq = 0;
 
-function requestFlush(doc = currentSession()): Promise<FlushResult | null> {
+function requestFlush(doc = currentSession(), host = context()): Promise<FlushResult | null> {
   return new Promise((resolve) => {
-    if (!doc || !context().rendererReady || context().win.isDestroyed()) return resolve(null);
+    if (!doc || !host.rendererReady || host.win.isDestroyed()) return resolve(null);
     const id = makeRequestId(++flushSeq);
     const timer = setTimeout(() => {
-      flushWaiters.delete(id);
+      flushWaiters.delete(host.win.webContents.id, id);
       resolve(null);
     }, 1500);
-    flushWaiters.set(id, (r) => {
+    flushWaiters.set(host.win.webContents.id, id, (r) => {
       clearTimeout(timer);
-      flushWaiters.delete(id);
+      flushWaiters.delete(host.win.webContents.id, id);
       if (r?.documentId !== doc.documentId || !doc.isCurrent(r.revisionId) || !doc.edit(r.text, r.revisionId)) return resolve(null);
       if (r.conflict) doc.conflict = true;
       resolve(r);
     });
-    send("smd:flush-request", id, doc.documentId);
+    sendTo(host, "smd:flush-request", id, doc.documentId);
   });
 }
 
 /** Saves or discards pending edits before the window changes document or hides. False means the user cancelled. */
-async function transition<T>(operation: () => Promise<T>): Promise<T> {
-  send("smd:transition", true);
+async function transition<T>(operation: () => Promise<T>, host = context()): Promise<T> {
+  sendTo(host, "smd:transition", true);
   try {
     return await operation();
   } finally {
-    send("smd:transition", false);
+    sendTo(host, "smd:transition", false);
   }
 }
 
-async function settle(current = currentSession(), prompt = false): Promise<boolean> {
-  await context().loaded;
+async function settle(current = currentSession(), prompt = false, host = context()): Promise<boolean> {
+  await host.loaded;
   if (!current) return true;
   return settleDocument({
     documentId: current.documentId,
     autosave: !prompt && settings.autosave,
     hasPath: current.path !== null,
-    flush: () => requestFlush(current),
-    save: async (text) => (await saveText(text, false, current.documentId)) !== null,
+    flush: () => requestFlush(current, host),
+    save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
     choose: async () => {
       reveal();
-      const { response } = await dialog.showMessageBox(context().win, {
+      const { response } = await dialog.showMessageBox(host.win, {
         type: "warning",
         message: `Save changes to “${current.name}”?`,
         detail: "Your changes will be lost if you don't save them.",
@@ -385,7 +387,7 @@ async function settle(current = currentSession(), prompt = false): Promise<boole
 const baseUrlOf = (file: string | null) =>
   file ? pathToFileURL(path.dirname(file)).href.replace(/\/?$/, "/") : null;
 
-async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.text, intent = doc.intent): Promise<DocPayload> {
+async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.text, intent = doc.intent, host = context()): Promise<DocPayload> {
   const file = doc.path;
   const readOnlyReason = doc.readOnlyReason;
   let stream: number | undefined;
@@ -416,7 +418,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
     savedText: doc.dirty ? doc.diskText ?? "" : undefined,
     dirty: doc.dirty,
     revisionId: doc.revisionId,
-    paneId: context().mainPane.paneId,
+    paneId: host.mainPane.paneId,
     stream,
     path: file,
     name: file ? path.basename(file) : "Untitled",
@@ -430,13 +432,13 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   };
 }
 
-function updateTitle(): void {
-  const current = currentSession();
-  if (context().win.isDestroyed()) return;
-  context().win.setTitle(process.platform === "darwin" ? current.name : `${current.name}${current.dirty ? " (Edited)" : ""} | SimpleMD`);
+function updateTitle(host = context()): void {
+  const current = currentSession(host);
+  if (host.win.isDestroyed()) return;
+  host.win.setTitle(process.platform === "darwin" ? current.name : `${current.name}${current.dirty ? " (Edited)" : ""} | SimpleMD`);
   if (process.platform === "darwin") {
-    context().win.setDocumentEdited(current.dirty);
-    context().win.setRepresentedFilename(current.path ?? "");
+    host.win.setDocumentEdited(current.dirty);
+    host.win.setRepresentedFilename(current.path ?? "");
   }
 }
 
@@ -445,8 +447,8 @@ function watch(doc: DocumentSession): void {
 }
 
 const documentWaiters = new Map<string, Set<() => void>>();
-function waitUntilUsable(id: DocumentId): Promise<void> {
-  const key = `${context().win.webContents.id}:${id}`;
+function waitUntilUsable(id: DocumentId, host = context()): Promise<void> {
+  const key = `${host.win.webContents.id}:${id}`;
   const waiters = documentWaiters.get(key) ?? new Set<() => void>();
   documentWaiters.set(key, waiters);
   return new Promise<void>((resolve, reject) => {
@@ -460,30 +462,30 @@ function waitUntilUsable(id: DocumentId): Promise<void> {
     waiters.add(done);
   });
 }
-async function present(payload: DocPayload): Promise<void> {
-  await context().loaded;
-  const previous = context().mainPane.documentId;
-  context().layout.add(payload.documentId);
-  Object.assign(context().mainPane, context().layout.active);
-  payload.paneId = context().mainPane.paneId;
-  if (!context().layout.has(previous)) registry.remove(previous);
-  const doc = currentSession();
+async function present(payload: DocPayload, host = context()): Promise<void> {
+  await host.loaded;
+  const previous = host.mainPane.documentId;
+  host.layout.add(payload.documentId);
+  Object.assign(host.mainPane, host.layout.active);
+  payload.paneId = host.mainPane.paneId;
+  if (!host.layout.has(previous)) registry.remove(previous);
+  const doc = currentSession(host);
   watch(doc);
-  updateTitle();
-  const usable = waitUntilUsable(payload.documentId);
+  updateTitle(host);
+  const usable = waitUntilUsable(payload.documentId, host);
   perfMark("renderer-send", { path: payload.path, documentId: payload.documentId });
-  send("smd:doc", payload);
-  syncLayout();
+  sendTo(host, "smd:doc", payload);
+  syncLayout(host);
   trace(`doc-sent name=${payload.name} blocks=${payload.blocks.length} intent=${payload.intent}`);
   await usable;
 }
 
-function reveal(): void {
-  if (!context() || context().win.isDestroyed()) createDocumentWindow();
+function reveal(host = context()): void {
+  if (!host || host.win.isDestroyed()) host = createDocumentWindow();
   if (process.platform === "darwin") void app.dock?.show();
   if (process.platform === "darwin") app.focus({ steal: true });
-  if (!context().win.isVisible()) context().win.show();
-  context().win.focus();
+  if (!host.win.isVisible()) host.win.show();
+  host.win.focus();
 }
 
 function openFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, origin = context()): Promise<boolean> {
@@ -494,7 +496,7 @@ function openFile(file: string | undefined, intent: OpenIntent, inPlace = false,
 
 async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context()): Promise<boolean> {
   if (!file) {
-    reveal();
+    reveal(host);
     return true;
   }
   if (!isMarkdown(file)) return false;
@@ -507,17 +509,17 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       if (file && (file === abs || await fs.promises.realpath(file).catch(() => file) === canonical)) { existing = id; break; }
     }
     if (existing !== undefined) return windowScope.run(host, async () => {
-      const usable = waitUntilUsable(existing);
+      const usable = waitUntilUsable(existing, host);
       perfMark("file-open-arrival", { path: abs });
       host.layout.activate(existing);
-      syncLayout(); reveal();
+      syncLayout(host); reveal(host);
       await usable;
       return true;
     });
   }
   if (!inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
-    return windowScope.run(host, () => openCurrentFile(abs, intent));
+    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host));
   }
   const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
@@ -530,25 +532,25 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         const { text, readOnlyReason } = await readDocument(abs);
         perfMark("read-end", { path: abs });
         prepared = registry.create(abs, text, intent, readOnlyReason);
-        return payloadFor(prepared, true);
+        return payloadFor(prepared, true, prepared.text, intent, host);
       },
-      transition,
-      settle: () => replaced !== undefined ? settle(registry.get(replaced)) : Promise.resolve(true),
+      transition: operation => transition(operation, host),
+      settle: () => replaced !== undefined ? settle(registry.get(replaced), false, host) : Promise.resolve(true),
       refresh: async (payload) => {
         const latest = await readDocument(abs);
         if (latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason) return payload;
         if (prepared) registry.remove(prepared.documentId);
         prepared = registry.create(abs, latest.text, intent, latest.readOnlyReason);
-        return payloadFor(prepared, true);
+        return payloadFor(prepared, true, prepared.text, intent, host);
       },
       present: async (payload) => {
-        reveal();
+        reveal(host);
         if (replaced !== undefined) {
           host.layout.replace(replaced, payload.documentId);
           registry.remove(replaced);
-          send("smd:closed", replaced);
+          sendTo(host, "smd:closed", replaced);
         }
-        await present(payload);
+        await present(payload, host);
         addRecent(abs);
       },
     });
@@ -584,13 +586,13 @@ function openDialog(): Promise<boolean> {
   });
 }
 
-async function saveText(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null> {
+async function saveText(text: string, forceDialog: boolean, documentId: DocumentId, host = context()): Promise<SaveResult | null> {
   const doc = registry.get(documentId);
   if (!doc || doc.text !== text || doc.readOnlyReason || (doc.conflict && !forceDialog)) return null;
   const revisionId = doc.revisionId;
   let target = doc.path;
   if (!target || forceDialog) {
-    const res = await dialog.showSaveDialog(context().win, {
+    const res = await dialog.showSaveDialog(host.win, {
       defaultPath: doc.path ?? path.join(app.getPath("documents"), `${doc.name.replace(/\.[^.]+$/, "")}.md`),
       filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdx"] }],
     });
@@ -602,11 +604,11 @@ async function saveText(text: string, forceDialog: boolean, documentId: Document
     const result = await doc.save(target, revisionId, forceDialog);
     if (!result) return null;
     if (moved) addRecent(target);
-    updateTitle();
-    send("smd:saved", result);
+    updateTitle(host);
+    sendTo(host, "smd:saved", result);
     return result;
   } catch (err) {
-    void dialog.showMessageBox(context().win, { type: "error", message: `Couldn’t save “${path.basename(target)}”.`, detail: String(err) });
+    void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t save “${path.basename(target)}”.`, detail: String(err) });
     return null;
   }
 }
@@ -997,7 +999,7 @@ function registerIpc(): void {
     if (!mainSender(e) || !isRequestId(id) || !r || typeof r !== "object") return;
     if (!("text" in r) || typeof r.text !== "string" || !("dirty" in r) || typeof r.dirty !== "boolean" ||
         !("documentId" in r) || !isDocumentId(r.documentId) || !("conflict" in r) || typeof r.conflict !== "boolean" || !("revisionId" in r) || !isRevisionId(r.revisionId)) return;
-    flushWaiters.get(id)?.({ text: r.text, dirty: r.dirty, documentId: r.documentId, revisionId: r.revisionId, conflict: r.conflict });
+    flushWaiters.respond(e.sender.id, id, { text: r.text, dirty: r.dirty, documentId: r.documentId, revisionId: r.revisionId, conflict: r.conflict });
   });
   on("smd:dirty", (e, value: unknown, id: unknown) => {
     if (!mainSender(e) || !isDocumentId(id) || !context().layout.has(id) || typeof value !== "boolean") return;
