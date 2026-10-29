@@ -1,3 +1,4 @@
+import { recentFiles, isolatedRecents, jumpList } from "./recents.js";
 import { shareDocument } from "./share.js";
 import { contextTemplate, validateContext } from "./context-menu.js";
 import type { NativeContext } from "../shared/native-context.js";
@@ -61,6 +62,7 @@ const testProfile = !app.isPackaged && !!process.env.SMD_USER_DATA;
 if (testProfile) app.setPath("userData", path.resolve(process.env.SMD_USER_DATA!));
 else app.setPath("userData", path.join(app.getPath("appData"), app.name));
 
+const recentOS = testProfile ? isolatedRecents() : app;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const INDEX = path.join(here, "renderer", "index.html");
 
@@ -134,21 +136,30 @@ function applySettings(patch: unknown, persist = true): void {
 }
 
 function refreshMenus(): void {
+  settings.recents = recentFiles(recentOS, process.platform, settings.recents);
   buildMenu({
     settings: () => ({ ...settings, mode: context().paneModes.get(context().mainPane.paneId) ?? settings.mode }),
     command: (cmd) => runCommand(cmd),
     openDialog: () => void openDialog(),
     openPath: (p) => void openFile(p, "edit"),
     patch: applySettings,
+    clearRecents: () => {
+      if (process.platform !== "linux") recentOS.clearRecentDocuments();
+      applySettings({ recents: [] });
+    },
     share: () => { const doc = currentSession(); if (doc.path) shareDocument(context().win, doc.path); },
     canShare: () => !!currentSession().path,
     quit: () => app.quit(),
   });
   tray?.setContextMenu(trayMenu());
+  if (process.platform === "darwin") app.dock?.setMenu(Menu.buildFromTemplate([
+    { label: "New Window", click: () => void newDocumentWindow() },
+    ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, "edit") })),
+  ]));
 }
 
 function addRecent(file: string): void {
-  if (!testProfile) app.addRecentDocument(file);
+  if (process.platform !== "linux") recentOS.addRecentDocument(file);
   applySettings({ recents: [file, ...settings.recents.filter((p) => p !== file)].slice(0, 12) });
 }
 
@@ -233,7 +244,7 @@ function createWindow(): BrowserWindow {
       applySettings({ bounds: w.getBounds() });
     }, 400);
   };
-  w.on("focus", () => { frontmost = windows.get(w.webContents.id) ?? frontmost; trace("win-focus"); });
+  w.on("focus", () => { frontmost = windows.get(w.webContents.id) ?? frontmost; trace("win-focus"); refreshMenus(); });
   w.on("blur", () => trace("win-blur"));
   w.on("hide", () => trace("win-hide"));
   w.on("show", () => trace("win-show"));
@@ -639,6 +650,11 @@ async function settleAllWindows(): Promise<boolean> {
     if (!accepted) return false;
   }
   return true;
+}
+
+async function newDocumentWindow(): Promise<void> {
+  const host = createDocumentWindow();
+  await windowScope.run(host, async () => { reveal(); await newDoc(); });
 }
 
 function runCommand(cmd: Command, target = context().layout.active?.documentId): void {
@@ -1100,7 +1116,10 @@ if (!app.requestSingleInstanceLock()) {
 
   app.setAboutPanelOptions({ applicationName: "SimpleMD", copyright: "© Jonathan Ray Reed. MIT License." });
 
-  app.on("second-instance", (_e, argv) => void openFile(fileArg(argv), "edit"));
+  app.on("second-instance", (_e, argv) => {
+    if (argv.includes("--new-window")) void newDocumentWindow();
+    else void openFile(fileArg(argv), "edit");
+  });
   app.on("open-file", (e, file) => {
     e.preventDefault();
     if (context()) void openFile(file, "edit");
@@ -1139,6 +1158,7 @@ if (!app.requestSingleInstanceLock()) {
     configStore().watch(value => applySettings(value, false));
     nativeTheme.on("updated", () => applySettings({}, false));
     if (process.platform !== "linux") systemPreferences.on("accent-color-changed", () => applySettings({}, false));
+    if (process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath()));
     createDocumentWindow();
     trace("window-created");
     // A login launch stays invisible until the first file open; a real launch shows its skeleton

@@ -8,6 +8,7 @@ export interface MenuActions {
   openDialog(): void;
   openPath(file: string): void;
   patch(patch: Partial<Settings>): void;
+  clearRecents(): void;
   share(): void;
   canShare(): boolean;
   quit(): void;
@@ -33,7 +34,7 @@ export function buildMenu(a: MenuActions): void {
     ? [
         ...s.recents.map((p): MenuItemConstructorOptions => ({ label: path.basename(p), sublabel: path.dirname(p), click: () => a.openPath(p) })),
         { type: "separator" },
-        { label: "Clear Menu", click: () => a.patch({ recents: [] }) },
+        { label: "Clear Menu", click: a.clearRecents },
       ]
     : [{ label: "No Recent Files", enabled: false }];
 
