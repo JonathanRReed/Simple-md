@@ -23,10 +23,10 @@ test("invalid config values report their lines and use defaults", () => {
 });
 test("paths respect XDG, Windows app data and isolated test profiles", () => {
   const input = { home: "/home/me", appData: "/app-data", env: {} };
-  expect(configPath({ ...input, platform: "darwin" })).toBe("/home/me/.config/simplemd/config");
-  expect(configPath({ ...input, platform: "linux", env: { XDG_CONFIG_HOME: "/xdg" } })).toBe("/xdg/simplemd/config");
-  expect(configPath({ ...input, platform: "win32" })).toBe("/app-data/SimpleMD/config");
-  expect(configPath({ ...input, platform: "darwin", env: { SMD_USER_DATA: "/isolated" } })).toBe("/isolated/config");
+  expect(configPath({ ...input, platform: "darwin" })).toBe(path.join("/home/me", ".config", "simplemd", "config"));
+  expect(configPath({ ...input, platform: "linux", env: { XDG_CONFIG_HOME: "/xdg" } })).toBe(path.join("/xdg", "simplemd", "config"));
+  expect(configPath({ ...input, platform: "win32" })).toBe(path.join("/app-data", "SimpleMD", "config"));
+  expect(configPath({ ...input, platform: "darwin", env: { SMD_USER_DATA: "/isolated" } })).toBe(path.join("/isolated", "config"));
 });
 test("watcher follows atomic replacements, deletion and recreation; Settings merges the latest disk edit", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-config-"));
@@ -81,11 +81,12 @@ test("config writes preserve symlinks and update their real targets", () => {
   try {
     const target = path.join(dir, "target"); const file = path.join(dir, "config");
     fs.writeFileSync(target, "# Keep\nautosave = false\n", { mode: 0o640 }); fs.symlinkSync(target, file);
+    const mode = fs.statSync(target).mode & 0o777;
     const store = new ConfigStore(file, configDefaults, () => {});
     store.set({ autosave: true }); store.close();
     expect(fs.lstatSync(file).isSymbolicLink()).toBe(true);
     expect(fs.readFileSync(target, "utf8")).toBe("# Keep\nautosave = true\n");
-    expect(fs.statSync(target).mode & 0o777).toBe(0o640);
+    expect(fs.statSync(target).mode & 0o777).toBe(mode);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 test("config rejects oversized files without parsing them", () => {

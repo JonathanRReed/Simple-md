@@ -95,16 +95,24 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
     } finally {
       await handle.close();
     }
-    if (expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
-    if (entry?.isSymbolicLink() && (await fs.promises.realpath(file)) !== target) throw new FileConflictError();
-    if (!entry?.isSymbolicLink()) {
-      const latest = await fs.promises.lstat(file).catch((err: unknown) => {
-        if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
-        throw err;
-      });
-      if (latest?.isSymbolicLink()) throw new FileConflictError();
+    for (let attempt = 0; ; attempt++) {
+      if (expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
+      if (entry?.isSymbolicLink() && (await fs.promises.realpath(file)) !== target) throw new FileConflictError();
+      if (!entry?.isSymbolicLink()) {
+        const latest = await fs.promises.lstat(file).catch((err: unknown) => {
+          if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
+          throw err;
+        });
+        if (latest?.isSymbolicLink()) throw new FileConflictError();
+      }
+      try { await fs.promises.rename(tmp, target); break; }
+      catch (err) {
+        // Windows can hold the destination briefly during concurrent renames.
+        // Recheck the disk revision and symlinks after each bounded delay.
+        if (process.platform !== "win32" || attempt >= 5 || !(err instanceof Error && "code" in err && ["EPERM", "EACCES", "EBUSY"].includes(String(err.code)))) throw err;
+        await new Promise(resolve => setTimeout(resolve, 10 * 2 ** attempt));
+      }
     }
-    await fs.promises.rename(tmp, target);
   } catch (err) {
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
     throw err;

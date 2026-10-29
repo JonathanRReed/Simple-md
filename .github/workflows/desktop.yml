@@ -111,7 +111,7 @@ jobs:
         run: bun run setup
       - name: Typecheck
         run: bun run typecheck
-      - name: Build native helper and CLI
+      - name: Build release CLI and native helper before tests
         run: bun run build:native
       - name: Test
         if: runner.os != 'Linux'
