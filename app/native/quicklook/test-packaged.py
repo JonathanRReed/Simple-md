@@ -98,6 +98,10 @@ for result in results:
         assert not preview and not drawn, result
     else:
         assert preview and drawn, result
+        ready_line = next(line for line in runtime.stdout.splitlines() if "Preview ready file=" + result["fixture"] + " " in line)
+        ready_date = " ".join(ready_line.split()[:2])
+        ready_epoch = datetime.datetime.strptime(ready_date, "%Y-%m-%d %H:%M:%S.%f").timestamp()
+        result["launch_to_reply_ms"] = round((ready_epoch - result["preview_launch_epoch"]) * 1000, 3)
         result["preview_provider_ms"] = float(preview[-1])
         result["thumbnail_provider_ms"] = float(drawn[-1])
     result["simplemd_preview"] = bool(preview)
