@@ -1,2 +1,0 @@
-Plain text control b8791dd9.
-This file must not use the SimpleMD Quick Look spike extension.

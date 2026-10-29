@@ -3,6 +3,7 @@ from pathlib import Path
 import datetime
 import hashlib
 import json
+import os
 import re
 import struct
 import subprocess
@@ -57,7 +58,7 @@ def main_processes():
 assert not main_processes(), main_processes()
 results = []
 predicate = ('subsystem == "com.jonathanreed.simplemd.quicklook" OR '
-             '(process == "com.apple.quicklook.ThumbnailsAgent") OR '
+             '(process == "com.apple.quicklook.ThumbnailsAgent") OR process == "qlmanage" OR process == "quicklookd" OR '
              '(eventMessage CONTAINS "TextExtension")')
 
 
@@ -68,23 +69,28 @@ def logs(start):
 
 
 # Test the requested local qlmanage path first. Server mode is a separate diagnostic.
-for filename in ["README.md", "fixture.mdx"]:
-    fixture = fixtures / filename
-    started = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    run(["qlmanage", "-r", "cache"])
-    output = run(["qlmanage", "-t", "-s", "512", "-o", str(pngs), str(fixture)])
-    (root / (filename + "-thumbnail.txt")).write_text(output.stdout + output.stderr)
-    runtime = logs(started)
-    (root / (filename + "-thumbnail-runtime.txt")).write_text(runtime)
-    simplemd = "Thumbnail drawn file=" in runtime
-    apple = "com.apple.quicklook.thumbnail.extension.text" in runtime or "TextExtension" in runtime
-    results.append(dict(fixture=filename, command="qlmanage -t -s 512", simplemd_thumbnail=simplemd,
-                        apple_text_thumbnail=apple, png=(pngs / (filename + ".png")).exists()))
+for mode, flags in [("local", []), ("server", ["-x"])]:
+    output_dir = pngs / mode
+    output_dir.mkdir()
+    for filename in ["README.md", "fixture.mdx"]:
+        fixture = fixtures / filename
+        time.sleep(1.1)
+        started = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        run(["qlmanage", "-r", "cache"])
+        output = run(["qlmanage", "-t", *flags, "-s", "512", "-o", str(output_dir), str(fixture)])
+        (root / (filename + "-" + mode + "-thumbnail.txt")).write_text(output.stdout + output.stderr)
+        runtime = logs(started)
+        (root / (filename + "-" + mode + "-thumbnail-runtime.txt")).write_text(runtime)
+        simplemd = "Thumbnail drawn file=" in runtime
+        apple = "com.apple.quicklook.thumbnail.TextExtension" in runtime
+        results.append(dict(fixture=filename, mode=mode, simplemd_thumbnail=simplemd,
+                            apple_text_thumbnail=apple, png=(output_dir / (filename + ".png")).exists()))
 
 # Preview filenames are private in unified logs. Each request has a separate log interval.
 failures = []
-for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixture.mdx",
-                 "hostile.md", "large.md", "empty.md", "non-utf8.md", "readable-image.md", "not-markdown.txt"]:
+preview_fixtures = ["README.md", "math.md", "mermaid.md", "local-image.md", "fixture.mdx",
+                    "hostile.md", "large.md", "empty.md", "non-utf8.md", "readable-image.md", "not-markdown.txt"]
+for filename in ([] if os.environ.get("SIMPLEMD_THUMBNAIL_ONLY") == "1" else preview_fixtures):
     fixture = fixtures / filename
     if filename == "readable-image.md":
         folder = Path.home() / "Library/Containers/com.jonathanreed.simplemd.preview/Data/Documents/m4-security-image"
@@ -134,5 +140,6 @@ for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixtur
     results.append(dict(fixture=filename, simplemd_preview=simplemd, panel=True))
     (root / "results.json").write_text(json.dumps(results, indent=2) + "\n")
 assert not main_processes(), main_processes()
+(root / "results.json").write_text(json.dumps(results, indent=2) + "\n")
 print(json.dumps(results, indent=2))
 assert not failures, failures
