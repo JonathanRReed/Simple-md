@@ -19,6 +19,11 @@ export function isolatedRecents(): RecentOS {
   };
 }
 
+export function clearNativeRecents(os: RecentOS, platform: string): void {
+  // Electron's Windows API clears shared shell history. Rebuild our custom category there.
+  if (platform === "darwin") os.clearRecentDocuments();
+}
+
 export function recentFiles(os: RecentOS, platform: string, fallback: string[]): string[] {
   if (platform !== "darwin" && platform !== "win32") return fallback;
   const removed = platform === "win32" ? new Set(os.getJumpListSettings().removedItems.flatMap(item => item.path ? [item.path.toLowerCase()] : [])) : new Set<string>();
@@ -30,9 +35,9 @@ export function recentFiles(os: RecentOS, platform: string, fallback: string[]):
   return native.slice(0, 12);
 }
 
-export function jumpList(executable: string, appPath?: string): JumpListCategory[] {
+export function jumpList(executable: string, appPath?: string, files: string[] = []): JumpListCategory[] {
   return [
-    { type: "recent" },
+    ...(files.length ? [{ name: "Recent", items: files.map(file => ({ type: "file", path: file } satisfies JumpListItem)) }] : []),
     { type: "tasks", items: [{ type: "task", title: "New Window", description: "Open a new SimpleMD window", path: executable,
       args: appPath ? `"${appPath}" --new-window` : "--new-window", iconPath: executable, iconIndex: 0 }] },
   ];

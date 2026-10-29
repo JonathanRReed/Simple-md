@@ -1,5 +1,5 @@
 import { readFindText, writeFindText } from "./find-pasteboard.js";
-import { recentFiles, isolatedRecents, jumpList } from "./recents.js";
+import { recentFiles, isolatedRecents, jumpList, clearNativeRecents } from "./recents.js";
 import { shareDocument } from "./share.js";
 import { contextTemplate, validateContext } from "./context-menu.js";
 import type { ContextResult, NativeContext } from "../shared/native-context.js";
@@ -150,7 +150,7 @@ function refreshMenus(): void {
     openPath: (p) => void openFile(p, "edit"),
     patch: applySettings,
     clearRecents: () => {
-      if (process.platform !== "linux") recentOS.clearRecentDocuments();
+      clearNativeRecents(recentOS, process.platform);
       applySettings({ recents: [] });
     },
     share: () => { const doc = currentSession(); if (doc?.path) shareDocument(context().win, doc.path); },
@@ -158,6 +158,7 @@ function refreshMenus(): void {
     quit: () => app.quit(),
   });
   tray?.setContextMenu(trayMenu());
+  if (process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath(), settings.recents));
   if (process.platform === "darwin") app.dock?.setMenu(Menu.buildFromTemplate([
     { label: "New Window", click: () => void newDocumentWindow() },
     ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, "edit") })),
@@ -1174,11 +1175,6 @@ if (!app.requestSingleInstanceLock()) {
       const accentSubscription = systemPreferences.subscribeNotification("AppleColorPreferencesChangedNotification", () => { if (!quitting) applySettings({}, false); });
       app.once("will-quit", () => systemPreferences.unsubscribeNotification(accentSubscription));
     } else if (process.platform === "win32") systemPreferences.on("accent-color-changed", () => { if (!quitting) applySettings({}, false); });
-    if (process.platform === "win32") {
-      settings.recents = recentFiles(recentOS, process.platform, settings.recents);
-      saveSettings(settings);
-      recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath()));
-    }
     createDocumentWindow();
     trace("window-created");
     // A login launch stays invisible until the first file open; a real launch shows its skeleton
