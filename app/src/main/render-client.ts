@@ -204,7 +204,6 @@ const client = new RenderClient();
 export const renderBlocks = (text: string, filePath: string | null) => client.renderBlocks(text, filePath);
 export const renderFragment = (text: string, baseDir: string | undefined) => client.renderFragment(text, baseDir);
 export const prefetchBlocks = (text: string, filePath: string | null) => client.prefetchBlocks(text, filePath);
-export const warmUp = () => client.warmUp();
 export const disposeRenderer = (): Promise<void> => client.dispose();
 
 export const mdxRanges = (text: string) => client.mdxRanges(text);

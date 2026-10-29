@@ -163,6 +163,7 @@ await test("live-open-defers-read-render", async () => {
   const ready = logs.indexOf('"name":"live-ready"');
   assert(ready >= 0, "Missing Live readiness record.");
   assert(!logs.slice(0, ready).includes('"marker":"parse-start"'), "Live initialized an unused full-document render.");
+  assert(!logs.slice(0, ready).includes('"marker":"worker-queue"'), "Live started an unused render worker.");
   assert(logs.slice(ready).includes('"marker":"parse-start"'), "Read did not request its render.");
   assert.equal(fs.readFileSync(file, "utf8"), note, "Live-to-read changed the source bytes.");
 });

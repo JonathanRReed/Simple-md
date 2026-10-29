@@ -35,7 +35,7 @@ import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-
 import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
+import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { PeekHelper, type PeekRequest } from "./peek.js";
@@ -1084,7 +1084,6 @@ if (!app.requestSingleInstanceLock()) {
     refreshMenus();
     registerShortcut();
     syncPeekHelper();
-    void warmUp().catch((err) => console.error("simple-md: renderer warmup failed", err));
     if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "peek" ? "peek" : "edit");
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {

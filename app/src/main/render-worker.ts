@@ -1,9 +1,12 @@
-import type { BlockDelta } from "../shared/block-delta.js";
+import { IncrementalBlocks } from "./incremental-blocks.js";
+import { blockDelta, type BlockDelta } from "../shared/block-delta.js";
+import { BlockStreams } from "./block-stream.js";
 import type { BlockUpdate } from "../shared/block-update.js";
-import type { RenderedHtml } from "../shared/render-tree.js";
-import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
+import { type RenderedHtml } from "../shared/render-tree.js";
+import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { parentPort } from "node:worker_threads";
+import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
   | { kind: "blocks"; text: string; filePath: string | null; known?: { key: string; fingerprint?: string }[] }
@@ -27,12 +30,50 @@ export type RenderResponse =
 const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
+let incremental: { filePath: string | null; blocks: IncrementalBlocks } | undefined;
+const streams = new BlockStreams((text, filePath, result) => {
+  incremental = { filePath, blocks: new IncrementalBlocks() };
+  incremental.blocks.seed(text, result);
+});
+
 port.on("message", async (request: RenderRequest) => {
   perfMark("worker-receive", { requestId: request.id });
   try {
-    const response = request.kind === "warmup"
-      ? { id: request.id, kind: "warmup" } satisfies RenderResponse
-      : await (await import("./render-commands.js")).renderCommand(request);
+    let response: RenderResponse;
+    switch (request.kind) {
+      case "stream-start":
+        incremental = undefined;
+        response = { id: request.id, kind: "blocks", value: await streams.start(request.text, request.filePath) };
+        break;
+      case "stream-next":
+        if (request.text !== undefined) streams.resume(request.stream, request.text);
+        response = { id: request.id, kind: "stream-next", value: await streams.next(request.stream) };
+        break;
+      case "blocks": {
+        if (!incremental || incremental.filePath !== request.filePath) incremental = { filePath: request.filePath, blocks: new IncrementalBlocks() };
+        const { result } = await incremental.blocks.render(request.text, request.filePath);
+        const known = new Map(request.known?.map(block => [block.key, block.fingerprint]));
+        const delta = blockDelta(result.blocks.filter(block => block.fingerprint !== undefined && known.get(block.key) === block.fingerprint), result);
+        response = { id: request.id, kind: "blocks-delta", value: delta };
+        break;
+      }
+      case "fragment":
+        response = { id: request.id, kind: "fragment", value: await renderFragment(request.text, request.baseDir) };
+        break;
+      case "mdx-ranges": {
+        const { findMdxRanges } = await import("../shared/mdx-ranges.js");
+        const ranges = findMdxRanges(request.text);
+        response = { id: request.id, kind: "mdx-ranges", value: { ranges: [...ranges], error: ranges.error } };
+        break;
+      }
+      case "warmup":
+        response = { id: request.id, kind: "warmup" };
+        break;
+      default: {
+        const invalid: never = request;
+        throw new Error(`Unknown render request: ${JSON.stringify(invalid)}`);
+      }
+    }
     perfMark("worker-serialize-start", { requestId: request.id });
     port.postMessage(response);
     perfMark("worker-serialize-end", { requestId: request.id });

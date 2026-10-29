@@ -40,34 +40,11 @@ function worker(name: string, code: string): string {
   return pathToFileURL(file).href;
 }
 
-function commandModule(): string {
-  const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
-  const chunk = /import\("(\.\/chunks\/render-commands-[^"]+)"\)/.exec(bundle)?.[1];
-  if (!chunk) throw new Error("Missing lazy render commands chunk");
-  return path.join(dir, chunk);
-}
-
 describe("persistent Node render worker", () => {
-  test("warmup starts the worker without initializing render commands", async () => {
-    const target = commandModule();
-    fs.renameSync(target, `${target}.disabled`);
-    try {
-      await nodeCheck(`
-        const client = new RenderClient();
-        try {
-          await client.warmUp();
-          await assert.rejects(client.renderBlocks('# Plain', '/tmp/plain.md'), /Cannot find module/);
-          await client.warmUp();
-        } finally { await client.dispose(); }
-      `);
-    } finally { fs.renameSync(`${target}.disabled`, target); }
-  });
-
   test("ordinary Markdown renders without initializing YAML or KaTeX", async () => {
-    const module = commandModule();
-    const bundle = fs.readFileSync(module, "utf8");
-    const chunks = [...bundle.matchAll(/import\("(\.\/(?:chunks\/)?[^\"]+)"\)/g)]
-      .map(match => path.resolve(path.dirname(module), match[1]!))
+    const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
+    const chunks = [...bundle.matchAll(/import\("(\.\/chunks\/[^\"]+)"\)/g)]
+      .map(match => path.join(dir, match[1]!))
       .filter(file => /node_modules\/(?:yaml|katex)\//.test(fs.readFileSync(file, "utf8")));
     expect(chunks.length).toBe(2);
     for (const file of chunks) fs.renameSync(file, `${file}.disabled`);
@@ -181,11 +158,11 @@ describe("persistent Node render worker", () => {
   });
 
   test("plain Markdown and Mermaid do not load Shiki", async () => {
-    const bundle = fs.readFileSync(commandModule(), "utf8");
-    const chunk = /import\("(\.\/(?:chunks\/)?core-[^"]+)"\)/.exec(bundle)?.[1];
+    const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
+    const chunk = /import\("(\.\/chunks\/core-[^"]+)"\)/.exec(bundle)?.[1];
     expect(chunk).toBeDefined();
     if (!chunk) throw new Error("Missing lazy Shiki chunk");
-    const target = path.resolve(path.dirname(commandModule()), chunk);
+    const target = path.join(dir, chunk);
     fs.renameSync(target, `${target}.disabled`);
     try {
       await nodeCheck(`
