@@ -34,7 +34,7 @@ export async function startCliServer(options: { binary: string; profile?: string
       } };
     };
     if (process.platform === "win32") {
-      const broker = spawn(options.binary, ["--ipc-broker"], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+      const broker = spawn(options.binary, ["--ipc-broker"], { env: options.profile ? { ...process.env, SMD_CLI_RUNTIME: runtime.directory } : process.env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
       stopTransport = () => { broker.kill(); };
       const clients = new Map<number, ReturnType<typeof handle>>();
       const lines = createInterface({ input: broker.stdout });
