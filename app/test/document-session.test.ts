@@ -113,3 +113,38 @@ test("a disk conflict or read-only reason in one session does not block another 
   expect(locked.encoding).toBe("unsupported");
   expect(await locked.save(path.join(dir, "copy.md"), locked.revisionId, true)).toBeNull();
 });
+
+test("clean accepted rewrites retain the first unseen baseline until Mark Seen", async () => {
+  const dir = await directory(), file = path.join(dir, "watch.md");
+  await fs.writeFile(file, "First");
+  const doc = registry().create(file, "First");
+  await fs.writeFile(file, "Second");
+  expect(await doc.acceptDisk("Second", true)).toBe(true);
+  expect(doc.baseline).toEqual({ kind: "watch", text: "First" });
+  doc.edit("Second", makeRevisionId(1));
+  await fs.writeFile(file, "Third");
+  expect(await doc.acceptDisk("Third", true)).toBe(true);
+  expect(doc.baseline?.text).toBe("First");
+  doc.edit("Third", makeRevisionId(2));
+  doc.markSeen();
+  expect(doc.baseline).toBeNull();
+  await fs.writeFile(file, "Fourth");
+  expect(await doc.acceptDisk("Fourth", true)).toBe(true);
+  expect(doc.baseline?.text).toBe("Third");
+  doc.dispose();
+  expect(doc.baseline).toBeNull();
+});
+
+test("dirty and explicit conflict reloads do not start watch highlights", async () => {
+  const dir = await directory(), file = path.join(dir, "conflict.md");
+  await fs.writeFile(file, "Before");
+  const doc = registry().create(file, "Before");
+  doc.edit("Mine", makeRevisionId(1));
+  await fs.writeFile(file, "Theirs");
+  expect(await doc.acceptDisk("Theirs", true)).toBe(true);
+  expect(doc.baseline).toBeNull();
+  doc.setHeadBaseline("Committed");
+  expect(doc.baseline).toEqual({ kind: "head", text: "Committed" });
+  doc.markSeen();
+  expect(doc.baseline).toBeNull();
+});

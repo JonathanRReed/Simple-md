@@ -1,3 +1,5 @@
+import { calculateBlockChanges } from "./block-changes.js";
+import type { BlockChanges } from "../shared/change-highlights.js";
 import { IncrementalBlocks } from "./incremental-blocks.js";
 import { blockDelta, type BlockDelta } from "../shared/block-delta.js";
 import { BlockStreams } from "./block-stream.js";
@@ -9,6 +11,7 @@ import { parentPort } from "node:worker_threads";
 import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
+  | { kind: "changes"; before: string; text: string; filePath: string | null }
   | { kind: "blocks"; text: string; filePath: string | null; known?: { key: string; fingerprint?: string }[] }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
   | { kind: "mdx-ranges"; text: string }
@@ -19,6 +22,7 @@ export type RenderCommand =
 export type RenderRequest = RenderCommand & { id: number };
 
 export type RenderResponse =
+  | { id: number; kind: "changes"; value: BlockChanges }
   | { id: number; kind: "blocks"; value: RenderedBlocks }
   | { id: number; kind: "blocks-delta"; value: BlockDelta }
   | { id: number; kind: "fragment"; value: RenderedHtml }
@@ -41,6 +45,9 @@ port.on("message", async (request: RenderRequest) => {
   try {
     let response: RenderResponse;
     switch (request.kind) {
+      case "changes":
+        response = { id: request.id, kind: "changes", value: await calculateBlockChanges(request.before, request.text, request.filePath) };
+        break;
       case "stream-start":
         incremental = undefined;
         response = { id: request.id, kind: "blocks", value: await streams.start(request.text, request.filePath) };

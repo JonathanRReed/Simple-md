@@ -92,6 +92,10 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "mark-seen"
+  | "toggle-head-changes"
+  | "next-change"
+  | "previous-change"
   | "close-tab"
   | "move-tab-window"
   | "next-tab"

@@ -1,3 +1,4 @@
+import type { ChangeBaseline, GitChangesStatus } from "../shared/change-highlights.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { makeRevisionId, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
@@ -7,6 +8,10 @@ import { ENCODING_NOTICE, FileConflictError, readDocument, readDiskText, watchDo
 export class DocumentSession {
   readonly saves = new DocumentQueue();
   revisionId = makeRevisionId(0);
+  baseline: ChangeBaseline | null = null;
+  baselineGeneration = 0;
+  gitStatus: GitChangesStatus = { available: false, reason: "Checking Git HEAD..." };
+  gitStatusChecked = false;
   conflict = false;
   dirty = false;
   private watcher: { close(): void } | undefined;
@@ -69,13 +74,21 @@ export class DocumentSession {
     catch (err) { console.error("simple-md: could not watch note", err); }
   }
 
-  async acceptDisk(text: string): Promise<boolean> {
+  markSeen(): void { this.baseline = null; this.baselineGeneration++; }
+
+  setHeadBaseline(text: string): void { this.baseline = { kind: "head", text }; this.baselineGeneration++; }
+
+  async acceptDisk(text: string, highlight = false): Promise<boolean> {
     if (!this.path) return false;
     const latest = await readDocument(this.path).catch((err: unknown) => {
       if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
       throw err;
     });
     if (!latest || latest.text !== text) return false;
+    if (highlight && !this.dirty && !this.baseline && text !== this.text && !latest.readOnlyReason) {
+      this.baseline = { kind: "watch", text: this.text };
+      this.baselineGeneration++;
+    }
     this.diskText = text;
     this.conflict = false;
     this.readOnlyReason = latest.readOnlyReason;
@@ -97,7 +110,8 @@ export class DocumentSession {
         return null;
       }
       const moved = target !== this.path;
-      this.path = target;
+      if (moved) this.gitStatusChecked = false;
+    this.path = target;
       this.diskText = text;
       this.conflict = false;
       this.dirty = this.text !== text;
@@ -107,5 +121,5 @@ export class DocumentSession {
   }
 
   stopWatching(): void { this.watchGeneration++; this.watcher?.close(); this.watcher = undefined; }
-  dispose(): void { this.disposed = true; this.stopWatching(); }
+  dispose(): void { this.disposed = true; this.markSeen(); this.stopWatching(); }
 }

@@ -41,6 +41,23 @@ function worker(name: string, code: string): string {
 }
 
 describe("persistent Node render worker", () => {
+  test("change parsing stays in the worker and preserves the ordinary render pipeline", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        await client.warmUp();
+        const before = Array.from({length: 1500}, (_, i) => 'Paragraph ' + i + ' with content.').join('\\n\\n');
+        let ticks = 0;
+        const timer = setInterval(() => ticks++, 1);
+        const changes = await client.changes(before, before.replace('Paragraph 750 ', 'Edited 750 '), '/tmp/changes.md');
+        clearInterval(timer);
+        assert.deepEqual(changes, {changed: [[1500, 1501]], deleted: []});
+        assert.ok(ticks > 0, 'parent event loop ran during change parsing');
+        assert.match((await client.renderBlocks('# Still works', '/tmp/changes.md')).blocks[0].html, /Still works/);
+      } finally { await client.dispose(); }
+    `);
+  });
+
   test("ordinary Markdown renders without initializing YAML or KaTeX", async () => {
     const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
     const chunks = [...bundle.matchAll(/import\("(\.\/chunks\/[^\"]+)"\)/g)]

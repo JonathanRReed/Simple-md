@@ -1,3 +1,4 @@
+import { isBlockChanges, type BlockChanges } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import { cacheBudget } from "./cache-budget.js";
 import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
@@ -24,6 +25,7 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
+  if (value.kind === "changes") return isBlockChanges(value.value);
   if (value.kind === "blocks-delta") return isBlockDelta(value.value);
   if (value.kind === "stream-next") return isBlockUpdate(value.value);
   if (value.kind === "mdx-ranges") return isMdxResult(value.value);
@@ -82,6 +84,12 @@ export class RenderClient {
   async mdxRanges(text: string): Promise<MdxResult> {
     const response = await this.request({ kind: "mdx-ranges", text });
     if (response?.kind !== "mdx-ranges") throw new Error("Invalid MDX ranges response");
+    return response.value;
+  }
+
+  async changes(before: string, text: string, filePath: string | null): Promise<BlockChanges> {
+    const response = await this.request({ kind: "changes", before, text, filePath });
+    if (response?.kind !== "changes") throw new Error("Invalid changes response");
     return response.value;
   }
 
@@ -210,3 +218,5 @@ export const mdxRanges = (text: string) => client.mdxRanges(text);
 
 export const startBlocks = (text: string, filePath: string | null) => client.startBlocks(text, filePath);
 export const nextBlocks = (stream: number) => client.nextBlocks(stream);
+
+export const blockChanges = (before: string, text: string, filePath: string | null) => client.changes(before, text, filePath);
