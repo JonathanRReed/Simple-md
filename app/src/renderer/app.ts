@@ -109,7 +109,7 @@ const blockEls = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
   const prev = blockEls.get(el) ?? new Map<string, HTMLElement>();
   const next = new Map<string, HTMLElement>();
-  const fresh: HTMLElement[] = [];
+  const pending = document.createDocumentFragment();
   let cursor = el.firstChild;
   for (const block of blocks) {
     let node = prev.get(block.key);
@@ -117,15 +117,17 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
       node = document.createElement("div");
       node.className = "block";
       mountRenderedHtml(node, block, settings.remoteImages);
-      fresh.push(node);
     }
     node.dataset.sourceStart = String(block.sourceRange[0]);
     node.dataset.sourceEnd = String(block.sourceRange[1]);
     prev.delete(block.key);
     next.set(block.key, node);
-    if (node === cursor) cursor = cursor.nextSibling;
-    else el.insertBefore(node, cursor);
+    if (node === cursor) {
+      if (pending.childNodes.length) el.insertBefore(pending, cursor);
+      cursor = cursor.nextSibling;
+    } else pending.append(node);
   }
+  if (pending.childNodes.length) el.insertBefore(pending, cursor);
   for (const stale of prev.values()) {
     destroyDiagrams(stale);
     stale.remove();
@@ -133,8 +135,8 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
   blockEls.set(el, next);
   updateFragments(el);
   const id = documentId;
-  void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
-    if (id === documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
+  void Promise.all([...next.values()].map((node) => renderDiagrams(node))).then(() => {
+    if (id === documentId && blockEls.get(el) === next && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
   });
 }
 

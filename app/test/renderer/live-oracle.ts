@@ -3,7 +3,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import type { DecorationSet } from "@codemirror/view";
 import { buildLiveDecorations, liveDecorationField, setLiveViewport, type LiveHost } from "../../src/renderer/live";
 import { expandRegion, liveTree } from "../../src/renderer/live-regions";
-import { mdxSyntax, setMdxRanges } from "../../src/renderer/mdx-syntax";
+import { getMdxRanges, mdxSyntax, setMdxRanges } from "../../src/renderer/mdx-syntax";
 import { findMdxRanges } from "../../src/shared/mdx-ranges";
 
 const host: LiveHost = { baseUrl: () => null, openLink() {}, renderFragment: async () => ({ html: "", urls: {} }) };
@@ -34,6 +34,12 @@ async function runBatch(fixtures: string[]) {
       const tree = liveTree(state)!;
       const scope = expandRegion(state, tree, value.viewport, value.math);
       const full = buildLiveDecorations(state, host, scope);
+      for (let c = value.decorations.iter(); c.value; c.next()) {
+        const spec = c.value.spec;
+        if ((spec.widget || !spec.class && c.from < c.to) && getMdxRanges(state).some(r => r.start < c.to && r.end > c.from)) {
+          throw new Error(`Decoration hid MDX in fixture ${fixture} at step ${step}`);
+        }
+      }
       const actual = snapshot(value.decorations), expected = snapshot(full);
       comparisons++;
       if (JSON.stringify(actual) !== JSON.stringify(expected)) {
