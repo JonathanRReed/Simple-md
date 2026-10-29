@@ -1076,6 +1076,11 @@ await test("tabs-keyboard-focus", async () => {
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Home did not select first tab'); assert(document.activeElement.matches('[role=tab]'), 'Home lost focus');`),
     { input: { type: "keyDown", keyCode: "End" } }, { input: { type: "keyUp", keyCode: "End" } },
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(c)}, 'End did not select last tab'); assert(document.activeElement.matches('[role=tab]'), 'End lost focus');`),
+    evaluate(`assert([...document.querySelectorAll('[role=tab] button')].every(button => button.tabIndex === -1), 'Nested close buttons are focusable');`),
+    { debug: { method: "Emulation.setEmulatedMedia", params: { features: [{ name: "forced-colors", value: "active" }] } } },
+    evaluate(`const style = getComputedStyle(document.querySelector('[role=tab][aria-selected=true]')); assert(style.outlineWidth === '2px' && style.outlineStyle === 'solid', 'Selected tab has no forced-colors outline');`),
+    { input: { type: "keyDown", keyCode: "Delete" } }, { input: { type: "keyUp", keyCode: "Delete" } },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Delete did not close the focused tab');`),
   ], "edit");
 });
 

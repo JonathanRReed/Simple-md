@@ -74,6 +74,7 @@ function syncChrome(): void {
         else if (e.key === "ArrowRight" || e.key === "ArrowLeft") next = tabs[(current + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
         else if (e.key === "Home") next = tabs[0];
         else if (e.key === "End") next = tabs.at(-1);
+        if (e.key === "Delete") { e.preventDefault(); void api.closeTab(id); }
         if (next !== undefined) { e.preventDefault(); void api.activateTab(next); }
       });
     }
@@ -98,7 +99,8 @@ function syncChrome(): void {
         icon.append(path); close.append(icon);
       }
     }
-    close.tabIndex = controller?.documentId === id ? 0 : -1;
+    close.tabIndex = -1;
+    button.setAttribute("aria-keyshortcuts", "Delete");
     close.setAttribute("aria-label", `Close ${title.textContent}`);
     if (strip.children[index] !== button) strip.insertBefore(button, strip.children[index] ?? null);
   });

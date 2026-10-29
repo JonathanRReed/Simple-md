@@ -1116,7 +1116,10 @@ body:not([data-platform="darwin"]) #tabs { height: 34px; font-size: 13px; }
   position: relative;
   user-select: none;
 }
-.tab[aria-selected="true"] { background: light-dark(#fff, #3a3a3a); color: CanvasText; }
+.tab[aria-selected="true"] { background: light-dark(#fff, #3a3a3a); color: CanvasText; box-shadow: inset 0 -2px 0 currentColor; }
+@media (forced-colors: active) {
+  .tab[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+}
 .tab:hover:not([aria-selected="true"]) { background: color-mix(in srgb, CanvasText 5%, transparent); }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .tab-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -1136,7 +1139,11 @@ body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; pa
   background: var(--bg); color: var(--fg); font: 12px system-ui;
 }
 .pane-toolbar::before { content: ""; width: 5px; height: 5px; margin-inline-end: auto; border-radius: 50%; background: transparent; }
-#stage[data-panes="2"] .document-pane[data-active="true"] .pane-toolbar::before { background: var(--accent); }
+#stage[data-panes="2"] .pane-toolbar::before { visibility: hidden; }
+#stage[data-panes="2"] .document-pane[data-active="true"] .pane-toolbar::before {
+  visibility: visible; width: 0; height: 0; border-radius: 0;
+  border-block: 4px solid transparent; border-inline-start: 5px solid currentColor;
+}
 .pane-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .pane-content { flex: 1; min-height: 0; position: relative; }
 .pane-controls { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
