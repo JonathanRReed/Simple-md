@@ -1,20 +1,20 @@
 import { expect, test } from "bun:test";
 import { DocumentQueue, openPreparedDocument, settleDocument } from "../src/main/lifecycle";
-import type { FlushResult } from "../src/shared/types";
+import { makeDocumentId, makeRevisionId, type FlushResult } from "../src/shared/types";
 
 function actions(flushes: (FlushResult | null)[]) {
   return {
-    documentId: 4, autosave: true, hasPath: true,
+    documentId: makeDocumentId(4), autosave: true, hasPath: true,
     flush: async () => flushes.shift() ?? null,
     save: async (_text: string) => true,
     choose: async () => "cancel" as const,
   };
 }
-const dirty = { documentId: 4, conflict: false, dirty: true, text: "local edits" };
+const dirty = { revisionId: makeRevisionId(0), documentId: makeDocumentId(4), conflict: false, dirty: true, text: "local edits" };
 
 test("missing or stale flush never authorizes replacing a document", async () => {
   expect(await settleDocument(actions([null]))).toBe(false);
-  expect(await settleDocument(actions([{ ...dirty, documentId: 3, dirty: false }]))).toBe(false);
+  expect(await settleDocument(actions([{ ...dirty, documentId: makeDocumentId(3), dirty: false }]))).toBe(false);
 });
 
 test("failed autosave blocks closing and opening another note", async () => {

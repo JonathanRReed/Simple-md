@@ -1,4 +1,4 @@
-import type { FlushResult } from "../shared/types.js";
+import type { DocumentId, FlushResult } from "../shared/types.js";
 
 export class DocumentQueue {
   private tail: Promise<unknown> = Promise.resolve();
@@ -30,7 +30,7 @@ export async function openPreparedDocument<T>(a: {
 }
 
 interface SettleActions {
-  documentId: number;
+  documentId: DocumentId;
   autosave: boolean;
   hasPath: boolean;
   flush(): Promise<FlushResult | null>;

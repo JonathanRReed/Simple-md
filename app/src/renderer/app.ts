@@ -1,6 +1,6 @@
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makePaneId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 import { createPreferences, type PreferencesHandle } from "./preferences.js";
@@ -46,49 +46,83 @@ interface DocMeta {
 
 let settings: Settings = DEFAULT_SETTINGS;
 let preferences: PreferencesHandle | null = null;
-let meta: DocMeta = { path: null, name: "Untitled", baseUrl: null };
-let view: "read" | "edit" = "read";
-let editor: EditorHandle | null = null;
-let editorLoading: Promise<EditorHandle | null> | null = null;
-let hasDoc = false;
-let readText = "";
-let mountedReadText: string | null = null;
-let savedText = "";
-let readOnlyReason: string | undefined;
-let dirty = false;
-let previewTimer: number | undefined;
-let autosaveTimer: number | undefined;
-let readRenderSeq = 0;
-let previewRenderSeq = 0;
-let previewWork: Promise<void> | null = null;
-let previewPending = false;
-let readWork: Promise<void> | null = null;
-let readPending: { text: string; keepScroll: boolean; id: number; seq: number } | null = null;
-let documentId = 0;
-let viewSeq = 0;
-let transitioning = false;
-let diskConflict = false;
-let diskSeq = 0;
-let saveQueue = Promise.resolve();
+interface DocumentState {
+  meta: DocMeta;
+  hasDoc: boolean;
+  readText: string;
+  savedText: string;
+  readOnlyReason?: string;
+  dirty: boolean;
+  diskConflict: boolean;
+  diskSeq: number;
+  saveQueue: Promise<void>;
+  revisionId: RevisionId;
+  mdx?: MdxResult;
+  lastGoodBlocks: RenderedBlock[] | null;
+}
+interface PaneState {
+  paneId: PaneId;
+  documentId: DocumentId;
+  view: "read" | "edit";
+  editor: EditorHandle | null;
+  editorLoading: Promise<EditorHandle | null> | null;
+  mountedReadText: string | null;
+  previewTimer?: number;
+  autosaveTimer?: number;
+  readRenderSeq: number;
+  previewRenderSeq: number;
+  previewWork: Promise<void> | null;
+  previewPending: boolean;
+  readWork: Promise<void> | null;
+  readPending: { text: string; keepScroll: boolean; id: DocumentId; revisionId: RevisionId; seq: number } | null;
+  viewSeq: number;
+}
+function createDocumentState(): DocumentState {
+  return {
+    meta: { path: null, name: "Untitled", baseUrl: null },
+    hasDoc: false, readText: "", savedText: "", dirty: false,
+    diskConflict: false, diskSeq: 0, saveQueue: Promise.resolve(),
+    revisionId: makeRevisionId(0), lastGoodBlocks: null,
+  };
+}
+function createPaneState(paneId: PaneId, documentId: DocumentId): PaneState {
+  return {
+    paneId, documentId, view: "read", editor: null, editorLoading: null,
+    mountedReadText: null, readRenderSeq: 0, previewRenderSeq: 0,
+    previewWork: null, previewPending: false, readWork: null, readPending: null, viewSeq: 0,
+  };
+}
+const documentStates = new Map<DocumentId, DocumentState>();
+const paneStates = new Map<PaneId, PaneState>();
+let doc = createDocumentState();
+let pane = createPaneState(makePaneId(0), makeDocumentId(0));
+documentStates.set(pane.documentId, doc);
+paneStates.set(pane.paneId, pane);
 
+function changedText(text: string): void {
+  doc.revisionId = makeRevisionId(doc.revisionId + 1);
+  root.dataset.revisionId = String(doc.revisionId);
+  simplemd.edit(text, pane.documentId, doc.revisionId);
+}
+
+let transitioning = false;
 // In-place navigation history for peek-through link clicks. `navigating` marks the next doc as
 // history-driven so onDoc doesn't push it as a fresh entry.
 const navBack: string[] = [];
 const navForward: string[] = [];
 let navigating: { target: string; direction: "back" | "forward" } | null = null;
 
-const isMdx = () => /\.mdx$/i.test(meta.path ?? meta.name);
-const isReadOnly = () => !!readOnlyReason;
-let mdx: MdxResult | undefined;
-let lastGoodBlocks: RenderedBlock[] | null = null;
+const isMdx = () => /\.mdx$/i.test(doc.meta.path ?? doc.meta.name);
+const isReadOnly = () => !!doc.readOnlyReason;
 
 function acceptRender(result: RenderedBlocks, source: string): RenderedBlock[] {
-  mdx = result.mdx;
-  if (mdx && editor?.getText() === source) editor.setMdx(source, mdx);
-  if (!mdx?.error) { lastGoodBlocks = result.blocks; return result.blocks; }
-  return lastGoodBlocks ? [...lastGoodBlocks, ...result.blocks.filter((block) => block.key.startsWith("mdx-error"))] : result.blocks;
+  doc.mdx = result.mdx;
+  if (doc.mdx && pane.editor?.getText() === source) pane.editor.setMdx(source, doc.mdx);
+  if (!doc.mdx?.error) { doc.lastGoodBlocks = result.blocks; return result.blocks; }
+  return doc.lastGoodBlocks ? [...doc.lastGoodBlocks, ...result.blocks.filter((block) => block.key.startsWith("mdx-error"))] : result.blocks;
 }
-const currentText = () => (editor ? editor.getText() : readText);
+const activeDocumentId = () => pane.documentId;
+const currentText = () => (pane.editor ? pane.editor.getText() : doc.readText);
 
 // KaTeX styles are loaded from JS because the CSP forbids inline onload handlers, and loaded
 // after first paint because math is rare enough to not deserve render-blocking CSS.
@@ -132,80 +166,85 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
   }
   blockEls.set(el, next);
   updateFragments(el);
-  const id = documentId;
+  const id = pane.documentId;
   void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
-    if (id === documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
+    if (id === pane.documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
   });
 }
 
 function renderRead(text: string, keepScroll: boolean): Promise<void> {
-  readPending = { text, keepScroll, id: documentId, seq: ++readRenderSeq };
-  if (readWork) return readWork;
-  readWork = (async () => {
+  const state = doc;
+  const targetPane = pane;
+  targetPane.readPending = { text, keepScroll, id: targetPane.documentId, revisionId: state.revisionId, seq: ++targetPane.readRenderSeq };
+  if (targetPane.readWork) return targetPane.readWork;
+  targetPane.readWork = (async () => {
     try {
-      while (readPending) {
-        const request = readPending;
-        readPending = null;
+      while (targetPane.readPending) {
+        const request = targetPane.readPending;
+        targetPane.readPending = null;
         const top = request.keepScroll ? readScroll.scrollTop : undefined;
         try {
-          const result = await simplemd.renderBlocks(request.text, request.id);
-          if (request.seq !== readRenderSeq || request.id !== documentId) continue;
+          const result = await simplemd.renderBlocks(request.text, request.id, request.revisionId);
+          if (request.seq !== targetPane.readRenderSeq || request.id !== activeDocumentId() || request.revisionId !== state.revisionId) continue;
           mountBlocks(docEl, acceptRender(result, request.text));
-          mountedReadText = request.text;
+          targetPane.mountedReadText = request.text;
           document.title = result.title;
           if (top !== undefined) readScroll.scrollTop = top;
           updateHint();
         } catch {
-          if (request.seq === readRenderSeq && request.id === documentId) toast("Couldn't render this note.");
+          if (request.seq === targetPane.readRenderSeq && request.id === activeDocumentId() && request.revisionId === state.revisionId) toast("Couldn't render this note.");
         }
       }
     } finally {
-      readWork = null;
+      targetPane.readWork = null;
     }
   })();
-  return readWork;
+  return targetPane.readWork;
 }
 
 function renderPreview(): Promise<void> {
-  if (!editor || view !== "edit" || (settings.mode !== "split" && !isMdx())) return Promise.resolve();
-  previewPending = true;
-  if (previewWork) return previewWork;
-  previewWork = (async () => {
+  const state = doc;
+  const targetPane = pane;
+  if (!targetPane.editor || targetPane.view !== "edit" || (settings.mode !== "split" && !isMdx())) return Promise.resolve();
+  targetPane.previewPending = true;
+  if (targetPane.previewWork) return targetPane.previewWork;
+  targetPane.previewWork = (async () => {
     try {
-      while (previewPending) {
-        previewPending = false;
-        if (!editor || view !== "edit" || (settings.mode !== "split" && !isMdx())) break;
-        const seq = ++previewRenderSeq;
-        const id = documentId;
+      while (targetPane.previewPending) {
+        targetPane.previewPending = false;
+        if (!targetPane.editor || targetPane.view !== "edit" || (settings.mode !== "split" && !isMdx())) break;
+        const seq = ++targetPane.previewRenderSeq;
+        const id = targetPane.documentId;
+        const revisionId = state.revisionId;
         const fraction = scrollFraction(previewScroll);
         try {
-          const source = editor.getText();
+          const source = targetPane.editor.getText();
           if (settings.mode !== "split") {
-            const result = await simplemd.mdxRanges(source, id);
-            if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
-            mdx = result;
-            editor.setMdx(source, result);
+            const result = await simplemd.mdxRanges(source, id, revisionId);
+            if (seq !== targetPane.previewRenderSeq || id !== activeDocumentId() || revisionId !== state.revisionId || targetPane.view !== "edit" || targetPane.editor?.getText() !== source) continue;
+            state.mdx = result;
+            targetPane.editor.setMdx(source, result);
           } else {
-            const result = await simplemd.renderBlocks(source, id);
-            if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
+            const result = await simplemd.renderBlocks(source, id, revisionId);
+            if (seq !== targetPane.previewRenderSeq || id !== activeDocumentId() || revisionId !== state.revisionId || targetPane.view !== "edit" || targetPane.editor?.getText() !== source) continue;
             mountBlocks(previewEl, acceptRender(result, source));
           }
           setScrollFraction(previewScroll, fraction);
         } catch {
-          if (seq === previewRenderSeq && id === documentId) toast("Couldn't render this preview.");
+          if (seq === targetPane.previewRenderSeq && id === activeDocumentId() && revisionId === state.revisionId) toast("Couldn't render this preview.");
         }
       }
     } finally {
-      previewWork = null;
+      targetPane.previewWork = null;
     }
   })();
-  return previewWork;
+  return targetPane.previewWork;
 }
 
 function schedulePreview(): void {
-  ++previewRenderSeq;
-  clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(() => void renderPreview(), isMdx() ? 200 : 110);
+  ++pane.previewRenderSeq;
+  clearTimeout(pane.previewTimer);
+  pane.previewTimer = window.setTimeout(() => void renderPreview(), isMdx() ? 200 : 110);
 }
 
 const scrollFraction = (el: HTMLElement) => {
@@ -219,25 +258,25 @@ const setScrollFraction = (el: HTMLElement, f: number) => {
 // ───────── chrome ─────────
 
 function updateHint(): void {
-  if (view === "edit") {
+  if (pane.view === "edit") {
     hintEl.textContent = "";
     return;
   }
-  const words = (readText.match(/\S+/g) ?? []).length;
+  const words = (doc.readText.match(/\S+/g) ?? []).length;
   const minutes = Math.max(1, Math.round(words / 230));
-  hintEl.textContent = hasDoc ? `${words.toLocaleString()} words · ${minutes} min${readOnlyReason ? " · read only" : " · ⏎ to edit"}` : "";
+  hintEl.textContent = doc.hasDoc ? `${words.toLocaleString()} words · ${minutes} min${doc.readOnlyReason ? " · read only" : " · ⏎ to edit"}` : "";
 }
 
 function updateChrome(): void {
-  nameEl.textContent = meta.name;
-  dirtyEl.hidden = !dirty;
-  modesEl.hidden = view !== "edit";
-  editBtn.hidden = view !== "read" || !hasDoc || isReadOnly();
+  nameEl.textContent = doc.meta.name;
+  dirtyEl.hidden = !doc.dirty;
+  modesEl.hidden = pane.view !== "edit";
+  editBtn.hidden = pane.view !== "read" || !doc.hasDoc || isReadOnly();
   for (const b of modesEl.querySelectorAll<HTMLButtonElement>("button")) {
     b.setAttribute("aria-checked", String(b.dataset.mode === settings.mode));
   }
-  readPane.hidden = view !== "read";
-  editPane.hidden = view !== "edit";
+  readPane.hidden = pane.view !== "read";
+  editPane.hidden = pane.view !== "edit";
   editPane.dataset.mode = settings.mode;
   previewPane.hidden = settings.mode !== "split";
   updateHint();
@@ -254,24 +293,24 @@ function applySettings(s: Settings): void {
   root.dataset.width = s.width;
   root.dataset.typeface = s.typeface;
   root.style.setProperty("--zoom", String(s.zoom));
-  if (!s.autosave) clearTimeout(autosaveTimer);
-  if (editor && modeChanged) {
-    editor.setMode(s.mode);
-    ++previewRenderSeq;
+  if (!s.autosave) clearTimeout(pane.autosaveTimer);
+  if (pane.editor && modeChanged) {
+    pane.editor.setMode(s.mode);
+    ++pane.previewRenderSeq;
     if (s.mode === "split") void renderPreview();
   }
-  if (editor && vimChanged) editor.setVim(s.vim);
-  if (remoteChanged && hasDoc) {
+  if (pane.editor && vimChanged) pane.editor.setVim(s.vim);
+  if (remoteChanged && doc.hasDoc) {
     blockEls.delete(docEl);
     blockEls.delete(previewEl);
     destroyDiagrams(docEl);
     destroyDiagrams(previewEl);
     docEl.replaceChildren();
     previewEl.replaceChildren();
-    if (view === "read") void renderRead(currentText(), true);
-    if (editor) {
-      editor.setMode("source");
-      editor.setMode(s.mode);
+    if (pane.view === "read") void renderRead(currentText(), true);
+    if (pane.editor) {
+      pane.editor.setMode("source");
+      pane.editor.setMode(s.mode);
       if (s.mode === "split") void renderPreview();
     }
   }
@@ -279,93 +318,103 @@ function applySettings(s: Settings): void {
 }
 
 function setDirty(next: boolean): void {
-  if (next === dirty) return;
-  dirty = next;
-  simplemd.setDirty(dirty, documentId);
-  dirtyEl.hidden = !dirty;
+  if (next === doc.dirty) return;
+  doc.dirty = next;
+  simplemd.setDirty(doc.dirty, pane.documentId);
+  dirtyEl.hidden = !doc.dirty;
 }
 
 // ───────── editor lifecycle ─────────
 
 function ensureEditor(): Promise<EditorHandle | null> {
-  if (editor) return Promise.resolve(editor);
-  const id = documentId;
-  editorLoading ??= import("./editor.js").then(({ createEditor }) => {
-    if (id !== documentId) return null;
-    editor = createEditor(editorHost, {
-      text: readText,
-      mdx,
+  if (pane.editor) return Promise.resolve(pane.editor);
+  const id = pane.documentId;
+  pane.editorLoading ??= import("./editor.js").then(({ createEditor }) => {
+    if (id !== pane.documentId) return null;
+    pane.editor = createEditor(editorHost, {
+      text: doc.readText,
+      mdx: doc.mdx,
       mode: settings.mode,
       vim: settings.vim,
       host: {
-        renderFragment: (text) => simplemd.renderFragment(text, id),
-        baseUrl: () => meta.baseUrl,
+        renderFragment: async (text) => {
+          // CodeMirror can mount widgets before its change listener publishes the edit.
+          await Promise.resolve();
+          if (id !== pane.documentId) throw new Error("This document has been replaced.");
+          return simplemd.renderFragment(text, id, doc.revisionId);
+        },
+        baseUrl: () => doc.meta.baseUrl,
         remoteImages: () => settings.remoteImages,
         openLink: (href) => void navigateLink(href),
       },
       onChange(text) {
-        if (id !== documentId) return;
-        if (view === "read") {
-          readText = text;
+        if (id !== pane.documentId) return;
+        changedText(text);
+        doc.readText = text;
+        if (pane.view === "read") {
           void renderRead(text, true);
         }
-        setDirty(text !== savedText);
+        setDirty(text !== doc.savedText);
         schedulePreview();
         scheduleAutosave();
       },
       onScroll() {
-        if (settings.mode === "split" && editor) setScrollFraction(previewScroll, editor.scrollFraction());
+        if (settings.mode === "split" && pane.editor) setScrollFraction(previewScroll, pane.editor.scrollFraction());
       },
       onImages: (files) => insertImages(files).catch(() => {
         toast("Couldn’t add images.");
         return null;
       }),
     });
-    editor.setEditable(!transitioning && !isReadOnly());
-    return editor;
+    pane.editor.setEditable(!transitioning && !isReadOnly());
+    return pane.editor;
   });
-  return editorLoading;
+  return pane.editorLoading;
 }
 
 function dropEditor(): void {
-  editor?.destroy();
-  editor = null;
-  editorLoading = null;
+  pane.editor?.destroy();
+  pane.editor = null;
+  pane.editorLoading = null;
 }
 
-async function showEdit(initializing = false): Promise<void> {
-  if (!hasDoc || (transitioning && !initializing) || isReadOnly()) return;
+async function showEdit(initializing = false, prepared?: RenderedBlock[]): Promise<void> {
+  if (!doc.hasDoc || (transitioning && !initializing) || isReadOnly()) return;
   closeReadFind();
-  const seq = ++viewSeq;
+  const id = pane.documentId;
+  const seq = ++pane.viewSeq;
   const fraction = scrollFraction(readScroll);
   const ed = await ensureEditor();
-  if (!ed || seq !== viewSeq || (transitioning && !initializing)) return;
-  view = "edit";
-  simplemd.editing(documentId);
+  if (!ed || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
+  pane.view = "edit";
+  simplemd.editing(pane.documentId);
   updateChrome();
-  if (settings.mode === "split") await renderPreview();
-  if (seq !== viewSeq) return;
-  if (settings.mode === "live" && readText.length > LIVE_MAX_CHARS) {
+  if (settings.mode === "split") {
+    if (prepared) mountBlocks(previewEl, prepared);
+    else await renderPreview();
+  }
+  if (id !== pane.documentId || seq !== pane.viewSeq) return;
+  if (settings.mode === "live" && doc.readText.length > LIVE_MAX_CHARS) {
     toast("This note is large, so Live Preview is off to keep typing fast.");
   }
   requestAnimationFrame(() => {
-    if (seq !== viewSeq || view !== "edit" || transitioning) return;
+    if (id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
     ed.scroller.scrollTop = fraction * Math.max(0, ed.scroller.scrollHeight - ed.scroller.clientHeight);
     ed.focus();
   });
 }
 
 async function showRead(): Promise<void> {
-  if (!hasDoc || transitioning) return;
-  ++viewSeq;
-  ++previewRenderSeq;
-  const id = documentId;
-  const fraction = editor ? editor.scrollFraction() : scrollFraction(readScroll);
-  readText = currentText();
-  view = "read";
+  if (!doc.hasDoc || transitioning) return;
+  ++pane.viewSeq;
+  ++pane.previewRenderSeq;
+  const id = pane.documentId;
+  const fraction = pane.editor ? pane.editor.scrollFraction() : scrollFraction(readScroll);
+  doc.readText = currentText();
+  pane.view = "read";
   updateChrome();
-  await renderRead(readText, false);
-  if (id !== documentId || view !== "read") return;
+  await renderRead(doc.readText, false);
+  if (id !== pane.documentId || pane.view !== "read") return;
   setScrollFraction(readScroll, fraction);
   if (settings.autosave) void saveNow(false, true);
 }
@@ -375,61 +424,67 @@ async function showRead(): Promise<void> {
 async function onDoc(payload: DocPayload): Promise<void> {
   const id = payload.documentId;
   simplemd.perfMarker(id, "renderer-receive");
-  ++readRenderSeq;
-  ++previewRenderSeq;
-  ++viewSeq;
-  clearTimeout(previewTimer);
-  clearTimeout(autosaveTimer);
-  readPending = null;
-  previewPending = false;
+  ++pane.readRenderSeq;
+  ++pane.previewRenderSeq;
+  ++pane.viewSeq;
+  clearTimeout(pane.previewTimer);
+  clearTimeout(pane.autosaveTimer);
+  pane.readPending = null;
+  pane.previewPending = false;
   closeOverlays();
   const navigation = navigating;
-  if (navigation?.target === payload.path && meta.path) {
+  if (navigation?.target === payload.path && doc.meta.path) {
     const from = navigation.direction === "back" ? navBack : navForward;
     const to = navigation.direction === "back" ? navForward : navBack;
     from.pop();
-    to.push(meta.path);
-  } else if (meta.path !== null && payload.path !== meta.path) {
-    navBack.push(meta.path);
+    to.push(doc.meta.path);
+  } else if (doc.meta.path !== null && payload.path !== doc.meta.path) {
+    navBack.push(doc.meta.path);
     navForward.length = 0;
   }
   navigating = null;
-  documentId = id;
-  readOnlyReason = payload.readOnlyReason;
-  mdx = payload.mdx;
-  lastGoodBlocks = payload.mdx?.error || !payload.blocks.length ? null : payload.blocks;
-  meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
+  dropEditor();
+  documentStates.delete(pane.documentId);
+  doc = createDocumentState();
+  doc.revisionId = payload.revisionId;
+  root.dataset.revisionId = String(payload.revisionId);
+  documentStates.set(id, doc);
+  pane = createPaneState(payload.paneId, id);
+  paneStates.set(payload.paneId, pane);
+  doc.readOnlyReason = payload.readOnlyReason;
+  doc.mdx = payload.mdx;
+  doc.lastGoodBlocks = payload.mdx?.error || !payload.blocks.length ? null : payload.blocks;
+  doc.meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
   delete root.dataset.firstReadable;
-  hasDoc = true;
-  readText = payload.text;
-  savedText = payload.text;
-  dirty = false;
-  diskConflict = false;
-  ++diskSeq;
+  doc.hasDoc = true;
+  doc.readText = payload.text;
+  doc.savedText = payload.text;
+  doc.dirty = false;
+  doc.diskConflict = false;
+  ++doc.diskSeq;
   hideBanner();
-  if (readOnlyReason) showBanner(readOnlyReason, []);
+  if (doc.readOnlyReason) showBanner(doc.readOnlyReason, []);
   emptyEl.hidden = true;
   docEl.hidden = false;
   document.title = payload.title;
-  dropEditor();
   mountBlocks(previewEl, []);
   const sourceEdit = payload.intent === "edit" && !isReadOnly();
   mountBlocks(docEl, sourceEdit ? [] : payload.blocks);
-  mountedReadText = sourceEdit ? null : payload.text;
+  pane.mountedReadText = sourceEdit ? null : payload.text;
   readScroll.scrollTop = 0;
-  view = "read";
+  pane.view = "read";
   updateChrome();
   if (payload.intent === "edit" && !isReadOnly()) {
-    await showEdit(true);
-    if (id !== documentId) return;
+    await showEdit(true, payload.blocks);
+    if (id !== pane.documentId) return;
   }
   simplemd.perfMarker(id, "renderer-mount");
   // This marker does not await fonts, highlighting completion checks or diagram work.
   // The current worker still highlights before sending the payload.
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (id !== documentId) return;
+    if (id !== pane.documentId) return;
     root.dataset.firstReadable = payload.path ?? "";
     simplemd.perfMarker(id, "first-readable");
     if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
@@ -439,10 +494,10 @@ async function onDoc(payload: DocPayload): Promise<void> {
   if (!sourceOnly && visibleRoot.querySelector(".katex")) {
     await katexCss;
     await document.fonts.ready;
-    if (id !== documentId) return;
+    if (id !== pane.documentId) return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (id !== documentId) return;
+    if (id !== pane.documentId) return;
     root.dataset.documentPainted = payload.path ?? "";
     root.dataset.documentId = String(id);
     simplemd.documentReady(id);
@@ -450,117 +505,118 @@ async function onDoc(payload: DocPayload): Promise<void> {
 }
 
 function onSaved(result: SaveResult): void {
-  if (result.documentId !== documentId) return;
-  const moved = meta.baseUrl !== result.baseUrl;
-  meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
+  if (result.documentId !== pane.documentId) return;
+  const moved = doc.meta.baseUrl !== result.baseUrl;
+  doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
   if (moved) {
-    editor?.setMode(settings.mode);
-    if (view === "read") void renderRead(currentText(), true);
+    pane.editor?.setMode(settings.mode);
+    if (pane.view === "read") void renderRead(currentText(), true);
     else if (settings.mode === "split") void renderPreview();
   }
-  savedText = result.text;
-  dirty = currentText() !== savedText;
-  simplemd.setDirty(dirty, documentId);
+  doc.savedText = result.text;
+  doc.dirty = currentText() !== doc.savedText;
+  simplemd.setDirty(doc.dirty, pane.documentId);
   updateChrome();
 }
 
 function saveNow(forceDialog: boolean, automatic = false): Promise<void> {
-  clearTimeout(autosaveTimer);
-  const id = documentId;
+  clearTimeout(pane.autosaveTimer);
+  const id = pane.documentId;
   const save = async () => {
-    if (!hasDoc || id !== documentId || isReadOnly() || transitioning || diskConflict) return;
+    if (!doc.hasDoc || id !== pane.documentId || isReadOnly() || transitioning || doc.diskConflict) return;
     const text = currentText();
-    if (automatic && (!meta.path || text === savedText)) return;
-    if (!forceDialog && meta.path && text === savedText) return;
+    if (automatic && (!doc.meta.path || text === doc.savedText)) return;
+    if (!forceDialog && doc.meta.path && text === doc.savedText) return;
     const result = await simplemd.save(text, forceDialog, id);
-    if (!result || id !== documentId) return;
+    if (!result || id !== pane.documentId) return;
     onSaved(result);
     if (forceDialog) toast(`Saved ${result.name}`);
   };
-  saveQueue = saveQueue.then(save, save);
-  return saveQueue;
+  doc.saveQueue = doc.saveQueue.then(save, save);
+  return doc.saveQueue;
 }
 
 function scheduleAutosave(): void {
-  clearTimeout(autosaveTimer);
-  if (!settings.autosave || !meta.path || !dirty || diskConflict || isReadOnly()) return;
-  autosaveTimer = window.setTimeout(() => void saveNow(false, true), 900);
+  clearTimeout(pane.autosaveTimer);
+  if (!settings.autosave || !doc.meta.path || !doc.dirty || doc.diskConflict || isReadOnly()) return;
+  pane.autosaveTimer = window.setTimeout(() => void saveNow(false, true), 900);
 }
 
 function applyDiskText(text: string): void {
-  savedText = text;
-  readText = text;
-  dirty = false;
-  simplemd.setDirty(false, documentId);
-  editor?.setText(text);
-  if (view === "read") void renderRead(text, true);
+  doc.savedText = text;
+  doc.readText = text;
+  doc.dirty = false;
+  simplemd.setDirty(false, pane.documentId);
+  changedText(text);
+  pane.editor?.setText(text);
+  if (pane.view === "read") void renderRead(text, true);
   else if (settings.mode === "split" || isMdx()) void renderPreview();
   updateChrome();
 }
 
-function onDiskChanged(text: string, id: number, reason?: string): void {
-  if (id !== documentId) return;
-  const seq = ++diskSeq;
+function onDiskChanged(text: string, id: DocumentId, reason?: string): void {
+  if (id !== pane.documentId) return;
+  const seq = ++doc.diskSeq;
   if (reason) {
-    readOnlyReason = reason;
-    diskConflict = true;
-    clearTimeout(autosaveTimer);
-    editor?.setEditable(false);
+    doc.readOnlyReason = reason;
+    doc.diskConflict = true;
+    clearTimeout(pane.autosaveTimer);
+    pane.editor?.setEditable(false);
     const reload = async () => {
-      if (!(await simplemd.acceptDisk(text, id)) || id !== documentId || seq !== diskSeq) return;
-      diskConflict = false;
+      if (!(await simplemd.acceptDisk(text, id)) || id !== pane.documentId || seq !== doc.diskSeq) return;
+      doc.diskConflict = false;
       applyDiskText(text);
       showBanner(reason, []);
     };
-    if (dirty) showBanner(reason, [{ label: "Reload", run: reload }]);
+    if (doc.dirty) showBanner(reason, [{ label: "Reload", run: reload }]);
     else void reload();
     updateChrome();
     return;
   }
   const observedText = currentText();
-  clearTimeout(autosaveTimer);
-  diskConflict = true;
+  clearTimeout(pane.autosaveTimer);
+  doc.diskConflict = true;
   const offerChoice = () => showBanner("This note changed on disk.", [
     { label: "Reload", run: () => accept(true) },
     { label: "Keep mine", run: () => accept(false) },
   ]);
   const accept = async (reload: boolean, automatic = false) => {
-    if (!(await simplemd.acceptDisk(text, id)) || id !== documentId || seq !== diskSeq) return false;
+    if (!(await simplemd.acceptDisk(text, id)) || id !== pane.documentId || seq !== doc.diskSeq) return false;
     if (automatic && currentText() !== observedText) {
       offerChoice();
       return false;
     }
-    diskConflict = false;
-    readOnlyReason = undefined;
-    editor?.setEditable(!transitioning && !isReadOnly());
+    doc.diskConflict = false;
+    doc.readOnlyReason = undefined;
+    pane.editor?.setEditable(!transitioning && !isReadOnly());
     hideBanner();
     if (reload) applyDiskText(text);
     else {
-      savedText = text;
-      setDirty(currentText() !== savedText);
+      doc.savedText = text;
+      setDirty(currentText() !== doc.savedText);
       scheduleAutosave();
     }
     return true;
   };
-  if (text === observedText || !dirty) void accept(true, true);
+  if (text === observedText || !doc.dirty) void accept(true, true);
   else offerChoice();
 }
 
 async function insertImages(files: File[]): Promise<string | null> {
   if (transitioning || isReadOnly()) return null;
-  if (!meta.path) {
+  if (!doc.meta.path) {
     toast("Save the note first to add images.");
     return null;
   }
-  const id = documentId;
-  const target = editor;
+  const id = pane.documentId;
+  const target = pane.editor;
   const lines: string[] = [];
   for (const file of files) {
     const ext = file.type.split("/")[1]!.replace("jpeg", "jpg").replace("svg+xml", "svg");
     const bytes = new Uint8Array(await file.arrayBuffer());
-    if (id !== documentId || transitioning) return null;
+    if (id !== pane.documentId || transitioning) return null;
     const rel = await simplemd.saveImage(bytes, ext, id);
-    if (id !== documentId || target !== editor || transitioning) return null;
+    if (id !== pane.documentId || target !== pane.editor || transitioning) return null;
     if (rel) lines.push(`![](${rel.split("/").map(encodeURIComponent).join("/").replace(/\(/g, "%28").replace(/\)/g, "%29")})`);
   }
   return lines.length ? `${lines.join("\n")}\n` : null;
@@ -572,43 +628,44 @@ async function insertImages(files: File[]): Promise<string | null> {
 // none), so clicks land on the <li>; we map the click back to the source by ordinal. The
 // The parser maps rendered checkbox order, including relocated footnotes.
 async function toggleTask(item: HTMLElement): Promise<void> {
-  if (!hasDoc || view !== "read" || transitioning || isReadOnly() || mdx?.error) return;
-  if (!meta.path) {
+  if (!doc.hasDoc || pane.view !== "read" || transitioning || isReadOnly() || doc.mdx?.error) return;
+  if (!doc.meta.path) {
     toast("Save the note first to check off tasks.");
     return;
   }
-  const source = mountedReadText;
-  if (source === null || source !== readText || readWork || readPending) return;
+  const source = pane.mountedReadText;
+  if (source === null || source !== doc.readText || pane.readWork || pane.readPending) return;
   const boxes = docEl.querySelectorAll(".task-list-item-checkbox");
   const index = Array.prototype.indexOf.call(boxes, item.querySelector(".task-list-item-checkbox"));
   if (index < 0) return;
-  const id = documentId;
-  const matchesMountedSource = () => id === documentId && !transitioning && view === "read"
-    && source === mountedReadText && source === readText && !readWork && !readPending && docEl.contains(item);
+  const id = pane.documentId;
+  const matchesMountedSource = () => id === pane.documentId && !transitioning && pane.view === "read"
+    && source === pane.mountedReadText && source === doc.readText && !pane.readWork && !pane.readPending && docEl.contains(item);
   const { toggleTaskAt } = await import("./tasks.js");
   if (!matchesMountedSource()) return;
   const ed = await ensureEditor();
   if (!ed || !matchesMountedSource()) return;
-  const next = toggleTaskAt(source, index, mdx?.ranges);
+  const next = toggleTaskAt(source, index, doc.mdx?.ranges);
   if (next === null) {
     toast("Couldn't find that task in the source.");
     return;
   }
-  readText = next;
+  doc.readText = next;
+  changedText(next);
   // Keep a live editor in sync so currentText() and a later showEdit() don't clobber the flip.
-  editor?.setText(next, true);
-  setDirty(readText !== savedText);
-  await renderRead(readText, true);
+  pane.editor?.setText(next, true);
+  setDirty(doc.readText !== doc.savedText);
+  await renderRead(doc.readText, true);
   // Pulse the re-rendered checkbox (same ordinal in the fresh DOM) as press feedback.
-  if (id !== documentId) return;
+  if (id !== pane.documentId) return;
   docEl.querySelectorAll(".task-list-item-checkbox")[index]?.classList.add("task-pulse");
-  if (id === documentId) scheduleAutosave();
+  if (id === pane.documentId) scheduleAutosave();
 }
 
 // Back/forward through notes opened by peek-through links, staying in the current view.
 async function navigate(direction: "back" | "forward"): Promise<void> {
   const from = direction === "back" ? navBack : navForward;
-  if (!meta.path || !from.length) {
+  if (!doc.meta.path || !from.length) {
     toast(direction === "back" ? "Nothing to go back to." : "Nothing to go forward to.");
     return;
   }
@@ -617,7 +674,7 @@ async function navigate(direction: "back" | "forward"): Promise<void> {
   const navigation = { target, direction };
   navigating = navigation;
   try {
-    await simplemd.openPath(target, view === "read" ? "peek" : "edit");
+    await simplemd.openPath(target, pane.view === "read" ? "peek" : "edit");
   } finally {
     if (navigating === navigation) navigating = null;
   }
@@ -625,19 +682,19 @@ async function navigate(direction: "back" | "forward"): Promise<void> {
 
 
 function runFormat(kind: FormatKind): void {
-  if (view === "edit" && !transitioning) editor?.format(kind);
+  if (pane.view === "edit" && !transitioning) pane.editor?.format(kind);
 }
 
 function findInView(): void {
-  if (view === "edit") editor?.find();
+  if (pane.view === "edit") pane.editor?.find();
   else openReadFind(() => undefined);
 }
 
 function openOutline(): void {
   const items: PickerItem[] = [];
-  if (view === "edit" && editor) {
-    for (const h of editor.headings()) {
-      items.push({ label: h.text, depth: h.level - 1, run: () => editor?.goTo(h.pos) });
+  if (pane.view === "edit" && pane.editor) {
+    for (const h of pane.editor.headings()) {
+      items.push({ label: h.text, depth: h.level - 1, run: () => pane.editor?.goTo(h.pos) });
     }
   } else {
     for (const h of docEl.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")) {
@@ -648,14 +705,14 @@ function openOutline(): void {
     toast("No headings in this note.");
     return;
   }
-  openPicker("Go to heading…", items, () => (view === "edit" ? editor?.focus() : undefined));
+  openPicker("Go to heading…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
 }
 
 function openPalette(): void {
   const set = (patch: Partial<Settings>) => () => void simplemd.setSettings(patch);
   const cmd = (c: Command) => () => handleCommand(c);
   const items: PickerItem[] = [
-    { label: view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
+    { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
     { label: "Preferences…", run: () => handleCommand("preferences") },
     { label: "New note", hint: "⌘N", run: cmd("new") },
     { label: "Open…", hint: "⌘O", run: () => void simplemd.openDialog() },
@@ -683,7 +740,7 @@ function openPalette(): void {
     { label: "Reveal in file manager", run: cmd("reveal") },
     ...settings.recents.map((p): PickerItem => ({ label: `Open ${p.split(/[\\/]/).pop()}`, hint: p.split(/[\\/]/).slice(-2, -1)[0], run: () => void simplemd.openPath(p) })),
   ];
-  openPicker("Type a command…", items, () => (view === "edit" ? editor?.focus() : undefined));
+  openPicker("Type a command…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
 }
 
 function handleCommand(cmd: Command): void {
@@ -696,12 +753,12 @@ function handleCommand(cmd: Command): void {
       void saveNow(true);
       break;
     case "toggle-edit":
-      void (view === "read" ? showEdit() : showRead());
+      void (pane.view === "read" ? showEdit() : showRead());
       break;
     case "mode-live":
     case "mode-split":
     case "mode-source":
-      if (view === "read") void showEdit();
+      if (pane.view === "read") void showEdit();
       break;
     case "find":
       findInView();
@@ -723,19 +780,19 @@ function handleCommand(cmd: Command): void {
       void navigate("forward");
       break;
     case "undo":
-      editor?.undo();
+      pane.editor?.undo();
       break;
     case "redo":
-      editor?.redo();
+      pane.editor?.redo();
       break;
     case "export-pdf":
-      void simplemd.exportPdf(currentText(), documentId);
+      void simplemd.exportPdf(currentText(), pane.documentId);
       break;
     case "export-html":
-      void simplemd.exportHtml(currentText(), documentId);
+      void simplemd.exportHtml(currentText(), pane.documentId);
       break;
     case "print":
-      void simplemd.print(currentText(), documentId);
+      void simplemd.print(currentText(), pane.documentId);
       break;
     case "format-bold":
       runFormat("bold");
@@ -760,10 +817,10 @@ function handleCommand(cmd: Command): void {
 // ───────── events ─────────
 
 function scrollToFragment(href: string): void {
-  if (view === "edit" && settings.mode !== "split" && editor) {
-    const source = editor.getText();
+  if (pane.view === "edit" && settings.mode !== "split" && pane.editor) {
+    const source = pane.editor.getText();
     const scope = document.createElement("div");
-    for (const block of lastGoodBlocks ?? []) {
+    for (const block of doc.lastGoodBlocks ?? []) {
       const element = document.createElement("div");
       element.dataset.sourceStart = String(block.sourceRange[0]);
       mountRenderedHtml(element, block, settings.remoteImages);
@@ -775,18 +832,18 @@ function scrollToFragment(href: string): void {
       const line = Number(target.dataset.sourceStart);
       const breaks = [...source.matchAll(/\r\n|[\r\n]/g)];
       const previous = breaks[line - 1];
-      editor.goTo(previous ? previous.index + previous[0].length : 0);
+      pane.editor.goTo(previous ? previous.index + previous[0].length : 0);
     }
     return;
   }
-  const scope = view === "read" ? docEl : previewEl;
+  const scope = pane.view === "read" ? docEl : previewEl;
   fragmentTarget(scope, href)?.scrollIntoView({ block: "start" });
 }
 
 async function navigateLink(href: string): Promise<void> {
   if (href.startsWith("#")) { scrollToFragment(href); return; }
   const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
-  if (await simplemd.openLink(href, view === "read" ? "peek" : "edit") && fragment) scrollToFragment(fragment);
+  if (await simplemd.openLink(href, pane.view === "read" ? "peek" : "edit") && fragment) scrollToFragment(fragment);
 }
 
 document.addEventListener("click", (e) => {
@@ -802,7 +859,7 @@ document.addEventListener("click", (e) => {
   }
   // Task-list checkboxes toggle in place in the read view; links inside the item still win.
   const taskItem = target.closest<HTMLElement>(".task-list-item");
-  if (taskItem && view === "read" && docEl.contains(taskItem) && !target.closest("a")) {
+  if (taskItem && pane.view === "read" && docEl.contains(taskItem) && !target.closest("a")) {
     void toggleTask(taskItem);
     return;
   }
@@ -822,7 +879,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (preferences?.isOpen() || isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
   const mod = e.metaKey || e.ctrlKey;
-  if (view === "read") {
+  if (pane.view === "read") {
     if (e.key === "Escape" || (e.key === " " && !mod && !e.shiftKey)) {
       e.preventDefault();
       simplemd.hide();
@@ -902,13 +959,13 @@ async function boot(): Promise<void> {
     transitioning = busy;
     editPane.inert = busy;
     readPane.inert = busy;
-    editor?.setEditable(!busy && !isReadOnly());
-    if (busy) clearTimeout(autosaveTimer);
+    pane.editor?.setEditable(!busy && !isReadOnly());
+    if (busy) clearTimeout(pane.autosaveTimer);
     else {
       scheduleAutosave();
-      if (view === "edit") {
-        editor?.focus();
-        if (editor) simplemd.perfMarker(documentId, "ready-for-input");
+      if (pane.view === "edit") {
+        pane.editor?.focus();
+        if (pane.editor) simplemd.perfMarker(pane.documentId, "ready-for-input");
       }
     }
   });
@@ -917,7 +974,10 @@ async function boot(): Promise<void> {
   simplemd.onDoc((doc) => void onDoc(doc));
   simplemd.onCommand(handleCommand);
   simplemd.onDiskChanged(onDiskChanged);
-  simplemd.onFlushRequest((id) => simplemd.flushResponse(id, { dirty, text: currentText(), documentId, conflict: diskConflict }));
+  simplemd.onFlushRequest((id, documentId) => {
+    if (documentId !== pane.documentId) return;
+    simplemd.flushResponse(id, { revisionId: doc.revisionId, dirty: doc.dirty, text: currentText(), documentId: pane.documentId, conflict: doc.diskConflict });
+  });
 
   const ready = await simplemd.ready();
   document.body.dataset.platform = ready.platform;

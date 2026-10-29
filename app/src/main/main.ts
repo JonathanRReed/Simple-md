@@ -17,6 +17,9 @@ import {
   session,
   shell,
 } from "electron";
+import { isDocumentId, isRevisionId, isRequestId, makePaneId, makeRequestId, type DocumentId, type RequestId, type RevisionId } from "../shared/types.js";
+import { DocumentRegistry } from "./document-registry.js";
+import { DocumentSession } from "./document-session.js";
 import type {
   Command,
   DocPayload,
@@ -25,7 +28,7 @@ import type {
   Settings,
   SaveResult,
 } from "../shared/types.js";
-import { FileConflictError, isMarkdown, isPeekable, readDocument, readDiskText, saveImageNextTo, watchDocument, writeAtomic } from "./files.js";
+import { isMarkdown, isPeekable, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
 import { replaceShortcut } from "./shortcuts.js";
@@ -55,31 +58,19 @@ else app.setPath("userData", path.join(app.getPath("appData"), app.name));
 const here = path.dirname(fileURLToPath(import.meta.url));
 const INDEX = path.join(here, "renderer", "index.html");
 
-interface Current {
-  documentId: number;
-  intent: OpenIntent;
-  path: string | null;
-  name: string;
-  /** Last disk revision accepted by the renderer or written by this process. */
-  diskText: string | null;
-  conflict: boolean;
-  readOnlyReason?: string;
-}
-
 let settings: Settings = { ...loadSettings() };
 let win: BrowserWindow;
 let tray: Tray | undefined;
 let helper: PeekHelper | undefined;
-let current: Current = { documentId: 0, intent: "edit", path: null, name: "Untitled", diskText: null, conflict: false };
+const registry = new DocumentRegistry();
+const mainPane = { paneId: makePaneId(0), documentId: registry.create(null, "").documentId };
+const currentSession = () => registry.get(mainPane.documentId)!;
 const documents = new DocumentQueue();
-let documentSeq = 0;
-let watcher: { close(): void } | undefined;
 let rendererReady = false;
 let markRendererLoaded: () => void;
 // Documents opened during startup wait here so they are not sent to a page that has not loaded.
 const rendererLoaded = new Promise<void>((resolve) => (markRendererLoaded = resolve));
 let quitting = false;
-let dirty = false;
 
 const send = (channel: string, ...args: unknown[]) => {
   if (win && !win.isDestroyed()) win.webContents.send(channel, ...args);
@@ -233,13 +224,14 @@ async function hideCurrentWindow(): Promise<void> {
 
 // ───────── renderer round trips ─────────
 
-const flushWaiters = new Map<number, (r: FlushResult | null) => void>();
+const flushWaiters = new Map<RequestId, (r: FlushResult | null) => void>();
 let flushSeq = 0;
 
 function requestFlush(): Promise<FlushResult | null> {
   return new Promise((resolve) => {
     if (!rendererReady || win.isDestroyed()) return resolve(null);
-    const id = ++flushSeq;
+    const id = makeRequestId(++flushSeq);
+    const doc = currentSession();
     const timer = setTimeout(() => {
       flushWaiters.delete(id);
       resolve(null);
@@ -247,10 +239,11 @@ function requestFlush(): Promise<FlushResult | null> {
     flushWaiters.set(id, (r) => {
       clearTimeout(timer);
       flushWaiters.delete(id);
-      if (r?.documentId === current.documentId && r.conflict) current.conflict = true;
+      if (r?.documentId !== doc.documentId || !doc.isCurrent(r.revisionId) || !doc.edit(r.text, r.revisionId)) return resolve(null);
+      if (r.conflict) doc.conflict = true;
       resolve(r);
     });
-    send("smd:flush-request", id);
+    send("smd:flush-request", id, doc.documentId);
   });
 }
 
@@ -265,6 +258,7 @@ async function transition<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 async function settle(): Promise<boolean> {
+  const current = currentSession();
   await rendererLoaded;
   return settleDocument({
     documentId: current.documentId,
@@ -289,10 +283,9 @@ async function settle(): Promise<boolean> {
 
 // ───────── documents ─────────
 
-const baseUrlOf = (file: string | null) =>
-  file ? pathToFileURL(path.dirname(file)).href.replace(/\/?$/, "/") : null;
-
-async function payloadFor(file: string | null, text: string, intent: OpenIntent, fromDisk = false, readOnlyReason?: string): Promise<DocPayload> {
+async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.text, intent = doc.intent): Promise<DocPayload> {
+  const file = doc.path;
+  const readOnlyReason = doc.readOnlyReason;
   let title: string;
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
@@ -316,7 +309,9 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     ({ title, blocks, mdx } = await renderBlocks(text, file));
   }
   return {
-    documentId: current.documentId,
+    documentId: doc.documentId,
+    revisionId: doc.revisionId,
+    paneId: mainPane.paneId,
     path: file,
     name: file ? path.basename(file) : "Untitled",
     text,
@@ -324,47 +319,32 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     mdx,
     title,
     intent,
-    baseUrl: baseUrlOf(file),
+    baseUrl: doc.baseUrl,
     readOnlyReason,
   };
 }
 
 function updateTitle(): void {
+  const current = currentSession();
   if (win.isDestroyed()) return;
-  win.setTitle(`${current.name}${dirty ? " (Edited)" : ""} | SimpleMD`);
-  win.setDocumentEdited(dirty);
+  win.setTitle(`${current.name}${current.dirty ? " (Edited)" : ""} | SimpleMD`);
+  win.setDocumentEdited(current.dirty);
   if (current.path) win.setRepresentedFilename(current.path);
 }
 
-function watch(file: string | null): void {
-  watcher?.close();
-  watcher = undefined;
-  if (!file) return;
-  const documentId = current.documentId;
-  try {
-    const changed = () => {
-      void readDocument(file).then(({ text, readOnlyReason }) => {
-        if (current.documentId !== documentId) return;
-        if (readOnlyReason) current.readOnlyReason = readOnlyReason;
-        if (!readOnlyReason && text === current.diskText) return;
-        current.conflict = true;
-        send("smd:disk-changed", text, documentId, readOnlyReason);
-      }).catch((err) => console.error("simple-md: could not read changed note", err));
-    };
-    watcher = watchDocument(file, changed);
-    changed();
-  } catch (err) {
-    console.error("simple-md: could not watch note", err);
-  }
+function watch(doc: DocumentSession): void {
+  doc.watch((text, reason) => send("smd:disk-changed", text, doc.documentId, reason));
 }
 
-const documentWaiters = new Map<number, () => void>();
+const documentWaiters = new Map<DocumentId, () => void>();
 async function present(payload: DocPayload): Promise<void> {
   await rendererLoaded;
-  payload.documentId = ++documentSeq;
-  current = { documentId: payload.documentId, intent: payload.intent, path: payload.path, name: payload.name, diskText: payload.path ? payload.text : null, conflict: false, readOnlyReason: payload.readOnlyReason };
-  dirty = false;
-  watch(payload.path);
+  const previous = mainPane.documentId;
+  mainPane.documentId = payload.documentId;
+  if (previous !== payload.documentId) registry.remove(previous);
+  const doc = currentSession();
+  doc.dirty = false;
+  watch(doc);
   updateTitle();
   const usable = new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -384,7 +364,7 @@ async function present(payload: DocPayload): Promise<void> {
   await usable;
 }
 
-function reveal(intent: OpenIntent = current.intent): void {
+function reveal(intent: OpenIntent = currentSession().intent): void {
   if (process.platform === "darwin") {
     if (intent === "edit") void app.dock?.show();
     else app.dock?.hide();
@@ -410,6 +390,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
   if (!isMarkdown(file)) return false;
   const abs = path.resolve(file);
   perfMark("file-open-arrival", { path: abs });
+  let prepared: DocumentSession | undefined;
   try {
     return await openPreparedDocument({
       valid,
@@ -418,13 +399,17 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
         perfMark("read-start", { path: abs });
         const { text, readOnlyReason } = await readDocument(abs);
         perfMark("read-end", { path: abs });
-        return payloadFor(abs, text, intent, true, readOnlyReason);
+        prepared = registry.create(abs, text, intent, readOnlyReason);
+        return payloadFor(prepared, true);
       },
       transition,
       settle,
       refresh: async (payload) => {
         const latest = await readDocument(abs);
-        return latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason ? payload : payloadFor(abs, latest.text, intent, true, latest.readOnlyReason);
+        if (latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason) return payload;
+        if (prepared) registry.remove(prepared.documentId);
+        prepared = registry.create(abs, latest.text, intent, latest.readOnlyReason);
+        return payloadFor(prepared, true);
       },
       present: async (payload) => {
         reveal(intent);
@@ -437,6 +422,8 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
     console.error("simple-md: failed to open", abs, err);
     void dialog.showMessageBox(win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
+  } finally {
+    if (prepared && prepared.documentId !== mainPane.documentId) registry.remove(prepared.documentId);
   }
 }
 
@@ -444,7 +431,7 @@ function newDoc(): Promise<void> {
   return documents.run(() => transition(async () => {
     if (!(await settle())) return;
     reveal("edit");
-    await present(await payloadFor(null, "", "edit"));
+    await present(await payloadFor(registry.create(null, "", "edit")));
   }));
 }
 
@@ -460,45 +447,37 @@ function openDialog(): Promise<boolean> {
   });
 }
 
-async function saveText(text: string, forceDialog: boolean, documentId: number): Promise<SaveResult | null> {
-  if (documentId !== current.documentId || current.readOnlyReason || (current.conflict && !forceDialog)) return null;
-  let target = current.path;
+async function saveText(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null> {
+  const doc = registry.get(documentId);
+  if (!doc || doc.text !== text || doc.readOnlyReason || (doc.conflict && !forceDialog)) return null;
+  const revisionId = doc.revisionId;
+  let target = doc.path;
   if (!target || forceDialog) {
     const res = await dialog.showSaveDialog(win, {
-      defaultPath: current.path ?? path.join(app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.md`),
+      defaultPath: doc.path ?? path.join(app.getPath("documents"), `${doc.name.replace(/\.[^.]+$/, "")}.md`),
       filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdx"] }],
     });
     if (res.canceled || !res.filePath) return null;
     target = res.filePath;
   }
+  const moved = target !== doc.path;
   try {
-    const expected = target === current.path ? current.diskText : await readDiskText(target);
-    await writeAtomic(target, text, expected);
+    const result = await doc.save(target, revisionId, forceDialog);
+    if (!result) return null;
+    if (moved) addRecent(target);
+    updateTitle();
+    send("smd:saved", result);
+    return result;
   } catch (err) {
-    if (err instanceof FileConflictError) {
-      current.conflict = true;
-      const external = await readDiskText(target).catch(() => null);
-      if (external !== null) send("smd:disk-changed", external, documentId);
-      return null;
-    }
     void dialog.showMessageBox(win, { type: "error", message: `Couldn’t save “${path.basename(target)}”.`, detail: String(err) });
     return null;
   }
-  const moved = target !== current.path;
-  current = { ...current, path: target, name: path.basename(target), diskText: text, conflict: false };
-  if (moved) {
-    watch(target);
-    addRecent(target);
-  }
-  updateTitle();
-  const result = { documentId, path: target, name: current.name, baseUrl: baseUrlOf(target)!, text };
-  send("smd:saved", result);
-  return result;
 }
 
 // ───────── links & commands ─────────
 
 async function openLink(href: string, intent: OpenIntent = "edit"): Promise<boolean> {
+  const current = currentSession();
   if (/^(https?:|mailto:)/i.test(href)) {
     await shell.openExternal(href);
     return false;
@@ -516,6 +495,7 @@ async function openLink(href: string, intent: OpenIntent = "edit"): Promise<bool
 }
 
 function runCommand(cmd: Command): void {
+  const current = currentSession();
   switch (cmd) {
     case "preferences":
       reveal("edit");
@@ -550,7 +530,7 @@ function runCommand(cmd: Command): void {
 const printWaiters = new Map<number, (error?: string) => void>();
 
 async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>): Promise<T> {
-  const doc = await payloadFor(current.path, text, "peek");
+  const doc = await payloadFor(currentSession(), false, text, "peek");
   const pw = new BrowserWindow({
     show: false,
     webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
@@ -584,6 +564,7 @@ function makePdf(text: string): Promise<Buffer> {
 }
 
 async function exportPdf(text: string): Promise<void> {
+  const current = currentSession();
   const res = await dialog.showSaveDialog(win, {
     defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.pdf`),
     filters: [{ name: "PDF", extensions: ["pdf"] }],
@@ -594,6 +575,7 @@ async function exportPdf(text: string): Promise<void> {
 }
 
 async function exportHtml(text: string): Promise<void> {
+  const current = currentSession();
   const res = await dialog.showSaveDialog(win, {
     defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.html`),
     filters: [{ name: "HTML", extensions: ["html"] }],
@@ -604,6 +586,7 @@ async function exportHtml(text: string): Promise<void> {
 }
 
 async function makeHtml(text: string): Promise<string> {
+  const current = currentSession();
   const { title, html } = await withPrintWindow(text, async (pw, doc) => {
     const sources: unknown = await pw.webContents.executeJavaScript(`Array.from(document.querySelectorAll('#doc img'), image => image.currentSrc || image.getAttribute('src') || '')`);
     if (!Array.isArray(sources) || !sources.every((source): source is string => typeof source === "string")) throw new Error("Invalid export images.");
@@ -702,7 +685,7 @@ const accessibilityPane = "x-apple.systempreferences:com.apple.preference.securi
 const prewarmed = new Set<string>();
 async function prewarm(paths: string[]): Promise<void> {
   for (const p of paths.filter(isPeekable).slice(0, 3)) {
-    if (prewarmed.has(p) || p === current.path) continue;
+    if (prewarmed.has(p) || p === currentSession().path) continue;
     prewarmed.add(p);
     try {
       const stat = await fs.promises.stat(p);
@@ -866,9 +849,18 @@ function ipcText(value: unknown): string {
   return value;
 }
 
-function ipcDocument(value: unknown): number {
-  if (value !== current.documentId) throw new Error("This document has been replaced.");
-  return current.documentId;
+function ipcSession(value: unknown): DocumentSession {
+  if (!isDocumentId(value) || value !== mainPane.documentId) throw new Error("This document has been replaced.");
+  const doc = registry.get(value);
+  if (!doc) throw new Error("Unknown document.");
+  return doc;
+}
+
+function ipcDocument(value: unknown): DocumentId { return ipcSession(value).documentId; }
+
+function ipcRevision(doc: DocumentSession, value: unknown): RevisionId {
+  if (!isRevisionId(value) || !doc.isCurrent(value)) throw new Error("Stale document revision.");
+  return value;
 }
 
 function ipcIntent(value: unknown): OpenIntent {
@@ -891,81 +883,77 @@ function registerIpc(): void {
     return { settings, platform: process.platform, performanceTracing: testProfile && process.env.SMD_PERF === "1" };
   });
   ipcMain.on("smd:editing", (e, id: unknown) => {
-    if (!mainSender(e) || id !== current.documentId) return;
-    current.intent = "edit";
+    if (!mainSender(e) || id !== currentSession().documentId) return;
+    currentSession().intent = "edit";
     if (process.platform === "darwin") void app.dock?.show();
   });
   ipcMain.on("smd:perf-marker", (e, id: unknown, marker: unknown) => {
-    if (testProfile && mainSender(e) && id === current.documentId && typeof marker === "string" &&
+    if (testProfile && mainSender(e) && id === currentSession().documentId && typeof marker === "string" &&
         ["renderer-receive", "renderer-mount", "first-readable", "fully-highlighted", "diagrams-ready", "ready-for-input"].includes(marker)) {
-      perfMark(marker, { documentId: id, path: current.path });
+      perfMark(marker, { documentId: id, path: currentSession().path });
     }
   });
   ipcMain.on("smd:document-ready", (e, id: unknown) => {
-    if (mainSender(e) && typeof id === "number" && id === current.documentId) documentWaiters.get(id)?.();
+    if (mainSender(e) && isDocumentId(id) && id === currentSession().documentId) documentWaiters.get(id)?.();
   });
   ipcMain.on("smd:flush-response", (e, id: unknown, r: unknown) => {
-    if (!mainSender(e) || typeof id !== "number" || !r || typeof r !== "object") return;
+    if (!mainSender(e) || !isRequestId(id) || !r || typeof r !== "object") return;
     if (!("text" in r) || typeof r.text !== "string" || !("dirty" in r) || typeof r.dirty !== "boolean" ||
-        !("documentId" in r) || typeof r.documentId !== "number" || !("conflict" in r) || typeof r.conflict !== "boolean") return;
-    flushWaiters.get(id)?.({ text: r.text, dirty: r.dirty, documentId: r.documentId, conflict: r.conflict });
+        !("documentId" in r) || !isDocumentId(r.documentId) || !("conflict" in r) || typeof r.conflict !== "boolean" || !("revisionId" in r) || !isRevisionId(r.revisionId)) return;
+    flushWaiters.get(id)?.({ text: r.text, dirty: r.dirty, documentId: r.documentId, revisionId: r.revisionId, conflict: r.conflict });
   });
   ipcMain.on("smd:dirty", (e, value: unknown, id: unknown) => {
-    if (!mainSender(e) || id !== current.documentId || typeof value !== "boolean") return;
-    dirty = value;
+    if (!mainSender(e) || id !== currentSession().documentId || typeof value !== "boolean") return;
+    currentSession().dirty = value;
     updateTitle();
   });
-  handle("smd:render-blocks", async (value, id) => {
-    const text = ipcText(value);
-    ipcDocument(id);
-    const out = await renderBlocks(text, current.path);
-    trace("render-done");
-    return out;
+  ipcMain.on("smd:edit", (e, text: unknown, id: unknown, revision: unknown) => {
+    if (!mainSender(e) || id !== mainPane.documentId || typeof text !== "string" || !isRevisionId(revision)) return;
+    ipcSession(id).edit(text, revision);
   });
-  handle("smd:mdx-ranges", async (value, id) => {
+  handle("smd:render-blocks", (value, id, revision) => {
     const text = ipcText(value);
-    ipcDocument(id);
-    const out = await mdxRanges(text);
-    trace("mdx-ranges-done");
-    return out;
+    const doc = ipcSession(id);
+    const revisionId = ipcRevision(doc, revision);
+    if (doc.text !== text) throw new Error("Render source does not match the document revision.");
+    return doc.render(revisionId, () => renderBlocks(text, doc.path));
   });
-  handle("smd:render-fragment", (value, id) => {
+  handle("smd:mdx-ranges", (value, id, revision) => {
     const text = ipcText(value);
-    ipcDocument(id);
-    return renderFragment(text, current.path ? path.dirname(current.path) : undefined);
+    const doc = ipcSession(id);
+    const revisionId = ipcRevision(doc, revision);
+    if (doc.text !== text) throw new Error("Render source does not match the document revision.");
+    return doc.render(revisionId, () => mdxRanges(text));
+  });
+  handle("smd:render-fragment", (value, id, revision) => {
+    const text = ipcText(value);
+    const doc = ipcSession(id);
+    return doc.render(ipcRevision(doc, revision), () => renderFragment(text, doc.path ? path.dirname(doc.path) : undefined));
   });
   handle("smd:save", (value, forceDialog, id) => {
     const text = ipcText(value);
     if (typeof forceDialog !== "boolean") throw new TypeError("Expected save option.");
-    if (id !== current.documentId) return null;
+    if (id !== currentSession().documentId) return null;
     const documentId = ipcDocument(id);
     return documents.run(() => saveText(text, forceDialog, documentId));
   });
   handle("smd:accept-disk", (value, id) => {
     const text = ipcText(value);
-    if (id !== current.documentId) return false;
+    if (id !== currentSession().documentId) return false;
     const documentId = ipcDocument(id);
-    return documents.run(async () => {
-      if (documentId !== current.documentId || !current.path) return false;
-      const latest = await readDocument(current.path).catch((err: unknown) => {
-        if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
-        throw err;
-      });
-      if (!latest || latest.text !== text) return false;
-      current.diskText = text;
-      current.conflict = false;
-      current.readOnlyReason = latest.readOnlyReason;
-      return true;
-    });
+    return documents.run(() => ipcSession(documentId).acceptDisk(text));
   });
   handle("smd:save-image", (bytes, ext, id) => {
     const documentId = ipcDocument(id);
     if (!(bytes instanceof Uint8Array) || typeof ext !== "string") throw new TypeError("Invalid image.");
-    return documents.run(() => documentId === current.documentId && current.path ? saveImageNextTo(current.path, bytes, ext) : Promise.resolve(null));
+    return documents.run(() => {
+      const doc = ipcSession(documentId);
+      return doc.path ? saveImageNextTo(doc.path, bytes, ext) : Promise.resolve(null);
+    });
   });
   handle("smd:open-dialog", openDialog);
-  handle("smd:open-path", (p, intent) => openFile(ipcText(p), ipcIntent(intent)));
-  handle("smd:open-link", (href, intent) => openLink(ipcText(href), ipcIntent(intent)));
+  handle("smd:open-path", (p, intent, id) => { ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent)); });
+  handle("smd:open-link", (href, intent, id) => { ipcDocument(id); return openLink(ipcText(href), ipcIntent(intent)); });
   handle("smd:set-settings", applySettings);
   handle("smd:export-pdf", (value, id) => {
     const text = ipcText(value);
@@ -985,9 +973,9 @@ function registerIpc(): void {
   ipcMain.on("smd:print-ready", (e, error: unknown) => {
     if (e.senderFrame === e.sender.mainFrame) printWaiters.get(e.sender.id)?.(typeof error === "string" ? error : undefined);
   });
-  ipcMain.on("smd:hide", (e) => { if (mainSender(e)) void hideWindow(); });
-  ipcMain.on("smd:command", (e, cmd: unknown) => {
-    if (!mainSender(e) || typeof cmd !== "string") return;
+  ipcMain.on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === mainPane.documentId) void hideWindow(); });
+  ipcMain.on("smd:command", (e, cmd: unknown, id: unknown) => {
+    if (!mainSender(e) || id !== mainPane.documentId || typeof cmd !== "string") return;
     const commands: readonly string[] = ["preferences", "new", "save", "save-as", "toggle-edit", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command);
   });
@@ -1010,7 +998,7 @@ async function prepareQuit(): Promise<void> {
   globalShortcut.unregisterAll();
   tray?.destroy();
   tray = undefined;
-  watcher?.close();
+  registry.dispose();
   helper?.stop();
   flushSettings();
   trace("quit-resources-closed");
@@ -1048,7 +1036,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on("will-quit", () => {
     globalShortcut.unregisterAll();
     helper?.stop();
-    watcher?.close();
+    registry.dispose();
     flushSettings();
     disposeRenderer();
   });

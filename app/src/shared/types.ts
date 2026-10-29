@@ -1,3 +1,31 @@
+export type DocumentId = number & { readonly __brand: "DocumentId" };
+export type PaneId = number & { readonly __brand: "PaneId" };
+export type RevisionId = number & { readonly __brand: "RevisionId" };
+export type RequestId = number & { readonly __brand: "RequestId" };
+
+const validId = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+export const isDocumentId = (value: unknown): value is DocumentId => validId(value);
+export const isPaneId = (value: unknown): value is PaneId => validId(value);
+export const isRevisionId = (value: unknown): value is RevisionId => validId(value);
+export const isRequestId = (value: unknown): value is RequestId => validId(value);
+
+export function makeDocumentId(value: number): DocumentId {
+  if (!isDocumentId(value)) throw new TypeError("Invalid document ID.");
+  return value;
+}
+export function makePaneId(value: number): PaneId {
+  if (!isPaneId(value)) throw new TypeError("Invalid pane ID.");
+  return value;
+}
+export function makeRevisionId(value: number): RevisionId {
+  if (!isRevisionId(value)) throw new TypeError("Invalid revision ID.");
+  return value;
+}
+export function makeRequestId(value: number): RequestId {
+  if (!isRequestId(value)) throw new TypeError("Invalid request ID.");
+  return value;
+}
+
 export type ThemeSetting = "system" | "light" | "dark";
 export type EditMode = "live" | "split" | "source";
 export type ReadingWidth = "narrow" | "normal" | "wide";
@@ -53,9 +81,11 @@ export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
+  revisionId: RevisionId;
+  paneId: PaneId;
   mdx?: import("./render-core.js").MdxResult;
   readOnlyReason?: string;
-  documentId: number;
+  documentId: DocumentId;
   path: string | null;
   name: string;
   text: string;
@@ -67,14 +97,16 @@ export interface DocPayload {
 }
 
 export interface FlushResult {
-  documentId: number;
+  revisionId: RevisionId;
+  documentId: DocumentId;
   conflict: boolean;
   dirty: boolean;
   text: string;
 }
 
 export interface SaveResult {
-  documentId: number;
+  revisionId: RevisionId;
+  documentId: DocumentId;
   path: string;
   name: string;
   baseUrl: string;
