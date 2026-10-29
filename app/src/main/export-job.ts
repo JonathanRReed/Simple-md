@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import fs from "node:fs";
 import path from "node:path";
 import { BrowserWindow } from "electron";
@@ -5,6 +6,8 @@ import { makeDocumentId, makePaneId, makeRevisionId, type DocPayload, type Setti
 import { renderBlocks } from "./render-client.js";
 import { urlContext } from "./document-urls.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
+
+perfMark("export-module-loaded");
 
 export interface ExportSource { path: string | null; name: string; text: string }
 export const printWaiters = new Map<number, (error?: string) => void>();

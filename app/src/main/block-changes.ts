@@ -7,6 +7,8 @@ import type { BlockChanges } from "../shared/change-highlights.js";
 import type { RenderedBlock } from "../shared/render-core.js";
 import { createWorkerRenderCore } from "./markdown.js";
 
+perfMark("block-changes-module-loaded");
+
 type SourceBlock = Pick<RenderedBlock, "sourceRange" | "fingerprint">;
 
 function fingerprints(text: string, blocks: SourceBlock[]): string[] {

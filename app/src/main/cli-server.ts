@@ -6,6 +6,8 @@ import { createInterface } from "node:readline";
 import { CLI_VERSION, STDIN_CAP, FrameReader, frame, parseCliRequest, type CliRequest } from "./cli-protocol.js";
 import { prepareCliRuntime } from "./cli-runtime.js";
 
+perfMark("cli-module-loaded");
+
 export type CliDispatch = (request: CliRequest, stdin: string, closed: () => void, signal: AbortSignal) => Promise<(() => void) | undefined>;
 export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }): Promise<{ close(): void }> {
   perfMark("cli-runtime-start");

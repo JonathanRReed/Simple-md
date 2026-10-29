@@ -25,6 +25,7 @@ await bundle({
 await Bun.write(`${out}/main-app.mjs`, Bun.file(`${out}/main.mjs`));
 await writeFile(`${out}/main.mjs`, `import { enableCompileCache } from "node:module";
 try { enableCompileCache?.(); } catch {}
+if (process.env.SMD_PERF === "1") console.log("smd-perf " + JSON.stringify({ kind: "marker", marker: "main-import-start", at: performance.now() }));
 await import("./main-app.mjs");
 `);
 

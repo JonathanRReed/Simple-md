@@ -6,6 +6,8 @@ import path from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
+perfMark("cli-runtime-module-loaded");
+
 export function cliRuntime(profile?: string): string {
   const uid = process.getuid?.() ?? 0;
   const base = process.platform === "darwin" ? os.tmpdir() :

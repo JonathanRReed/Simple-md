@@ -1,6 +1,9 @@
+import { perfMark } from "./perf.js";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+
+perfMark("git-module-loaded");
 
 export type GitBaseline = { available: true; text: string } | { available: false; reason: string };
 const MAX_GIT_BYTES = 25 * 1024 * 1024;
