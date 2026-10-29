@@ -95,12 +95,12 @@ for (const theme of ["light", "dark"]) steps.push({ settings: [
 ] });
 const drive = path.join(output, "drive.json");
 function settleCaptures(sequence: DriverStep[]): DriverStep[] {
-  return sequence.flatMap(step => "shot" in step ? [{ wait: 200 }, step]
+  return sequence.flatMap<DriverStep>(step => "shot" in step ? [{ wait: 200 }, step]
     : "settings" in step ? [{ settings: settleCaptures(step.settings) }] : [step]);
 }
 fs.writeFileSync(drive, JSON.stringify(settleCaptures(steps), null, 2));
 const executable = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
-const env = { ...process.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: "read" };
+const env: NodeJS.ProcessEnv = { ...process.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: "read" };
 delete env.ELECTRON_RUN_AS_NODE;
 const child = spawn(executable, [appRoot, reading], { cwd: appRoot, env, stdio: ["ignore", "pipe", "pipe"] });
 let logs = "";
