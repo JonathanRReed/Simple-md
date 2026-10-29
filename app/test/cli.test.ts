@@ -65,7 +65,10 @@ describe.skipIf(process.platform === "win32")("private Unix CLI transport", () =
   });
   test("Rust client waits for close, rejects app failure, and disconnect removes its token", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-wire-")); const runtime = cliRuntime(root);
-    const binary = path.resolve(import.meta.dir, "../native/target/cli-tests/release/simplemd"); const callbacks = new Set<() => void>();
+    // The test CLI enables test-only runtime overrides; build it on demand so a plain `bun test` works.
+    let binary = path.resolve(import.meta.dir, "../native/target/cli-tests/release/simplemd");
+    if (!fs.existsSync(binary)) binary = (await import("../build/native.mjs")).buildTestCli();
+    const callbacks = new Set<() => void>();
     let accepted!: () => void; let dispatched = new Promise<void>(resolve => { accepted = resolve; });
     const server = await startCliServer({ binary, profile: root, dispatch: async (_request, _stdin, closed) => { callbacks.add(closed); accepted(); return () => { callbacks.delete(closed); }; } });
     const children: ReturnType<typeof spawn>[] = [];
@@ -89,7 +92,7 @@ describe.skipIf(process.platform === "win32")("private Unix CLI transport", () =
       dispatched = new Promise<void>(resolve => { accepted = resolve; });
       const three = client(); await dispatched; server.close(); expect(await three.exited).toBe(1);
     } finally { for (const child of children) child.kill("SIGKILL"); server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
-  }, 10000);
+  }, 180_000);
 });
 
 test("Windows URL and CLI paths reject UNC and device names before filesystem access", () => {
