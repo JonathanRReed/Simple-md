@@ -4,9 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { urlContext, renderBlocks } from "../src/main/markdown";
+import { invalidateUrlContext } from "../src/main/document-urls";
 import { resolveAuthorUrl, resolveSrcset, parseSrcset } from "../src/shared/url-resolver";
 
-const context = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/public/" };
+const context = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/" };
 describe("shared author URL resolver", () => {
   test("validates schemes before and after resolution", () => {
     for (const value of ["javascript:alert(1)", "JaVaScRiPt:x", "java\tscript:x", "data:image/png;base64,AA", "file:///tmp/a.png", "\\\\host\\image", "vbscript:x"]) {
@@ -21,9 +22,9 @@ describe("shared author URL resolver", () => {
   });
   test("handles Markdown destinations, fragments and reserved filename characters", () => {
     expect(resolveAuthorUrl("../a%20%231.png?x=1#gh-dark-mode-only", "resource", context)).toBe("file:///project/a%20%231.png?x=1#gh-dark-mode-only");
-    expect(resolveAuthorUrl("/images/a.png", "resource", context)).toBe("file:///project/public/images/a.png");
+    expect(resolveAuthorUrl("/images/a.png", "resource", context)).toBe("file:///project/images/a.png");
     expect(resolveAuthorUrl("#hello", "anchor", context)).toBe("#hello");
-    expect(resolveAuthorUrl("/images/a.png", "resource")).toBe("/images/a.png");
+    expect(resolveAuthorUrl("/images/a.png", "resource")).toBeNull();
     expect(resolveAuthorUrl("//example.test/a", "resource")).toBe("https://example.test/a");
   });
   test("parses comma URLs and rejects malformed descriptors", () => {
@@ -44,14 +45,18 @@ describe("shared author URL resolver", () => {
       fs.mkdirSync(path.join(temp, ".git"));
       fs.writeFileSync(path.join(temp, "site/nested/.git"), "gitdir: somewhere");
       const folder = (dir: string) => pathToFileURL(dir + path.sep).href;
+      invalidateUrlContext(base);
       expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/nested")));
       fs.writeFileSync(path.join(temp, "site/astro.config.mjs"), "");
+      invalidateUrlContext(base);
       expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/nested")));
       fs.mkdirSync(path.join(temp, "site/public"));
+      invalidateUrlContext(base);
       expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/public")));
       fs.rmSync(path.join(temp, "site/astro.config.mjs"));
       fs.rmSync(path.join(temp, "site/nested/.git"));
       fs.rmSync(path.join(temp, ".git"), { recursive: true });
+      invalidateUrlContext(base);
       expect(urlContext(base).rootUrl).toBeUndefined();
     } finally { fs.rmSync(temp, { recursive: true, force: true }); }
   });

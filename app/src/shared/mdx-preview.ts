@@ -45,7 +45,7 @@ export async function mapMdxPreview(
     return lo;
   }
 
-  async function section(from: number, to: number, children: readonly MdxRange[]): Promise<MdxPreview> {
+  async function section(from: number, to: number, children: readonly MdxRange[], depth = 0): Promise<MdxPreview> {
     const nodes = new Map<string, RenderNode>();
     const parts: string[] = [];
     let originalLine = lineAt(from);
@@ -60,14 +60,16 @@ export async function mapMdxPreview(
       append(source.slice(cursor, range.start));
       const raw = source.slice(range.start, range.end);
       let node: RenderNode | undefined;
-      if (range.kind === "expression-flow" || range.kind === "expression-text") {
+      if (depth >= 128) {
+        node = { kind: "app", parts: [`<span class="mdx-depth-limit">Nested MDX shown as source</span><code>${escape(raw)}</code>`] };
+      } else if (range.kind === "expression-flow" || range.kind === "expression-text") {
         node = expression(raw);
       } else if (range.kind === "jsx-flow" || range.kind === "jsx-text") {
         if (range.name !== "script" && range.name !== "style") {
           const { end, innerEnd, selfClosing } = jsxContentBounds(source, range);
           const attributesAsSource = range.syntax.filter((span) => span.kind === "expression" && span.start < end).map((span) => expression(source.slice(span.start, span.end)));
           const nested = children.filter((child) => child !== range && child.start >= end && child.end <= innerEnd);
-          const child = await render(await section(end, innerEnd, nested), range.kind === "jsx-text");
+          const child = await render(await section(end, innerEnd, nested, depth + 1), range.kind === "jsx-text");
           if (range.capitalized) {
             const tag = range.kind === "jsx-text" ? "span" : "div";
             node = { kind: "app", parts: [`<${tag} class="mdx-component"><span class="mdx-label">${escape(range.name!)}</span>`, ...attributesAsSource, child, `</${tag}>`] };

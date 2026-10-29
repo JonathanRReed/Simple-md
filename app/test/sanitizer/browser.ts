@@ -2,7 +2,7 @@ import { mountRenderedHtml, sanitizeAuthorHtml, updateFragments } from "../../sr
 import type { RenderedHtml } from "../../src/shared/render-tree";
 
 interface Input { name: string; source: string; expected: string; rendered?: RenderedHtml; remoteImages?: boolean; removeFirstId?: boolean }
-const urls = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/public/" };
+const urls = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/" };
 function canonical(node: Node): unknown {
   if (node.nodeType === Node.TEXT_NODE) return node.textContent;
   if (node instanceof Element) return [node.namespaceURI, node.localName, [...node.attributes].map((a) => [a.name, a.value]).sort(([a], [b]) => a!.localeCompare(b!)), [...node.childNodes].map(canonical)];

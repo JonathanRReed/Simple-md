@@ -6,6 +6,18 @@ export interface UrlContext {
 }
 export type UrlKind = "anchor" | "resource";
 
+// Only app-minted file URLs may use this check. Author file: schemes stay forbidden.
+export function isContainedFileUrl(input: string, context: UrlContext): boolean {
+  try {
+    const url = new URL(input);
+    const root = new URL(context.rootUrl ?? context.baseUrl ?? "");
+    if (url.protocol !== "file:" || root.protocol !== "file:" || url.host !== root.host || /%2f|%5c|%00/i.test(url.pathname)) return false;
+    const folder = decodeURIComponent(root.pathname).replace(/\/?$/, "/");
+    const target = decodeURIComponent(url.pathname);
+    return target.startsWith(folder);
+  } catch { return false; }
+}
+
 // Input is decoded by the Markdown or HTML parser before reaching this boundary.
 export function resolveAuthorUrl(input: string, kind: UrlKind, context: UrlContext = {}, remoteImages = true): string | null {
   const value = input.trim();
@@ -21,12 +33,12 @@ export function resolveAuthorUrl(input: string, kind: UrlKind, context: UrlConte
       return remote(url) || (kind === "anchor" && url.protocol === "mailto:") ? (value.startsWith("//") ? url.href : value) : null;
     } catch { return null; }
   }
-  const base = value.startsWith("/") ? context.rootUrl : context.baseUrl;
-  if (!base) return value;
+  const base = value.startsWith("/") ? context.rootUrl ?? context.baseUrl : context.baseUrl;
+  if (!base) return value.startsWith("/") ? null : value;
   try {
     const url = new URL(value.startsWith("/") ? value.slice(1) : value, base);
     // file: is minted here only for relative source paths. Author file: never reaches here.
-    if (url.protocol === "file:") return url.href;
+    if (url.protocol === "file:") return isContainedFileUrl(url.href, context) ? url.href : null;
     return remote(url) ? url.href : null;
   } catch { return null; }
 }

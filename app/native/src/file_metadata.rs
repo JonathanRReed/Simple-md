@@ -1,33 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::io::{self, BufRead, Write};
+use std::io;
 
-#[derive(Deserialize)]
-struct Request {
-    id: u64,
-    source: String,
-    target: String,
-}
-
-#[derive(Serialize)]
-struct Reply {
-    id: u64,
-    error: Option<String>,
-}
-
-pub fn run() -> io::Result<()> {
-    let mut stdout = io::stdout().lock();
-    for line in io::stdin().lock().lines() {
-        let request: Request = serde_json::from_str(&line?)?;
-        let reply = Reply {
-            id: request.id,
-            error: copy(&request.source, &request.target)
-                .err()
-                .map(|error| error.to_string()),
-        };
-        writeln!(stdout, "{}", serde_json::to_string(&reply)?)?;
-        stdout.flush()?;
-    }
-    Ok(())
+pub fn run(source: &str, target: &str) -> io::Result<()> {
+    copy(source, target)
 }
 
 #[cfg(target_os = "macos")]
@@ -43,14 +17,14 @@ fn copy(source: &str, target: &str) -> io::Result<()> {
     }
     let source = CString::new(source)?;
     let target = CString::new(target)?;
-    // COPYFILE_ACL | COPYFILE_STAT | COPYFILE_XATTR | COPYFILE_NOFOLLOW.
+    // COPYFILE_ACL | COPYFILE_XATTR | COPYFILE_NOFOLLOW.
     // The caller owns the empty temp file and writes its data after copying metadata.
     let result = unsafe {
         copyfile(
             source.as_ptr(),
             target.as_ptr(),
             std::ptr::null_mut(),
-            7 | (1 << 18) | (1 << 19),
+            5 | (1 << 18) | (1 << 19),
         )
     };
     if result == 0 {

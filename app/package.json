@@ -60,13 +60,14 @@
   "build": {
     "appId": "com.jonathanreed.simplemd",
     "productName": "SimpleMD",
-    "copyright": "© Jonathan Ray Reed. MIT License.",
+    "copyright": "\u00a9 Jonathan Ray Reed. MIT License.",
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
     "files": [
       "dist/**/*",
+      "!dist/render-core.js",
       "package.json"
     ],
     "asar": true,

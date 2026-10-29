@@ -1,12 +1,10 @@
-import { afterAll, afterEach, expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { decodeDocument, readDiskText, writeAtomic } from "../src/main/files";
-import { stopMetadataHelper } from "../src/main/file-metadata";
 
 const dirs: string[] = [];
-afterAll(stopMetadataHelper);
 async function fixture() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "smd-files-"));
   dirs.push(dir);

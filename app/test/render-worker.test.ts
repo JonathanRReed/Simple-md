@@ -113,6 +113,33 @@ describe("persistent Node render worker", () => {
     `);
   });
 
+  test("MDX range requests return parser positions without rendering", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const source = '# Ranges\\n\\n<Widget value={1} />';
+        const result = await client.mdxRanges(source);
+        assert.equal(result.error, undefined);
+        assert.equal(result.ranges[0].kind, 'jsx-flow');
+        assert.equal(source.slice(result.ranges[0].start, result.ranges[0].end), '<Widget value={1} />');
+        assert.equal('blocks' in result, false);
+        assert.ok((await client.mdxRanges(source + '{')).error);
+      } finally { await client.dispose(); }
+    `);
+  });
+
+  test("20000 expression paragraphs finish within the worker deadline with no lost expressions", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const source = Array.from({length:20000}, (_, i) => 'Paragraph ' + i + ' with {value} here.').join('\\n\\n');
+        const result = await client.renderBlocks(source, '/tmp/security.mdx');
+        assert.equal(result.blocks.length, 20000);
+        assert.equal(result.blocks.map(b => b.html).join('').match(/class="mdx-expression"/g).length, 20000);
+      } finally { await client.dispose(); }
+    `);
+  }, 35_000);
+
   test("clean unexpected exit also rejects requests", async () => {
     const url = worker("exit.mjs", "process.exit(0);");
     await nodeCheck(`

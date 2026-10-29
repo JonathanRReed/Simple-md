@@ -19,7 +19,7 @@ export const fixtures = [
   { name: "srcset trailing commas", source: '<source srcset="a.svg, b.svg 2x, file:///tmp/secret.svg 3x">', expected: '<source srcset="file:///project/docs/a.svg, file:///project/docs/b.svg 2x">' },
   { name: "remote SVG image", source: '<img src="https://safe.test/image.svg">', expected: '<img src="https://safe.test/image.svg">' },
   { name: "relative SVG image", source: '<img src="../image.svg">', expected: '<img src="file:///project/image.svg">' },
-  { name: "root image", source: '<img src="/images/x.png">', expected: '<img src="file:///project/public/images/x.png">' },
+  { name: "root image", source: '<img src="/images/x.png">', expected: '<img src="file:///project/images/x.png">' },
   { name: "wrappers span blocks", source: '<details>\n<summary>More</summary>\n\n**Safe**\n\n```ts\nconst n = 1\n```\n\n</details>', expected: '<details>\n<summary>More</summary>\n<p dir="auto"><strong>Safe</strong></p>\n<div class="code-block" data-lang="ts"><button class="copy-code" type="button" aria-label="Copy code">Copy</button><pre><code class="language-ts">const n = 1\n</code></pre>\n</div></details>', markdown: true },
   { name: "generated class spoof", source: '<pre class="mermaid" style="display:none" data-source="x">graph LR\nA--&gt;B</pre><span class="katex" data-footnote-ref="">x</span>', expected: '<pre>graph LR\nA--&gt;B</pre><span>x</span>' },
   { name: "per-tag attributes", source: '<p src="https://safe.test/a" href="https://safe.test/" controls="">x</p><img href="https://safe.test" src="x.png"><a src="x.png" href="mailto:x@example.test">mail</a>', expected: '<p>x</p><img src="file:///project/docs/x.png"><a href="mailto:x@example.test">mail</a>' },

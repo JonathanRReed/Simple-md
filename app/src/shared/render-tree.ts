@@ -13,11 +13,23 @@ export interface RenderedHtml {
   urls: UrlContext;
 }
 
-export function isRenderNode(value: unknown, depth = 0): value is RenderNode {
-  return depth < 1000 && typeof value === "object" && value !== null &&
-    "kind" in value && (value.kind === "app" || value.kind === "author") &&
-    "parts" in value && Array.isArray(value.parts) &&
-    value.parts.every((part: unknown) => typeof part === "string" || isRenderNode(part, depth + 1));
+export function isRenderNode(value: unknown): value is RenderNode {
+  const stack: { value: unknown; leave?: boolean }[] = [{ value }];
+  const active = new Set<object>();
+  const checked = new Set<object>();
+  while (stack.length) {
+    const item = stack.pop()!;
+    const node = item.value;
+    if (typeof node !== "object" || node === null) return false;
+    if (item.leave) { active.delete(node); checked.add(node); continue; }
+    if (active.has(node)) return false;
+    if (checked.has(node)) continue;
+    if (!("kind" in node) || (node.kind !== "app" && node.kind !== "author") || !("parts" in node) || !Array.isArray(node.parts)) return false;
+    active.add(node);
+    stack.push({ value: node, leave: true });
+    for (const part of node.parts) if (typeof part !== "string") stack.push({ value: part });
+  }
+  return true;
 }
 
 export function isRenderedHtml(value: unknown): value is RenderedHtml {

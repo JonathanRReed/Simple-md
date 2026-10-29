@@ -1,18 +1,27 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { containedLocalFile } from "./document-urls.js";
+import { readRegularFile } from "./files.js";
+import type { UrlContext } from "../shared/url-resolver.js";
 
 const IMAGE_MIME: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
   ".webp": "image/webp", ".svg": "image/svg+xml", ".avif": "image/avif", ".bmp": "image/bmp", ".ico": "image/x-icon",
 };
 
-export async function embedLocalImages(sources: string[], readImage: (file: string) => Promise<Buffer>): Promise<string[]> {
+export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
+export async function embedLocalImages(sources: string[], context: UrlContext, warn: (message: string) => void = console.warn): Promise<string[]> {
   return Promise.all(sources.map(async (source) => {
     if (!source.startsWith("file:")) return source;
-    const file = fileURLToPath(source);
-    const mime = IMAGE_MIME[path.extname(file).toLowerCase()];
-    if (!mime) throw new Error(`Cannot embed this image format: ${path.extname(file)}`);
-    return `data:${mime};base64,${(await readImage(file)).toString("base64")}`;
+    try {
+      const file = await containedLocalFile(source, context);
+      const mime = IMAGE_MIME[path.extname(file).toLowerCase()];
+      if (!mime) throw new Error(`Cannot embed this image format: ${path.extname(file)}`);
+      return `data:${mime};base64,${(await readRegularFile(file, MAX_IMAGE_BYTES)).toString("base64")}`;
+    } catch (error) {
+      warn(`simplemd: skipped export image: ${source}: ${error instanceof Error ? error.message : String(error)}`);
+      return source;
+    }
   }));
 }
 

@@ -180,10 +180,16 @@ function renderPreview(): Promise<void> {
         const fraction = scrollFraction(previewScroll);
         try {
           const source = editor.getText();
-          const result = await simplemd.renderBlocks(source, id);
-          if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
-          const blocks = acceptRender(result, source);
-          if (settings.mode === "split") mountBlocks(previewEl, blocks);
+          if (settings.mode !== "split") {
+            const result = await simplemd.mdxRanges(source, id);
+            if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
+            mdx = result;
+            editor.setMdx(source, result);
+          } else {
+            const result = await simplemd.renderBlocks(source, id);
+            if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
+            mountBlocks(previewEl, acceptRender(result, source));
+          }
           setScrollFraction(previewScroll, fraction);
         } catch {
           if (seq === previewRenderSeq && id === documentId) toast("Couldn't render this preview.");

@@ -18,6 +18,7 @@ export interface Bridge {
   flushResponse(id: number, result: FlushResult): void;
   setDirty(dirty: boolean, documentId: number): void;
   printReady(error?: string): void;
+  mdxRanges(text: string, documentId: number): Promise<import("../shared/render-core.js").MdxResult>;
   renderBlocks(text: string, documentId: number): Promise<import("../shared/render-core.js").RenderedBlocks>;
   renderFragment(text: string, documentId: number): Promise<RenderedHtml>;
   save(text: string, forceDialog: boolean, documentId: number): Promise<SaveResult | null>;

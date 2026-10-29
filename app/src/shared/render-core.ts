@@ -3,7 +3,7 @@ import { mapMdxPreview, type MdxPreview } from "./mdx-preview.js";
 import type { Token } from "markdown-it";
 import { createMarkdownParser } from "./markdown-parser.js";
 import { resolveAuthorUrl, type UrlContext } from "./url-resolver.js";
-import { isRenderNode, type RenderedHtml, type RenderNode } from "./render-tree.js";
+import { type RenderedHtml, type RenderNode } from "./render-tree.js";
 export type { RenderedHtml } from "./render-tree.js";
 
 export interface RenderServices {
@@ -100,16 +100,23 @@ export function createRenderCore(services: RenderServices = {}) {
     return services.highlight?.(code, lang) ?? "";
   });
 
+  const previewNodes = new WeakMap<Token, RenderNode>();
   md.inline.ruler.before("text", "mdx_preview", (state, silent) => {
+    if (state.src.charCodeAt(state.pos) !== 64) return false;
     const nodes = (state.env as RenderEnv).mdxNodes;
     if (!nodes) return false;
-    for (const [marker, node] of nodes) {
-      if (!state.src.startsWith(marker, state.pos)) continue;
-      if (!silent) state.push("mdx_preview", "", 0).meta = { mdx: node };
-      state.pos += marker.length;
-      return true;
+    const end = state.src.indexOf("END@", state.pos);
+    if (end < 0) return false;
+    const marker = state.src.slice(state.pos, end + 4);
+    const node = nodes.get(marker);
+    if (!node) return false;
+    if (!silent) {
+      const token = state.push("mdx_preview", "", 0);
+      token.meta = { mdx: node };
+      previewNodes.set(token, node);
     }
-    return false;
+    state.pos += marker.length;
+    return true;
   });
   md.block.ruler.before("paragraph", "mdx_preview", (state, line, _end, silent) => {
     const marker = state.src.slice(state.bMarks[line]! + state.tShift[line]!, state.eMarks[line]!).trim();
@@ -118,15 +125,26 @@ export function createRenderCore(services: RenderServices = {}) {
     if (!silent) {
       const token = state.push("mdx_preview", "", 0);
       token.meta = { mdx: node };
+      previewNodes.set(token, node);
       token.map = [line, line + 1];
     }
     state.line = line + 1;
     return true;
   });
-  const serialize = (node: RenderNode): string => node.parts.map((part) => typeof part === "string" ? part : serialize(part)).join("");
+  const serialize = (node: RenderNode): string => {
+    const output: string[] = [];
+    const stack: (string | RenderNode)[] = [node];
+    while (stack.length) {
+      const part = stack.pop()!;
+      if (typeof part === "string") output.push(part);
+      else for (let i = part.parts.length - 1; i >= 0; i--) stack.push(part.parts[i]!);
+    }
+    return output.join("");
+  };
   md.renderer.rules.mdx_preview = (tokens, idx) => {
-    const node = tokens[idx]!.meta?.mdx;
-    return isRenderNode(node) ? serialize(node) : "";
+    // Created by mapMdxPreview in this process. Validate once at the worker boundary.
+    const node = previewNodes.get(tokens[idx]!);
+    return node ? serialize(node) : "";
   };
 
   const defaultFence = md.renderer.rules.fence!;
@@ -371,7 +389,8 @@ export function createRenderCore(services: RenderServices = {}) {
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]!;
       if (token.type === "mdx_preview") {
-        if (isRenderNode(token.meta?.mdx)) parts.push(token.meta.mdx);
+        const node = previewNodes.get(token);
+        if (node) parts.push(node);
       } else if (token.type === "html_block" || token.type === "html_inline") {
         author = true;
         parts.push(token.content);

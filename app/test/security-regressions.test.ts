@@ -38,8 +38,10 @@ test("export skips missing, unsupported and escaped symlink images", async () =>
   await fs.writeFile(path.join(root, "image.tiff"), "TIFF");
   const sources = ["escape.png", "missing.png", "image.tiff"].map(name => pathToFileURL(path.join(root, name)).href);
   // The URL context is required for realpath containment by the fixed exporter.
-  const embedded = await embedLocalImages(sources, file => fs.readFile(file), { baseUrl: pathToFileURL(root + path.sep).href });
+  const warnings: string[] = [];
+  const embedded = await embedLocalImages(sources, { baseUrl: pathToFileURL(root + path.sep).href }, message => warnings.push(message));
   expect(embedded).toEqual(sources);
+  expect(warnings).toHaveLength(3);
 });
 
 for (const special of ["fifo", "zero", "directory"]) {
@@ -95,3 +97,35 @@ test("5000 nested JSX elements retain their deepest content", async () => {
   const rendered = await createRenderCore().renderMarkdown(source, "/tmp/nested.mdx");
   expect(rendered.html).toContain("KEEP_DEEP_CONTENT");
 }, 30_000);
+
+test("documents and export images enforce their byte limits", async () => {
+  const dir = await fixture();
+  const document = path.join(dir, "large.md");
+  const image = path.join(dir, "large.png");
+  await fs.writeFile(document, "");
+  await fs.truncate(document, 64 * 1024 * 1024 + 1);
+  await expect(readDocument(document)).rejects.toThrow("64 MB read limit");
+  await fs.writeFile(image, "");
+  await fs.truncate(image, 25 * 1024 * 1024 + 1);
+  const source = pathToFileURL(image).href;
+  const warnings: string[] = [];
+  expect(await embedLocalImages([source], { baseUrl: pathToFileURL(dir + path.sep).href }, warning => warnings.push(warning))).toEqual([source]);
+  expect(warnings[0]).toContain("25 MB read limit");
+});
+
+test.skipIf(process.platform !== "darwin")("metadata copy never propagates immutable BSD flags", async () => {
+  const { copyMetadata } = await import("../src/main/file-metadata");
+  const dir = await fixture();
+  const source = path.join(dir, "source.md");
+  const target = path.join(dir, "target.tmp");
+  await fs.writeFile(source, "source");
+  await fs.writeFile(target, "");
+  expect(Bun.spawnSync(["chflags", "uchg", source]).exitCode).toBe(0);
+  try {
+    await copyMetadata(source, target);
+    await fs.writeFile(target, "writable");
+    expect(await fs.readFile(target, "utf8")).toBe("writable");
+  } finally {
+    Bun.spawnSync(["chflags", "nouchg", source, target]);
+  }
+});

@@ -1,4 +1,6 @@
 import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
+import { isMdxResult } from "../shared/mdx-ranges.js";
+import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { Worker } from "node:worker_threads";
 import type { RenderedBlocks } from "./markdown.js";
@@ -18,11 +20,12 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
+  if (value.kind === "mdx-ranges") return isMdxResult(value.value);
   if (value.kind === "fragment") return isRenderedHtml(value.value);
   if (value.kind !== "blocks" || typeof value.value !== "object" || value.value === null) return false;
   const result = value.value;
   return "title" in result && typeof result.title === "string" && "blocks" in result && Array.isArray(result.blocks) &&
-    result.blocks.every(isRenderedBlock);
+    result.blocks.every(isRenderedBlock) && (!("mdx" in result) || result.mdx === undefined || isMdxResult(result.mdx));
 }
 
 export class RenderClient {
@@ -49,6 +52,12 @@ export class RenderClient {
   async renderFragment(text: string, baseDir: string | undefined): Promise<RenderedHtml> {
     const response = await this.request({ kind: "fragment", text, baseDir });
     if (response?.kind !== "fragment") throw new Error("Invalid fragment render response");
+    return response.value;
+  }
+
+  async mdxRanges(text: string): Promise<MdxResult> {
+    const response = await this.request({ kind: "mdx-ranges", text });
+    if (response?.kind !== "mdx-ranges") throw new Error("Invalid MDX ranges response");
     return response.value;
   }
 
@@ -152,3 +161,5 @@ export const renderFragment = (text: string, baseDir: string | undefined) => cli
 export const prefetchBlocks = (text: string, filePath: string | null) => client.prefetchBlocks(text, filePath);
 export const warmUp = () => client.warmUp();
 export const disposeRenderer = (): Promise<void> => client.dispose();
+
+export const mdxRanges = (text: string) => client.mdxRanges(text);

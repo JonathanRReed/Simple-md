@@ -150,7 +150,59 @@ await test("driver-assertion-failure", async () => {
   assert.equal(fs.readFileSync(file, "utf8"), note, "Failed driver changed its source note.");
 });
 
+await test("security-links", async () => {
+  const file = fixture("security-links/project/note.md", '# Contained links\n\n[Outside](../../outside.md)\n\n![Outside](../../outside.png)\n');
+  fs.mkdirSync(path.join(path.dirname(file), ".git"));
+  const outside = fixture("security-links/outside.md", "# PRIVATE");
+  const escape = path.join(path.dirname(file), "escape.md");
+  fs.symlinkSync(outside, escape);
+  await launch("security-links", file, [evaluate(`
+    await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Contained links', 'Security note did not render.');
+    assert(!document.querySelector('#doc a[href]'), 'Climbing link is active.');
+    assert(!document.querySelector('#doc img').hasAttribute('src'), 'Climbing image has a URL.');
+    assert(await window.simplemd.openLink(${quote('file://' + outside)}) === false, 'Cmd-click file link escaped the root.');
+    assert(await window.simplemd.openLink(${quote('file://' + escape)}) === false, 'Symlink link escaped the root.');
+    assert(document.querySelector('#doc h1').textContent === 'Contained links', 'Refused link changed the document.');
+  `)]);
+});
+
+await test("security-export", async () => {
+  const file = fixture("security-export/project/note.md", '# Export containment\n\n[Local](next.md)\n\n<picture><source srcset="pixel.png 1x"><img src="pixel.png"></picture>\n\n![Missing](missing.png)\n\n![Unsupported](image.tiff)\n\n![Escape](escape.png)\n');
+  const dir = path.dirname(file);
+  fs.mkdirSync(path.join(dir, ".git"));
+  fs.writeFileSync(path.join(dir, "pixel.png"), png);
+  fs.writeFileSync(path.join(dir, "image.tiff"), "unsupported");
+  const secret = fixture("security-export/private.png", "PRIVATE_IMAGE_BYTES");
+  fs.symlinkSync(secret, path.join(dir, "escape.png"));
+  const html = path.join(root, "security-export/output.html");
+  await launch("security-export", file, [evaluate(`
+    await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Export containment', 'Export note did not render.');
+    await waitFor(() => document.querySelector('#doc picture img')?.naturalWidth > 0, 'Local srcset image did not load.');
+  `), { html }]);
+  const exported = fs.readFileSync(html, "utf8");
+  assert(!exported.includes('file:'), 'Export leaked absolute local URLs.');
+  assert(exported.includes('data:image/png;base64,' + png.toString('base64')), 'Local srcset candidate was not embedded.');
+  assert(!exported.includes(Buffer.from('PRIVATE_IMAGE_BYTES').toString('base64')), 'Export read a symlink outside the root.');
+  const logs = fs.readFileSync(path.join(root, 'security-export/electron.log'), 'utf8');
+  assert(logs.includes('skipped export image'), 'Skipped images did not produce warnings.');
+});
+
+await test("mdx-ranges-only", async () => {
+  const file = fixture("mdx-ranges-only/note.mdx", '# Ranges only\n\n<Widget value={1} />\n');
+  await launch("mdx-ranges-only", file, [
+    ...appendCharacter('!'),
+    { wait: 500 },
+    evaluate("window.simplemd.command('mode-live');"),
+    ...appendCharacter('?'),
+    { wait: 500 },
+  ], "edit");
+  const logs = fs.readFileSync(path.join(root, 'mdx-ranges-only/electron.log'), 'utf8');
+  assert(logs.split('mdx-ranges-done').length >= 3, 'Source and Live did not request ranges.');
+  assert(!logs.includes('render-done'), 'Source or Live requested a full MDX render.');
+});
+
 await test("render-links-pdf", async () => {
+  fs.mkdirSync(path.join(root, ".git"), { recursive: true });
   const source = "# Smoke render alpha\n\n## [Introduction](https://example.com)\n\n[Jump](#introduction)\n\n![image](image%20%231.png)\n\n[Next](../beta/note%20%231.md)\n\n```ts\nconst smoke = 42;\n```\n\nInline $E=mc^2$.\n\n```mermaid\ngraph LR\nStart-->Finish\n```\n\n<script>window.smokeInjected = true</script>\n\n[unsafe](javascript:alert(1))\n";
   const alpha = fixture("alpha/note.md", source);
   const beta = fixture("beta/note #1.md", "# Smoke render beta\n\n![image](image%20%231.png)\n");
