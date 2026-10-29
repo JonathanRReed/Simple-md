@@ -36,7 +36,7 @@ export class DocumentSession {
     if (this.disposed || revisionId < this.revisionId || (revisionId === this.revisionId && text !== this.text)) return false;
     this.text = text;
     this.revisionId = revisionId;
-    this.dirty = text !== this.diskText;
+    this.dirty = text !== (this.diskText ?? "");
     return true;
   }
 

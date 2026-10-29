@@ -431,7 +431,9 @@ function newDoc(): Promise<void> {
   return documents.run(() => transition(async () => {
     if (!(await settle())) return;
     reveal("edit");
-    await present(await payloadFor(registry.create(null, "", "edit")));
+    const doc = registry.create(null, "", "edit");
+    try { await present(await payloadFor(doc)); }
+    finally { if (doc.documentId !== mainPane.documentId) registry.remove(doc.documentId); }
   }));
 }
 
@@ -911,19 +913,23 @@ function registerIpc(): void {
     if (!mainSender(e) || id !== mainPane.documentId || typeof text !== "string" || !isRevisionId(revision)) return;
     ipcSession(id).edit(text, revision);
   });
-  handle("smd:render-blocks", (value, id, revision) => {
+  handle("smd:render-blocks", async (value, id, revision) => {
     const text = ipcText(value);
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (doc.text !== text) throw new Error("Render source does not match the document revision.");
-    return doc.render(revisionId, () => renderBlocks(text, doc.path));
+    const out = await doc.render(revisionId, () => renderBlocks(text, doc.path));
+    trace("render-done");
+    return out;
   });
-  handle("smd:mdx-ranges", (value, id, revision) => {
+  handle("smd:mdx-ranges", async (value, id, revision) => {
     const text = ipcText(value);
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (doc.text !== text) throw new Error("Render source does not match the document revision.");
-    return doc.render(revisionId, () => mdxRanges(text));
+    const out = await doc.render(revisionId, () => mdxRanges(text));
+    trace("mdx-ranges-done");
+    return out;
   });
   handle("smd:render-fragment", (value, id, revision) => {
     const text = ipcText(value);

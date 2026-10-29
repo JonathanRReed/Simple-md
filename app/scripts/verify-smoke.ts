@@ -57,12 +57,12 @@ function fixture(name: string, text: string): string {
   return file;
 }
 
-async function launch(name: string, file: string, steps: Step[], intent: "peek" | "edit" = "peek", change?: DiskChange, expectedExit: 0 | 1 = 0): Promise<void> {
+async function launch(name: string, file: string, steps: Step[], intent: "peek" | "edit" = "peek", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" = "source"): Promise<void> {
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({
-    mode: "source", autosave: false, spacePreview: false, launchAtLogin: false, peekPrompted: true,
+    mode: initialMode, autosave: false, spacePreview: false, launchAtLogin: false, peekPrompted: true,
   }));
   const done = path.join(output, "done.png");
   const drive = path.join(output, "drive.json");
@@ -185,6 +185,17 @@ await test("security-export", async () => {
   assert(!exported.includes(Buffer.from('PRIVATE_IMAGE_BYTES').toString('base64')), 'Export read a symlink outside the root.');
   const logs = fs.readFileSync(path.join(root, 'security-export/electron.log'), 'utf8');
   assert(logs.includes('skipped export image'), 'Skipped images did not produce warnings.');
+});
+
+await test("split-prepared-blocks", async () => {
+  const file = fixture("split-prepared-blocks/note.md", "# Prepared split\n\nReadable preview.\n");
+  await launch("split-prepared-blocks", file, [
+    evaluate(`assert(document.querySelector('#edit').dataset.mode === 'split', 'Side by side did not initialize.');
+      assert(document.querySelector('#preview h1')?.textContent === 'Prepared split', 'Prepared blocks did not mount.');
+      assert(document.querySelector('.cm-content'), 'The source editor did not mount.');`),
+  ], "edit", undefined, 0, "split");
+  const logs = fs.readFileSync(path.join(root, "split-prepared-blocks/electron.log"), "utf8");
+  assert(!logs.includes("render-done"), "Side by side initialization requested a second full render.");
 });
 
 await test("mdx-ranges-only", async () => {
@@ -691,6 +702,37 @@ await test("bytes-task", async () => {
     { save: true },
   ]);
   assert.deepEqual(fs.readFileSync(file), Buffer.from(original.replace("[X] second", "[ ] second")), "Task toggle changed bytes outside its marker.");
+});
+
+await test("bytes-in-flight-renders", async () => {
+  const original = "\uFEFF# In-flight renders\r\n\r\n" + "```typescript\r\nconst value = 42;\r\n```\r\n\r\n".repeat(800) + "Tail";
+  const file = fixture("bytes-in-flight-renders/note.md", original);
+  await launch("bytes-in-flight-renders", file, [
+    evaluate(`await window.simplemd.setSettings({ mode: 'split' });
+      await waitFor(() => document.querySelector('#preview h1'), 'Initial preview did not render.');
+      const id = Number(document.documentElement.dataset.documentId);
+      const revision = Number(document.documentElement.dataset.revisionId);
+      window.pendingRenders = Array.from({ length: 6 }, () => window.simplemd.renderBlocks(${quote(original)}, id, revision)
+        .then(() => 'rendered', error => String(error)));
+      document.querySelector('.cm-content').focus();`),
+    { input: { type: "keyDown", keyCode: "A", modifiers: [mod] } },
+    { input: { type: "keyUp", keyCode: "A", modifiers: [mod] } },
+    { input: { type: "keyDown", keyCode: "Right" } },
+    { input: { type: "keyUp", keyCode: "Right" } },
+    ...[..."123456789"].map((keyCode): Step => ({ input: { type: "char", keyCode } })),
+    evaluate(`await waitFor(() => editorText().endsWith('Tail123456789'), 'Rapid edits did not reach the editor.');
+      const outcomes = await Promise.all(window.pendingRenders);
+      assert(outcomes.some(outcome => outcome.includes('Stale document revision')), 'No in-flight render was rejected after typing.');
+      await waitFor(() => document.querySelector('#preview').textContent.includes('Tail123456789'), 'Latest preview did not replace the old revision.');
+      const id = Number(document.documentElement.dataset.documentId);
+      const revision = Number(document.documentElement.dataset.revisionId);
+      assert(revision >= 9, 'Rapid edits did not advance the document revision.');
+      const stale = await window.simplemd.renderBlocks(${quote(original)}, id, revision - 1).then(() => false, () => true);
+      assert(stale, 'Main accepted a stale render revision.');`),
+    { save: true },
+    evaluate(`assert(document.querySelector('#dirty').hidden, 'Rapid edits did not settle after save.');`),
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(original + "123456789"), "An in-flight render changed the saved source bytes.");
 });
 
 await test("bytes-metadata", async () => {
