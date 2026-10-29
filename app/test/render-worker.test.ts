@@ -41,6 +41,24 @@ function worker(name: string, code: string): string {
 }
 
 describe("persistent Node render worker", () => {
+  test("plain Markdown and response validation do not initialize the MDX parser", async () => {
+    const chunk = fs.readdirSync(path.join(dir, "chunks")).find(name => name.startsWith("mdx-ranges-"));
+    if (!chunk) throw new Error("Missing lazy MDX parser chunk");
+    const target = path.join(dir, "chunks", chunk);
+    fs.renameSync(target, `${target}.disabled`);
+    try {
+      await nodeCheck(`
+        const client = new RenderClient();
+        try {
+          await client.warmUp();
+          assert.match((await client.renderBlocks('# Plain', '/tmp/plain.md')).blocks[0].html, /Plain/);
+          await assert.rejects(client.mdxRanges('<Thing />'), /Cannot find module/);
+          assert.ok((await client.renderFragment('**Still works**', undefined)).html.includes('<strong>Still works</strong>'));
+        } finally { await client.dispose(); }
+      `);
+    } finally { fs.renameSync(`${target}.disabled`, target); }
+  });
+
   test("renders full documents and fragments without blocking the parent event loop", async () => {
     await nodeCheck(`
       const client = new RenderClient();

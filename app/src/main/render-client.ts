@@ -3,7 +3,7 @@ import { cacheBudget } from "./cache-budget.js";
 import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
 import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
 import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
-import { isMdxResult } from "../shared/mdx-ranges.js";
+import { isMdxResult } from "../shared/mdx-result.js";
 import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { Worker } from "node:worker_threads";

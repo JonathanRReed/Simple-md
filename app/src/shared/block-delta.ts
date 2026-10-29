@@ -1,6 +1,6 @@
 import type { RenderedBlock, RenderedBlocks } from "./render-core.js";
 import { isRenderedBlock } from "./render-tree.js";
-import { isMdxResult } from "./mdx-ranges.js";
+import { isMdxResult } from "./mdx-result.js";
 
 export interface BlockDelta {
   title: string;

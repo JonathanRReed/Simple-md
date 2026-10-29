@@ -1,5 +1,5 @@
 import { ByteCache, CacheBudget } from "./byte-cache.js";
-import { findMdxRanges, type MdxRange, type MdxParseError } from "./mdx-ranges.js";
+import type { MdxRange, MdxParseError, MdxRanges } from "./mdx-ranges.js";
 import { mapMdxPreview, type MdxPreview } from "./mdx-preview.js";
 import type { Token } from "markdown-it";
 import { createMarkdownParser } from "./markdown-parser.js";
@@ -246,12 +246,13 @@ export function createRenderCore(services: RenderServices = {}) {
   }
 
   // Unchanged sources are rendered repeatedly (mode switches, cache checks), so reuse recent parses.
-  const mdxCache = new ByteCache<ReturnType<typeof findMdxRanges>>(cacheBudget);
-  function cachedMdxRanges(src: string): ReturnType<typeof findMdxRanges> {
+  const mdxCache = new ByteCache<MdxRanges>(cacheBudget);
+  async function cachedMdxRanges(src: string): Promise<MdxRanges> {
     const hit = mdxCache.get(src);
     if (hit) {
       return hit;
     }
+    const { findMdxRanges } = await import("./mdx-ranges.js");
     const ranges = findMdxRanges(src);
     mdxCache.set(src, ranges, 2 * byteLength(src) + 2 * byteLength(JSON.stringify({ ranges, error: ranges.error })));
     return ranges;
@@ -262,7 +263,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
     const isMdx = filePath !== null && /\.mdx$/i.test(filePath);
     services.mark?.("mdx-parse-start");
-    const ranges = isMdx ? cachedMdxRanges(src) : undefined;
+    const ranges = isMdx ? await cachedMdxRanges(src) : undefined;
     services.mark?.("mdx-parse-end");
     const mdx: MdxResult | undefined = ranges ? { ranges: [...ranges], error: ranges.error } : undefined;
     const baseDir = filePath ? filePath.replace(/[/\\][^/\\]*$/, "") : undefined;
