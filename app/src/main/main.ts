@@ -296,9 +296,11 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
   let title: string;
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
-  if (!readOnlyReason && intent === "edit" && settings.mode === "source" && path.extname(file ?? "").toLowerCase() !== ".mdx") {
+  const isMdx = path.extname(file ?? "").toLowerCase() === ".mdx";
+  if (!readOnlyReason && intent === "edit" && settings.mode !== "split" && (settings.mode === "source" || isMdx)) {
     title = file ? path.basename(file) : "Untitled";
     blocks = [];
+    if (isMdx) mdx = await mdxRanges(text);
   } else if (file && fromDisk && path.extname(file).toLowerCase() !== ".mdx") {
     const stat = await fs.promises.stat(file).catch(() => null);
     perfMark("read-and-hash-start", { path: file });

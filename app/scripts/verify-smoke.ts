@@ -190,6 +190,10 @@ await test("security-export", async () => {
 await test("mdx-ranges-only", async () => {
   const file = fixture("mdx-ranges-only/note.mdx", '# Ranges only\n\n<Widget value={1} />\n');
   await launch("mdx-ranges-only", file, [
+    evaluate(`await waitFor(() => document.querySelector('.cm-content'), 'Source MDX did not open.');
+      await window.simplemd.setSettings({ mode: 'live' });
+      assert(await window.simplemd.openPath(${quote(file)}, 'edit'), 'Live MDX did not reopen.');
+      window.simplemd.command('mode-source');`),
     ...appendCharacter('!'),
     { wait: 500 },
     evaluate("window.simplemd.command('mode-live');"),
@@ -197,6 +201,7 @@ await test("mdx-ranges-only", async () => {
     { wait: 500 },
   ], "edit");
   const logs = fs.readFileSync(path.join(root, 'mdx-ranges-only/electron.log'), 'utf8');
+  assert((logs.match(/doc-sent name=note.mdx blocks=0 intent=edit/g) ?? []).length === 2, 'Source or Live opened MDX with a full render.');
   assert(logs.split('mdx-ranges-done').length >= 3, 'Source and Live did not request ranges.');
   assert(!logs.includes('render-done'), 'Source or Live requested a full MDX render.');
 });

@@ -397,7 +397,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
   documentId = id;
   readOnlyReason = payload.readOnlyReason;
   mdx = payload.mdx;
-  lastGoodBlocks = payload.mdx?.error ? null : payload.blocks;
+  lastGoodBlocks = payload.mdx?.error || !payload.blocks.length ? null : payload.blocks;
   meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
