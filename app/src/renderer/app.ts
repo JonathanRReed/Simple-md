@@ -326,8 +326,6 @@ function applySettings(s: Settings): void {
   applyDocumentStyle(s);
   root.dataset.theme = s.theme;
   root.style.colorScheme = s.theme === "system" ? "light dark" : s.theme;
-  root.dataset.width = s.width;
-  root.dataset.typeface = s.typeface;
   root.style.setProperty("--zoom", String(s.zoom));
   if (!s.autosave) clearTimeout(pane.autosaveTimer);
   if (pane.editor && modeChanged) {
@@ -768,11 +766,12 @@ function openPalette(): void {
     { label: "Appearance: System", run: set({ theme: "system" }) },
     { label: "Appearance: Light", run: set({ theme: "light" }) },
     { label: "Appearance: Dark", run: set({ theme: "dark" }) },
-    { label: "Typeface: Sans", run: set({ typeface: "sans" }) },
-    { label: "Typeface: Serif", run: set({ typeface: "serif" }) },
-    { label: "Width: Narrow", run: set({ width: "narrow" }) },
-    { label: "Width: Normal", run: set({ width: "normal" }) },
-    { label: "Width: Wide", run: set({ width: "wide" }) },
+    { label: "GitHub style", run: set({ readingStyle: settings.readingStyle === "github" ? "editorial" : "github" }) },
+    { label: "Reading font: System", run: set({ readingFontFamily: "system-ui" }) },
+    { label: "Reading font: Charter", run: set({ readingFontFamily: "Charter" }) },
+    { label: "Width: Narrow", run: set({ contentWidth: 54 }) },
+    { label: "Width: Normal", run: set({ contentWidth: 66 }) },
+    { label: "Width: Wide", run: set({ contentWidth: 100 }) },
     { label: "Zoom in", hint: "⌘=", run: cmd("zoom-in") },
     { label: "Zoom out", hint: "⌘-", run: cmd("zoom-out") },
     { label: "Actual size", hint: "⌘0", run: cmd("zoom-reset") },
