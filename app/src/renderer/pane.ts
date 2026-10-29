@@ -936,8 +936,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (href.startsWith("#")) { scrollToFragment(href); return; }
     const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
     navigatingLink = !newTab;
-    if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, pane.documentId) && fragment && !newTab) scrollToFragment(fragment);
-    navigatingLink = false;
+    try {
+      if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, pane.documentId) && fragment && !newTab) scrollToFragment(fragment);
+    } finally { navigatingLink = false; }
   }
 
   container.addEventListener("click", (e) => {

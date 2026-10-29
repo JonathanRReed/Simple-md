@@ -481,13 +481,13 @@ function reveal(): void {
   context().win.focus();
 }
 
-function openFile(file: string | undefined, intent: OpenIntent, inPlace = false): Promise<boolean> {
+function openFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, origin = context()): Promise<boolean> {
   if (!context() || context().win.isDestroyed()) createDocumentWindow();
-  const host = inPlace ? context() : frontmost;
-  return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace)));
+  const host = inPlace ? origin : frontmost;
+  return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context()): Promise<boolean> {
   if (!file) {
     reveal();
     return true;
@@ -510,11 +510,11 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       return true;
     });
   }
-  if (!inPlace && settings.openIn === "window" && context().layout.state.tabs.length) {
+  if (!inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
     return windowScope.run(host, () => openCurrentFile(abs, intent));
   }
-  const replaced = inPlace ? currentSession().documentId : undefined;
+  const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
   let prepared: DocumentSession | undefined;
   try {
@@ -528,7 +528,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         return payloadFor(prepared, true);
       },
       transition,
-      settle: () => inPlace ? settle() : Promise.resolve(true),
+      settle: () => replaced !== undefined ? settle(registry.get(replaced)) : Promise.resolve(true),
       refresh: async (payload) => {
         const latest = await readDocument(abs);
         if (latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason) return payload;
@@ -539,7 +539,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       present: async (payload) => {
         reveal();
         if (replaced !== undefined) {
-          context().layout.replace(replaced, payload.documentId);
+          host.layout.replace(replaced, payload.documentId);
           registry.remove(replaced);
           send("smd:closed", replaced);
         }
@@ -549,10 +549,10 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     });
   } catch (err) {
     console.error("simple-md: failed to open", abs, err);
-    void dialog.showMessageBox(context().win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
+    void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
   } finally {
-    if (prepared && !context().layout.has(prepared.documentId)) registry.remove(prepared.documentId);
+    if (prepared && !host.layout.has(prepared.documentId)) registry.remove(prepared.documentId);
   }
 }
 
@@ -608,7 +608,7 @@ async function saveText(text: string, forceDialog: boolean, documentId: Document
 
 // ───────── links & commands ─────────
 
-async function openLink(href: string, intent: OpenIntent = "edit", newTab = false, current = currentSession()): Promise<boolean> {
+async function openLink(href: string, intent: OpenIntent = "edit", newTab = false, current = currentSession(), host = context()): Promise<boolean> {
   if (/^(https?:|mailto:)/i.test(href)) {
     await shell.openExternal(href);
     return false;
@@ -619,7 +619,7 @@ async function openLink(href: string, intent: OpenIntent = "edit", newTab = fals
   try {
     const canonical = await containedLocalFile(resolved, urlContext(path.dirname(current.path)));
     const target = fileURLToPath(resolved);
-    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab) : false;
+    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host) : false;
   } catch {
     return false;
   }
@@ -1051,7 +1051,7 @@ function registerIpc(): void {
     });
   });
   handle("smd:open-dialog", openDialog);
-  handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true); });
+  handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true, inPlace === true ? ipcDocument(id) : undefined, context()); });
   handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id)));
   handle("smd:find-read", readFindText);
   handle("smd:find-write", text => writeFindText(ipcText(text)));
