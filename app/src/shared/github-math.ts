@@ -15,28 +15,28 @@ export function githubMath(md: MarkdownIt): void {
   md.renderer.rules.github_literal = (tokens, i) => md.utils.escapeHtml(tokens[i]!.content);
   md.core.ruler.push("github_inline_math", (state) => {
     for (const block of state.tokens) {
-      if (!block.children) continue;
+      if (!block.children || !block.content.includes("$")) continue;
       const pattern = /(?<![\w$])(?<marker>\$\$?)(?![\s$])(?<source>[^$\n]*?[^\s$])\k<marker>(?![\w$])/g;
       const candidates = new Set([...block.content.matchAll(pattern)]
         .filter((match) => match.groups!.marker !== "$$" || match.index > 0)
         .map((match) => md.utils.unescapeAll(match[0])));
-      const result: typeof block.children = [];
       let codeDepth = 0;
-      for (let i = 0; i < block.children.length; i++) {
+      for (let i = 0; i < block.children.length - 2; i++) {
         const token = block.children[i]!;
-        const code = block.children[i + 1];
-        const tail = block.children[i + 2];
         if (token.type === "html_inline" && /^<\/?(?:code|pre)\b/i.test(token.content)) codeDepth += token.content.startsWith("</") ? -1 : 1;
-        if (!codeDepth && token.type === "text" && token.content.endsWith("$") && code?.type === "code_inline" && tail?.type === "text" && tail.content.startsWith("$")) {
+        const code = block.children[i + 1]!;
+        const tail = block.children[i + 2]!;
+        if (!codeDepth && token.type === "text" && token.content.endsWith("$") && code.type === "code_inline" && tail.type === "text" && tail.content.startsWith("$")) {
           token.content = token.content.slice(0, -1);
-          result.push(token);
-          const math = new state.Token("math_inline", "math", 0);
-          math.content = code.content;
-          result.push(math);
+          code.type = "math_inline";
+          code.tag = "math";
           tail.content = tail.content.slice(1);
-          i++;
-          continue;
         }
+      }
+      const result: typeof block.children = [];
+      codeDepth = 0;
+      for (const token of block.children) {
+        if (token.type === "html_inline" && /^<\/?(?:code|pre)\b/i.test(token.content)) codeDepth += token.content.startsWith("</") ? -1 : 1;
         if (codeDepth || token.type !== "text" || !token.content.includes("$")) { result.push(token); continue; }
         let start = 0;
         for (const match of token.content.matchAll(pattern)) {

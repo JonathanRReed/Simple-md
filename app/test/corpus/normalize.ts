@@ -68,7 +68,7 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
     const attachment = /^https:\/\/private-user-images\.githubusercontent\.com\/\d+\/\d+-([a-f0-9-]{36})\.[^?#]+\?jwt=/.exec(value);
     if (attachment) return `https://github.com/user-attachments/assets/${attachment[1]}`;
     const asset = /^https:\/\/github\.com\/[^/]+\/[^/]+\/assets\/\d+\/([a-f0-9-]{36})(?=$|[?#])/.exec(value);
-    if (asset) value = `https://github.com/user-attachments/assets/${asset[1]}`;
+    if (asset) value = value.replace(/^https:\/\/github\.com\/[^/]+\/[^/]+\/assets\/\d+\//, "https://github.com/user-attachments/assets/");
     const local = context.localRoot ?? `file:///__corpus__/${context.repo}/`;
     if (value.startsWith(local)) return `repo:${value.slice(local.length).replace(/\/(?=[?#]|$)/, "")}`;
     if (/^(?:data:|mailto:|file:)/i.test(value)) return value;

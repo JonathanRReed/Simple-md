@@ -297,7 +297,7 @@ function ensureEditor(): Promise<EditorHandle | null> {
         renderFragment: (text) => simplemd.renderFragment(text, id),
         baseUrl: () => meta.baseUrl,
         remoteImages: () => settings.remoteImages,
-        openLink: (href) => void simplemd.openLink(href),
+        openLink: (href) => void navigateLink(href),
       },
       onChange(text) {
         if (id !== documentId) return;
@@ -756,6 +756,25 @@ function handleCommand(cmd: Command): void {
 // ───────── events ─────────
 
 function scrollToFragment(href: string): void {
+  if (view === "edit" && settings.mode !== "split" && editor) {
+    const source = editor.getText();
+    const scope = document.createElement("div");
+    for (const block of lastGoodBlocks ?? []) {
+      const element = document.createElement("div");
+      element.dataset.sourceStart = String(block.sourceRange[0]);
+      mountRenderedHtml(element, block, settings.remoteImages);
+      scope.append(element);
+    }
+    updateFragments(scope);
+    const target = fragmentTarget(scope, href)?.closest<HTMLElement>("[data-source-start]");
+    if (target) {
+      const line = Number(target.dataset.sourceStart);
+      const breaks = [...source.matchAll(/\r\n|[\r\n]/g)];
+      const previous = breaks[line - 1];
+      editor.goTo(previous ? previous.index + previous[0].length : 0);
+    }
+    return;
+  }
   const scope = view === "read" ? docEl : previewEl;
   fragmentTarget(scope, href)?.scrollIntoView({ block: "start" });
 }

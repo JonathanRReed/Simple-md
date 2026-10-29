@@ -82,10 +82,10 @@ describe("positioned MDX preview", () => {
     expect(good.blocks.map((b) => b.html).join("")).toContain('class="mdx-label">Card');
   });
 
-  test("frontmatter stays collapsed with BOM and bare CR line endings", async () => {
+  test("frontmatter stays visible as metadata with BOM and bare CR line endings", async () => {
     const result = await render('\uFEFF---\rtitle: A post\r---\r# Heading\r\r<A />');
     expect(result.title).toBe('A post');
-    expect(result.blocks[0]?.html).toContain('class="frontmatter"');
+    expect(result.blocks[0]?.html).toContain('<th>title</th><td>A post</td>');
     expect(result.blocks[0]?.sourceRange).toEqual([0, 3]);
     expect(result.blocks[1]?.sourceRange).toEqual([3, 4]);
     expect(result.blocks.at(-1)?.sourceRange).toEqual([5, 6]);

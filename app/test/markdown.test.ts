@@ -32,15 +32,15 @@ describe("basics", () => {
     expect((await renderMarkdown("# x", null)).title).toBe("Untitled");
   });
 
-  test("frontmatter is shown collapsed, not as a heading or rule", async () => {
+  test("frontmatter renders as a metadata table, not a heading or rule", async () => {
     const out = await html("---\ntitle: A\ntags: [x]\n---\n\nBody");
-    expect(out).toContain('<details class="frontmatter"');
+    expect(out).toContain('<table><tbody><tr><th>title</th><td>A</td>');
     expect(out).not.toContain("<hr");
     expect(out).toContain("<p");
   });
 
   test("a leading byte order mark does not break frontmatter", async () => {
-    expect(await html("\uFEFF---\ntitle: A\n---\nBody")).toContain("frontmatter");
+    expect(await html("\uFEFF---\ntitle: A\n---\nBody")).toContain("<th>title</th><td>A</td>");
   });
 
   test("block direction follows the first strong character", async () => {
@@ -209,7 +209,7 @@ describe("block rendering cache", () => {
 
   test("footnote sections stay balanced inside a single patchable block", async () => {
     const out = await renderBlocks("A[^a] and B[^b]\n\n[^a]: First\n[^b]: Second", "/tmp/balanced.md");
-    const section = out.blocks.filter((block) => block.html.includes('<section class="footnotes">'));
+    const section = out.blocks.filter((block) => block.html.includes('<section class="footnotes"'));
     expect(section).toHaveLength(1);
     expect(section[0]!.html).toContain("</section>");
     expect(section[0]!.html).toContain("First");

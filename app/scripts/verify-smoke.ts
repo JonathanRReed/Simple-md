@@ -151,9 +151,9 @@ await test("driver-assertion-failure", async () => {
 });
 
 await test("render-links-pdf", async () => {
-  const source = "# Smoke render alpha\n\n## [Introduction](https://example.com)\n\n[Jump](#introduction)\n\n![image](image%20%231.png)\n\n[Next](../beta/note%20%231.md)\n\n```ts\nconst smoke = 42;\n```\n\nInline $E=mc^2$.\n\n```mermaid\ngraph LR\nStart-->Finish\n```\n\n<script>window.smokeInjected = true</script>\n\n[unsafe](javascript:alert(1))\n";
+  const source = "# Smoke render alpha\n\n## [Introduction](https://example.com)\n\n[Jump](#introduction)\n\n![image](image%20%231.png)\n\n[Next](../beta/note%20%231.md#target-section)\n\n```ts\nconst smoke = 42;\n```\n\nInline $E=mc^2$.\n\n```mermaid\ngraph LR\nStart-->Finish\n```\n\n<script>window.smokeInjected = true</script>\n\n[unsafe](javascript:alert(1))\n";
   const alpha = fixture("alpha/note.md", source);
-  const beta = fixture("beta/note #1.md", "# Smoke render beta\n\n![image](image%20%231.png)\n");
+  const beta = fixture("beta/note #1.md", "# Smoke render beta\n\n![image](image%20%231.png)\n\n" + "Before the target.\n\n".repeat(40) + "## Target section\n\n" + "After the target.\n\n".repeat(30));
   fs.writeFileSync(path.join(root, "alpha/image #1.png"), png);
   fs.writeFileSync(path.join(root, "beta/image #1.png"), png);
   const pdf = path.join(root, "render-links-pdf/output.pdf");
@@ -174,6 +174,10 @@ await test("render-links-pdf", async () => {
       await waitFor(() => !document.querySelector('#read').inert && !document.querySelector('#edit').inert && document.documentElement.dataset.documentPainted === ${quote(alpha)}, 'Initial note transition did not finish.', 30000);
       document.querySelector('#doc a[href*="note%20%231.md"]').click();
       await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke render beta' && document.documentElement.dataset.documentPainted === ${quote(beta)} && !document.querySelector('#read').inert && !document.querySelector('#edit').inert, 'Encoded Markdown link did not commit.', 30000);
+      await waitFor(() => document.querySelector('#read-scroll').scrollTop > 500, 'Cross-file fragment did not scroll.');
+      const targetTop = document.querySelector('#doc #user-content-target-section').getBoundingClientRect().top;
+      const viewport = document.querySelector('#read-scroll').getBoundingClientRect();
+      assert(targetTop >= viewport.top && targetTop < viewport.top + 100, 'Cross-file heading is not at the viewport start.');
       await waitFor(() => document.querySelector('#doc img')?.naturalWidth > 0, 'Image did not resolve after navigation.');
       assert(document.querySelector('#doc img').src.includes('/beta/'), 'Navigation kept the previous image base path.');
       window.simplemd.command('nav-back');
@@ -205,6 +209,26 @@ await test("render-links-pdf", async () => {
   assert(!/\bsrc=["']file:/i.test(exported), "HTML still depends on local image paths.");
   assert(!exported.includes("url(fonts/") && /url\(data:font\/woff2;base64,[A-Za-z0-9+/=]+\)/.test(exported), "HTML font embedding is incomplete.");
   assert(!/<script\b/i.test(exported), "Static HTML export contains an active script.");
+});
+
+await test("github-theme-images", async () => {
+  const name = "github-theme-images";
+  fixture(`${name}/dark.svg`, '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13"><rect width="13" height="13" fill="black"/></svg>');
+  fixture(`${name}/light.svg`, '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17"><rect width="17" height="17" fill="white"/></svg>');
+  const source = '# Theme images\n\n<picture><source media="(prefers-color-scheme: dark)" srcset="dark.svg"><source media="(prefers-color-scheme: light)" srcset="light.svg"><img src="light.svg" alt="picture"></picture>\n\n![dark](dark.svg#gh-dark-mode-only) ![light](light.svg#gh-light-mode-only)\n';
+  const file = fixture(`${name}/note.md`, source);
+  await launch(name, file, [evaluate(`
+    await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)}, 'Theme fixture did not open.');
+    for (const theme of ['light', 'dark', 'light']) {
+      await window.simplemd.setSettings({ theme });
+      await waitFor(() => document.documentElement.dataset.theme === theme, 'App theme did not update.');
+      const picture = document.querySelector('#doc picture img');
+      await waitFor(() => picture.currentSrc.endsWith('/' + theme + '.svg') && picture.naturalWidth === (theme === 'dark' ? 13 : 17), 'Picture did not load the app theme source.');
+      assert((getComputedStyle(document.querySelector('#doc img[alt="dark"]')).display !== 'none') === (theme === 'dark'), 'Dark fragment visibility disagrees with app theme.');
+      assert((getComputedStyle(document.querySelector('#doc img[alt="light"]')).display !== 'none') === (theme === 'light'), 'Light fragment visibility disagrees with app theme.');
+    }
+  `)]);
+  assert.equal(fs.readFileSync(file, "utf8"), source, "Theme changes changed the source note.");
 });
 
 await test("author-html", async () => {

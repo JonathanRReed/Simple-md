@@ -60,6 +60,13 @@ const equivalent = [
   probe("geojson-exception", '<section data-type="geojson"><pre>{"type":"Point"}\n</pre></section>', '<pre><code class="language-geojson">{"type":"Point"}\n</code></pre>'),
   probe("topojson-exception", '<section data-type="topojson"><pre>{"type":"Topology"}\n</pre></section>', '<pre><code class="language-topojson">{"type":"Topology"}\n</code></pre>'),
   probe("stl-exception", '<section data-type="stl"><pre>solid x\nendsolid x\n</pre></section>', '<pre><code class="language-stl">solid x\nendsolid x\n</code></pre>'),
+  probe("secured-asset-marker", '<img secured-asset-link="" src="https://example.org/image.png" alt="asset">', '<img src="https://example.org/image.png" alt="asset">'),
+  probe("math-transport-entities", '<math-renderer class="js-inline-math">$x &amp;gt; y$</math-renderer>', '<span class="katex"><math><semantics><annotation encoding="application/x-tex">x &gt; y</annotation></semantics></math></span>'),
+  probe("app-picture-media", '<picture><source media="(prefers-color-scheme: dark)" srcset="dark.svg"></picture>', '<picture><source media="(min-width: 0px)" data-simplemd-media="(prefers-color-scheme: dark)" srcset="dark.svg"></picture>'),
+  probe("empty-prefixed-id", '<h1 id="">Image heading</h1>', '<h1 id="user-content-">Image heading</h1>'),
+  probe("block-code-indentation", '<pre><code>a</code></pre>\n<pre><code>b</code></pre>', '<pre><code>a</code></pre><pre><code>b</code></pre>'),
+  probe("attachment-canonical-url", '<img src="https://github.com/user-attachments/assets/c4d46d45-4f45-4b20-811e-d1f9d9e452dd?x=1#keep">', '<img src="https://github.com/owner/project/assets/123/c4d46d45-4f45-4b20-811e-d1f9d9e452dd?x=1#keep">'),
+  probe("repository-directory-slash", '<a href="packages/tool">tool</a>', '<a href="packages/tool/">tool</a>'),
 ];
 const different = [
   probe("missing-picture", '<picture><source media="(prefers-color-scheme: dark)" srcset="dark.svg"><img src="light.svg"></picture>', '<img src="light.svg">'),
@@ -74,6 +81,10 @@ const different = [
   probe("unicode-text", '<p>"plain"... :smile:</p>', '<p>“plain”… 😄</p>'),
   probe("theme-fragment", '<img src="logo.svg#gh-dark-mode-only">', '<img src="logo.svg">'),
   probe("reference-target", '<a href="next.md#keep">next</a>', '<a href="next.md#lost">next</a>'),
+  probe("math-transport-keeps-symbols", '<math-renderer class="js-inline-math">$x &amp;gt; y$</math-renderer>', '<span class="katex"><math><semantics><annotation encoding="application/x-tex">x &lt; y</annotation></semantics></math></span>'),
+  probe("picture-media-keeps-query", '<picture><source media="(prefers-color-scheme: dark)" srcset="dark.svg"></picture>', '<picture><source media="(min-width: 0px)" data-simplemd-media="(prefers-color-scheme: light)" srcset="dark.svg"></picture>'),
+  probe("attachment-keeps-query-fragment", '<img src="https://github.com/user-attachments/assets/c4d46d45-4f45-4b20-811e-d1f9d9e452dd?x=1#keep">', '<img src="https://github.com/owner/project/assets/123/c4d46d45-4f45-4b20-811e-d1f9d9e452dd?x=2#lost">'),
+  probe("table-unicode-space", '<table><tr><td>text   </td></tr></table>', '<table><tr><td>text</td></tr></table>'),
 ];
 
 test("GitHub corpus reports semantic gaps without refreshing references", async () => {
