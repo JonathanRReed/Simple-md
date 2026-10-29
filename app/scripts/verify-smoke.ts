@@ -1107,10 +1107,12 @@ const contextBase = { selectionPresent: false, editable: false, linkURL: "", ima
 await test("native-context-link-image", async () => {
   const sibling = fixture("native-context/sibling.md", "# Sibling\n");
   const image = fixture("native-context/image.svg", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20"/></svg>');
-  const file = fixture("native-context/note.md", "[Sibling](sibling.md)\n\n![Image](image.svg)\n");
+  const file = fixture("native-context/note.md", "[Sibling](sibling.md)\n\n![Image](image.svg)\n\n[Bottom](#bottom)\n\n" + "Paragraph.\n\n".repeat(80) + "# Bottom\n");
   await launch("native-context-link-image", file, [
     evaluate(`await waitFor(() => document.querySelector('.prose a') && document.querySelector('.prose img'), 'Context fixtures did not render');`),
     { nativeContext: { selector: ".prose img", context: { ...contextBase, imageURL: new URL("file://" + image).href }, labels: ["Copy Image Address", process.platform === "darwin" ? "Reveal in Finder" : process.platform === "win32" ? "Reveal in Explorer" : "Show in File Manager"] } },
+    { nativeContext: { selector: '.prose a[href="#user-content-bottom"]', context: { ...contextBase, linkURL: "#user-content-bottom" }, labels: ["Open Link", "Copy Link"], choose: "Open Link" } },
+    evaluate(`await waitFor(() => document.querySelector('.document-pane [data-element=read] .scroller')?.scrollTop > 0, 'Context fragment did not scroll');`),
     { nativeContext: { selector: ".prose a", context: { ...contextBase, linkURL: new URL("file://" + sibling).href }, labels: ["Open Link", "Copy Link", "Open in New Tab"], choose: "Open in New Tab" } },
     evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 2 && document.documentElement.dataset.documentPath === ${quote(sibling)}, 'Context action did not open sibling tab');`),
   ]);
@@ -1132,6 +1134,10 @@ await test("native-recents-identity-accent", async () => {
   const file = fixture("native-recents/note.md", "# Native\n");
   await launch("native-recents-identity-accent", file, [
     evaluate(`const ready = await window.simplemd.ready(); assert(ready.settings.recents.includes(${quote(file)}), 'Opened file missing from recents');`),
+    { nativeIdentity: { file, edited: false } },
+    ...appendCharacter("x"),
+    { nativeIdentity: { file, edited: true } },
+    evaluate(`window.simplemd.command('undo'); await waitFor(() => document.querySelector('#dirty').hidden, 'Undo retained edited state');`),
     { nativeIdentity: { file, edited: false } },
     evaluate(`document.documentElement.style.setProperty('--tab-accent', '#000000');`),
     { nativeAccent: true },

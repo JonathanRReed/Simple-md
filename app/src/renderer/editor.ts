@@ -1,5 +1,5 @@
 import { spellingReplacement } from "./spelling.js";
-import type { NativeContext } from "../shared/native-context.js";
+import type { ContextResult, NativeContext } from "../shared/native-context.js";
 import type { MdxResult } from "../shared/render-core.js";
 import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
 import { editorMdxRanges } from "./mdx-positions.js";
@@ -45,7 +45,7 @@ export interface Heading {
 }
 
 export interface EditorHandle {
-  contextMenu(context: NativeContext, request: () => Promise<string | null>): Promise<void>;
+  contextMenu(context: NativeContext, request: () => Promise<ContextResult>): Promise<void>;
   getText(): string;
   snapshot(): EditorSnapshot;
   setMdx(source: string, result: MdxResult): void;
@@ -174,7 +174,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         }),
         EditorView.domEventHandlers({
           contextmenu(event, v) {
-            contextPosition = v.posAtCoords({ x: event.clientX, y: event.clientY });
+            contextPosition = v.posAtCoords({ x: event.clientX, y: event.clientY }) ?? v.state.selection.main.head;
             return false;
           },
           keydown(event) {
@@ -268,9 +268,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
           from = line.text.indexOf(word, from + 1);
         }
       }
-      const replacement = await request();
-      if (!destroyed && view.state.doc === state.doc && range && replacement) {
-        const transaction = spellingReplacement(view.state, range, word, replacement);
+      const result = await request();
+      if (!destroyed && view.state.doc === state.doc && range && result?.kind === "spelling") {
+        const transaction = spellingReplacement(view.state, range, word, result.replacement);
         if (transaction) { view.dispatch(transaction); view.focus(); }
       }
     },
@@ -340,7 +340,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     },
     selection() { const range = view.state.selection.main; return view.state.sliceDoc(range.from, range.to); },
     find(text) {
-      if (text) view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: text })) });
+      if (text) view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: text, literal: true })) });
       view.focus();
       openSearchPanel(view);
     },

@@ -15,6 +15,7 @@ export async function validateContext(input: unknown, urls: UrlContext): Promise
   }
   const validateURL = async (url: string, kind: "anchor" | "resource") => {
     if (!url) return "";
+    if (kind === "anchor" && /^#[^\u0000-\u0020\u007f]*$/.test(url)) return url;
     if (url.length > 8192) throw new TypeError("Invalid context URL.");
     if (url.startsWith("file:")) await containedLocalFile(url, urls);
     else if (!/^(https?:|mailto:)/i.test(url) || resolveAuthorUrl(url, kind, urls) === null) throw new TypeError("Invalid context URL.");

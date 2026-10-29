@@ -1015,7 +1015,13 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
   return {
     async contextMenu(context: import("../shared/native-context.js").NativeContext) {
-      const request = () => simplemd.contextMenu(context, pane.documentId);
+      const id = pane.documentId;
+      const request = async () => {
+        const result = await simplemd.contextMenu(context, id);
+        if (disposed || pane.documentId !== id) return null;
+        if (result?.kind === "fragment") { await navigateLink(result.href); return null; }
+        return result;
+      };
       if (context.editable && pane.editor) await pane.editor.contextMenu(context, request);
       else await request();
     },

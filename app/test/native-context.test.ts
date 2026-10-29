@@ -22,6 +22,7 @@ test("context validation rejects unsafe protocols, traversal and symlink escapes
     fs.symlinkSync(outside, path.join(inside, "escape.md"));
     const urls = { baseUrl: pathToFileURL(inside + path.sep).href };
     expect(await validateContext({ ...empty, linkURL: pathToFileURL(file).href }, urls)).toEqual({ ...empty, linkURL: pathToFileURL(file).href });
+    expect((await validateContext({ ...empty, linkURL: "#user-content-heading" }, urls)).linkURL).toBe("#user-content-heading");
     for (const linkURL of ["javascript:alert(1)", "data:text/html,evil", "https://ok/\u0000", pathToFileURL(outside).href, pathToFileURL(path.join(inside, "escape.md")).href, urls.baseUrl + "%2e%2e/outside.md", urls.baseUrl + "a%2f..%2foutside.md"]) {
       await expect(validateContext({ ...empty, linkURL }, urls)).rejects.toThrow();
       await expect(validateContext({ ...empty, imageURL: linkURL }, urls)).rejects.toThrow();

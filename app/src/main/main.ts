@@ -2,7 +2,7 @@ import { readFindText, writeFindText } from "./find-pasteboard.js";
 import { recentFiles, isolatedRecents, jumpList } from "./recents.js";
 import { shareDocument } from "./share.js";
 import { contextTemplate, validateContext } from "./context-menu.js";
-import type { NativeContext } from "../shared/native-context.js";
+import type { ContextResult, NativeContext } from "../shared/native-context.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
 import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
@@ -223,7 +223,7 @@ function createWindow(): BrowserWindow {
     if (!host) return;
     host.nativeContext = {
       selectionPresent: params.selectionText.length > 0, editable: params.isEditable,
-      linkURL: params.linkURL, imageURL: params.srcURL,
+      linkURL: params.linkURL.startsWith(w.webContents.getURL().split("#")[0] + "#") ? new URL(params.linkURL).hash : params.linkURL, imageURL: params.srcURL,
       misspelledWord: params.misspelledWord, suggestions: params.dictionarySuggestions.slice(0, 32),
     };
     w.webContents.send("smd:context-request", host.nativeContext);
@@ -1046,18 +1046,21 @@ function registerIpc(): void {
     if (!native || JSON.stringify(input) !== JSON.stringify(native)) throw new Error("Stale context menu request.");
     const c = await validateContext(input, urlContext(doc.path ? path.dirname(doc.path) : undefined));
     if (!host.layout.has(doc.documentId) || host.win.isDestroyed()) return null;
-    return new Promise<string | null>(resolve => {
-      let replacement: string | null = null;
+    return new Promise<ContextResult>(resolve => {
+      let result: ContextResult = null;
       const menu = Menu.buildFromTemplate(contextTemplate(c, {
-        replace: word => { replacement = word; },
+        replace: word => { result = { kind: "spelling", replacement: word }; },
         dictionary: word => { host.win.webContents.session.addWordToSpellCheckerDictionary(word); },
-        open: (url, newTab) => { void windowScope.run(host, () => openLink(url, doc.intent, newTab, doc)); },
+        open: (url, newTab) => {
+          if (url.startsWith("#")) result = { kind: "fragment", href: url };
+          else void windowScope.run(host, () => openLink(url, doc.intent, newTab, doc));
+        },
         copy: text => { void clipboard.writeText(text); },
         reveal: url => { void containedLocalFile(url, urlContext(doc.path ? path.dirname(doc.path) : undefined)).then(file => shell.showItemInFolder(file)).catch(() => {}); },
         lookup: () => host.win.webContents.showDefinitionForSelection(),
         share: doc.path ? () => shareDocument(host.win, doc.path!) : undefined,
       }));
-      menu.popup({ window: host.win, callback: () => resolve(replacement) });
+      menu.popup({ window: host.win, callback: () => resolve(result) });
     });
   });
   handle("smd:set-settings", patch => applySettings(patch));

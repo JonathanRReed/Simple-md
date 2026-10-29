@@ -6,7 +6,7 @@ export interface Bridge {
   readFindText(): Promise<string>;
   writeFindText(text: string): Promise<void>;
   onContextMenu(cb: (context: import("../shared/native-context.js").NativeContext) => void): void;
-  contextMenu(context: import("../shared/native-context.js").NativeContext, id: DocumentId): Promise<string | null>;
+  contextMenu(context: import("../shared/native-context.js").NativeContext, id: DocumentId): Promise<import("../shared/native-context.js").ContextResult>;
   onLayout(cb: (layout: TabLayoutState) => void): void;
   onClosed(cb: (id: DocumentId) => void): void;
   releaseView(id: DocumentId): void;

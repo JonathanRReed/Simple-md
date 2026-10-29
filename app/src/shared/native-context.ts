@@ -6,3 +6,5 @@ export interface NativeContext {
   misspelledWord: string;
   suggestions: string[];
 }
+
+export type ContextResult = { kind: "spelling"; replacement: string } | { kind: "fragment"; href: string } | null;
