@@ -1,3 +1,6 @@
+import type { MdxResult } from "../shared/render-core.js";
+import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
+import { editorMdxRanges } from "./mdx-positions.js";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -16,6 +19,7 @@ export type FormatKind = "bold" | "italic" | "code" | "strike" | "link";
 
 export interface EditorOptions {
   text: string;
+  mdx?: MdxResult;
   mode: EditMode;
   host: LiveHost;
   /** Modal vim key bindings; applies in every edit mode. Default off. */
@@ -33,6 +37,7 @@ export interface Heading {
 
 export interface EditorHandle {
   getText(): string;
+  setMdx(source: string, result: MdxResult): void;
   /** Replaces the document while keeping the cursor and scroll position near where they were. */
   setText(text: string, addToHistory?: boolean): void;
   setEditable(editable: boolean): void;
@@ -134,6 +139,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         search({ top: true }),
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         syntaxHighlighting(classHighlighter),
+        ...(opts.mdx ? [mdxSyntax(editorMdxRanges(opts.text, opts.mdx))] : []),
         frontmatterExtension,
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ "aria-label": "Document", spellcheck: "true", autocapitalize: "sentences" }),
@@ -255,6 +261,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         silent = false;
       }
       clearLiveCache();
+    },
+    setMdx(source, result) {
+      view.dispatch({ effects: setMdxRanges.of(editorMdxRanges(source, result)) });
     },
     setEditable(editable) {
       view.dispatch({ effects: editableSlot.reconfigure([EditorState.readOnly.of(!editable), EditorView.editable.of(editable)]) });

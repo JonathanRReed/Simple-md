@@ -51,6 +51,8 @@ await bundle({
   outdir: out,
   target: "browser",
   format: "iife",
+  // Use the parser's entity table, including in JavaScriptCore without a DOM.
+  conditions: ["worker"],
   naming: "render-core.js",
   minify: true,
 });

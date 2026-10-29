@@ -53,6 +53,7 @@ export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
+  mdx?: import("./render-core.js").MdxResult;
   readOnlyReason?: string;
   documentId: number;
   path: string | null;

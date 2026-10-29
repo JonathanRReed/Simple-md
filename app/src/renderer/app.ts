@@ -1,3 +1,4 @@
+import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
 import { type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
@@ -76,7 +77,17 @@ const navBack: string[] = [];
 const navForward: string[] = [];
 let navigating: { target: string; direction: "back" | "forward" } | null = null;
 
-const isReadOnly = () => !!readOnlyReason || /\.mdx$/i.test(meta.path ?? meta.name);
+const isMdx = () => /\.mdx$/i.test(meta.path ?? meta.name);
+const isReadOnly = () => !!readOnlyReason;
+let mdx: MdxResult | undefined;
+let lastGoodBlocks: RenderedBlock[] | null = null;
+
+function acceptRender(result: RenderedBlocks, source: string): RenderedBlock[] {
+  mdx = result.mdx;
+  if (mdx && editor?.getText() === source) editor.setMdx(source, mdx);
+  if (!mdx?.error) { lastGoodBlocks = result.blocks; return result.blocks; }
+  return lastGoodBlocks ? [...lastGoodBlocks, ...result.blocks.filter((block) => block.key.startsWith("mdx-error"))] : result.blocks;
+}
 const currentText = () => (editor ? editor.getText() : readText);
 
 // KaTeX styles are loaded from JS because the CSP forbids inline onload handlers, and loaded
@@ -137,11 +148,11 @@ function renderRead(text: string, keepScroll: boolean): Promise<void> {
         readPending = null;
         const top = request.keepScroll ? readScroll.scrollTop : undefined;
         try {
-          const { title, blocks } = await simplemd.renderBlocks(request.text, request.id);
+          const result = await simplemd.renderBlocks(request.text, request.id);
           if (request.seq !== readRenderSeq || request.id !== documentId) continue;
-          mountBlocks(docEl, blocks);
+          mountBlocks(docEl, acceptRender(result, request.text));
           mountedReadText = request.text;
-          document.title = title;
+          document.title = result.title;
           if (top !== undefined) readScroll.scrollTop = top;
           updateHint();
         } catch {
@@ -156,21 +167,23 @@ function renderRead(text: string, keepScroll: boolean): Promise<void> {
 }
 
 function renderPreview(): Promise<void> {
-  if (!editor || view !== "edit" || settings.mode !== "split") return Promise.resolve();
+  if (!editor || view !== "edit" || (settings.mode !== "split" && !isMdx())) return Promise.resolve();
   previewPending = true;
   if (previewWork) return previewWork;
   previewWork = (async () => {
     try {
       while (previewPending) {
         previewPending = false;
-        if (!editor || view !== "edit" || settings.mode !== "split") break;
+        if (!editor || view !== "edit" || (settings.mode !== "split" && !isMdx())) break;
         const seq = ++previewRenderSeq;
         const id = documentId;
         const fraction = scrollFraction(previewScroll);
         try {
-          const { blocks } = await simplemd.renderBlocks(editor.getText(), id);
-          if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || settings.mode !== "split") continue;
-          mountBlocks(previewEl, blocks);
+          const source = editor.getText();
+          const result = await simplemd.renderBlocks(source, id);
+          if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
+          const blocks = acceptRender(result, source);
+          if (settings.mode === "split") mountBlocks(previewEl, blocks);
           setScrollFraction(previewScroll, fraction);
         } catch {
           if (seq === previewRenderSeq && id === documentId) toast("Couldn't render this preview.");
@@ -186,7 +199,7 @@ function renderPreview(): Promise<void> {
 function schedulePreview(): void {
   ++previewRenderSeq;
   clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(() => void renderPreview(), 110);
+  previewTimer = window.setTimeout(() => void renderPreview(), isMdx() ? 200 : 110);
 }
 
 const scrollFraction = (el: HTMLElement) => {
@@ -206,7 +219,7 @@ function updateHint(): void {
   }
   const words = (readText.match(/\S+/g) ?? []).length;
   const minutes = Math.max(1, Math.round(words / 230));
-  hintEl.textContent = hasDoc ? `${words.toLocaleString()} words · ${minutes} min${readOnlyReason ? " · read only" : isReadOnly() ? " · MDX · read only" : " · ⏎ to edit"}` : "";
+  hintEl.textContent = hasDoc ? `${words.toLocaleString()} words · ${minutes} min${readOnlyReason ? " · read only" : " · ⏎ to edit"}` : "";
 }
 
 function updateChrome(): void {
@@ -275,6 +288,7 @@ function ensureEditor(): Promise<EditorHandle | null> {
     if (id !== documentId) return null;
     editor = createEditor(editorHost, {
       text: readText,
+      mdx,
       mode: settings.mode,
       vim: settings.vim,
       host: {
@@ -376,6 +390,8 @@ async function onDoc(payload: DocPayload): Promise<void> {
   navigating = null;
   documentId = id;
   readOnlyReason = payload.readOnlyReason;
+  mdx = payload.mdx;
+  lastGoodBlocks = payload.mdx?.error ? null : payload.blocks;
   meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
@@ -472,7 +488,7 @@ function applyDiskText(text: string): void {
   simplemd.setDirty(false, documentId);
   editor?.setText(text);
   if (view === "read") void renderRead(text, true);
-  else if (settings.mode === "split") void renderPreview();
+  else if (settings.mode === "split" || isMdx()) void renderPreview();
   updateChrome();
 }
 

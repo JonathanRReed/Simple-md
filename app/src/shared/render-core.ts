@@ -1,7 +1,9 @@
+import { findMdxRanges, type MdxRange, type MdxParseError } from "./mdx-ranges.js";
+import { mapMdxPreview, type MdxPreview } from "./mdx-preview.js";
 import type { Token } from "markdown-it";
 import { createMarkdownParser } from "./markdown-parser.js";
 import { resolveAuthorUrl, type UrlContext } from "./url-resolver.js";
-import type { RenderedHtml, RenderNode } from "./render-tree.js";
+import { isRenderNode, type RenderedHtml, type RenderNode } from "./render-tree.js";
 export type { RenderedHtml } from "./render-tree.js";
 
 export interface RenderServices {
@@ -25,45 +27,6 @@ function utf8ByteLength(text: string): number {
   }
   return bytes;
 }
-const FENCE = /^\s*(```|~~~)/;
-
-// MDX is view-only: drop ESM statements and show JSX blocks as code instead of executing them.
-export function preprocessMdx(src: string, lineMap?: number[]): string {
-  const out: string[] = [];
-  const lines = src.split("\n");
-  let inFence = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (FENCE.test(line)) {
-      inFence = !inFence;
-      out.push(line);
-      lineMap?.push(i);
-      continue;
-    }
-    if (inFence) {
-      out.push(line);
-      lineMap?.push(i);
-      continue;
-    }
-    if (/^(import|export)\s/.test(line)) {
-      while (i + 1 < lines.length && lines[i + 1]!.trim() !== "") i++;
-      continue;
-    }
-    if (/^\s*\{\/\*.*\*\/\}\s*$/.test(line)) continue;
-    if (/^\s*<[A-Z][\w.]*[\s/>]/.test(line)) {
-      const first = i;
-      const block = [line];
-      while (i + 1 < lines.length && lines[i + 1]!.trim() !== "") block.push(lines[++i]!);
-      out.push("```jsx", ...block, "```");
-      lineMap?.push(first, ...block.map((_, index) => first + index), i);
-      continue;
-    }
-    out.push(line);
-    lineMap?.push(i);
-  }
-  return out.join("\n");
-}
-
 function splitFrontmatter(src: string): { body: string; title?: string; raw?: string } {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(src);
   if (!m) return { body: src };
@@ -108,7 +71,8 @@ export interface RenderedBlock extends RenderedHtml {
   /** Zero-based, end-exclusive source lines, including frontmatter offset. */
   sourceRange: [number, number];
 }
-export interface RenderedBlocks { title: string; blocks: RenderedBlock[] }
+export interface MdxResult { ranges: MdxRange[]; error?: MdxParseError }
+export interface RenderedBlocks { title: string; blocks: RenderedBlock[]; mdx?: MdxResult }
 const resolveLang = (info: string) => {
   const raw = info.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
   return LANGUAGE_ALIASES[raw] ?? raw;
@@ -135,6 +99,35 @@ export function createRenderCore(services: RenderServices = {}) {
     if (!lang || code.length > MAX_HIGHLIGHT_CHARS) return "";
     return services.highlight?.(code, lang) ?? "";
   });
+
+  md.inline.ruler.before("text", "mdx_preview", (state, silent) => {
+    const nodes = (state.env as RenderEnv).mdxNodes;
+    if (!nodes) return false;
+    for (const [marker, node] of nodes) {
+      if (!state.src.startsWith(marker, state.pos)) continue;
+      if (!silent) state.push("mdx_preview", "", 0).meta = { mdx: node };
+      state.pos += marker.length;
+      return true;
+    }
+    return false;
+  });
+  md.block.ruler.before("paragraph", "mdx_preview", (state, line, _end, silent) => {
+    const marker = state.src.slice(state.bMarks[line]! + state.tShift[line]!, state.eMarks[line]!).trim();
+    const node = (state.env as RenderEnv).mdxNodes?.get(marker);
+    if (!node) return false;
+    if (!silent) {
+      const token = state.push("mdx_preview", "", 0);
+      token.meta = { mdx: node };
+      token.map = [line, line + 1];
+    }
+    state.line = line + 1;
+    return true;
+  });
+  const serialize = (node: RenderNode): string => node.parts.map((part) => typeof part === "string" ? part : serialize(part)).join("");
+  md.renderer.rules.mdx_preview = (tokens, idx) => {
+    const node = tokens[idx]!.meta?.mdx;
+    return isRenderNode(node) ? serialize(node) : "";
+  };
 
   const defaultFence = md.renderer.rules.fence!;
   md.renderer.rules.fence = (tokens, idx, options, env, self) => {
@@ -197,7 +190,7 @@ export function createRenderCore(services: RenderServices = {}) {
     };
     const visit = (tokens: Token[]) => {
       for (const tok of tokens) {
-        if (tok.type === "html_block" || tok.type === "html_inline") rootContext();
+        if (tok.type === "html_block" || tok.type === "html_inline" || tok.type === "mdx_preview") rootContext();
         const attr = tok.type === "image" ? "src" : tok.type === "link_open" ? "href" : null;
         if (attr) {
           const original = String(tok.attrGet(attr) ?? "");
@@ -212,7 +205,7 @@ export function createRenderCore(services: RenderServices = {}) {
     visit(state.tokens);
   });
 
-  type RenderEnv = { urls: UrlContext; baseDir?: string } & Record<PropertyKey, unknown>;
+  type RenderEnv = { urls: UrlContext; baseDir?: string; mdxNodes?: Map<string, RenderNode> } & Record<PropertyKey, unknown>;
 
   const hash = services.hash ?? defaultHash;
   const byteLength = services.byteLength ?? utf8ByteLength;
@@ -247,11 +240,30 @@ export function createRenderCore(services: RenderServices = {}) {
   async function renderBlocks(src: string, filePath: string | null): Promise<RenderedBlocks> {
     const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
     const isMdx = filePath !== null && /\.mdx$/i.test(filePath);
-    const lineMap: number[] = [];
-    const text = isMdx ? preprocessMdx(body, lineMap) : body;
-    const sourceLine = (line: number) => isMdx ? lineMap[line] ?? body.split("\n").length : line;
+    services.mark?.("mdx-parse-start");
+    const ranges = isMdx ? findMdxRanges(src) : undefined;
+    services.mark?.("mdx-parse-end");
+    const mdx: MdxResult | undefined = ranges ? { ranges: [...ranges], error: ranges.error } : undefined;
     const baseDir = filePath ? filePath.replace(/[/\\][^/\\]*$/, "") : undefined;
     const env: RenderEnv = { baseDir, urls: services.urls?.(baseDir, false) ?? {} };
+    let text = body;
+    if (ranges) {
+      const bodyOffset = src.length - body.length;
+      const usable = ranges.filter((range) => !ranges.error || range.end <= ranges.error.start).map((range) => ({
+        ...range, start: range.start - bodyOffset, end: range.end - bodyOffset,
+        syntax: range.syntax.map((span) => ({ ...span, start: span.start - bodyOffset, end: span.end - bodyOffset })),
+      }));
+      const validBody = ranges.error ? body.slice(0, Math.max(0, ranges.error.start - bodyOffset)) : body;
+      const renderChild = async (preview: MdxPreview, inline: boolean): Promise<RenderNode> => {
+        const childEnv = { ...env, mdxNodes: preview.nodes };
+        const childTokens = inline ? md.parseInline(preview.text.trim(), childEnv) : md.parse(preview.text, childEnv);
+        await services.prepareHighlighting?.(childTokens);
+        return planSequence(childTokens, childEnv, false);
+      };
+      const preview = await mapMdxPreview(validBody, usable, renderChild);
+      text = preview.text;
+      env.mdxNodes = preview.nodes;
+    }
     services.mark?.("parse-start");
     const tokens = md.parse(text, env);
     services.mark?.("parse-end");
@@ -300,11 +312,15 @@ export function createRenderCore(services: RenderServices = {}) {
       const seen = seenKeys.get(key) ?? 0;
       seenKeys.set(key, seen + 1);
       const maps = group.flatMap((token) => token.map ? [token.map] : []);
-      const sourceRange: [number, number] = maps.length ? [offset + sourceLine(Math.min(...maps.map((m) => m[0]))), offset + (isMdx ? sourceLine(Math.max(...maps.map((m) => m[1])) - 1) + 1 : Math.max(...maps.map((m) => m[1])))] : [offset + lineCount - 1, offset + lineCount - 1];
+      const sourceRange: [number, number] = maps.length ? [offset + Math.min(...maps.map((m) => m[0])), offset + Math.max(...maps.map((m) => m[1]))] : [offset + lineCount - 1, offset + lineCount - 1];
       blocks.push({ key: seen ? `${key}~${seen}` : key, ...rendered, urls: env.urls, sourceRange });
     }
+    if (mdx?.error) {
+      const html = `<div class="mdx-error"><span class="mdx-label">Incomplete MDX</span><pre>${escapeHtml(src.slice(mdx.error.start, mdx.error.end))}</pre></div>`;
+      blocks.push({ key: "mdx-error" + hash(html), html, urls: env.urls, sourceRange: [mdx.error.startLine - 1, mdx.error.endLine] });
+    }
     services.mark?.("html-serialize-end");
-    return { title: title ?? (filePath ? filePath.split(/[/\\]/).pop()!.replace(/\.[^.]*$/, "") : "Untitled"), blocks };
+    return { ...(mdx ? { mdx } : {}), title: title ?? (filePath ? filePath.split(/[/\\]/).pop()!.replace(/\.[^.]*$/, "") : "Untitled"), blocks };
   }
 
   async function renderBody(text: string, baseDir: string | undefined): Promise<RenderedHtml> {
@@ -326,7 +342,7 @@ export function createRenderCore(services: RenderServices = {}) {
   }
 
   function hasAuthor(tokens: Token[]): boolean {
-    return tokens.some((t) => t.type === "html_block" || t.type === "html_inline" || (t.children && hasAuthor(t.children)));
+    return tokens.some((t) => t.type === "html_block" || t.type === "html_inline" || t.type === "mdx_preview" || (t.children && hasAuthor(t.children)));
   }
 
   // Each app node contains only parser/plugin output. Author strings and app nodes
@@ -337,7 +353,9 @@ export function createRenderCore(services: RenderServices = {}) {
     let author = false;
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]!;
-      if (token.type === "html_block" || token.type === "html_inline") {
+      if (token.type === "mdx_preview") {
+        if (isRenderNode(token.meta?.mdx)) parts.push(token.meta.mdx);
+      } else if (token.type === "html_block" || token.type === "html_inline") {
         author = true;
         parts.push(token.content);
       } else if (token.type === "inline") {

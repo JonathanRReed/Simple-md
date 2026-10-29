@@ -1192,3 +1192,19 @@ code,
 @media print {
   #preferences { display: none !important; }
 }
+
+/* Inert MDX output. Author HTML never receives these classes. */
+.prose .mdx-component {
+  display: block;
+  margin: 1em 0;
+  padding: .6em .85em;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.prose span.mdx-component { display: inline; margin: 0; padding: .15em .4em; }
+.prose .mdx-label { color: var(--muted); font: .75em var(--mono); }
+.prose div.mdx-component > .mdx-label { display: block; margin-bottom: .4em; }
+.prose .mdx-component > :last-child { margin-bottom: 0; }
+.prose .mdx-expression { white-space: pre-wrap; }
+.prose .mdx-error { border-left: 2px solid var(--muted); padding-left: .85em; }
+.prose .mdx-error pre { white-space: pre-wrap; }
