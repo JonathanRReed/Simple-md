@@ -658,7 +658,7 @@ function openPalette(): void {
     { label: "Go to heading…", hint: "⇧⌘O", run: openOutline },
     { label: "Find in note", hint: "⌘F", run: findInView },
     { label: "Mode: Live preview", hint: "⌥⌘1", run: set({ mode: "live" }) },
-    { label: "Mode: Split", hint: "⌥⌘2", run: set({ mode: "split" }) },
+    { label: "Mode: Side by side", hint: "⌥⌘2", run: set({ mode: "split" }) },
     { label: "Mode: Source", hint: "⌥⌘3", run: set({ mode: "source" }) },
     { label: "Appearance: System", run: set({ theme: "system" }) },
     { label: "Appearance: Light", run: set({ theme: "light" }) },

@@ -2,6 +2,9 @@ import type { MdxRange } from "./mdx-ranges.js";
 import type { RenderNode } from "./render-tree.js";
 
 const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const expression = (source: string): RenderNode => ({
+  kind: "app", parts: [`<span class="mdx-expression"><span class="mdx-label">Expression</span> <code>${escape(source)}</code></span>`],
+});
 export interface MdxPreview { text: string; nodes: Map<string, RenderNode>; lineMap: number[]; endLine: number }
 
 export function jsxContentBounds(source: string, range: Extract<MdxRange, { name: string | null }>) {
@@ -58,15 +61,16 @@ export async function mapMdxPreview(
       const raw = source.slice(range.start, range.end);
       let node: RenderNode | undefined;
       if (range.kind === "expression-flow" || range.kind === "expression-text") {
-        node = { kind: "app", parts: [`<span class="mdx-expression"><span class="mdx-label">Expression</span> <code>${escape(raw)}</code></span>`] };
+        node = expression(raw);
       } else if (range.kind === "jsx-flow" || range.kind === "jsx-text") {
         if (range.name !== "script" && range.name !== "style") {
           const { end, innerEnd, selfClosing } = jsxContentBounds(source, range);
+          const attributesAsSource = range.syntax.filter((span) => span.kind === "expression" && span.start < end).map((span) => expression(source.slice(span.start, span.end)));
           const nested = children.filter((child) => child !== range && child.start >= end && child.end <= innerEnd);
           const child = await render(await section(end, innerEnd, nested), range.kind === "jsx-text");
           if (range.capitalized) {
             const tag = range.kind === "jsx-text" ? "span" : "div";
-            node = { kind: "app", parts: [`<${tag} class="mdx-component"><span class="mdx-label">${escape(range.name!)}</span>`, child, `</${tag}>`] };
+            node = { kind: "app", parts: [`<${tag} class="mdx-component"><span class="mdx-label">${escape(range.name!)}</span>`, ...attributesAsSource, child, `</${tag}>`] };
           } else if (range.name === null) {
             node = child;
           } else {
@@ -79,7 +83,7 @@ export async function mapMdxPreview(
               if (/^\s*=/.test(source.slice(span.end, end))) return "";
               return ` ${name}=""`;
             }).join("");
-            node = { kind: "author", parts: [`<${range.name}${attributes}>`, child, selfClosing ? "" : `</${range.name}>`] };
+            node = { kind: "author", parts: [`<${range.name}${attributes}>`, ...attributesAsSource, child, selfClosing ? "" : `</${range.name}>`] };
           }
         }
       }

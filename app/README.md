@@ -4,7 +4,7 @@ This directory contains the Electron app. Bun bundles the TypeScript code; Rust 
 
 ## Read and edit
 
-Open a Markdown file through File > Open, a file association, or the command line. Switch between live preview, split view, and source editing in the View menu or command palette. Live preview switches to source editing above 250,000 characters.
+Open a Markdown file through File > Open, a file association, or the command line. Switch between Live, Side by side, and Source editing in the View menu or command palette. Live preview switches to source editing above 250,000 characters.
 
 The renderer supports Shiki code highlighting, KaTeX math, Mermaid-compatible diagrams through Pele, task lists, footnotes, GitHub alerts, and frontmatter. Author HTML is sanitized. Markdown and MDX are editable. JSX components and expressions never execute.
 

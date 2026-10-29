@@ -32,6 +32,7 @@ describe("positioned MDX preview", () => {
     expect(html).toContain("Child</h2>");
     expect(html).toContain("&lt;img onerror=run()&gt;");
     expect(html).not.toContain("<img onerror");
+    expect(html).toContain("{run()}");
     expect(html).not.toContain("run()</");
   });
 

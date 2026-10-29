@@ -25,7 +25,7 @@ const inputs = posts.map((name) => {
   const source = fs.readFileSync(path.join(sourceDir, name), "utf8");
   const file = path.join(copies, name);
   fs.writeFileSync(file, fs.readFileSync(path.join(sourceDir, name)));
-  return { name, file, expectedDetails: (source.match(/<details(?:\s|>)/g) ?? []).length, expectedFigures: (source.match(/<figure(?:\s|>)/g) ?? []).length,
+  return { name, file, sha256: originals.get(name), expectedDetails: (source.match(/<details(?:\s|>)/g) ?? []).length, expectedFigures: (source.match(/<figure(?:\s|>)/g) ?? []).length,
     captions: [...source.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((match) => match[1]!.replace(/\s+/g, " ").trim()),
     expectedHtmlImages: (source.match(/<img(?:\s|>)/g) ?? []).length,
     rootImages: [...source.matchAll(/<img\b[\s\S]*?>/gi)].flatMap((tag) => [...tag[0].matchAll(/\bsrc\s*=\s*["'](\/[^"']+)["']/g)].map((m) => m[1]!)) };
