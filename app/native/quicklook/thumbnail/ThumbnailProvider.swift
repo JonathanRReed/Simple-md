@@ -14,20 +14,20 @@ final class ThumbnailProvider: QLThumbnailProvider {
             let size = request.maximumSize
             let drawingScale = request.scale
             let name = request.fileURL.lastPathComponent
-            logger.notice("Thumbnail preparing file=\(name, privacy: .public) bytes=\(bytesRead) size=\(size.width)x\(size.height) scale=\(request.scale)")
+            logger.notice("Thumbnail preparing file=\(name, privacy: .private) bytes=\(bytesRead) size=\(size.width)x\(size.height) scale=\(request.scale)")
             let reply = QLThumbnailReply(contextSize: size) { [logger] context in
                 context.saveGState()
                 context.scaleBy(x: drawingScale, y: drawingScale)
                 card.draw(in: context, size: size)
                 context.restoreGState()
                 let elapsed = (ProcessInfo.processInfo.systemUptime - started) * 1000
-                logger.notice("Thumbnail drawn file=\(name, privacy: .public) elapsed_ms=\(elapsed)")
+                logger.notice("Thumbnail drawn file=\(name, privacy: .private) elapsed_ms=\(elapsed)")
                 return true
             }
             reply.extensionBadge = card.badge
             handler(reply, nil)
         } catch {
-            logger.error("Thumbnail read failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("Thumbnail read failed: \(error.localizedDescription, privacy: .private)")
             handler(nil, error)
         }
     }

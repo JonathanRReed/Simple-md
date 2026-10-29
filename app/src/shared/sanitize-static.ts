@@ -47,6 +47,29 @@ function textContent(root: P.Element): string {
   return output.join("");
 }
 
+// Keep serialization below WebKit's nesting limit without recursive traversal.
+function limitDepth(root: P.ParentNode): void {
+  const pending = root.childNodes.map(node => ({ node, depth: 1 }));
+  while (pending.length) {
+    const { node, depth } = pending.pop()!;
+    if (!tree.isElementNode(node)) continue;
+    if (depth === 511) {
+      const flattened: P.ChildNode[] = [];
+      const descendants = [...node.childNodes].reverse();
+      while (descendants.length) {
+        const child = descendants.pop()!;
+        if (tree.isElementNode(child)) {
+          for (let i = child.childNodes.length - 1; i >= 0; i--) descendants.push(child.childNodes[i]!);
+          child.childNodes = [];
+        }
+        child.parentNode = node;
+        flattened.push(child);
+      }
+      node.childNodes = flattened;
+    } else for (const child of node.childNodes) pending.push({ node: child, depth: depth + 1 });
+  }
+}
+
 type Originals = WeakMap<P.Element, Map<string, string>>;
 function updateFragments(root: P.ParentNode, originals: Originals): void {
   const nodes = elements(root);
@@ -65,14 +88,16 @@ function updateFragments(root: P.ParentNode, originals: Originals): void {
   }
   const map = new Map<string, string>();
   const used = new Set<string>();
+  const nextSuffix = new Map<string, number>();
   for (const node of nodes) for (const name of ["id", "name"]) {
     const value = attr(node, name);
     if (value === undefined) continue;
     const source = originals.get(node)?.get(name) ?? value;
     const base = originals.get(node)?.has(name) ? prefixFragment(source) : source;
     let id = base;
-    let suffix = 1;
+    let suffix = nextSuffix.get(base) ?? 1;
     while (used.has(id)) id = `${base}-${suffix++}`;
+    nextSuffix.set(base, suffix);
     used.add(id);
     if (!map.has(source)) map.set(source, id);
     if (!map.has(base)) map.set(base, id);
@@ -142,6 +167,7 @@ function sanitizeTree(html: string, options: StaticAuthorOptions, originals: Ori
     originals.set(node, original);
     for (let i = node.childNodes.length - 1; i >= 0; i--) stack.push(node.childNodes[i]!);
   }
+  limitDepth(fragment);
   return fragment;
 }
 
@@ -154,7 +180,7 @@ export function sanitizeAuthorHtmlStatic(html: string, options: StaticAuthorOpti
 }
 
 /** Assemble app nodes only after the containing author unit has been sanitized. */
-export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOptions = {}, preview = false): string {
+export function renderStaticFragment(rendered: RenderedHtml, options: StaticAuthorOptions = {}, preview = false): P.DocumentFragment {
   const originals: Originals = new WeakMap();
   const root = rendered.content ?? { kind: "app", parts: [rendered.html] };
   const strings: string[] = [];
@@ -199,6 +225,12 @@ export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOp
       node.attrs = node.attrs.filter(({ name, value }) => !["src", "srcset"].includes(name) || !/^(?:https?:)?\/\//i.test(value));
     }
     if (!preview) continue;
+    node.attrs = node.attrs.filter(({ name, value }) => {
+      if (["href", "longdesc", "cite", "action", "itemtype", "usemap"].includes(name)) {
+        return value.startsWith("#") || /^(?:https?:|mailto:)/i.test(value);
+      }
+      return !(["video", "source"].includes(node.tagName) && ["src", "srcset"].includes(name));
+    });
     const classes = attr(node, "class")?.split(/\s+/) ?? [];
     if (node.tagName === "button" && classes.includes("copy-code")) tree.detachNode(node);
     if (node.tagName === "pre" && classes.includes("mermaid")) {
@@ -208,5 +240,10 @@ export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOp
       tree.appendChild(node, code);
     }
   }
-  return serialize(fragment);
+  limitDepth(fragment);
+  return fragment;
+}
+
+export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOptions = {}, preview = false): string {
+  return serialize(renderStaticFragment(rendered, options, preview));
 }

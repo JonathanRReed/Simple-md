@@ -19,7 +19,15 @@ struct PreviewSource {
     }
 
     private static func decode(_ data: Data, truncated: Bool) -> PreviewSource {
-        PreviewSource(text: String(decoding: data, as: UTF8.self), bytesRead: data.count,
-                      truncated: truncated, invalidUtf8: String(data: data, encoding: .utf8) == nil)
+        var prefix = data
+        if truncated, !data.isEmpty {
+            var lead = data.count - 1
+            while lead > max(0, data.count - 4), data[lead] & 0xc0 == 0x80 { lead -= 1 }
+            let byte = data[lead]
+            let length = byte >= 0xc2 && byte <= 0xdf ? 2 : byte >= 0xe0 && byte <= 0xef ? 3 : byte >= 0xf0 && byte <= 0xf4 ? 4 : 1
+            if data.count - lead < length { prefix = data.prefix(lead) }
+        }
+        return PreviewSource(text: String(decoding: prefix, as: UTF8.self), bytesRead: data.count,
+                      truncated: truncated, invalidUtf8: String(data: prefix, encoding: .utf8) == nil)
     }
 }

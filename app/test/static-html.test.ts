@@ -64,7 +64,7 @@ test("standalone HTML preserves generated content and denies active/remote autho
   const [result] = await runDom(path.join(import.meta.dir, "sanitizer/static-document-browser.ts"), [html]) as {
     csp: string; generated: Record<string, number>; hazards: string[]; local: string | null; mermaid: string | null; fonts: number;
   }[];
-  expect(result!.csp).toBe("default-src 'none'; style-src 'unsafe-inline'; img-src data: file:; font-src data:");
+  expect(result!.csp).toBe("default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:");
   expect(result!.generated).toEqual({ shiki: 1, math: 1, checkbox: 1, alerts: 1, footnotes: 1, fake: 0, copyButtons: 0 });
   expect(result!.hazards).toEqual([]);
   expect(result!.local).toBe("file:///project/docs/image.png");

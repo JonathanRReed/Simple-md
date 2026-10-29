@@ -113,6 +113,7 @@ export function updateFragments(root: HTMLElement | DocumentFragment): void {
   }
   const map = new Map<string, string>();
   const used = new Set<string>();
+  const nextSuffix = new Map<string, number>();
   for (const element of root.querySelectorAll("[id], [name]")) {
     const original = originals.get(element);
     const generated = generatedIds.get(element) ?? new Map<string, string>();
@@ -124,8 +125,9 @@ export function updateFragments(root: HTMLElement | DocumentFragment): void {
       let id = original?.has(attr) ? prefixFragment(source) : source;
       generated.set(attr, source);
       const base = id;
-      let suffix = 1;
+      let suffix = nextSuffix.get(base) ?? 1;
       while (used.has(id)) id = `${base}-${suffix++}`;
+      nextSuffix.set(base, suffix);
       used.add(id);
       if (!map.has(source)) map.set(source, id);
       if (!map.has(base)) map.set(base, id);

@@ -5,7 +5,9 @@ struct PreviewTests {
     static func main() throws {
         let bundlePath = CommandLine.arguments[1]
         guard let bundle = Bundle(path: bundlePath) else { fatalError("Missing packaged preview bundle") }
-        let renderer = try StaticRenderer(bundle: bundle)
+        func render(_ source: PreviewSource, _ path: String) throws -> String {
+            try StaticRenderer(bundle: bundle).html(source: source, filePath: path)
+        }
         let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -15,7 +17,7 @@ struct PreviewTests {
             return try PreviewSource.read(file)
         }
         let coldMdx = try read(Data("---\ntitle: MDX\n---\nimport Widget from \"./widget.js\"\n\n# An inert MDX page\n\n<Widget onClick={() => alert(\"never\")} />\n".utf8))
-        let coldMdxHTML = try renderer.html(source: coldMdx, filePath: file.path + "x")
+        let coldMdxHTML = try render(coldMdx, file.path + "x")
         precondition(coldMdxHTML.contains("mdx-component") && coldMdxHTML.contains("Widget"))
         let empty = try read(Data())
         precondition(empty.text.isEmpty && empty.bytesRead == 0 && !empty.truncated && !empty.invalidUtf8)
@@ -35,24 +37,42 @@ struct PreviewTests {
             }
         }
         let hostile = try read(Data("<script>alert('x')</script>\n![image](https://example.com/x.png)".utf8))
-        let html = try renderer.html(source: hostile, filePath: "/tmp/<file>.md")
+        let html = try render(hostile, "/tmp/<file>.md")
         precondition(!html.contains("<script>") && !html.contains("alert("))
         precondition(html.contains("default-src 'none'") && html.contains("prefers-color-scheme: dark"))
         precondition(!html.contains("<img") && html.contains("Image unavailable: image"))
-        let largeHTML = try renderer.html(source: large, filePath: file.path)
+        let largeHTML = StaticRenderer.preview(source: large, filePath: file.path, bundle: bundle)
         precondition(largeHTML.contains("Showing the first 4 MB"))
         precondition(!largeHTML.contains("data:font/woff2"))
-        let invalidHTML = try renderer.html(source: invalid, filePath: file.path)
+        let invalidHTML = try render(invalid, file.path)
         precondition(invalidHTML.contains("Invalid UTF-8 bytes"))
-        let repeated = try renderer.html(source: hostile, filePath: "/tmp/<file>.md")
+        let repeated = try render(hostile, "/tmp/<file>.md")
         precondition(repeated == html)
         let rich = try read(Data("# Rich\n\n$x^2$\n\n~~~json\n{\"n\":1}\n~~~\n\n~~~mermaid\ngraph LR\nA-->B\n~~~".utf8))
-        let richHTML = try renderer.html(source: rich, filePath: file.path)
+        let richHTML = try render(rich, file.path)
         precondition(richHTML.contains("class=\"katex\"") && richHTML.contains("data:font/woff2"))
         precondition(richHTML.contains("--shiki-light:") && richHTML.contains("language-mermaid"))
         let mdx = try read(Data("# Inert\n\n<Widget onClick={() => run()} />".utf8))
-        let mdxHTML = try renderer.html(source: mdx, filePath: file.path + "x")
+        let mdxHTML = try render(mdx, file.path + "x")
         precondition(mdxHTML.contains("mdx-component"))
+        let broken = directory.appendingPathComponent("Broken.bundle")
+        let resources = broken.appendingPathComponent("Contents/Resources")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        try Data("<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>test.broken</string></dict></plist>".utf8)
+            .write(to: broken.appendingPathComponent("Contents/Info.plist"))
+        guard let brokenBundle = Bundle(path: broken.path) else { fatalError("Missing test bundle") }
+        let script = resources.appendingPathComponent("render-core.js")
+        for code in ["throw Error('broken renderer')", "while(true) {}",
+                     "globalThis.SimpleMDRenderCore={prepareStaticPreview(){return Promise.resolve().then(()=>{while(true){}})},staticImageUrls(){return []},embedStaticImages(){return ''}}"] {
+            try Data(code.utf8).write(to: script)
+            let start = ProcessInfo.processInfo.systemUptime
+            let output = StaticRenderer.preview(source: hostile, filePath: file.path, bundle: brokenBundle, timeout: 0.05)
+            precondition(ProcessInfo.processInfo.systemUptime - start < 1.5, "Watchdog failed")
+            precondition(output.contains("Preview unavailable") && output.contains("&lt;script&gt;") && !output.contains("<script>"))
+            let next = StaticRenderer.preview(source: rich, filePath: file.path, bundle: bundle)
+            precondition(next.contains("class=\"katex\""), "Failed render blocked next preview")
+        }
+        print("PASS: watchdog cancels bundle and promise loops, JS exceptions show escaped source, next preview succeeds")
         print("PASS: real packaged JavaScriptCore renderer, math, Shiki, Mermaid code, inert MDX, hostile HTML, image placeholders, empty and invalid UTF-8, exact 4 MB and truncation, repeat render")
     }
 }

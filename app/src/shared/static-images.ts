@@ -7,24 +7,26 @@ function images(root: P.ParentNode): P.Element[] {
     const node = stack.pop()!;
     if (!tree.isElementNode(node)) continue;
     if (node.tagName === "img") found.push(node);
-    stack.push(...node.childNodes);
+    for (const child of node.childNodes) stack.push(child);
   }
   return found;
 }
 const source = (node: P.Element) => node.attrs.find(a => a.name === "src")?.value;
 
 /** Called on sanitized output only. No file access occurs in JavaScript. */
-export function staticImageUrls(document: string): string[] {
-  if (!document.includes("<img")) return [];
-  return [...new Set(images(parse(document)).map(source).filter((url): url is string => !!url?.startsWith("file:")))];
+export function staticImageUrls(document: string | P.ParentNode): string[] {
+  if (typeof document === "string" && !document.includes("<img")) return [];
+  return [...new Set(images(typeof document === "string" ? parse(document) : document).map(source).filter((url): url is string => !!url?.startsWith("file:")))];
 }
 
 /** The native host supplies only bounded raster data it could read in its sandbox. */
-export function embedStaticImages(document: string, resources: Readonly<Record<string, string>>): string {
-  if (!document.includes("<img")) return document;
-  const parsed = parse(document);
+export function embedStaticImages(document: string | P.ParentNode, resources: Readonly<Record<string, string>>): string {
+  if (typeof document === "string" && !document.includes("<img")) return document;
+  const parsed = typeof document === "string" ? parse(document) : document;
   for (const node of images(parsed)) {
     const url = source(node);
+    const theme = /#gh-(dark|light)-mode-only$/.exec(url ?? "")?.[1];
+    if (theme) node.attrs.push({ name: "data-simplemd-theme", value: theme });
     const data = url && Object.hasOwn(resources, url) ? resources[url] : undefined;
     if (data && /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(data)) {
       node.attrs = node.attrs.filter(a => a.name !== "srcset");
