@@ -1,6 +1,7 @@
 // The fallback backend never produces most events.
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
+mod file_metadata;
 mod platform;
 mod protocol;
 
@@ -15,6 +16,13 @@ use protocol::{Command, Event};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--copy-metadata") {
+        if let Err(error) = file_metadata::run() {
+            eprintln!("metadata copy: {error}");
+            process::exit(1);
+        }
+        return;
+    }
     if args.iter().any(|a| a == "--probe") {
         run_probe(&args);
         return;

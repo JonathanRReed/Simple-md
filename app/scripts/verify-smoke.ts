@@ -360,6 +360,181 @@ for (const choice of ["Reload", "Keep mine"] as const) {
   });
 }
 
+const byteFixtures = path.join(appRoot, "test/fixtures/bytes");
+for (const name of ["lf", "crlf", "cr", "mixed", "bom-crlf", "no-final-newline", "astral", "binary-looking"]) {
+  await test(`bytes-roundtrip-${name}`, async () => {
+    const original = fs.readFileSync(path.join(byteFixtures, `${name}.md`));
+    const file = fixture(`bytes-roundtrip-${name}/note.md`, original.toString());
+    await launch(`bytes-roundtrip-${name}`, file, [
+      evaluate(`assert(document.querySelector('.cm-content'), 'UTF-8 fixture did not enter the editor.');
+        assert(!document.querySelector('.cm-content').textContent.includes('\\uFEFF'), 'BOM is visible in the editor.');
+        assert(document.querySelector('#dirty').hidden, 'Opening changed the source.');`),
+      { save: true },
+      ...appendCharacter("!"),
+      { save: true },
+      evaluate(`window.simplemd.command('undo');
+        await waitFor(() => !editorText().endsWith('!'), 'Undo failed.');`),
+      { save: true },
+    ], "edit");
+    assert.deepEqual(fs.readFileSync(file), original, "Open, save, edit, save, undo, save changed the original bytes.");
+  });
+}
+
+for (const name of ["invalid-utf8", "utf16le-bom", "utf16be-bom", "utf16le", "utf16be"]) {
+  await test(`bytes-readonly-${name}`, async () => {
+    const original = fs.readFileSync(path.join(byteFixtures, `${name}.md`));
+    const file = fixture(`bytes-readonly-${name}/note.md`, "");
+    fs.writeFileSync(file, original);
+    await launch(`bytes-readonly-${name}`, file, [
+      evaluate(`assert(!document.querySelector('#banner').hidden && document.querySelector('#banner').textContent.includes('Not a UTF-8 text file. Read only.'), 'Encoding notice is missing.');
+        window.simplemd.command('toggle-edit');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        assert(!document.querySelector('.cm-content[contenteditable="true"]'), 'Unsupported encoding is editable.');
+        const id = Number(document.documentElement.dataset.documentId);
+        assert(await window.simplemd.save('overwrite', false, id) === null, 'Main process allowed an overwrite.');
+        assert(await window.simplemd.save('overwrite', true, id) === null, 'Main process allowed Save As from a read-only document.');`),
+    ], "edit");
+    assert.deepEqual(fs.readFileSync(file), original, "Read-only source bytes changed.");
+  });
+}
+
+for (const [name, ending] of [["crlf", "\r\n"], ["cr", "\r"], ["mixed", "\r\n"]] as const) {
+  await test(`bytes-paste-${name}`, async () => {
+    const original = fs.readFileSync(path.join(byteFixtures, `${name}.md`), "utf8");
+    const file = fixture(`bytes-paste-${name}/note.md`, original);
+    await launch(`bytes-paste-${name}`, file, [
+      ...appendCharacter("!"),
+      { paste: "first\nsecond\r\nthird\rfourth" },
+      evaluate(`await waitFor(() => editorText().endsWith('fourth'), 'Paste did not reach the editor.');`),
+      { save: true },
+      evaluate(`window.simplemd.command('undo');
+        await waitFor(() => editorText().endsWith('!'), 'Undo did not remove the paste.');
+        window.simplemd.command('redo');
+        await waitFor(() => editorText().endsWith('fourth'), 'Redo did not restore the paste.');`),
+      { save: true },
+    ], "edit");
+    assert.deepEqual(fs.readFileSync(file), Buffer.from(`${original}!first${ending}second${ending}third${ending}fourth`));
+  });
+}
+
+await test("bytes-table", async () => {
+  const original = fs.readFileSync(path.join(byteFixtures, "irregular-table.md"), "utf8");
+  const file = fixture("bytes-table/note.md", original);
+  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+    { input: { type: "keyDown", keyCode, modifiers } },
+    { input: { type: "keyUp", keyCode, modifiers } },
+  ];
+  await launch("bytes-table", file, [
+    evaluate(`document.querySelector('.cm-content').focus();`),
+    ...key("A", [mod]), ...key("Left"), ...key("Down"), ...key("Down"), ...key("Right"), ...key("Right"),
+    ...key("Tab"), ...key("Tab", ["shift"]),
+    evaluate(`assert(document.querySelector('#dirty').hidden, 'Table navigation changed the source.');`),
+    { input: { type: "char", keyCode: "X" } },
+    ...key("Tab"),
+    { input: { type: "char", keyCode: "Y" } },
+    ...key("Tab", ["shift"]), ...key("Tab"),
+    { save: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(original.replace("one", "Xone").replace("two", "Ytwo")), "Table cell editing or navigation reformatted other cells or rows.");
+});
+
+await test("bytes-table-new-row", async () => {
+  const original = fs.readFileSync(path.join(byteFixtures, "irregular-table.md"), "utf8");
+  const file = fixture("bytes-table-new-row/note.md", original);
+  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+    { input: { type: "keyDown", keyCode, modifiers } },
+    { input: { type: "keyUp", keyCode, modifiers } },
+  ];
+  await launch("bytes-table-new-row", file, [
+    evaluate(`document.querySelector('.cm-content').focus();`),
+    ...key("A", [mod]), ...key("Left"), ...key("Down"), ...key("Down"), ...key("Down"),
+    ...key("Tab"), ...key("Tab"),
+    { save: true },
+    evaluate(`window.simplemd.command('undo');
+      await waitFor(() => editorText().split('\\n').length === 5, 'Table row undo failed.');
+      window.simplemd.command('redo');
+      await waitFor(() => editorText().split('\\n').length === 6, 'Table row redo failed.');`),
+    { save: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(original.slice(0, -2) + "\r\n| | |\r\n"), "Adding a table row rewrote existing rows.");
+});
+
+await test("bytes-external-encoding", async () => {
+  const file = fixture("bytes-external-encoding/note.md", note);
+  const other = fixture("bytes-external-encoding/other.md", "# Other\n");
+  const marker = path.join(root, "bytes-external-encoding", "dirty.png");
+  const external = "# External\u0000text\n";
+  await launch("bytes-external-encoding", file, [
+    ...appendCharacter("!"),
+    { shot: marker },
+    evaluate(`await waitFor(() => document.querySelector('#banner').textContent.includes('Not a UTF-8 text file.'), 'Invalid external revision was not reported.');
+      assert(!document.querySelector('.cm-content[contenteditable="true"]'), 'External invalid revision left the editor writable.');
+      const id = Number(document.documentElement.dataset.documentId);
+      assert(await window.simplemd.save('overwrite', false, id) === null, 'Invalid external bytes could be overwritten.');
+      [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'Reload').click();
+      await waitFor(() => document.querySelector('#dirty').hidden, 'Explicit read-only reload did not settle local edits.');
+      await window.simplemd.openPath(${quote(other)}, 'edit');
+      await waitFor(() => document.documentElement.dataset.documentPath === ${quote(other)}, 'Read-only reload trapped navigation.');`),
+  ], "edit", { marker, file, text: external });
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(external), "Recovery overwrote invalid external bytes.");
+});
+
+await test("bytes-task", async () => {
+  const original = "\uFEFF# Tasks\r\n\r\n- [ ] first\r- [X] second\n- [ ] third";
+  const file = fixture("bytes-task/note.md", original);
+  await launch("bytes-task", file, [
+    evaluate(`document.querySelectorAll('#doc .task-list-item')[1].click();
+      await waitFor(() => !document.querySelector('#dirty').hidden, 'Task did not toggle.');`),
+    { save: true },
+    evaluate(`window.simplemd.command('undo');
+      await waitFor(() => document.querySelectorAll('#doc .task-list-item-checkbox')[1]?.checked, 'Task undo failed.');
+      window.simplemd.command('redo');
+      await waitFor(() => !document.querySelectorAll('#doc .task-list-item-checkbox')[1]?.checked, 'Task redo failed.');`),
+    { save: true },
+  ]);
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(original.replace("[X] second", "[ ] second")), "Task toggle changed bytes outside its marker.");
+});
+
+await test("bytes-metadata", async () => {
+  if (process.platform !== "darwin") return;
+  const original = fs.readFileSync(path.join(byteFixtures, "metadata.md"));
+  const file = fixture("bytes-metadata/note.md", original.toString());
+  const run = (...args: string[]) => {
+    const result = Bun.spawnSync(args);
+    assert.equal(result.exitCode, 0, result.stderr.toString());
+    return result.stdout.toString();
+  };
+  const tag = '<?xml version="1.0"?><plist version="1.0"><array><string>SimpleMD\n6</string></array></plist>';
+  run("xattr", "-w", "com.simplemd.test", "preserved", file);
+  run("xattr", "-w", "com.apple.metadata:_kMDItemUserTags", tag, file);
+  run("chmod", "640", file);
+  run("chmod", "+a", "everyone allow read", file);
+  const attributes = run("xattr", "-lx", file);
+  const acl = run("ls", "-le", file).split("\n").slice(1).join("\n");
+  await launch("bytes-metadata", file, [
+    { save: true },
+    ...appendCharacter("!"),
+    { save: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.concat([original, Buffer.from("!")]));
+  assert.equal(run("xattr", "-lx", file), attributes, "Save dropped or changed an extended attribute or Finder tag.");
+  assert.equal(run("ls", "-le", file).split("\n").slice(1).join("\n"), acl, "Save changed the ACL.");
+  assert.equal(fs.statSync(file).mode & 0o777, 0o640, "Save changed permissions.");
+});
+
+const blog = process.env.SMD_BYTE_BLOG_DIR;
+if (blog) for (const name of fs.readdirSync(blog).filter((name) => name.endsWith(".mdx")).sort()) {
+  await test(`bytes-blog-${name}`, async () => {
+    const source = path.join(blog, name);
+    const original = fs.readFileSync(source);
+    const file = fixture(`bytes-blog-${name}/${name}`, "");
+    fs.copyFileSync(source, file);
+    await launch(`bytes-blog-${name}`, file, [{ save: true }], "edit");
+    assert.deepEqual(fs.readFileSync(file), original, "Blog copy did not round-trip byte-for-byte.");
+    assert.deepEqual(fs.readFileSync(source), original, "Original blog file changed during the check.");
+  });
+}
+
 assert(results.length, `No smoke cases match ${quote(filter)}.`);
 fs.writeFileSync(path.join(root, "results.json"), JSON.stringify(results, null, 2));
 console.log(`Artifacts: ${root}`);

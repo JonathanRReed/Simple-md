@@ -10,6 +10,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { type EditMode, LIVE_MAX_CHARS } from "../shared/types.js";
 import { type LiveHost, clearLiveCache, frontmatterExtension, liveExtension } from "./live.js";
 import { tableKeymap } from "./tables.js";
+import { byteText, exactText, parseByteText, restoreByteText } from "./byte-text.js";
 
 export type FormatKind = "bold" | "italic" | "code" | "strike" | "link";
 
@@ -103,6 +104,7 @@ function insertLink(view: EditorView): void {
 const IMAGE_TYPES = /^image\/(png|jpe?g|gif|webp|svg\+xml|avif)$/;
 
 export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHandle {
+  const initial = parseByteText(opts.text);
   const liveSlot = new Compartment();
   const historySlot = new Compartment();
   const vimSlot = new Compartment();
@@ -119,9 +121,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   const view = new EditorView({
     parent,
     state: EditorState.create({
-      doc: opts.text,
+      doc: initial.text,
       extensions: [
         historySlot.of(history()),
+        byteText.init(() => initial.format),
         drawSelection(),
         dropCursor(),
         indentOnInput(),
@@ -145,7 +148,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             range.from = update.changes.mapPos(range.from, 1);
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
-          if (update.docChanged && !silent) opts.onChange(update.state.doc.toString());
+          if (update.docChanged && !silent) opts.onChange(exactText(update.state));
         }),
         EditorView.domEventHandlers({
           keydown(event) {
@@ -223,10 +226,12 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
 
   return {
     scroller: view.scrollDOM,
-    getText: () => view.state.doc.toString(),
+    getText: () => exactText(view.state),
     setText(text, addToHistory = false) {
+      if (exactText(view.state) === text) return;
+      const next = parseByteText(text);
       const old = view.state.doc.toString();
-      if (old === text) return;
+      text = next.text;
       let start = 0;
       const max = Math.min(old.length, text.length);
       while (start < max && old.charCodeAt(start) === text.charCodeAt(start)) start++;
@@ -241,6 +246,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         if (!addToHistory) view.dispatch({ effects: historySlot.reconfigure([]) });
         view.dispatch({
           changes: { from: start, to: endOld, insert: text.slice(start, endNew) },
+          effects: restoreByteText.of(next.format),
           // Disk reloads reset history; task changes remain undoable.
           annotations: [Transaction.addToHistory.of(addToHistory), isolateHistory.of("full")],
         });

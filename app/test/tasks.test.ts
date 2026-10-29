@@ -34,6 +34,16 @@ test("CRLF task toggling preserves original line endings", () => {
   expect(toggleTaskAt("- [ ] first\r\n- [x] next\r\n", 1)).toBe("- [ ] first\r\n- [ ] next\r\n");
 });
 
+test("task toggling changes only the marker with BOM, mixed endings, lone CR and no final newline", () => {
+  for (const src of [
+    "\uFEFF- [ ] first\r\n- [X] next\r- [ ] last",
+    "---\rtitle: example\r---\r- [ ] first\r- [X] next\r- [ ] last",
+  ]) {
+    expect(toggleTaskAt(src, 1)).toBe(src.replace("[X] next", "[ ] next"));
+    expect(toggleTaskAt(src, 2)).toBe(src.replace("[ ] last", "[x] last"));
+  }
+});
+
 test("every rendered footnote checkbox maps to its exact source marker", async () => {
   const { renderBlocks } = await import("../src/main/markdown");
   const fixtures = [

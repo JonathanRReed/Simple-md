@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { copyMetadata } from "./file-metadata.js";
 
 export const MARKDOWN_EXT = new Set([".md", ".markdown", ".mdown", ".mkd", ".mdx", ".txt"]);
 // Space in the file manager only claims real Markdown; .txt stays with Quick Look.
@@ -14,9 +15,31 @@ export class FileConflictError extends Error {
   }
 }
 
+export const ENCODING_NOTICE = "Not a UTF-8 text file. Read only.";
+
+export class FileEncodingError extends Error {
+  constructor() { super(ENCODING_NOTICE); }
+}
+
+export function decodeDocument(bytes: Uint8Array): { text: string; readOnlyReason?: string } {
+  try {
+    // NULs also catch BOM-less UTF-16 that otherwise looks like valid UTF-8.
+    if (bytes.includes(0)) throw new FileEncodingError();
+    return { text: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes) };
+  } catch {
+    return { text: new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes), readOnlyReason: ENCODING_NOTICE };
+  }
+}
+
+export async function readDocument(file: string) {
+  return decodeDocument(await fs.promises.readFile(file));
+}
+
 export async function readDiskText(file: string): Promise<string | null> {
   try {
-    return await fs.promises.readFile(file, "utf8");
+    const doc = await readDocument(file);
+    if (doc.readOnlyReason) throw new FileEncodingError();
+    return doc.text;
   } catch (err) {
     if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
     throw err;
@@ -32,10 +55,14 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
   const stat = entry?.isSymbolicLink() ? await fs.promises.stat(target) : entry;
   const tmp = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
   try {
-    const handle = await fs.promises.open(tmp, "wx", stat ? stat.mode & 0o777 : 0o666);
+    // Reject encoded/binary files even if the caller did not supply a disk revision.
+    if (stat) await readDiskText(target);
+    const handle = await fs.promises.open(tmp, "wx", stat ? stat.mode & 0o7777 : 0o666);
     try {
+      if (stat && process.platform === "darwin") await copyMetadata(target, tmp);
+      await handle.truncate(0);
       await handle.writeFile(text, "utf8");
-      if (stat) await handle.chmod(stat.mode & 0o777);
+      if (stat) await handle.chmod(stat.mode & 0o7777);
       await handle.sync();
     } finally {
       await handle.close();

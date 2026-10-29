@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = { save: true } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste">> },
@@ -10,6 +10,7 @@ export async function runDriver(
   toPdf: (target: string) => Promise<void>,
   toHtml?: (target: string) => Promise<void>,
   requestQuit?: () => void,
+  save?: () => Promise<void>,
 ): Promise<"complete" | "menu-quit"> {
   const steps: DriverStep[] = JSON.parse(await fs.readFile(file, "utf8"));
   if (!Array.isArray(steps)) throw new TypeError("Driver steps must be an array.");
@@ -24,7 +25,10 @@ export async function runDriver(
         requestQuit();
         return "menu-quit";
       }
-      if ("paste" in step) {
+      if ("save" in step) {
+        if (!save) throw new Error("Save is unavailable.");
+        await save();
+      } else if ("paste" in step) {
         if (!win.webContents.paste) throw new Error("Paste is unavailable.");
         const { clipboard, ClipboardItem } = await import("electron");
         const previous = await Promise.all((await clipboard.read()).map(async (item) => new ClipboardItem(Object.fromEntries(

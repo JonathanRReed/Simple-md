@@ -11,7 +11,7 @@ export interface Bridge {
   acceptDisk(text: string, documentId: number): Promise<boolean>;
   onSettings(cb: (s: Settings) => void): void;
   onCommand(cb: (cmd: Command) => void): void;
-  onDiskChanged(cb: (text: string, documentId: number) => void): void;
+  onDiskChanged(cb: (text: string, documentId: number, readOnlyReason?: string) => void): void;
   onFlushRequest(cb: (id: number) => void): void;
   onPrintDoc(cb: (doc: DocPayload, settings: Settings) => void): void;
   flushResponse(id: number, result: FlushResult): void;

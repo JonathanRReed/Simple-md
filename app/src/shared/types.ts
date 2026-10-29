@@ -54,6 +54,7 @@ export interface RenderedBlock {
 }
 
 export interface DocPayload {
+  readOnlyReason?: string;
   documentId: number;
   path: string | null;
   name: string;

@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld("simplemd", {
   onDoc: (cb: (doc: unknown) => void) => on("smd:doc", cb),
   onSettings: (cb: (s: unknown) => void) => on("smd:settings", cb),
   onCommand: (cb: (cmd: string) => void) => on("smd:cmd", cb),
-  onDiskChanged: (cb: (text: string, documentId: number) => void) => on("smd:disk-changed", cb),
+  onDiskChanged: (cb: (text: string, documentId: number, readOnlyReason?: string) => void) => on("smd:disk-changed", cb),
   onTransition: (cb: (busy: boolean) => void) => on("smd:transition", cb),
   onSaved: (cb: (result: unknown) => void) => on("smd:saved", cb),
   onFlushRequest: (cb: (id: number) => void) => on("smd:flush-request", cb),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { alignTable, cellIndexAt, findTable, isSeparatorLine, isTableLine, splitRow } from "../src/renderer/tables";
+import { cellIndexAt, findTable, isSeparatorLine, isTableLine, splitRow } from "../src/renderer/tables";
 
 describe("isTableLine / isSeparatorLine", () => {
   test("pipe-led lines count, prose does not", () => {
@@ -42,28 +42,6 @@ describe("splitRow", () => {
   });
 });
 
-describe("alignTable", () => {
-  test("re-pads a ragged table", () => {
-    const lines = ["| a | bb |", "|---|---|", "| longer | c |"];
-    expect(alignTable(lines, 0, 2)).toEqual(["| a      | bb  |", "| ------ | --- |", "| longer | c   |"]);
-  });
-
-  test("keeps alignment colons, padded with dashes", () => {
-    const lines = ["| name | age |", "| :--- | ---: |", "| alexander | 1 |"];
-    expect(alignTable(lines, 0, 2)).toEqual(["| name      | age |", "| :-------- | --: |", "| alexander |   1 |"]);
-  });
-
-  test("pads short rows with empty cells", () => {
-    const lines = ["| a | b |", "| --- | --- |", "| 1 |"];
-    expect(alignTable(lines, 0, 2)).toEqual(["| a   | b   |", "| --- | --- |", "| 1   |     |"]);
-  });
-
-  test("preserves line indentation", () => {
-    const lines = ["  | a |", "  | --- |", "  | b |"];
-    expect(alignTable(lines, 0, 2)).toEqual(["  | a   |", "  | --- |", "  | b   |"]);
-  });
-});
-
 describe("cellIndexAt", () => {
   test("maps a character offset to a cell", () => {
     const line = "| a | bb | c |";
@@ -72,25 +50,6 @@ describe("cellIndexAt", () => {
     expect(cellIndexAt(line, 6)).toBe(1); // inside "bb"
     expect(cellIndexAt(line, 12)).toBe(2);
   });
-});
-
-// Tab math: cellIndexAt on the aligned row plus cellOffset's "| " step lands
-// the cursor at the content start of the next cell.
-describe("tab navigation math", () => {
-  test("next-cell target after aligning", () => {
-    const aligned = alignTable(["| a | bb |", "|---|---|", "| 1 | 2 |"], 0, 2);
-    const row = aligned[2]!; // "| 1  | 2  |"
-    // Cursor at content of cell 0; Tab should land at content of cell 1.
-    expect(cellIndexAt(row, row.indexOf("1"))).toBe(0);
-    const nextPipe = row.indexOf("|", 2);
-    expect(row.slice(nextPipe + 2, nextPipe + 3)).toBe("2");
-  });
-});
-
-test("aligning a table never drops cells wider than its header", () => {
-  expect(alignTable(["| a |", "| --- |", "| one | two |"], 0, 2)).toEqual([
-    "| a   |     |", "| --- | --- |", "| one | two |",
-  ]);
 });
 
 test("even backslashes leave a following pipe as a cell boundary", () => {

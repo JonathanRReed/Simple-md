@@ -53,6 +53,7 @@ let hasDoc = false;
 let readText = "";
 let mountedReadText: string | null = null;
 let savedText = "";
+let readOnlyReason: string | undefined;
 let dirty = false;
 let previewTimer: number | undefined;
 let autosaveTimer: number | undefined;
@@ -75,7 +76,7 @@ const navBack: string[] = [];
 const navForward: string[] = [];
 let navigating: { target: string; direction: "back" | "forward" } | null = null;
 
-const isReadOnly = () => /\.mdx$/i.test(meta.path ?? meta.name);
+const isReadOnly = () => !!readOnlyReason || /\.mdx$/i.test(meta.path ?? meta.name);
 const currentText = () => (editor ? editor.getText() : readText);
 
 // KaTeX styles are loaded from JS because the CSP forbids inline onload handlers, and loaded
@@ -202,7 +203,7 @@ function updateHint(): void {
   }
   const words = (readText.match(/\S+/g) ?? []).length;
   const minutes = Math.max(1, Math.round(words / 230));
-  hintEl.textContent = hasDoc ? `${words.toLocaleString()} words · ${minutes} min${isReadOnly() ? " · MDX · read only" : " · ⏎ to edit"}` : "";
+  hintEl.textContent = hasDoc ? `${words.toLocaleString()} words · ${minutes} min${readOnlyReason ? " · read only" : isReadOnly() ? " · MDX · read only" : " · ⏎ to edit"}` : "";
 }
 
 function updateChrome(): void {
@@ -281,7 +282,7 @@ function ensureEditor(): Promise<EditorHandle | null> {
         return null;
       }),
     });
-    editor.setEditable(!transitioning);
+    editor.setEditable(!transitioning && !isReadOnly());
     return editor;
   });
   return editorLoading;
@@ -355,6 +356,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
   }
   navigating = null;
   documentId = id;
+  readOnlyReason = payload.readOnlyReason;
   meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
@@ -366,6 +368,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
   diskConflict = false;
   ++diskSeq;
   hideBanner();
+  if (readOnlyReason) showBanner(readOnlyReason, []);
   emptyEl.hidden = true;
   docEl.hidden = false;
   document.title = payload.title;
@@ -454,9 +457,25 @@ function applyDiskText(text: string): void {
   updateChrome();
 }
 
-function onDiskChanged(text: string, id: number): void {
+function onDiskChanged(text: string, id: number, reason?: string): void {
   if (id !== documentId) return;
   const seq = ++diskSeq;
+  if (reason) {
+    readOnlyReason = reason;
+    diskConflict = true;
+    clearTimeout(autosaveTimer);
+    editor?.setEditable(false);
+    const reload = async () => {
+      if (!(await simplemd.acceptDisk(text, id)) || id !== documentId || seq !== diskSeq) return;
+      diskConflict = false;
+      applyDiskText(text);
+      showBanner(reason, []);
+    };
+    if (dirty) showBanner(reason, [{ label: "Reload", run: reload }]);
+    else void reload();
+    updateChrome();
+    return;
+  }
   const observedText = currentText();
   clearTimeout(autosaveTimer);
   diskConflict = true;
@@ -471,6 +490,8 @@ function onDiskChanged(text: string, id: number): void {
       return false;
     }
     diskConflict = false;
+    readOnlyReason = undefined;
+    editor?.setEditable(!transitioning && !isReadOnly());
     hideBanner();
     if (reload) applyDiskText(text);
     else {
@@ -806,7 +827,7 @@ async function boot(): Promise<void> {
     transitioning = busy;
     editPane.inert = busy;
     readPane.inert = busy;
-    editor?.setEditable(!busy);
+    editor?.setEditable(!busy && !isReadOnly());
     if (busy) clearTimeout(autosaveTimer);
     else {
       scheduleAutosave();

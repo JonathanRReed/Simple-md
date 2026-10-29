@@ -14,6 +14,10 @@ The app includes find, outline navigation, Vim mode, spellcheck, table editing, 
 
 Autosave is a setting. Check it before editing a file you want to keep unchanged. Clicking task checkboxes edits the note. External file changes require Reload or Keep mine when they conflict with local edits.
 
+Saves preserve UTF-8 bytes, the BOM, existing line endings and the final newline. New line breaks use the original file's dominant ending, or LF on a tie. Invalid UTF-8 and files containing NUL bytes, including UTF-16, open read-only. Table navigation leaves spacing intact, and task toggles change only the checkbox marker.
+
+A save atomically replaces the file. Other hard links keep the old content. Saving through a symbolic link replaces its target and keeps the link. On macOS, the existing Rust helper copies extended attributes, Finder tags, permissions and ACLs to the temporary file before replacement. It runs in a separate metadata mode without file-manager hooks, starts once when needed and stays alive until quit. A metadata-copy failure cancels the save. Build the helper with `bun run build:native` before saving existing files during development.
+
 Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 
 - Open: Command/Control+O
@@ -53,7 +57,7 @@ bun run check:rust
 bun run test:rust
 ```
 
-`start` builds the JavaScript app and opens Electron. It does not build Rust. If your shell sets `ELECTRON_RUN_AS_NODE`, unset it before starting Electron. The helper is optional for ordinary editing. Development helper lookup uses `native/target/release/`; `build:native` copies the matching host binary there after building it under `native/target/<rust-host>/release/`.
+`start` builds the JavaScript app and opens Electron. It does not build Rust. If your shell sets `ELECTRON_RUN_AS_NODE`, unset it before starting Electron. The helper is optional for opening files. On macOS, saving an existing file requires it to preserve metadata. Development helper lookup uses `native/target/release/`; `build:native` copies the matching host binary there after building it under `native/target/<rust-host>/release/`.
 
 The build emits `dist/main.mjs`, a compile-cache bootstrap that imports `main-app.mjs`. A persistent Node worker handles Markdown rendering. `dist/render-worker.mjs` and shared chunks ship with the app through the `dist/**/*` package glob. Bun bundles runtime dependencies, so they are development dependencies in `package.json`.
 
@@ -66,7 +70,7 @@ bun run build
 bun scripts/verify-smoke.ts
 ```
 
-The script uses temporary fixtures and an isolated `SMD_USER_DATA` profile. That development-only mode disables native hooks, global shortcuts, login changes, and OS recent-document writes. It requires a build containing the isolation contract. It retains results, logs, screenshots, and PDFs in the temporary directory reported by the script. PDF text assertions require `pdftotext`. It does not test installed file associations, permissions, or file-manager hooks.
+The script uses temporary fixtures and an isolated `SMD_USER_DATA` profile. That development-only mode disables native hooks, global shortcuts, login changes, and OS recent-document writes. It requires a build containing the isolation contract. It retains results, logs, screenshots, and PDFs in the temporary directory reported by the script. PDF text assertions require `pdftotext`. It does not test installed file associations, permissions, or file-manager hooks. The `bytes-` cases exercise exact editor and saved bytes, read-only encodings, paste, undo/redo, tables, tasks and macOS metadata. They require the native helper on macOS. To check local blog files without changing them, set `SMD_BYTE_BLOG_DIR` to their directory and run `bun scripts/verify-smoke.ts bytes-blog-`. The script saves temporary copies and compares both copies and originals with the original bytes.
 
 For local performance investigation, `bun run bench` runs the benchmark script. Record the exact revision, host, cold or warm state, fixture, and measured completion marker before comparing results. A half Dock bounce remains a target to measure after integration. It has not been proved by this packaging work. This guide makes no latency, energy-use, or battery-life guarantee.
 

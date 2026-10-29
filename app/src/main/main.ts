@@ -23,7 +23,8 @@ import type {
   Settings,
   SaveResult,
 } from "../shared/types.js";
-import { FileConflictError, isMarkdown, isPeekable, readDiskText, saveImageNextTo, watchDocument, writeAtomic } from "./files.js";
+import { FileConflictError, isMarkdown, isPeekable, readDocument, readDiskText, saveImageNextTo, watchDocument, writeAtomic } from "./files.js";
+import { stopMetadataHelper } from "./file-metadata.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
 import { replaceShortcut } from "./shortcuts.js";
@@ -61,6 +62,7 @@ interface Current {
   /** Last disk revision accepted by the renderer or written by this process. */
   diskText: string | null;
   conflict: boolean;
+  readOnlyReason?: string;
 }
 
 let settings: Settings = { ...loadSettings() };
@@ -287,10 +289,10 @@ async function settle(): Promise<boolean> {
 const baseUrlOf = (file: string | null) =>
   file ? pathToFileURL(path.dirname(file)).href.replace(/\/?$/, "/") : null;
 
-async function payloadFor(file: string | null, text: string, intent: OpenIntent, fromDisk = false): Promise<DocPayload> {
+async function payloadFor(file: string | null, text: string, intent: OpenIntent, fromDisk = false, readOnlyReason?: string): Promise<DocPayload> {
   let title: string;
   let blocks: DocPayload["blocks"];
-  if (intent === "edit" && settings.mode === "source" && path.extname(file ?? "").toLowerCase() !== ".mdx") {
+  if (!readOnlyReason && intent === "edit" && settings.mode === "source" && path.extname(file ?? "").toLowerCase() !== ".mdx") {
     title = file ? path.basename(file) : "Untitled";
     blocks = [];
   } else if (file && fromDisk) {
@@ -316,6 +318,7 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     title,
     intent,
     baseUrl: baseUrlOf(file),
+    readOnlyReason,
   };
 }
 
@@ -333,10 +336,12 @@ function watch(file: string | null): void {
   const documentId = current.documentId;
   try {
     const changed = () => {
-      void readDiskText(file).then((text) => {
-        if (current.documentId !== documentId || text === null || text === current.diskText) return;
+      void readDocument(file).then(({ text, readOnlyReason }) => {
+        if (current.documentId !== documentId) return;
+        if (readOnlyReason) current.readOnlyReason = readOnlyReason;
+        if (!readOnlyReason && text === current.diskText) return;
         current.conflict = true;
-        send("smd:disk-changed", text, documentId);
+        send("smd:disk-changed", text, documentId, readOnlyReason);
       }).catch((err) => console.error("simple-md: could not read changed note", err));
     };
     watcher = watchDocument(file, changed);
@@ -350,7 +355,7 @@ const documentWaiters = new Map<number, () => void>();
 async function present(payload: DocPayload): Promise<void> {
   await rendererLoaded;
   payload.documentId = ++documentSeq;
-  current = { documentId: payload.documentId, intent: payload.intent, path: payload.path, name: payload.name, diskText: payload.path ? payload.text : null, conflict: false };
+  current = { documentId: payload.documentId, intent: payload.intent, path: payload.path, name: payload.name, diskText: payload.path ? payload.text : null, conflict: false, readOnlyReason: payload.readOnlyReason };
   dirty = false;
   watch(payload.path);
   updateTitle();
@@ -403,15 +408,15 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
       valid,
       prepare: async () => {
         perfMark("read-start", { path: abs });
-        const text = await fs.promises.readFile(abs, "utf8");
+        const { text, readOnlyReason } = await readDocument(abs);
         perfMark("read-end", { path: abs });
-        return payloadFor(abs, text, intent, true);
+        return payloadFor(abs, text, intent, true, readOnlyReason);
       },
       transition,
       settle,
       refresh: async (payload) => {
-        const latest = await fs.promises.readFile(abs, "utf8");
-        return latest === payload.text ? payload : payloadFor(abs, latest, intent, true);
+        const latest = await readDocument(abs);
+        return latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason ? payload : payloadFor(abs, latest.text, intent, true, latest.readOnlyReason);
       },
       present: async (payload) => {
         reveal(intent);
@@ -448,7 +453,7 @@ function openDialog(): Promise<boolean> {
 }
 
 async function saveText(text: string, forceDialog: boolean, documentId: number): Promise<SaveResult | null> {
-  if (documentId !== current.documentId || (current.conflict && !forceDialog)) return null;
+  if (documentId !== current.documentId || current.readOnlyReason || (current.conflict && !forceDialog)) return null;
   let target = current.path;
   if (!target || forceDialog) {
     const res = await dialog.showSaveDialog(win, {
@@ -917,9 +922,15 @@ function registerIpc(): void {
     if (id !== current.documentId) return false;
     const documentId = ipcDocument(id);
     return documents.run(async () => {
-      if (documentId !== current.documentId || !current.path || (await readDiskText(current.path)) !== text) return false;
+      if (documentId !== current.documentId || !current.path) return false;
+      const latest = await readDocument(current.path).catch((err: unknown) => {
+        if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
+        throw err;
+      });
+      if (!latest || latest.text !== text) return false;
       current.diskText = text;
       current.conflict = false;
+      current.readOnlyReason = latest.readOnlyReason;
       return true;
     });
   });
@@ -977,6 +988,7 @@ async function prepareQuit(): Promise<void> {
   tray = undefined;
   watcher?.close();
   helper?.stop();
+  stopMetadataHelper();
   flushSettings();
   trace("quit-resources-closed");
   await disposeRenderer();
@@ -1013,6 +1025,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on("will-quit", () => {
     globalShortcut.unregisterAll();
     helper?.stop();
+    stopMetadataHelper();
     watcher?.close();
     flushSettings();
     disposeRenderer();
@@ -1056,7 +1069,12 @@ if (!app.requestSingleInstanceLock()) {
           const flushed = await requestFlush();
           if (!flushed) throw new Error("The renderer did not provide export text.");
           await fs.promises.writeFile(target, await makeHtml(flushed.text));
-        }, () => app.quit());
+        }, () => app.quit(), async () => {
+          const flushed = await requestFlush();
+          if (!flushed || !(await documents.run(() => saveText(flushed.text, false, flushed.documentId)))) {
+            throw new Error("The document could not be saved.");
+          }
+        });
         if (outcome === "menu-quit") return;
         await prepareQuit();
         app.exit(0);
