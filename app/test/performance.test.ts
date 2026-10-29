@@ -42,10 +42,18 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { measureDriverRun } from "../bench";
-import { percentile, readableSample, residentTiming, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
+import { percentile, readableSample, residentTiming, settledMemory, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
 import { fixtureManifest, perfFixtures, sha256, writePerfFixtures } from "../scripts/perf-fixtures";
 
 describe("performance gate receipts", () => {
+  test("requires a stable final memory window and keeps high plateaus eligible", () => {
+    const sample = (physicalBytes: number, pid = 1) => ({ processes: { measured: [{ pid, physicalBytes, rssBytes: physicalBytes }] } });
+    expect(settledMemory([sample(400e6), ...Array.from({ length: 5 }, () => sample(180e6))])).toBe(true);
+    expect(settledMemory(Array.from({ length: 5 }, () => sample(400e6)))).toBe(true);
+    expect(settledMemory([sample(180e6), sample(180e6), sample(400e6), sample(320e6), sample(180e6)])).toBe(false);
+    expect(settledMemory([sample(180e6), sample(180e6), sample(180e6), sample(180e6), sample(180e6, 2)])).toBe(false);
+    expect(settledMemory(Array.from({ length: 4 }, () => sample(180e6)))).toBe(false);
+  });
   test("uses nearest-rank percentiles and strict targets without mutating samples", () => {
     const samples = [9, 1, 5, 3, 7];
     expect(percentile(samples, 0.5)).toBe(5);

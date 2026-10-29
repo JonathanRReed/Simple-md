@@ -21,6 +21,16 @@ export function summarizeGate(values: number[], target: number, minimum: number,
   const measured = statistic === "median" ? median : p95;
   return { status: values.length >= minimum && measured !== null && measured < target ? "pass" : "fail", count: values.length, median, p95, p99, target, statistic, minimum };
 }
+type ProcessMemory = { pid: number; physicalBytes: number; rssBytes: number };
+export function settledMemory(samples: { processes: { measured: ProcessMemory[] } }[]) {
+  const final = samples.slice(-5);
+  if (final.length !== 5) return false;
+  const pids = final[0]!.processes.measured.map(process => process.pid);
+  return pids.length > 0 && final.every(sample => sample.processes.measured.length === pids.length) && pids.every(pid => {
+    const bytes = final.map(sample => sample.processes.measured.find(process => process.pid === pid)?.physicalBytes);
+    return bytes.every((value): value is number => value !== undefined) && Math.max(...bytes) - Math.min(...bytes) <= 2_000_000;
+  });
+}
 type EventQuantile = { lower: number; upper: number; upperExclusive: boolean };
 export function summarizeEventTiming(record: { counts: { keydown: number; beforeinput: number }; events: { name: string; duration: number }[] }) {
   function summarize(name: "keydown" | "beforeinput") {
@@ -124,6 +134,9 @@ export async function perfGate(): Promise<void> {
   const typingPanes = process.argv.includes("--two-panes") ? 2 : 1;
   const electronSwitch = process.argv.find(arg => arg.startsWith("--electron-switch="))?.split("=")[1];
   if (electronSwitch && !["disable-backgrounding-occluded-windows", "disable-renderer-backgrounding", "disable-background-timer-throttling"].includes(electronSwitch)) throw new Error("Unknown Electron performance switch");
+  const hiddenDwellMs = Number(process.argv.find(arg => arg.startsWith("--hidden-dwell-ms="))?.split("=")[1] ?? 1000);
+  if (!Number.isSafeInteger(hiddenDwellMs) || hiddenDwellMs < 0 || hiddenDwellMs > 60_000) throw new Error("Invalid hidden dwell");
+  const hiddenDwell = (sample: number) => process.argv.includes("--compare-hidden-dwell") && sample % 2 === 0 ? 30 : hiddenDwellMs;
   const fixtureFilter = process.argv.find(arg => arg.startsWith("--fixtures="))?.split("=")[1]?.split(",");
   fs.mkdirSync(path.join(repo, ".audit"), { recursive: true });
   const root = fs.mkdtempSync(path.join(repo, ".audit/perf-"));
@@ -134,7 +147,7 @@ export async function perfGate(): Promise<void> {
   const executable = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
   const sourceDirtyHash = dirtyHash();
   const samples: { state: State; fixture: string; sample: number; ms: number; externalMs: number; deliveryMs: number; afterArrivalMs: number | null; cache: object; loadAverage: number[]; run: string }[] = [];
-  const memory: { run: string; at: number; processes: unknown; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
+  const memory: { run: string; at: number; processes: { metrics: unknown; measured: ProcessMemory[] }; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
   const typing: { method: InputMethod; controls: { kind: string; eventTiming: ReturnType<typeof summarizeEventTiming>; raw: unknown }[]; frameMs: number; displayFrameMs: number; mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
   const runs: object[] = [];
   const failures: string[] = [];
@@ -142,7 +155,7 @@ export async function perfGate(): Promise<void> {
   const runResults = new Map<string, Awaited<ReturnType<typeof measureDriverRun>>>();
   const loadAtBarrier = new Map<string, number[]>();
   const receipt = {
-    schemaVersion: 2, subset: only ?? null, typingCases: typingCases ?? null, typingPanes, sampleCount: count, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
+    schemaVersion: 2, subset: only ?? null, typingCases: typingCases ?? null, typingPanes, sampleCount: count, hiddenDwellMs, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
     revision: command("git", ["rev-parse", "HEAD"]), branch: command("git", ["branch", "--show-current"]), dirtyPatchHash: sourceDirtyHash,
     memoryHelper: { sha256: null as string | null, sourceSha256: sha256(fs.readFileSync(path.join(appRoot, "native/src/bin/perf-memory.rs"))) },
     lockfileHash: sha256(fs.readFileSync(path.join(appRoot, "bun.lock"))), dist: treeHash(path.join(appRoot, "dist")),
@@ -154,8 +167,9 @@ export async function perfGate(): Promise<void> {
       fresh: "New user-data and NODE_COMPILE_CACHE directories, worker inherits this compile-cache directory. No disk render cache, Shiki starts unloaded, no retained DOM.",
       reused: "Explicit seed process exits cleanly and flushes compile and disk render caches, then a new process uses those directories. Shiki and DOM start empty in each process.",
       residentClock: "The gate keeps parent acknowledgement to first-readable. deliveryMs and afterArrivalMs split command delivery from work after file-open-arrival; neither is subtracted from the gate.",
-      resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
+      resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible and held for hiddenDwellMs before the external barrier so preceding native window-ordering work can settle. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
+      memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 20 samples. Gate the final five only if every process spans at most 2 MB with unchanged PIDs. All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
     },
     limits: ["Parent stdout receipt timestamps include IPC and pipe scheduling. Double rAF marks a paint opportunity, not physical display scanout.", "First-readable does not await diagrams, fonts, deferred highlighting or streamed remainder blocks. Final assertions wait for the complete stream.", "Typing Event Timing has a 16 ms reporting floor and 8 ms quantization. Sub-threshold events are censored, never treated as zero. beforeinput support and trusted counts are recorded separately.", "Editor tokenization has no fully-highlighted completion signal. That marker applies to read and split previews only; CodeMirror background parsing is not timed.", "CDP IME is a composition-path exercise, not a physical keyboard or native input-method qualification.", "ASAR packaging and Windows runtime are not measured by a development macOS run."],
     runs, samples, failedSamples, typing, memory, failures, gates: {} as Record<string, unknown>, loadAverageEnd: [] as number[],
@@ -202,11 +216,13 @@ export async function perfGate(): Promise<void> {
         const measured: unknown = JSON.parse(execFileSync(helper, pids, { encoding: "utf8" }));
         if (!Array.isArray(measured) || measured.length !== pids.length) throw new Error("Incomplete process memory sample");
         let physicalBytes = 0, rssBytes = 0;
+        const measuredProcesses: ProcessMemory[] = [];
         for (const value of measured) {
-          if (typeof value !== "object" || value === null || !("physicalBytes" in value) || typeof value.physicalBytes !== "number" || !("rssBytes" in value) || typeof value.rssBytes !== "number" || !("pid" in value) || !pids.includes(String(value.pid))) throw new Error("Invalid memory helper result");
+          if (typeof value !== "object" || value === null || !("physicalBytes" in value) || typeof value.physicalBytes !== "number" || !("rssBytes" in value) || typeof value.rssBytes !== "number" || !("pid" in value) || typeof value.pid !== "number" || !pids.includes(String(value.pid))) throw new Error("Invalid memory helper result");
           physicalBytes += value.physicalBytes; rssBytes += value.rssBytes;
+          measuredProcesses.push({ pid: value.pid, physicalBytes: value.physicalBytes, rssBytes: value.rssBytes });
         }
-        memory.push({ run: name, at: event.elapsedMs, processes: { metrics: processes, measured }, physicalBytes, rssBytes, loadAverage: os.loadavg() });
+        memory.push({ run: name, at: event.elapsedMs, processes: { metrics: processes, measured: measuredProcesses }, physicalBytes, rssBytes, loadAverage: os.loadavg() });
         const versions = event.data.versions;
         if (typeof versions === "object" && versions !== null && "electron" in versions && "node" in versions) { receipt.versions.electron = versions.electron; receipt.versions.appNode = versions.node; }
         receipt.host.thermalState.electron = event.data.thermalState;
@@ -230,7 +246,7 @@ export async function perfGate(): Promise<void> {
     const start = barrier ? result.barriers[barrier] : 0;
     if (start === undefined) throw new Error(`Missing barrier ${barrier}`);
     const timing = state.startsWith("process-cold") ? { ms: readableSample(result.events, start, file), externalMs: readableSample(result.events, start, file), deliveryMs: 0, afterArrivalMs: null } : residentTiming(result.events, start, file);
-    samples.push({ state, fixture, sample, ...timing, run, loadAverage: barrier ? loadAtBarrier.get(barrier) ?? os.loadavg() : os.loadavg(), cache: { backgroundThrottling: ["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling") ? sample % 2 === 0 : "app default", profile: state.includes("fresh") ? "fresh" : "reused", compile: state.includes("fresh") ? "empty at spawn" : "seeded", diskRender: state === "resident-new-file-miss" ? "miss" : "see read-and-hash-end markers", shiki: state.startsWith("process-cold") ? "new worker; warmup may race foreground" : "resident, languages reused", retainedDOM: state === "resident-visible" || state === "resident-hidden" ? "same-file mount may reuse blocks" : "document replaced" } });
+    samples.push({ state, fixture, sample, ...timing, run, loadAverage: barrier ? loadAtBarrier.get(barrier) ?? os.loadavg() : os.loadavg(), cache: { hiddenDwellMs: state === "resident-hidden" ? hiddenDwell(sample) : null, backgroundThrottling: ["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling") ? sample % 2 === 0 : "app default", profile: state.includes("fresh") ? "fresh" : "reused", compile: state.includes("fresh") ? "empty at spawn" : "seeded", diskRender: state === "resident-new-file-miss" ? "miss" : "see read-and-hash-end markers", shiki: state.startsWith("process-cold") ? "worker starts on demand; Shiki loads for deferred highlighting" : "resident, languages reused", retainedDOM: state === "resident-visible" || state === "resident-hidden" ? "same-file mount may reuse blocks" : "document replaced" } });
   }
   async function attempt(name: string, operation: () => Promise<void>) {
     console.log(`perf: ${name}`);
@@ -272,7 +288,7 @@ export async function perfGate(): Promise<void> {
           }
           const barrier = `${state}-${sample}-${fixture}`;
           if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
-          if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: 30 }, { visibility: false });
+          if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: hiddenDwell(sample) }, { visibility: false });
           const assertion = assertDocument(file, fixtureText[fixture]!);
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
           steps.push({ barrier }, { record: { name: barrier, eval: `(async () => {
@@ -304,7 +320,7 @@ export async function perfGate(): Promise<void> {
       const file = path.join(fixtureDirectory, "medium.md");
       await launch("settled-memory", file, profile("memory-profile", "live"), [
         evaluate(`${waitFor} await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]')); if (document.documentElement.dataset.documentPath !== ${quote(file)} || document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() !== ${quote(fixtureText['medium.md'])}) throw new Error('Wrong settled memory document');`),
-        { wait: 5000 }, ...Array.from({ length: 5 }, (_, i): DriverStep[] => [{ memory: `settled-${i}` }, { wait: 1000 }]).flat(),
+        { wait: 5000 }, ...Array.from({ length: 20 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
     const calibration = path.join(root, "calibration");
@@ -418,7 +434,9 @@ export async function perfGate(): Promise<void> {
     for (const fixture of normalFixtures) receipt.gates[`${state}/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === state && sample.fixture === fixture).map((sample) => sample.ms), 150, smoke ? 2 : 20);
   }
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);
-  receipt.gates.memory = { ...summarizeGate(memory.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(memory.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(memory.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
+  const stableMemory = settledMemory(memory);
+  const settled = stableMemory ? memory.slice(-5) : [];
+  receipt.gates.memory = { ...summarizeGate(settled.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), settled: stableMemory, observations: memory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
   for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
     if (typingCases && !typingCases.includes(`${mode}/${position}/${method}`)) continue;
     const sample = typing.find((value) => value.method === method && value.mode === mode && value.position === position);
@@ -436,6 +454,12 @@ export async function perfGate(): Promise<void> {
       delete receipt.gates[`${state}/${fixture}`];
       if (state === "resident-new-file-miss") delete receipt.gates[`first-screen/${fixture}`];
       for (const throttled of [true, false]) receipt.gates[`${state}/${fixture}/throttling-${throttled}`] = summarizeGate(samples.filter(sample => sample.state === state && sample.fixture === fixture && "backgroundThrottling" in sample.cache && sample.cache.backgroundThrottling === throttled).map(sample => sample.ms), state === "resident-hidden" ? 150 : 200, smoke ? 2 : 20);
+    }
+  }
+  if (process.argv.includes("--compare-hidden-dwell")) {
+    for (const fixture of normalFixtures.filter(name => !fixtureFilter || fixtureFilter.includes(name))) {
+      delete receipt.gates[`resident-hidden/${fixture}`];
+      for (const dwell of new Set([30, hiddenDwellMs])) receipt.gates[`resident-hidden/${fixture}/dwell-${dwell}`] = summarizeGate(samples.filter(sample => sample.state === "resident-hidden" && sample.fixture === fixture && "hiddenDwellMs" in sample.cache && sample.cache.hiddenDwellMs === dwell).map(sample => sample.ms), 150, smoke ? 2 : 20);
     }
   }
   if (only) for (const name of Object.keys(receipt.gates)) {

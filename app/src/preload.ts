@@ -33,7 +33,7 @@ contextBridge.exposeInMainWorld("simplemd", {
   edit: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.send("smd:edit", text, documentId, revisionId),
   editing: (documentId: DocumentId) => ipcRenderer.send("smd:editing", documentId),
   perfMarker: (documentId: DocumentId, marker: string) => {
-    if (performanceTracing) ipcRenderer.send("smd:perf-marker", documentId, marker);
+    if (performanceTracing) ipcRenderer.send("smd:perf-marker", documentId, marker, performance.timeOrigin + performance.now());
   },
   documentReady: (documentId: DocumentId) => ipcRenderer.send("smd:document-ready", documentId),
   acceptDisk: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:accept-disk", text, documentId),

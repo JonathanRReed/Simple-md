@@ -1,10 +1,9 @@
-import { parseDocument } from "yaml";
-
 const escape = (value: unknown) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
 
-export function renderFrontmatter(source: string): string {
+export async function renderFrontmatter(source: string): Promise<string> {
   try {
+    const { parseDocument } = await import("yaml");
     const doc = parseDocument(source.split(/^\.\.\.\s*$/m)[0]!, { schema: "core", uniqueKeys: true });
     if (doc.errors.length) throw new Error("Invalid frontmatter");
     const value: unknown = doc.toJS({ maxAliasCount: 0 });

@@ -41,6 +41,52 @@ function worker(name: string, code: string): string {
 }
 
 describe("persistent Node render worker", () => {
+  test("ordinary Markdown renders without initializing YAML or KaTeX", async () => {
+    const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
+    const chunks = [...bundle.matchAll(/import\("(\.\/chunks\/[^\"]+)"\)/g)]
+      .map(match => path.join(dir, match[1]!))
+      .filter(file => /node_modules\/(?:yaml|katex)\//.test(fs.readFileSync(file, "utf8")));
+    expect(chunks.length).toBe(2);
+    for (const file of chunks) fs.renameSync(file, `${file}.disabled`);
+    try {
+      await nodeCheck(`
+        const client = new RenderClient();
+        try {
+          await client.warmUp();
+          assert.match((await client.renderBlocks('# Plain', '/tmp/plain.md')).blocks[0].html, /Plain/);
+          assert.match((await client.renderFragment('**Still works**', undefined)).html, /<strong>/);
+        } finally { await client.dispose(); }
+      `);
+    } finally { for (const file of chunks) fs.renameSync(`${file}.disabled`, file); }
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const out = await client.renderBlocks('---\\ntitle: Metadata\\n---\\n\\n# Math\\n\\n$E=mc^2$', '/tmp/math.md');
+        assert.ok(out.blocks[0].html.includes('<th>title</th>'));
+        assert.match(out.blocks.at(-1).html, /class="katex"/);
+        assert.match((await client.renderFragment('> $x^2$', undefined)).html, /class="katex"/);
+      } finally { await client.dispose(); }
+    `);
+  });
+
+  test("plain Markdown and response validation do not initialize the MDX parser", async () => {
+    const chunk = fs.readdirSync(path.join(dir, "chunks")).find(name => name.startsWith("mdx-ranges-"));
+    if (!chunk) throw new Error("Missing lazy MDX parser chunk");
+    const target = path.join(dir, "chunks", chunk);
+    fs.renameSync(target, `${target}.disabled`);
+    try {
+      await nodeCheck(`
+        const client = new RenderClient();
+        try {
+          await client.warmUp();
+          assert.match((await client.renderBlocks('# Plain', '/tmp/plain.md')).blocks[0].html, /Plain/);
+          await assert.rejects(client.mdxRanges('<Thing />'), /Cannot find module/);
+          assert.ok((await client.renderFragment('**Still works**', undefined)).html.includes('<strong>Still works</strong>'));
+        } finally { await client.dispose(); }
+      `);
+    } finally { fs.renameSync(`${target}.disabled`, target); }
+  });
+
   test("renders full documents and fragments without blocking the parent event loop", async () => {
     await nodeCheck(`
       const client = new RenderClient();

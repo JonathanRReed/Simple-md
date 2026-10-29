@@ -67,7 +67,7 @@ export async function runDriver(
       } else if ("paste" in step) {
         if (!win.webContents.paste) throw new Error("Paste is unavailable.");
         const { clipboard, ClipboardItem } = await import("electron");
-        const previous = await Promise.all((await clipboard.read()).map(async (item) => new ClipboardItem(Object.fromEntries(
+        const previous = await Promise.all((await clipboard.read()).filter(item => item.types.length > 0).map(async (item) => new ClipboardItem(Object.fromEntries(
           await Promise.all(item.types.map(async (type) => [type, await item.getType(type)])),
         ))));
         try {

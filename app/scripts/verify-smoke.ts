@@ -57,7 +57,7 @@ function fixture(name: string, text: string): string {
   return file;
 }
 
-async function launch(name: string, file: string, steps: Step[], intent: "peek" | "edit" = "peek", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" = "source"): Promise<void> {
+async function launch(name: string, file: string, steps: Step[], intent: "peek" | "edit" = "peek", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source"): Promise<void> {
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
@@ -141,6 +141,54 @@ async function test(name: string, run: () => Promise<void>): Promise<void> {
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 const note = "# Smoke edit note\n\nOriginal text.\n";
+
+await test("live-open-defers-read-render", async () => {
+  const file = fixture("live-open/note.md", note);
+  const previous = process.env.SMD_PERF;
+  process.env.SMD_PERF = "1";
+  try {
+    await launch("live-open-defers-read-render", file, [
+      evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)}, 'Live document did not paint.');
+        assert(document.querySelector('#edit').dataset.mode === 'live', 'Live mode did not initialize.');
+        assert(document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() === ${quote(note)}, 'Live source differs.');`),
+      { record: { name: "live-ready", eval: "true" } },
+      evaluate(`window.simplemd.command('toggle-edit');
+        await waitFor(() => !document.querySelector('#read').hidden && document.querySelector('#doc h1')?.textContent === 'Smoke edit note', 'Read view did not render after Live.');`),
+    ], "edit", undefined, 0, "live");
+  } finally {
+    if (previous === undefined) delete process.env.SMD_PERF;
+    else process.env.SMD_PERF = previous;
+  }
+  const logs = fs.readFileSync(path.join(root, "live-open-defers-read-render/electron.log"), "utf8");
+  const ready = logs.indexOf('"name":"live-ready"');
+  assert(ready >= 0, "Missing Live readiness record.");
+  assert(!logs.slice(0, ready).includes('"marker":"parse-start"'), "Live initialized an unused full-document render.");
+  assert(!logs.slice(0, ready).includes('"marker":"worker-queue"'), "Live started an unused render worker.");
+  assert(logs.slice(ready).includes('"marker":"parse-start"'), "Read did not request its render.");
+  assert.equal(fs.readFileSync(file, "utf8"), note, "Live-to-read changed the source bytes.");
+});
+
+await test("quit-with-late-renderer-markers", async () => {
+  const file = fixture("late-markers/first.md", "# First\n");
+  const target = fixture("late-markers/second.md", "# Second\n\nA complete read view.\n");
+  const previous = process.env.SMD_PERF;
+  process.env.SMD_PERF = "1";
+  try {
+    await launch("quit-with-late-renderer-markers", file, [
+      evaluate(`window.simplemd.onDoc(payload => { window.smokeQuitDocumentId = payload.documentId; });
+        assert(await window.simplemd.openPath(${quote(target)}, 'peek'), 'Second document did not open.');
+        await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(target)}, 'Second document did not paint.');
+        window.setInterval(() => window.simplemd.perfMarker(window.smokeQuitDocumentId, 'diagrams-ready'), 1);`),
+      { menuQuit: true },
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.SMD_PERF;
+    else process.env.SMD_PERF = previous;
+  }
+  const logs = fs.readFileSync(path.join(root, "quit-with-late-renderer-markers/electron.log"), "utf8");
+  assert(logs.includes("quit-worker-stopped"), "Quit did not finish worker cleanup.");
+  assert(!logs.includes("TypeError"), "Late markers reached the disposed document registry.");
+});
 
 await test("driver-assertion-failure", async () => {
   const file = fixture("driver-check/note.md", note);

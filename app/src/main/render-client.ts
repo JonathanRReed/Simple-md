@@ -3,7 +3,7 @@ import { cacheBudget } from "./cache-budget.js";
 import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
 import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
 import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
-import { isMdxResult } from "../shared/mdx-ranges.js";
+import { isMdxResult } from "../shared/mdx-result.js";
 import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { Worker } from "node:worker_threads";
@@ -204,7 +204,6 @@ const client = new RenderClient();
 export const renderBlocks = (text: string, filePath: string | null) => client.renderBlocks(text, filePath);
 export const renderFragment = (text: string, baseDir: string | undefined) => client.renderFragment(text, baseDir);
 export const prefetchBlocks = (text: string, filePath: string | null) => client.prefetchBlocks(text, filePath);
-export const warmUp = () => client.warmUp();
 export const disposeRenderer = (): Promise<void> => client.dispose();
 
 export const mdxRanges = (text: string) => client.mdxRanges(text);

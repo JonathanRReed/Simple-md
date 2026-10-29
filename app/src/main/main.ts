@@ -35,7 +35,7 @@ import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-
 import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
+import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { PeekHelper, type PeekRequest } from "./peek.js";
@@ -295,7 +295,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
   const isMdx = path.extname(file ?? "").toLowerCase() === ".mdx";
-  if (!readOnlyReason && intent === "edit" && settings.mode !== "split" && (settings.mode === "source" || isMdx)) {
+  if (!readOnlyReason && intent === "edit" && settings.mode !== "split") {
     title = file ? path.basename(file) : "Untitled";
     blocks = [];
     if (isMdx) mdx = await mdxRanges(text);
@@ -849,7 +849,7 @@ function createTray(): void {
 // ───────── ipc ─────────
 
 function mainSender(e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): boolean {
-  return !!win && !win.isDestroyed() && e.sender === win.webContents && e.senderFrame === win.webContents.mainFrame;
+  return !quitting && !!win && !win.isDestroyed() && e.sender === win.webContents && e.senderFrame === win.webContents.mainFrame;
 }
 
 function ipcText(value: unknown): string {
@@ -895,10 +895,12 @@ function registerIpc(): void {
     currentSession().intent = "edit";
     if (process.platform === "darwin") void app.dock?.show();
   });
-  ipcMain.on("smd:perf-marker", (e, id: unknown, marker: unknown) => {
+  ipcMain.on("smd:perf-marker", (e, id: unknown, marker: unknown, rendererEpochMs: unknown) => {
     if (testProfile && mainSender(e) && id === currentSession().documentId && typeof marker === "string" &&
         ["renderer-receive", "renderer-mount", "first-readable", "fully-highlighted", "diagrams-ready", "ready-for-input"].includes(marker)) {
-      perfMark(marker, { documentId: id, path: currentSession().path });
+      perfMark(marker, { documentId: id, path: currentSession().path,
+        rendererEpochMs: typeof rendererEpochMs === "number" && Number.isFinite(rendererEpochMs) ? rendererEpochMs : null,
+        receiverEpochMs: performance.timeOrigin + performance.now(), windowVisible: win.isVisible() });
     }
   });
   ipcMain.on("smd:document-ready", (e, id: unknown) => {
@@ -1058,7 +1060,7 @@ if (!app.requestSingleInstanceLock()) {
     disposeRenderer();
   });
   app.on("activate", () => {
-    if (win) reveal();
+    if (win && !quitting) reveal();
   });
   app.on("window-all-closed", () => {});
 
@@ -1082,7 +1084,6 @@ if (!app.requestSingleInstanceLock()) {
     refreshMenus();
     registerShortcut();
     syncPeekHelper();
-    void warmUp().catch((err) => console.error("simple-md: renderer warmup failed", err));
     if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "peek" ? "peek" : "edit");
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {

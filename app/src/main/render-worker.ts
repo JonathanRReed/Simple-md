@@ -3,7 +3,6 @@ import { blockDelta, type BlockDelta } from "../shared/block-delta.js";
 import { BlockStreams } from "./block-stream.js";
 import type { BlockUpdate } from "../shared/block-update.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
-import { findMdxRanges } from "../shared/mdx-ranges.js";
 import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { parentPort } from "node:worker_threads";
@@ -62,6 +61,7 @@ port.on("message", async (request: RenderRequest) => {
         response = { id: request.id, kind: "fragment", value: await renderFragment(request.text, request.baseDir) };
         break;
       case "mdx-ranges": {
+        const { findMdxRanges } = await import("../shared/mdx-ranges.js");
         const ranges = findMdxRanges(request.text);
         response = { id: request.id, kind: "mdx-ranges", value: { ranges: [...ranges], error: ranges.error } };
         break;
