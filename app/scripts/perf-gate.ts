@@ -21,6 +21,16 @@ export function summarizeGate(values: number[], target: number, minimum: number,
   const measured = statistic === "median" ? median : p95;
   return { status: values.length >= minimum && measured !== null && measured < target ? "pass" : "fail", count: values.length, median, p95, p99, target, statistic, minimum };
 }
+type ProcessMemory = { pid: number; physicalBytes: number; rssBytes: number };
+export function settledMemory(samples: { processes: { measured: ProcessMemory[] } }[]) {
+  const final = samples.slice(-5);
+  if (final.length !== 5) return false;
+  const pids = final[0]!.processes.measured.map(process => process.pid);
+  return pids.length > 0 && final.every(sample => sample.processes.measured.length === pids.length) && pids.every(pid => {
+    const bytes = final.map(sample => sample.processes.measured.find(process => process.pid === pid)?.physicalBytes);
+    return bytes.every((value): value is number => value !== undefined) && Math.max(...bytes) - Math.min(...bytes) <= 2_000_000;
+  });
+}
 type EventQuantile = { lower: number; upper: number; upperExclusive: boolean };
 export function summarizeEventTiming(record: { counts: { keydown: number; beforeinput: number }; events: { name: string; duration: number }[] }) {
   function summarize(name: "keydown" | "beforeinput") {
@@ -120,7 +130,7 @@ export async function perfGate(): Promise<void> {
   const executable = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
   const sourceDirtyHash = dirtyHash();
   const samples: { state: State; fixture: string; sample: number; ms: number; externalMs: number; deliveryMs: number; afterArrivalMs: number | null; cache: object; loadAverage: number[]; run: string }[] = [];
-  const memory: { run: string; at: number; processes: unknown; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
+  const memory: { run: string; at: number; processes: { metrics: unknown; measured: ProcessMemory[] }; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
   const typing: { method: InputMethod; controls: { kind: string; eventTiming: ReturnType<typeof summarizeEventTiming>; raw: unknown }[]; frameMs: number; displayFrameMs: number; mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
   const runs: object[] = [];
   const failures: string[] = [];
@@ -142,6 +152,7 @@ export async function perfGate(): Promise<void> {
       residentClock: "The gate keeps parent acknowledgement to first-readable. deliveryMs and afterArrivalMs split command delivery from work after file-open-arrival; neither is subtracted from the gate.",
       resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
+      memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 20 samples. Gate the final five only if every process spans at most 2 MB with unchanged PIDs. All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
     },
     limits: ["Parent stdout receipt timestamps include IPC and pipe scheduling. Double rAF marks a paint opportunity, not physical display scanout.", "First-readable does not await diagrams, fonts, deferred highlighting or streamed remainder blocks. Final assertions wait for the complete stream.", "Typing Event Timing has a 16 ms reporting floor and 8 ms quantization. Sub-threshold events are censored, never treated as zero. beforeinput support and trusted counts are recorded separately.", "Editor tokenization has no fully-highlighted completion signal. That marker applies to read and split previews only; CodeMirror background parsing is not timed.", "CDP IME is a composition-path exercise, not a physical keyboard or native input-method qualification.", "ASAR packaging and Windows runtime are not measured by a development macOS run."],
     runs, samples, failedSamples, typing, memory, failures, gates: {} as Record<string, unknown>, loadAverageEnd: [] as number[],
@@ -188,11 +199,13 @@ export async function perfGate(): Promise<void> {
         const measured: unknown = JSON.parse(execFileSync(helper, pids, { encoding: "utf8" }));
         if (!Array.isArray(measured) || measured.length !== pids.length) throw new Error("Incomplete process memory sample");
         let physicalBytes = 0, rssBytes = 0;
+        const measuredProcesses: ProcessMemory[] = [];
         for (const value of measured) {
-          if (typeof value !== "object" || value === null || !("physicalBytes" in value) || typeof value.physicalBytes !== "number" || !("rssBytes" in value) || typeof value.rssBytes !== "number" || !("pid" in value) || !pids.includes(String(value.pid))) throw new Error("Invalid memory helper result");
+          if (typeof value !== "object" || value === null || !("physicalBytes" in value) || typeof value.physicalBytes !== "number" || !("rssBytes" in value) || typeof value.rssBytes !== "number" || !("pid" in value) || typeof value.pid !== "number" || !pids.includes(String(value.pid))) throw new Error("Invalid memory helper result");
           physicalBytes += value.physicalBytes; rssBytes += value.rssBytes;
+          measuredProcesses.push({ pid: value.pid, physicalBytes: value.physicalBytes, rssBytes: value.rssBytes });
         }
-        memory.push({ run: name, at: event.elapsedMs, processes: { metrics: processes, measured }, physicalBytes, rssBytes, loadAverage: os.loadavg() });
+        memory.push({ run: name, at: event.elapsedMs, processes: { metrics: processes, measured: measuredProcesses }, physicalBytes, rssBytes, loadAverage: os.loadavg() });
         const versions = event.data.versions;
         if (typeof versions === "object" && versions !== null && "electron" in versions && "node" in versions) { receipt.versions.electron = versions.electron; receipt.versions.appNode = versions.node; }
         receipt.host.thermalState.electron = event.data.thermalState;
@@ -290,7 +303,7 @@ export async function perfGate(): Promise<void> {
       const file = path.join(fixtureDirectory, "medium.md");
       await launch("settled-memory", file, profile("memory-profile", "live"), [
         evaluate(`${waitFor} await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]')); if (document.documentElement.dataset.documentPath !== ${quote(file)} || document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() !== ${quote(fixtureText['medium.md'])}) throw new Error('Wrong settled memory document');`),
-        { wait: 5000 }, ...Array.from({ length: 5 }, (_, i): DriverStep[] => [{ memory: `settled-${i}` }, { wait: 1000 }]).flat(),
+        { wait: 5000 }, ...Array.from({ length: 20 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
     const calibration = path.join(root, "calibration");
@@ -391,7 +404,9 @@ export async function perfGate(): Promise<void> {
     for (const fixture of normalFixtures) receipt.gates[`${state}/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === state && sample.fixture === fixture).map((sample) => sample.ms), 150, smoke ? 2 : 20);
   }
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);
-  receipt.gates.memory = { ...summarizeGate(memory.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(memory.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(memory.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
+  const stableMemory = settledMemory(memory);
+  const settled = stableMemory ? memory.slice(-5) : [];
+  receipt.gates.memory = { ...summarizeGate(settled.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), settled: stableMemory, observations: memory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
   for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
     const sample = typing.find((value) => value.method === method && value.mode === mode && value.position === position);
     const keydown = sample?.eventTiming.keydown;

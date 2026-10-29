@@ -51,6 +51,8 @@ A wrong-file or failed render fails the run. Screenshots and text assertions hap
 | Typing, 100k-character document, one pane and two visible panes | Event Timing API `duration` (input to next paint) for keydown and beforeinput at the top, middle and end of the file, in live, source and side-by-side modes. Gate: conservative p95 editor excess over a matched empty-textarea control is at most one display frame plus 8 ms, from at least 40 trusted keys per case. Unreported sub-16 ms events count as under 16 ms. Raw values stay in the receipt. |
 | Memory, one document, settled | median of 5 settled samples of physical footprint summed over every app process < 200 MB (decimal). Summed RSS is recorded beside it but is not a gate. Windows uses private working set. |
 
+Memory uses the medium fixture in Live mode. After five seconds, record 20 observations at one-second intervals. Gate the final five only when the process IDs stay fixed and each process spans at most 2 MB. An unstable final window fails the gate. Keep every observation in the receipt, including transient GPU allocations. Do not force garbage collection or choose the lowest samples.
+
 Typing runs also cover burst input, selection movement, backspace, undo, paste and IME composition, and they verify the final saved bytes.
 
 ## Where gates run
