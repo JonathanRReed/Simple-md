@@ -22,15 +22,17 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
     if (busy || stopped) return;
     busy = true;
     try {
-      if (app.isPackaged && process.platform === "darwin" && !signed) {
+      const gate = { packaged: app.isPackaged, platform: process.platform, appImage: !!process.env.APPIMAGE,
+        enabled: enabled(), manual, now: Date.now(), lastCheck };
+      // Verify the signature only when a check would otherwise run.
+      if (process.platform === "darwin" && !signed && updateDecision({ ...gate, signed: true }) === "check") {
         try {
           await promisify(execFile)("/usr/bin/codesign", ["--verify", "--strict", "-R",
             'anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', path.resolve(process.execPath, "../../..")]);
           signed = true;
         } catch {}
       }
-      const decision = updateDecision({ packaged: app.isPackaged, platform: process.platform, signed,
-        appImage: !!process.env.APPIMAGE, enabled: enabled(), manual, now: Date.now(), lastCheck });
+      const decision = updateDecision({ ...gate, signed });
       if (decision !== "check") {
         if (manual) await notice(decision === "unsigned" ? "Updates require a signed macOS release." : "Install a release from GitHub to use automatic updates. DEB installations update through your package manager.");
         return;
