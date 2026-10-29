@@ -49,6 +49,15 @@ async function runBatch(fixtures: string[]) {
       }
     }
   }
+  const field = liveDecorationField(host);
+  const doc = "# Heading\n\n$$x$$\n\nEnd";
+  let state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage }), field] });
+  state = state.update({ changes: { from: doc.length, insert: "\n\n" + "text ".repeat(60000) } }).state;
+  if (state.field(field).decorations.size) throw new Error("Oversize live document retained decorations");
+  state = state.update({ changes: { from: doc.length, to: state.doc.length } }).state;
+  comparisons++;
+  const actual = snapshot(state.field(field).decorations), expected = snapshot(buildLiveDecorations(state, host));
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) failures.push({ fixture: -1, step: 0, from: 0, to: doc.length, viewport: state.field(field).viewport, scope: { from: 0, to: doc.length }, doc, actual, expected });
   return { comparisons, failures };
 }
 Object.assign(globalThis, { CorpusBrowser: { runBatch } });

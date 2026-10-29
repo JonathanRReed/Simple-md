@@ -453,9 +453,12 @@ export function liveDecorationField(host: LiveHost) {
       const viewportEffect = tr.effects.find(e => e.is(setLiveViewport));
       const viewport = viewportEffect?.value ?? mapRegion(value.viewport, tr.changes);
       const mdxChanged = tr.effects.some(e => e.is(setMdxRanges));
-      const tree = tr.docChanged || viewportEffect || syntaxTree(tr.state) !== syntaxTree(tr.startState) ? liveTree(tr.state) : value.tree;
-      if (!tree || tr.state.doc.length > LIVE_MAX_CHARS) return { ...value, decorations: Decoration.none, tree, viewport };
       const markers = tr.docChanged ? mathLines(tr.state, value.markers, tr) : value.markers;
+      const tree = tr.state.doc.length > LIVE_MAX_CHARS ? null
+        : tr.docChanged || viewportEffect || syntaxTree(tr.state) !== syntaxTree(tr.startState) ? liveTree(tr.state) : value.tree;
+      // Keep delimiter positions current while parsing is incomplete or Live is
+      // suspended. A missing tree forces a fresh visible set when it recovers.
+      if (!tree) return { ...value, decorations: Decoration.none, tree, viewport, markers, math: [] };
       const fmEnd = frontmatterEnd(tr.state.doc.sliceString(0, 4000));
       const math = tr.docChanged || mdxChanged || tree !== value.tree ? displayMath(tr.state, tree, markers, fmEnd) : value.math;
       const scope = expandRegion(tr.state, tree, viewport, math);
