@@ -1202,10 +1202,12 @@ await test("tabs-inactive-pane-link", async () => {
   await launch("tabs-inactive-pane-link", a, [evaluate(`
     window.linkA = Number(document.documentElement.dataset.documentId);
     await window.simplemd.openPath(${quote(b)}, 'read');
+    await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Second tab did not become readable');
     window.linkB = Number(document.documentElement.dataset.documentId);
     window.simplemd.command('split-panes');
     await waitFor(() => document.querySelectorAll('.document-pane').length === 2, 'Split did not mount');
     await window.simplemd.activateTab(window.linkB);
+    await waitFor(() => [...document.querySelectorAll('.document-pane')].some(p => Number(p.dataset.documentId) === window.linkA && p.querySelector('a')), 'Sibling pane did not become readable');
     const clicked = [...document.querySelectorAll('.document-pane')].find(p => Number(p.dataset.documentId) === window.linkA);
     clicked.querySelector('a').click();
     await waitFor(() => [...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(c)}), 'Clicked pane did not navigate');

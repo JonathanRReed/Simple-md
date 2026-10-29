@@ -42,7 +42,7 @@ export interface Bridge {
   renderFragment(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<RenderedHtml>;
   save(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null>;
   saveImage(bytes: Uint8Array, ext: string, documentId: DocumentId): Promise<string | null>;
-  prepareDragExport(text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf"): Promise<{ token: string; name: string }>;
+  prepareDragExport(text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf"): Promise<{ token: string; name: string; expiresAt: number }>;
   startDragExport(documentId: DocumentId, revisionId: RevisionId, token: string): void;
   exportPdf(text: string, documentId: DocumentId): Promise<void>;
   exportHtml(text: string, documentId: DocumentId): Promise<void>;

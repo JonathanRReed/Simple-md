@@ -100,8 +100,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const exportFormat = $<HTMLSelectElement>("export-format");
   let preparedExport: { token: string; name: string; revision: RevisionId } | undefined;
   let exportSequence = 0;
+  let exportExpiryTimer: number | undefined;
   function invalidateExport(): void {
     ++exportSequence;
+    clearTimeout(exportExpiryTimer);
     if (!preparedExport && !exportButton.disabled && !exportButton.draggable) return;
     preparedExport = undefined;
     exportButton.draggable = false;
@@ -119,6 +121,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     void simplemd.prepareDragExport(currentText(), id, revision, format).then(result => {
       if (disposed || id !== pane.documentId || revision !== doc.revisionId || sequence !== exportSequence) return;
       preparedExport = { ...result, revision };
+      exportExpiryTimer = window.setTimeout(invalidateExport, Math.max(0, result.expiresAt - Date.now()));
       exportButton.disabled = false;
       exportButton.draggable = true;
       exportButton.textContent = `Drag ${format.toUpperCase()}`;
@@ -312,7 +315,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function activeChanged(next: boolean): void {
     if (next === active) return;
     if (!next) {
-      seenOnReturn = highlights.kind === "watch" && visibleRevision === doc.revisionId && performance.now() - visibleSince >= 1000 ? doc.revisionId : undefined;
+      seenOnReturn = highlights.kind === "watch" && !document.hidden && document.hasFocus() && visibleRevision === doc.revisionId && performance.now() - visibleSince >= 1000 ? doc.revisionId : undefined;
     } else if (seenOnReturn !== undefined) {
       void markSeen(true, seenOnReturn);
       seenOnReturn = undefined;
@@ -1209,6 +1212,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
   function suspend(): DormantDocument {
     activeChanged(false);
+    invalidateExport();
     doc.readText = currentText();
     if (settings.autosave && doc.dirty && doc.meta.path && !doc.diskConflict && !isReadOnly()) {
       const retained = doc;

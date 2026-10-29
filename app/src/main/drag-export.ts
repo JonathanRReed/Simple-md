@@ -31,7 +31,7 @@ export class DragExports {
       const entry: PreparedExport = { documentId, revisionId, file, directory, timer: setTimeout(() => void this.remove(token), this.retentionMs) };
       entry.timer.unref();
       this.files.set(token, entry);
-      return { token, name: filename };
+      return { token, name: filename, expiresAt: Date.now() + this.retentionMs };
     } catch (error) { await fs.rm(directory, { recursive: true, force: true }); throw error; }
   }
 
