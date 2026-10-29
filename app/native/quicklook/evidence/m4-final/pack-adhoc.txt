@@ -1,0 +1,68 @@
+$ bun run build/local-pack.mjs --dir
+$ bun run build.ts
+    Finished `release` profile [optimized] target(s) in 0.06s
+  • electron-builder  version=26.15.3 os=27.2.0
+  • loaded configuration  file=package.json ("build" field)
+  • executing @electron/rebuild  electronVersion=45.0.0 arch=arm64 buildFromSource=false workspaceRoot=/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app projectDir=./ appDir=./
+  • installing native dependencies  arch=arm64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=arm64 electron=45.0.0 appOutDir=release/mac-arm64
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64
+  • searching for node modules  pm=bun searchDir=/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app
+  • note: bun does not support any CLI for dependency tree extraction, utilizing file traversal collector instead
+  • using manual traversal of node_modules to build dependency tree
+  • searching for node modules  pm=traversal searchDir=/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules returned while searching directories  searchDirectories=[""]
+Bundled 687 modules in 47ms
+
+  render-core.js  9.71 MB  (entry point)
+
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLPreview.appex/Contents/Info.plist: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/extension.entitlements: OK
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLPreview.appex: replacing existing signature
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLPreview.appex: valid on disk
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLPreview.appex: satisfies its Designated Requirement
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLThumbnail.appex/Contents/Info.plist: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/extension.entitlements: OK
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLThumbnail.appex: replacing existing signature
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLThumbnail.appex: valid on disk
+/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-quicklook-GsrZ16/extensions/SimpleMDQLThumbnail.appex: satisfies its Designated Requirement
+  • ad-hoc signing with hardenedRuntime enabled requires the com.apple.security.cs.disable-library-validation entitlement to prevent app launch failures due to library validation. See https://electron.build/code-signing for details.
+  • signing         file=release/mac-arm64/SimpleMD.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were set explicitly `false`
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper (Plugin).app
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper (GPU).app
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper (Renderer).app
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper.app
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper (Plugin).app
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper (GPU).app
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper.app
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/SimpleMD Helper (Renderer).app
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/app_shim_loader
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/app_shim_loader
+--prepared:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app: valid on disk
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app: satisfies its Designated Requirement
+Executable=/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+Executable=/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail
+warning: Specifying ':' in the path is deprecated and will not work in a future release

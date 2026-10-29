@@ -1,0 +1,80 @@
+{
+  "CFBundleDocumentTypes": [
+    {
+      "CFBundleTypeExtensions": [
+        "md",
+        "markdown",
+        "mdown",
+        "mkd",
+        "mdx"
+      ],
+      "CFBundleTypeName": "Markdown document",
+      "CFBundleTypeRole": "Editor",
+      "LSHandlerRank": "Alternate",
+      "LSItemContentTypes": [
+        "net.daringfireball.markdown",
+        "public.markdown",
+        "com.jonathanreed.simplemd.mdx",
+        "com.fluxmarkdown.mdx"
+      ]
+    },
+    {
+      "CFBundleTypeExtensions": [
+        "md",
+        "markdown",
+        "mdown",
+        "mkd",
+        "mdx"
+      ],
+      "CFBundleTypeIconFile": "icon.icns",
+      "CFBundleTypeName": "Markdown document",
+      "CFBundleTypeRole": "Editor",
+      "LSHandlerRank": "Default"
+    }
+  ],
+  "UTExportedTypeDeclarations": [
+    {
+      "UTTypeConformsTo": [
+        "public.plain-text"
+      ],
+      "UTTypeDescription": "MDX document",
+      "UTTypeIdentifier": "com.jonathanreed.simplemd.mdx",
+      "UTTypeTagSpecification": {
+        "public.filename-extension": [
+          "mdx"
+        ],
+        "public.mime-type": "text/mdx"
+      }
+    }
+  ],
+  "UTImportedTypeDeclarations": [
+    {
+      "UTTypeConformsTo": [
+        "public.plain-text"
+      ],
+      "UTTypeDescription": "Markdown document",
+      "UTTypeIdentifier": "net.daringfireball.markdown",
+      "UTTypeTagSpecification": {
+        "public.filename-extension": [
+          "md",
+          "markdown",
+          "mdown",
+          "mkd"
+        ],
+        "public.mime-type": "text/markdown"
+      }
+    },
+    {
+      "UTTypeConformsTo": [
+        "public.plain-text"
+      ],
+      "UTTypeDescription": "MDX document",
+      "UTTypeIdentifier": "com.fluxmarkdown.mdx",
+      "UTTypeTagSpecification": {
+        "public.filename-extension": [
+          "mdx"
+        ]
+      }
+    }
+  ]
+}

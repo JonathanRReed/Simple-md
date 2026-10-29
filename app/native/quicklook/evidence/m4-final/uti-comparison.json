@@ -1,0 +1,173 @@
+{
+  "spike_commit": "52a936a",
+  "spike_host": {
+    "CFBundleDocumentTypes": null,
+    "UTImportedTypeDeclarations": [
+      {
+        "UTTypeIdentifier": "net.daringfireball.markdown",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkd"
+          ],
+          "public.mime-type": "text/markdown"
+        }
+      }
+    ],
+    "UTExportedTypeDeclarations": [
+      {
+        "UTTypeIdentifier": "com.jonathanreed.simplemd.qlspike.mdx",
+        "UTTypeDescription": "MDX document",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "mdx"
+          ]
+        }
+      }
+    ]
+  },
+  "prior_package": {
+    "CFBundleDocumentTypes": [
+      {
+        "CFBundleTypeName": "Markdown document",
+        "CFBundleTypeRole": "Editor",
+        "LSHandlerRank": "Alternate",
+        "LSItemContentTypes": [
+          "net.daringfireball.markdown",
+          "public.markdown",
+          "com.jonathanreed.simplemd.mdx",
+          "com.fluxmarkdown.mdx"
+        ],
+        "CFBundleTypeExtensions": [
+          "md",
+          "markdown",
+          "mdown",
+          "mkd",
+          "mdx"
+        ]
+      }
+    ],
+    "UTImportedTypeDeclarations": [
+      {
+        "UTTypeIdentifier": "com.fluxmarkdown.mdx",
+        "UTTypeDescription": "MDX document",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "mdx"
+          ]
+        }
+      }
+    ],
+    "UTExportedTypeDeclarations": [
+      {
+        "UTTypeIdentifier": "com.jonathanreed.simplemd.mdx",
+        "UTTypeDescription": "MDX document",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "mdx"
+          ],
+          "public.mime-type": "text/mdx"
+        }
+      }
+    ]
+  },
+  "final_package": {
+    "CFBundleDocumentTypes": [
+      {
+        "CFBundleTypeName": "Markdown document",
+        "CFBundleTypeRole": "Editor",
+        "LSHandlerRank": "Alternate",
+        "LSItemContentTypes": [
+          "net.daringfireball.markdown",
+          "public.markdown",
+          "com.jonathanreed.simplemd.mdx",
+          "com.fluxmarkdown.mdx"
+        ],
+        "CFBundleTypeExtensions": [
+          "md",
+          "markdown",
+          "mdown",
+          "mkd",
+          "mdx"
+        ]
+      }
+    ],
+    "UTImportedTypeDeclarations": [
+      {
+        "UTTypeIdentifier": "net.daringfireball.markdown",
+        "UTTypeDescription": "Markdown document",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkd"
+          ],
+          "public.mime-type": "text/markdown"
+        }
+      },
+      {
+        "UTTypeIdentifier": "com.fluxmarkdown.mdx",
+        "UTTypeDescription": "MDX document",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "mdx"
+          ]
+        }
+      }
+    ],
+    "UTExportedTypeDeclarations": [
+      {
+        "UTTypeIdentifier": "com.jonathanreed.simplemd.mdx",
+        "UTTypeDescription": "MDX document",
+        "UTTypeConformsTo": [
+          "public.plain-text"
+        ],
+        "UTTypeTagSpecification": {
+          "public.filename-extension": [
+            "mdx"
+          ],
+          "public.mime-type": "text/mdx"
+        }
+      }
+    ]
+  },
+  "spike_thumbnail": {
+    "QLThumbnailMinimumDimension": 32,
+    "QLSupportedContentTypes": [
+      "net.daringfireball.markdown",
+      "public.markdown",
+      "com.jonathanreed.simplemd.qlspike.mdx",
+      "com.fluxmarkdown.mdx"
+    ]
+  },
+  "packaged_thumbnail": {
+    "QLThumbnailMinimumDimension": 32,
+    "QLSupportedContentTypes": [
+      "net.daringfireball.markdown",
+      "public.markdown",
+      "com.jonathanreed.simplemd.mdx",
+      "com.fluxmarkdown.mdx"
+    ]
+  }
+}

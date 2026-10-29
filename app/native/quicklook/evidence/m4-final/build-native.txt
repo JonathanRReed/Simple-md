@@ -1,0 +1,2 @@
+$ bun run build/native.mjs
+    Finished `release` profile [optimized] target(s) in 0.11s

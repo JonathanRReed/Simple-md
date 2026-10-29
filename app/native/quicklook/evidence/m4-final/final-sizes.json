@@ -1,0 +1,20 @@
+[
+  {
+    "name": "README",
+    "source_bytes": 2905,
+    "html_bytes": 13705,
+    "fonts": 0
+  },
+  {
+    "name": "math",
+    "source_bytes": 36,
+    "html_bytes": 378074,
+    "fonts": 20
+  },
+  {
+    "name": "MDX",
+    "source_bytes": 116,
+    "html_bytes": 7004,
+    "fonts": 0
+  }
+]
