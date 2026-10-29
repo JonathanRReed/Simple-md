@@ -24,6 +24,7 @@ const inputs = posts.map((name) => {
   const file = path.join(copies, name);
   fs.writeFileSync(file, fs.readFileSync(path.join(sourceDir, name)));
   return { name, file, expectedDetails: (source.match(/<details(?:\s|>)/g) ?? []).length, expectedFigures: (source.match(/<figure(?:\s|>)/g) ?? []).length,
+    captions: [...source.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((match) => match[1]!.replace(/\s+/g, " ").trim()),
     expectedHtmlImages: (source.match(/<img(?:\s|>)/g) ?? []).length,
     rootImages: [...source.matchAll(/<img\b[\s\S]*?>/gi)].flatMap((tag) => [...tag[0].matchAll(/\bsrc\s*=\s*["'](\/[^"']+)["']/g)].map((m) => m[1]!)) };
 });
@@ -41,9 +42,11 @@ for (const input of inputs) {
       if (!image.complete) await Promise.race([new Promise(r => { image.addEventListener('load', r, {once:true}); image.addEventListener('error', r, {once:true}); }), new Promise(r => setTimeout(r, 5000))]);
     }));
     const result = { ...input, details: doc.querySelectorAll('details:not(.frontmatter)').length, summaries: doc.querySelectorAll('details:not(.frontmatter) > summary').length,
-      figures: doc.querySelectorAll('figure').length, images: images.map(image => ({src: image.getAttribute('src'), loaded: image.complete && image.naturalWidth > 0})),
+      figures: doc.querySelectorAll('figure').length, captionsShown: input.captions.filter(caption => doc.textContent.replace(/\\s+/g, ' ').includes(caption)).length,
+      images: images.map(image => ({src: image.getAttribute('src'), loaded: image.complete && image.naturalWidth > 0})),
       active: doc.querySelectorAll('script, style, iframe, [onerror], [onclick], [onload]').length };
     if (result.details !== input.expectedDetails || result.active || images.length < input.expectedHtmlImages) throw Error('Blog DOM mismatch: ' + JSON.stringify(result));
+    if (result.captionsShown !== input.captions.length || result.images.some(image => !image.loaded)) throw Error('Blog caption or image missing: ' + JSON.stringify(result));
     if (input.rootImages.some(src => !images.some(image => image.src.includes('/site/public' + src)))) throw Error('Astro image root mismatch: ' + input.name);
     return result;
   })()` } });

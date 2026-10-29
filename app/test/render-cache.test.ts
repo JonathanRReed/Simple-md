@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { RenderCache, RENDER_CACHE_VERSION } from "../src/main/render-cache";
+import { renderBlocks } from "../src/main/markdown";
 
 const dirs: string[] = [];
 const file = () => {
@@ -14,6 +15,19 @@ const blocks = [{ key: "one", html: "<p>Current</p>", urls: {}, sourceRange: [0,
 afterEach(() => { for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }); });
 
 describe("disk render cache", () => {
+  test("preserves a balanced author wrapper and its source range on disk", async () => {
+    const text = '<details>\n\n# Inside\n\n</details>';
+    const rendered = await renderBlocks(text, "/note.md");
+    expect(rendered.blocks).toHaveLength(1);
+    expect(rendered.blocks[0]!.sourceRange).toEqual([0, 5]);
+    expect(rendered.blocks[0]!.content?.kind).toBe("author");
+    const target = file();
+    const cache = new RenderCache(target);
+    cache.set("/note.md", 1, text.length, rendered.title, rendered.blocks, text);
+    cache.flush();
+    expect(new RenderCache(target).get("/note.md", 1, text.length, text)).toEqual(rendered);
+  });
+
   test("persists valid entries and checks source, mtime and size", () => {
     const target = file();
     const cache = new RenderCache(target);

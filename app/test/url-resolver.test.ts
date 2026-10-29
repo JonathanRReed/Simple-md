@@ -30,6 +30,11 @@ describe("shared author URL resolver", () => {
     expect(parseSrcset("a,b.png 1x, c.png 2x")).toEqual([{ url: "a,b.png", descriptor: "1x" }, { url: "c.png", descriptor: "2x" }]);
     expect(resolveSrcset("data:image/png;base64,AA 1x, x.png 2x", context)).toBe("file:///project/docs/x.png 2x");
     expect(resolveSrcset("file:///tmp/a 1x, a.png 1x 2x", context)).toBeNull();
+    expect(parseSrcset("a.png 1e2x, b.png .5x, c.png 000320w 200h, d.png 0x")).toEqual([
+      { url: "a.png", descriptor: "1e2x" }, { url: "b.png", descriptor: ".5x" },
+      { url: "c.png", descriptor: "000320w 200h" }, { url: "d.png", descriptor: "0x" },
+    ]);
+    expect(parseSrcset("a.png -1x, b.png 0w, c.png 1w 2x, d.png 1h, e.png 1X, f.png 1.x")).toEqual([]);
   });
   test("Astro ancestor wins over nearer git; otherwise nearest git, otherwise unresolved", () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-url-"));
@@ -41,6 +46,8 @@ describe("shared author URL resolver", () => {
       const folder = (dir: string) => pathToFileURL(dir + path.sep).href;
       expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/nested")));
       fs.writeFileSync(path.join(temp, "site/astro.config.mjs"), "");
+      expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/nested")));
+      fs.mkdirSync(path.join(temp, "site/public"));
       expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/public")));
       fs.rmSync(path.join(temp, "site/astro.config.mjs"));
       fs.rmSync(path.join(temp, "site/nested/.git"));

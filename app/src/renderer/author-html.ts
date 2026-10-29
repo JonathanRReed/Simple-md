@@ -5,6 +5,7 @@ import type { RenderedHtml, RenderNode } from "../shared/render-tree.js";
 
 const purifier = createDOMPurify(window);
 const originals = new WeakMap<Element, Map<string, string>>();
+const generatedIds = new WeakMap<Element, Map<string, string>>();
 const fragmentMaps = new WeakMap<Node, Map<string, string>>();
 interface AuthorOptions { urls?: UrlContext; remoteImages?: boolean }
 
@@ -103,11 +104,14 @@ export function updateFragments(root: HTMLElement | DocumentFragment): void {
   const used = new Set<string>();
   for (const element of root.querySelectorAll("[id], [name]")) {
     const original = originals.get(element);
+    const generated = generatedIds.get(element) ?? new Map<string, string>();
+    generatedIds.set(element, generated);
     for (const attr of ["id", "name"]) {
       const value = element.getAttribute(attr);
       if (value === null) continue;
-      const source = original?.get(attr) ?? value;
-      let id = original?.has(attr) ? prefixFragment(source) : value;
+      const source = original?.get(attr) ?? generated.get(attr) ?? value;
+      let id = original?.has(attr) ? prefixFragment(source) : source;
+      generated.set(attr, source);
       const base = id;
       let suffix = 1;
       while (used.has(id)) id = `${base}-${suffix++}`;

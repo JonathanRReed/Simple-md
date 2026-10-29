@@ -33,6 +33,20 @@ export function resolveAuthorUrl(input: string, kind: UrlKind, context: UrlConte
 
 export interface SrcsetCandidate { url: string; descriptor: string }
 
+function validDescriptors(descriptor: string): boolean {
+  let width = false;
+  let density = false;
+  let height = false;
+  for (const part of descriptor.split(/[\t\n\f\r ]+/).filter(Boolean)) {
+    if (/^\d+w$/.test(part) && Number.parseInt(part) > 0 && !width && !density) width = true;
+    else if (/^\d+h$/.test(part) && Number.parseInt(part) > 0 && !height && !density) height = true;
+    else if (/^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?x$/.test(part) &&
+        Number.isFinite(Number.parseFloat(part)) && Number.parseFloat(part) >= 0 && !width && !density && !height) density = true;
+    else return false;
+  }
+  return !height || width;
+}
+
 // WHATWG candidate collection: commas inside a URL belong to the URL; trailing
 // commas delimit a descriptor-free candidate. Parentheses protect descriptor commas.
 export function parseSrcset(input: string): SrcsetCandidate[] {
@@ -58,8 +72,7 @@ export function parseSrcset(input: string): SrcsetCandidate[] {
       else if (char === "," && !parentheses) break;
     }
     const descriptor = input.slice(descriptorStart, input[i - 1] === "," ? i - 1 : i).trim();
-    // A resource set uses either one positive density or width descriptor.
-    if (!descriptor || /^(?:[1-9]\d*w|(?:\d+(?:\.\d+)?|\.\d+)x)$/.test(descriptor) && Number.parseFloat(descriptor) > 0) candidates.push({ url, descriptor });
+    if (validDescriptors(descriptor)) candidates.push({ url, descriptor });
   }
   return candidates;
 }

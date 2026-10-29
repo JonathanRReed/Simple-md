@@ -1,7 +1,7 @@
 import { mountRenderedHtml, sanitizeAuthorHtml, updateFragments } from "../../src/renderer/author-html";
 import type { RenderedHtml } from "../../src/shared/render-tree";
 
-interface Input { name: string; source: string; expected: string; rendered?: RenderedHtml; remoteImages?: boolean }
+interface Input { name: string; source: string; expected: string; rendered?: RenderedHtml; remoteImages?: boolean; removeFirstId?: boolean }
 const urls = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/public/" };
 function canonical(node: Node): unknown {
   if (node.nodeType === Node.TEXT_NODE) return node.textContent;
@@ -14,6 +14,10 @@ async function runBatch(inputs: Input[]) {
     if (input.rendered) mountRenderedHtml(root, input.rendered, input.remoteImages);
     else root.append(sanitizeAuthorHtml(input.source, { urls, remoteImages: input.remoteImages }));
     updateFragments(root);
+    if (input.removeFirstId) {
+      root.querySelector("[id]")?.remove();
+      updateFragments(root);
+    }
     const expected = document.createElement("template");
     expected.innerHTML = input.expected;
     return { generated: { shiki: root.querySelectorAll(".shiki").length, math: root.querySelectorAll(".katex").length,

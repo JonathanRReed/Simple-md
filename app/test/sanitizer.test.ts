@@ -13,6 +13,13 @@ test("author HTML hostile fixtures produce the expected DOM", async () => {
   expect(results.filter((r) => JSON.stringify(r.actualDom) !== JSON.stringify(r.expectedDom)).map(({ name, actual, expected }) => ({ name, actual, expected }))).toEqual([]);
 }, 30_000);
 
+test("reused generated IDs recover after an earlier duplicate is removed", async () => {
+  const rendered = await core.renderMarkdown('<p id="same">Author</p>\n\n# Same\n\n[Jump](#same)', "/project/docs/note.md");
+  const results = await runDom(path.join(import.meta.dir, "sanitizer/browser.ts"), [{ name: "reuse", source: "", rendered, removeFirstId: true,
+    expected: '\n<h1 id="user-content-same" dir="auto">Same</h1>\n<p dir="auto"><a href="#user-content-same">Jump</a></p>\n' }]) as { actualDom: unknown; expectedDom: unknown; actual: string }[];
+  expect(results[0]!.actualDom, results[0]!.actual).toEqual(results[0]!.expectedDom);
+}, 30_000);
+
 test("generated nodes retain their policies inside an author wrapper", async () => {
   const rendered = await renderMarkdown(`<details><summary>More</summary>
 

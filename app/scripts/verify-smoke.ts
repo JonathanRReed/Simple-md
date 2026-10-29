@@ -239,6 +239,7 @@ $x^2$
 <script>window.authorExecuted = true</script>
 `);
   const pdf = path.join(root, "author-html/output.pdf");
+  const html = path.join(root, "author-html/output.html");
   await launch("author-html", file, [
     evaluate(`await waitFor(() => document.querySelector('#doc details:not(.frontmatter) strong')?.textContent === 'Inside', 'Raw wrapper lost its Markdown children.');
       const doc = document.querySelector('#doc');
@@ -262,8 +263,18 @@ $x^2$
       await waitFor(() => !document.querySelector('#read').hidden && document.querySelector('#doc img[alt="remote"]'), 'Read view did not remount.');
       assert(!document.querySelector('#doc img[alt="remote"]').hasAttribute('src'), 'Remote image remains enabled.');`),
     { pdf },
+    { html },
   ]);
   assert.equal(fs.readFileSync(pdf).subarray(0, 5).toString(), "%PDF-");
+  const exported = fs.readFileSync(html, "utf8");
+  assert(/<details\b(?=[^>]*\bid="user-content-more")(?=[^>]*\bopen="")/.test(exported) && exported.includes("<strong>Inside</strong>"), "HTML export lost the sanitized author wrapper.");
+  assert(exported.includes('href="#user-content-more"') && exported.includes('type="checkbox"') && exported.includes('class="shiki') && exported.includes('class="katex"'), "HTML export lost fragments or generated markup.");
+  assert(!/<script\b|\bonerror=|data-evil=|src=["'](?:file:|https?:)/i.test(exported), "HTML export retained blocked author markup or resource URLs.");
+  const pdftotext = Bun.which("pdftotext");
+  assert(pdftotext, "pdftotext is required to verify the sanitized PDF content.");
+  const extracted = Bun.spawnSync([pdftotext, pdf, "-"]);
+  assert.equal(extracted.exitCode, 0);
+  assert(extracted.stdout.toString().includes("Inside") && extracted.stdout.toString().includes("Safe task"), "PDF export lost the sanitized author wrapper content.");
 });
 
 await test("edit-modes-undo-save", async () => {

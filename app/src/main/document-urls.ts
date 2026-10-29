@@ -13,7 +13,8 @@ export function urlContext(baseDir: string | undefined, discoverRoot = true): Ur
   while (true) {
     try {
       const entries = fs.readdirSync(ancestor);
-      if (entries.some((name) => /^astro\.config\./.test(name) && fs.statSync(path.join(ancestor, name)).isFile())) {
+      if (entries.includes("public") && fs.statSync(path.join(ancestor, "public")).isDirectory() &&
+          entries.some((name) => /^astro\.config\./.test(name) && fs.statSync(path.join(ancestor, name)).isFile())) {
         root = path.join(ancestor, "public");
         break;
       }
