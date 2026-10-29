@@ -88,7 +88,7 @@ function assertDocument(file: string, text: string): DriverStep {
   const heading = /^# (.+)$/m.exec(text.replace(/^\uFEFF/, ""))?.[1];
   return evaluate(`${waitFor}
     const file = ${quote(file)};
-    await waitFor(() => document.documentElement.dataset.firstReadable === file && document.documentElement.dataset.documentPainted === file);
+    await waitFor(() => document.documentElement.dataset.firstReadable === file && document.documentElement.dataset.documentPainted === file && (document.documentElement.dataset.renderComplete === undefined || document.documentElement.dataset.renderComplete === file));
     if (document.documentElement.dataset.documentPath !== file) throw new Error('Wrong perf file');
     if (document.querySelector('#doc h1')?.textContent !== ${quote(heading)}) throw new Error('Failed perf heading render');
     await waitFor(() => !document.querySelector('#doc pre.mermaid'));
@@ -143,7 +143,7 @@ export async function perfGate(): Promise<void> {
       resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
     },
-    limits: ["Parent stdout receipt timestamps include IPC and pipe scheduling. Double rAF marks a paint opportunity, not physical display scanout.", "First-readable does not await diagrams or fonts. Current payload generation still highlights before mount; this run does not implement first-screen rendering.", "Typing Event Timing has a 16 ms reporting floor and 8 ms quantization. Sub-threshold events are censored, never treated as zero. beforeinput support and trusted counts are recorded separately.", "Editor tokenization has no fully-highlighted completion signal. That marker applies to read and split previews only; CodeMirror background parsing is not timed.", "CDP IME is a composition-path exercise, not a physical keyboard or native input-method qualification.", "ASAR packaging and Windows runtime are not measured by a development macOS run."],
+    limits: ["Parent stdout receipt timestamps include IPC and pipe scheduling. Double rAF marks a paint opportunity, not physical display scanout.", "First-readable does not await diagrams, fonts, deferred highlighting or streamed remainder blocks. Final assertions wait for the complete stream.", "Typing Event Timing has a 16 ms reporting floor and 8 ms quantization. Sub-threshold events are censored, never treated as zero. beforeinput support and trusted counts are recorded separately.", "Editor tokenization has no fully-highlighted completion signal. That marker applies to read and split previews only; CodeMirror background parsing is not timed.", "CDP IME is a composition-path exercise, not a physical keyboard or native input-method qualification.", "ASAR packaging and Windows runtime are not measured by a development macOS run."],
     runs, samples, failedSamples, typing, memory, failures, gates: {} as Record<string, unknown>, loadAverageEnd: [] as number[],
   };
   function profile(name: string, mode = "source") {

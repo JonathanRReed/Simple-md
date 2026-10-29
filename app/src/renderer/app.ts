@@ -1,3 +1,4 @@
+import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
 import { makeDocumentId, makePaneId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
@@ -140,19 +141,25 @@ const katexCss = new Promise<void>((resolve) => {
 // Retained blocks stay attached so diagrams and browser selections survive unchanged renders.
 const blockEls = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 
-function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
+function mountBlocks(el: HTMLElement, blocks: RenderedBlock[], append = false): void {
   const prev = blockEls.get(el) ?? new Map<string, HTMLElement>();
-  const next = new Map<string, HTMLElement>();
+  const next = append ? prev : new Map<string, HTMLElement>();
   const fresh: HTMLElement[] = [];
-  let cursor = el.firstChild;
+  let cursor = append ? null : el.firstChild;
   for (const block of blocks) {
     let node = prev.get(block.key);
+    if (node && node.dataset.fingerprint !== (block.fingerprint ?? block.key)) {
+      destroyDiagrams(node);
+      mountRenderedHtml(node, block, settings.remoteImages);
+      fresh.push(node);
+    }
     if (!node) {
       node = document.createElement("div");
       node.className = "block";
       mountRenderedHtml(node, block, settings.remoteImages);
       fresh.push(node);
     }
+    node.dataset.fingerprint = block.fingerprint ?? block.key;
     node.dataset.sourceStart = String(block.sourceRange[0]);
     node.dataset.sourceEnd = String(block.sourceRange[1]);
     prev.delete(block.key);
@@ -160,7 +167,7 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
     if (node === cursor) cursor = cursor.nextSibling;
     else el.insertBefore(node, cursor);
   }
-  for (const stale of prev.values()) {
+  for (const stale of append ? [] : prev.values()) {
     destroyDiagrams(stale);
     stale.remove();
   }
@@ -170,6 +177,34 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
   void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
     if (id === pane.documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
   });
+}
+
+async function appendStream(payload: DocPayload, id: DocumentId): Promise<void> {
+  const stream = payload.stream;
+  if (stream === undefined) return;
+  const state = doc;
+  const targetPane = pane;
+  let blocks = payload.blocks;
+  const seq = targetPane.readRenderSeq;
+  const live = () => pane === targetPane && id === targetPane.documentId && seq === targetPane.readRenderSeq && targetPane.view === "read";
+  try {
+    while (live()) {
+      const update = await simplemd.nextBlocks(stream, id);
+      if (!live()) return;
+      if (update.kind === "done") {
+        if (!payload.mdx?.error) state.lastGoodBlocks = blocks;
+        simplemd.perfMarker(id, "fully-highlighted");
+        root.dataset.fullyHighlighted = payload.path ?? "";
+        root.dataset.renderComplete = payload.path ?? "";
+        return;
+      }
+      blocks = applyBlockUpdate(blocks, update);
+      mountBlocks(docEl, update.kind === "append" ? update.blocks : blocks, update.kind === "append");
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    }
+  } catch {
+    if (pane === targetPane && id === targetPane.documentId && seq === targetPane.readRenderSeq) toast("Couldn't finish this preview.");
+  }
 }
 
 function renderRead(text: string, keepScroll: boolean): Promise<void> {
@@ -458,6 +493,8 @@ async function onDoc(payload: DocPayload): Promise<void> {
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
   delete root.dataset.firstReadable;
+  delete root.dataset.fullyHighlighted;
+  root.dataset.renderComplete = "";
   doc.hasDoc = true;
   doc.readText = payload.text;
   doc.savedText = payload.text;
@@ -482,12 +519,16 @@ async function onDoc(payload: DocPayload): Promise<void> {
   }
   simplemd.perfMarker(id, "renderer-mount");
   // This marker does not await fonts, highlighting completion checks or diagram work.
-  // The current worker still highlights before sending the payload.
+
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (id !== pane.documentId) return;
     root.dataset.firstReadable = payload.path ?? "";
     simplemd.perfMarker(id, "first-readable");
-    if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
+    if (payload.stream !== undefined) void appendStream(payload, id);
+    else {
+      root.dataset.renderComplete = payload.path ?? "";
+      if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
+    }
   }));
   const sourceOnly = payload.intent === "edit" && !isReadOnly() && settings.mode === "source";
   const visibleRoot = payload.intent === "edit" && !isReadOnly() ? settings.mode === "split" ? previewEl : editorHost : docEl;

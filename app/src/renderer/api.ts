@@ -20,6 +20,7 @@ export interface Bridge {
   setDirty(dirty: boolean, documentId: DocumentId): void;
   printReady(error?: string): void;
   mdxRanges(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<import("../shared/render-core.js").MdxResult>;
+  nextBlocks(stream: number, documentId: DocumentId): Promise<import("../shared/block-update.js").BlockUpdate>;
   renderBlocks(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<import("../shared/render-core.js").RenderedBlocks>;
   renderFragment(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<RenderedHtml>;
   save(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null>;

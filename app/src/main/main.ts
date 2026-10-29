@@ -1,3 +1,4 @@
+import { documentDelta } from "./document-delta.js";
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
@@ -34,7 +35,7 @@ import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-
 import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
+import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { PeekHelper, type PeekRequest } from "./peek.js";
@@ -283,9 +284,13 @@ async function settle(): Promise<boolean> {
 
 // ───────── documents ─────────
 
+const baseUrlOf = (file: string | null) =>
+  file ? pathToFileURL(path.dirname(file)).href.replace(/\/?$/, "/") : null;
+
 async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.text, intent = doc.intent): Promise<DocPayload> {
   const file = doc.path;
   const readOnlyReason = doc.readOnlyReason;
+  let stream: number | undefined;
   let title: string;
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
@@ -302,16 +307,17 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks, mdx } = await renderBlocks(text, file));
-      if (stat) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
+      ({ title, blocks, mdx, stream } = await (intent === "peek" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
+      if (stat && stream === undefined) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks, mdx } = await renderBlocks(text, file));
+    ({ title, blocks, mdx, stream } = await (intent === "peek" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
   }
   return {
     documentId: doc.documentId,
     revisionId: doc.revisionId,
     paneId: mainPane.paneId,
+    stream,
     path: file,
     name: file ? path.basename(file) : "Untitled",
     text,
@@ -913,6 +919,11 @@ function registerIpc(): void {
     if (!mainSender(e) || id !== mainPane.documentId || typeof text !== "string" || !isRevisionId(revision)) return;
     ipcSession(id).edit(text, revision);
   });
+  handle("smd:next-blocks", (stream, id) => {
+    ipcSession(id);
+    if (typeof stream !== "number" || !Number.isSafeInteger(stream) || stream < 1) throw new TypeError("Expected render stream.");
+    return nextBlocks(stream);
+  });
   handle("smd:render-blocks", async (value, id, revision) => {
     const text = ipcText(value);
     const doc = ipcSession(id);
@@ -920,7 +931,7 @@ function registerIpc(): void {
     if (doc.text !== text) throw new Error("Render source does not match the document revision.");
     const out = await doc.render(revisionId, () => renderBlocks(text, doc.path));
     trace("render-done");
-    return out;
+    return documentDelta(doc.documentId, out);
   });
   handle("smd:mdx-ranges", async (value, id, revision) => {
     const text = ipcText(value);

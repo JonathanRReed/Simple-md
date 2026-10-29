@@ -10,7 +10,7 @@ test("standalone browser core has no Node imports and renders without Node or a 
   expect(result.outputs).toHaveLength(1);
   const bundle = await result.outputs[0]!.text();
   expect(bundle).not.toMatch(/(?:from\s*|import\s*\(|require\s*\()\s*["'](?:node:|electron["'])/);
-  const sandbox = vm.createContext({});
+  const sandbox = vm.createContext({ SharedArrayBuffer: undefined, Atomics: undefined });
   vm.runInContext(bundle, sandbox, { timeout: 10_000 });
   const core = sandbox.SimpleMDRenderCore as ReturnType<typeof createRenderCore>;
   const fixture = '# Browser fixture\n\n**Safe**\n\n```ts\nconst answer: number = 42\n```\n\n$x^2$';

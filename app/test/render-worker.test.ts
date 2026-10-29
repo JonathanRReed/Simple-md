@@ -68,9 +68,52 @@ describe("persistent Node render worker", () => {
     `);
   }, 20_000);
 
+  test("streams a readable prefix before the deferred source and final highlights", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const source = '# First screen\\n\\n' + 'Paragraph **bold**.\\n\\n'.repeat(20000) + '\\n~~~ts\\nconst final = 42;\\n~~~';
+        const first = await client.startBlocks(source, '/tmp/stream.md');
+        assert.ok(first.blocks.map(b => b.html).join('').length < 20000);
+        assert.ok(!first.blocks.some(b => b.html.includes('shiki')));
+        let blocks = first.blocks;
+        let appends = 0;
+        for (;;) {
+          const update = await client.nextBlocks(first.stream);
+          if (update.kind === 'done') break;
+          if (update.kind === 'replace') blocks = update.blocks;
+          if (update.kind === 'append') { blocks.push(...update.blocks); appends++; }
+          if (update.kind === 'patch') {
+            const changed = new Map(update.blocks.map(b => [b.key, b]));
+            blocks = blocks.map(b => changed.get(b.key) ?? b);
+          }
+        }
+        assert.ok(appends > 1);
+        const full = await client.renderBlocks(source, '/tmp/stream.md');
+        assert.deepEqual(blocks.map(b => b.html), full.blocks.map(b => b.html));
+        assert.ok(blocks.at(-1).html.includes('shiki'));
+      } finally { await client.dispose(); }
+    `);
+  }, 20_000);
+
+  test("stream completion resynchronizes deltas after an intervening full render", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const beta = await client.startBlocks('# Beta\\n\\nRetained beta.', '/tmp/beta.md');
+        await client.renderBlocks('# Alpha\\n\\nExport alpha.', '/tmp/alpha.md');
+        assert.equal((await client.nextBlocks(beta.stream)).kind, 'done');
+        const result = await client.renderBlocks('# Beta\\n\\nRetained beta.', '/tmp/beta.md');
+        assert.equal(result.blocks.length, 2);
+        assert.match(result.blocks[0].html, /Beta/);
+        assert.match(result.blocks[1].html, /Retained beta/);
+      } finally { await client.dispose(); }
+    `);
+  });
+
   test("plain Markdown and Mermaid do not load Shiki", async () => {
     const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
-    const chunk = /import\("(\.\/chunks\/index-[^"]+)"\)/.exec(bundle)?.[1];
+    const chunk = /import\("(\.\/chunks\/core-[^"]+)"\)/.exec(bundle)?.[1];
     expect(chunk).toBeDefined();
     if (!chunk) throw new Error("Missing lazy Shiki chunk");
     const target = path.join(dir, chunk);

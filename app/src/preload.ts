@@ -1,4 +1,6 @@
 import { makeDocumentId, type DocumentId, type RevisionId, type RequestId } from "./shared/types.js";
+import { applyBlockDelta, isBlockDelta } from "./shared/block-delta.js";
+import type { RenderedBlock } from "./shared/render-core.js";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
@@ -7,6 +9,7 @@ const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
 
 let performanceTracing = false;
 let activeDocumentId = makeDocumentId(0);
+let renderState: { id: DocumentId; blocks: RenderedBlock[] } | undefined;
 
 contextBridge.exposeInMainWorld("simplemd", {
   ready: async () => {
@@ -37,7 +40,14 @@ contextBridge.exposeInMainWorld("simplemd", {
   printReady: (error?: string) => ipcRenderer.send("smd:print-ready", error),
 
   mdxRanges: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:mdx-ranges", text, documentId, revisionId),
-  renderBlocks: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-blocks", text, documentId, revisionId),
+  nextBlocks: (stream: number, documentId: DocumentId) => ipcRenderer.invoke("smd:next-blocks", stream, documentId),
+  renderBlocks: async (text: string, documentId: DocumentId, revisionId: RevisionId) => {
+    const delta: unknown = await ipcRenderer.invoke("smd:render-blocks", text, documentId, revisionId);
+    if (!isBlockDelta(delta)) throw new Error("Invalid block delta");
+    const result = applyBlockDelta(renderState?.id === documentId ? renderState.blocks : [], delta);
+    renderState = { id: documentId, blocks: result.blocks };
+    return result;
+  },
   renderFragment: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-fragment", text, documentId, revisionId),
   save: (text: string, forceDialog: boolean, documentId: DocumentId) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),
   saveImage: (bytes: Uint8Array, ext: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-image", bytes, ext, documentId),
