@@ -51,8 +51,10 @@ describe("performance gate receipts", () => {
     expect(settledMemory([sample(400e6), ...Array.from({ length: 5 }, () => sample(180e6))])).toBe(true);
     expect(settledMemory(Array.from({ length: 5 }, () => sample(400e6)))).toBe(true);
     expect(settledMemory([sample(180e6), sample(180e6), sample(400e6), sample(320e6), sample(180e6)])).toBe(false);
-    // A later stable window still counts after a transient spike, and the latest window wins.
-    expect(gatedMemoryMB([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6)])).toBe(400);
+    // A recent stable window qualifies, but its final spike still fails the ceiling.
+    const finalSpike = gatedMemoryMB([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6)]);
+    expect(finalSpike).toBe(400);
+    expect(summarizeGate([finalSpike!], 200, 1).status).toBe("fail");
     expect(settledWindow([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6), ...Array.from({ length: 5 }, () => sample(170e6))])?.[0]).toEqual(sample(170e6));
     expect(settledMemory([sample(180e6), sample(180e6), sample(180e6), sample(180e6), sample(180e6, 2)])).toBe(false);
     expect(settledMemory(Array.from({ length: 4 }, () => sample(180e6)))).toBe(false);
