@@ -1,3 +1,4 @@
+import { menuState } from "./menu-state.js";
 import { watchWindowTheme } from "./window-theme.js";
 import { readFindText, writeFindText } from "./find-pasteboard.js";
 import { recentFiles, isolatedRecents, jumpList, clearNativeRecents } from "./recents.js";
@@ -138,14 +139,18 @@ function applySettings(patch: unknown, persist = true): void {
   refreshMenus();
 }
 
+let lastMenuState: ReturnType<typeof menuState> | undefined;
 function refreshMenus(): void {
   const recents = recentFiles(recentOS, process.platform, settings.recents);
   if (JSON.stringify(recents) !== JSON.stringify(settings.recents)) {
     settings.recents = recents;
     saveSettings(settings);
   }
-  buildMenu({
-    settings: () => ({ ...settings, mode: context().paneModes.get(context().mainPane.paneId) ?? settings.mode }),
+  const host = frontmost;
+  const mode = host?.paneModes.get(host.mainPane.paneId) ?? settings.mode;
+  const next = menuState(settings, mode, !!registry.get(host?.mainPane.documentId)?.path);
+  if (next.application !== lastMenuState?.application) buildMenu({
+    settings: () => ({ ...settings, mode }),
     command: (cmd) => runCommand(cmd),
     openDialog: () => void openDialog(),
     openPath: (p) => void openFile(p, "edit"),
@@ -158,12 +163,13 @@ function refreshMenus(): void {
     canShare: () => !!currentSession()?.path,
     quit: () => app.quit(),
   });
-  tray?.setContextMenu(trayMenu());
-  if (process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath(), settings.recents));
-  if (process.platform === "darwin") app.dock?.setMenu(Menu.buildFromTemplate([
+  if (next.tray !== lastMenuState?.tray) tray?.setContextMenu(trayMenu());
+  if (next.recents !== lastMenuState?.recents && process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath(), settings.recents));
+  if (next.recents !== lastMenuState?.recents && process.platform === "darwin") app.dock?.setMenu(Menu.buildFromTemplate([
     { label: "New Window", click: () => void newDocumentWindow() },
     ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, "edit") })),
   ]));
+  lastMenuState = next;
 }
 
 function addRecent(file: string): void {
