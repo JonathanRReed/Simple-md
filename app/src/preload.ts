@@ -1,3 +1,5 @@
+import { applyBlockDelta, isBlockDelta } from "./shared/block-delta.js";
+import type { RenderedBlock } from "./shared/render-core.js";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
@@ -5,6 +7,7 @@ const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
 };
 
 let performanceTracing = false;
+let renderState: { id: number; blocks: RenderedBlock[] } | undefined;
 
 contextBridge.exposeInMainWorld("simplemd", {
   ready: async () => {
@@ -35,7 +38,13 @@ contextBridge.exposeInMainWorld("simplemd", {
 
   mdxRanges: (text: string, documentId: number) => ipcRenderer.invoke("smd:mdx-ranges", text, documentId),
   nextBlocks: (stream: number, documentId: number) => ipcRenderer.invoke("smd:next-blocks", stream, documentId),
-  renderBlocks: (text: string, documentId: number) => ipcRenderer.invoke("smd:render-blocks", text, documentId),
+  renderBlocks: async (text: string, documentId: number) => {
+    const delta: unknown = await ipcRenderer.invoke("smd:render-blocks", text, documentId);
+    if (!isBlockDelta(delta)) throw new Error("Invalid block delta");
+    const result = applyBlockDelta(renderState?.id === documentId ? renderState.blocks : [], delta);
+    renderState = { id: documentId, blocks: result.blocks };
+    return result;
+  },
   renderFragment: (text: string, documentId: number) => ipcRenderer.invoke("smd:render-fragment", text, documentId),
   save: (text: string, forceDialog: boolean, documentId: number) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),
   saveImage: (bytes: Uint8Array, ext: string, documentId: number) => ipcRenderer.invoke("smd:save-image", bytes, ext, documentId),

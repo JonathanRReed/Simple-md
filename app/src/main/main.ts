@@ -1,3 +1,4 @@
+import { documentDelta } from "./incremental-blocks.js";
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
@@ -927,7 +928,7 @@ function registerIpc(): void {
     ipcDocument(id);
     const out = await renderBlocks(text, current.path);
     trace("render-done");
-    return out;
+    return documentDelta(current.documentId, out);
   });
   handle("smd:mdx-ranges", async (value, id) => {
     const text = ipcText(value);

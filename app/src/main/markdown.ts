@@ -80,7 +80,7 @@ function highlight(code: string, lang: string): string {
 }
 
 
-const core = createRenderCore({
+export const createWorkerRenderCore = () => createRenderCore({
   prepareHighlighting,
   hash: (text) => createHash("sha256").update(text).digest("hex"),
   highlight: (code, lang) => highlighter?.getLoadedLanguages().includes(lang) ? highlight(code, lang) : "",
@@ -88,6 +88,7 @@ const core = createRenderCore({
   mark: perfMark,
   byteLength: Buffer.byteLength,
 });
+const core = createWorkerRenderCore();
 export const { renderBlocks, renderBlockBatches, renderMarkdown, renderFragment } = core;
 export type { RenderedBlocks, RenderedDoc, RenderedBlock } from "../shared/render-core.js";
 

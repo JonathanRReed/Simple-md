@@ -1,3 +1,4 @@
+import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
 import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
 import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
 import { isMdxResult } from "../shared/mdx-ranges.js";
@@ -21,6 +22,7 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
+  if (value.kind === "blocks-delta") return isBlockDelta(value.value);
   if (value.kind === "stream-next") return isBlockUpdate(value.value);
   if (value.kind === "mdx-ranges") return isMdxResult(value.value);
   if (value.kind === "fragment") return isRenderedHtml(value.value);
@@ -32,6 +34,7 @@ function isResponse(value: unknown): value is RenderResponse {
 
 export class RenderClient {
   private worker: Worker | undefined;
+  private retainedBlocks: RenderedBlocks["blocks"] = [];
   private sequence = 0;
   private active: Pending | undefined;
   private foreground: Pending[] = [];
@@ -128,11 +131,22 @@ export class RenderClient {
             this.fail(new Error("Render worker returned an invalid response"));
             return;
           }
+          let validResponse: RenderResponse = response;
+          if (validResponse.kind === "blocks-delta") {
+            try {
+              const result = applyBlockDelta(this.retainedBlocks, validResponse.value);
+              this.retainedBlocks = result.blocks;
+              validResponse = { id: validResponse.id, kind: "blocks", value: result };
+            } catch (error) {
+              this.fail(error instanceof Error ? error : new Error(String(error)));
+              return;
+            }
+          }
           clearTimeout(this.timer);
           const active = this.active;
           this.active = undefined;
-          if (response.kind === "error") active.reject(new Error(response.message));
-          else active.resolve(response);
+          if (validResponse.kind === "error") active.reject(new Error(validResponse.message));
+          else active.resolve(validResponse);
           this.dispatch();
         });
         worker.on("error", (error) => {
@@ -155,6 +169,7 @@ export class RenderClient {
     clearTimeout(this.timer);
     const worker = this.worker;
     this.worker = undefined;
+    this.retainedBlocks = [];
     this.active?.reject(error);
     this.active = undefined;
     for (const pending of this.foreground) pending.reject(error);

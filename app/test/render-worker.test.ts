@@ -70,7 +70,7 @@ describe("persistent Node render worker", () => {
 
   test("plain Markdown and Mermaid do not load Shiki", async () => {
     const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
-    const chunk = /import\("(\.\/chunks\/index-[^"]+)"\)/.exec(bundle)?.[1];
+    const chunk = /import\("(\.\/chunks\/core-[^"]+)"\)/.exec(bundle)?.[1];
     expect(chunk).toBeDefined();
     if (!chunk) throw new Error("Missing lazy Shiki chunk");
     const target = path.join(dir, chunk);

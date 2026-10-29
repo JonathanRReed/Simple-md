@@ -1,3 +1,5 @@
+import { IncrementalBlocks } from "./incremental-blocks.js";
+import type { BlockDelta } from "../shared/block-delta.js";
 import { BlockStreams } from "./block-stream.js";
 import type { BlockUpdate } from "../shared/block-update.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
@@ -19,6 +21,7 @@ export type RenderRequest = RenderCommand & { id: number };
 
 export type RenderResponse =
   | { id: number; kind: "blocks"; value: RenderedBlocks }
+  | { id: number; kind: "blocks-delta"; value: BlockDelta }
   | { id: number; kind: "fragment"; value: RenderedHtml }
   | { id: number; kind: "mdx-ranges"; value: MdxResult }
   | { id: number; kind: "stream-next"; value: BlockUpdate }
@@ -29,6 +32,7 @@ const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
 const streams = new BlockStreams();
+let incremental: { filePath: string | null; blocks: IncrementalBlocks } | undefined;
 
 port.on("message", async (request: RenderRequest) => {
   perfMark("worker-receive", { requestId: request.id });
@@ -41,9 +45,12 @@ port.on("message", async (request: RenderRequest) => {
       case "stream-next":
         response = { id: request.id, kind: "stream-next", value: await streams.next(request.stream) };
         break;
-      case "blocks":
-        response = { id: request.id, kind: "blocks", value: await renderBlocks(request.text, request.filePath) };
+      case "blocks": {
+        if (!incremental || incremental.filePath !== request.filePath) incremental = { filePath: request.filePath, blocks: new IncrementalBlocks() };
+        const { delta } = await incremental.blocks.render(request.text, request.filePath);
+        response = { id: request.id, kind: "blocks-delta", value: delta };
         break;
+      }
       case "fragment":
         response = { id: request.id, kind: "fragment", value: await renderFragment(request.text, request.baseDir) };
         break;
