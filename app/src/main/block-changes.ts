@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import { createHash } from "node:crypto";
 import { ByteCache } from "../shared/byte-cache.js";
 import { cacheBudget } from "./cache-budget.js";
@@ -52,7 +53,9 @@ export function diffSourceBlocks(before: string, old: SourceBlock[], after: stri
   return result;
 }
 
+perfMark("block-changes-core-start");
 const core = createWorkerRenderCore();
+perfMark("block-changes-core-ready");
 export class BlockChangeCalculator {
   private readonly baselines = new ByteCache<{ text: string; blocks: SourceBlock[] }>(cacheBudget);
   constructor(private readonly render = core.renderBlocks) {}
