@@ -9,13 +9,18 @@ export function packagedApp(context) {
   return path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
 }
 
+export function quickLookIdentity(env = process.env) {
+  const identity = env.SIMPLEMD_SIGN_IDENTITY || "-";
+  if (identity !== "-" && !identity.startsWith("Developer ID Application: ")) throw new Error("Supply a full Developer ID Application identity.");
+  return identity;
+}
+
 export default async function afterPack(context) {
   if (context.electronPlatformName !== "darwin") return;
   const scratch = mkdtempSync(path.join(os.tmpdir(), "simplemd-quicklook-"));
   try {
     const output = path.join(scratch, "extensions");
-    const qualifier = context.packager.platformSpecificBuildOptions.identity;
-    const identity = !qualifier || qualifier === "-" ? "-" : `Developer ID Application: ${qualifier}`;
+    const identity = quickLookIdentity();
     run("bash", [path.join(appDir, "native/quicklook/build-extensions.sh"), output, identity]);
     const plugins = path.join(packagedApp(context), "Contents/PlugIns");
     mkdirSync(plugins, { recursive: true });

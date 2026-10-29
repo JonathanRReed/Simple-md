@@ -64,7 +64,7 @@
   "build": {
     "appId": "com.jonathanreed.simplemd",
     "productName": "SimpleMD",
-    "copyright": "© Jonathan Ray Reed. MIT License.",
+    "copyright": "\u00a9 Jonathan Ray Reed. MIT License.",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -157,18 +157,6 @@
                 "mkd"
               ],
               "public.mime-type": "text/markdown"
-            }
-          },
-          {
-            "UTTypeIdentifier": "com.fluxmarkdown.mdx",
-            "UTTypeDescription": "MDX document",
-            "UTTypeConformsTo": [
-              "public.plain-text"
-            ],
-            "UTTypeTagSpecification": {
-              "public.filename-extension": [
-                "mdx"
-              ]
             }
           }
         ]
