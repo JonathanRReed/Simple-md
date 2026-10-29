@@ -59,7 +59,7 @@ Do not install both copies at once.
    WebView2 version from the log, screenshots, log, and the results of each step.
    Note other installed Markdown previewers. Logs contain byte limits, process/thread
    IDs and generations, not document contents. If no log exists, send installation
-   output and a screenshot of the pane.
+   output, `%TEMP%\SimpleMD-preview-install.log` and a screenshot of the pane.
 
 If formatted preview works at RID `0x1000`, qualify the WebView2 path. If startup
 fails there while literal source works, select the built-in native source fallback

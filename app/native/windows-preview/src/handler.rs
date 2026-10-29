@@ -237,7 +237,14 @@ impl State {
     }
 }
 
+#[derive(Clone, Copy)]
+enum PendingWork {
+    Start,
+    Deadline,
+}
+
 struct Pending {
+    work: PendingWork,
     child: HWND,
     state: Weak<State>,
     generation: u64,
@@ -256,19 +263,103 @@ fn cancel_timer(timer: usize) {
         {}
     }
 }
-unsafe extern "system" fn preview_timeout(_: HWND, _: u32, timer: usize, _: u32) {
+fn schedule(state: &Rc<State>, generation: u64, work: PendingWork, delay: u32) -> bool {
+    let child = state.resources.borrow().child;
+    let timer = unsafe {
+        SetTimer(
+            Some(child),
+            NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            delay,
+            Some(preview_timer),
+        )
+    };
+    if timer == 0 {
+        return false;
+    }
+    TIMERS.with(|timers| {
+        timers.borrow_mut().insert(
+            timer,
+            Pending {
+                child,
+                state: Rc::downgrade(state),
+                generation,
+                work,
+                _lease: ModuleLease::new(),
+            },
+        )
+    });
+    state.resources.borrow_mut().timer = timer;
+    true
+}
+unsafe extern "system" fn preview_timer(_: HWND, _: u32, timer: usize, _: u32) {
     let pending = TIMERS.with(|timers| timers.borrow_mut().remove(&timer));
     if let Some(pending) = pending {
         let _ = unsafe { KillTimer(Some(pending.child), timer) };
-        if let Some(state) = pending.state.upgrade() {
-            state.fallback(
-                pending.generation,
-                "WebView2 startup/render deadline exceeded",
-            );
+        if let Some(state) = pending
+            .state
+            .upgrade()
+            .filter(|state| state.current(pending.generation))
+        {
+            state.resources.borrow_mut().timer = 0;
+            match pending.work {
+                PendingWork::Start => {
+                    if schedule(&state, pending.generation, PendingWork::Deadline, 10_000) {
+                        state.start(pending.generation);
+                    } else {
+                        state.fallback(pending.generation, "Cannot create startup deadline");
+                    }
+                }
+                PendingWork::Deadline => state.fallback(
+                    pending.generation,
+                    "WebView2 startup/render deadline exceeded",
+                ),
+            }
         }
     }
 }
 impl State {
+    fn start(self: &Rc<Self>, generation: u64) {
+        let data = match low_root().and_then(|root| {
+            let data = root.join("UserData").join(format!(
+                "{}-{}-{generation}",
+                std::process::id(),
+                self.id
+            ));
+            fs::create_dir_all(&data).map_err(|e| Error::new(E_FAIL, e.to_string()))?;
+            Ok(data)
+        }) {
+            Ok(data) => data,
+            Err(error) => {
+                self.fallback(generation, &format!("User data: {error}"));
+                return;
+            }
+        };
+        if !self.current(generation) {
+            cleanup(&data);
+            return;
+        }
+        log(&format!("WebView2 user data: {}", data.display()));
+        self.resources.borrow_mut().data = Some(data.clone());
+        let callback: ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler = Startup {
+            state: Rc::downgrade(self),
+            generation,
+            data: data.clone(),
+            _lease: ModuleLease::new(),
+        }
+        .into();
+        // No sandbox flags, custom browser arguments, or nested message pump.
+        if let Err(error) = record("CreateCoreWebView2EnvironmentWithOptions", unsafe {
+            CreateCoreWebView2EnvironmentWithOptions(
+                PCWSTR::null(),
+                &HSTRING::from(data.as_os_str()),
+                None,
+                &callback,
+            )
+        }) {
+            self.fallback(generation, &format!("Environment startup: {error}"));
+        }
+    }
+
     fn fallback(&self, generation: u64, reason: &str) {
         if !self.current(generation) {
             return;
@@ -541,69 +632,11 @@ impl IPreviewHandler_Impl for Preview_Impl {
                     "Native source visible while WebView2 starts; mode=0x{:08X}",
                     self.state.resources.borrow().mode
                 ));
-                // A timer bounds startup and rendering without waiting on the host STA.
-                let timer = unsafe {
-                    SetTimer(
-                        Some(child),
-                        NEXT_ID.fetch_add(1, Ordering::Relaxed),
-                        10_000,
-                        Some(preview_timeout),
-                    )
-                };
-                if timer == 0 {
+                // Return before loading WebView2 or touching its profile. The private
+                // timer dispatches that work on this STA after the host resumes its loop.
+                if !schedule(&self.state, generation, PendingWork::Start, 1) {
                     self.state
-                        .fallback(generation, "Cannot create startup deadline");
-                    return Ok(());
-                }
-                TIMERS.with(|timers| {
-                    timers.borrow_mut().insert(
-                        timer,
-                        Pending {
-                            child,
-                            state: Rc::downgrade(&self.state),
-                            generation,
-                            _lease: ModuleLease::new(),
-                        },
-                    )
-                });
-                self.state.resources.borrow_mut().timer = timer;
-                let data = match low_root().and_then(|root| {
-                    let data = root.join("UserData").join(format!(
-                        "{}-{}-{generation}",
-                        std::process::id(),
-                        self.state.id
-                    ));
-                    fs::create_dir_all(&data).map_err(|e| Error::new(E_FAIL, e.to_string()))?;
-                    Ok(data)
-                }) {
-                    Ok(data) => data,
-                    Err(error) => {
-                        self.state
-                            .fallback(generation, &format!("User data: {error}"));
-                        return Ok(());
-                    }
-                };
-                log(&format!("WebView2 user data: {}", data.display()));
-                self.state.resources.borrow_mut().data = Some(data.clone());
-                let callback: ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler =
-                    Startup {
-                        state: Rc::downgrade(&self.state),
-                        generation,
-                        data: data.clone(),
-                        _lease: ModuleLease::new(),
-                    }
-                    .into();
-                // No sandbox flags, custom browser arguments, or nested message pump.
-                if let Err(error) = record("CreateCoreWebView2EnvironmentWithOptions", unsafe {
-                    CreateCoreWebView2EnvironmentWithOptions(
-                        PCWSTR::null(),
-                        &HSTRING::from(data.as_os_str()),
-                        None,
-                        &callback,
-                    )
-                }) {
-                    self.state
-                        .fallback(generation, &format!("Environment startup: {error}"));
+                        .fallback(generation, "Cannot defer WebView2 startup");
                 }
                 Ok(())
             })(),
@@ -1239,7 +1272,9 @@ mod tests {
                 "# Hidden preview\r\n<script>inert</script>"
             );
             assert_ne!(GetWindowLongW(child, GWL_STYLE) & ES_READONLY, 0);
-            // Deterministic missing/denied-runtime path while startup callbacks may be pending.
+            // DoPreview must not load the runtime or touch a browser profile synchronously.
+            assert!(state.resources.borrow().data.is_none());
+            // Deterministic missing/denied-runtime path while deferred startup is pending.
             let stale = state.generation.get();
             state.fallback(stale, "Test: runtime unavailable");
             assert!(!state.current(stale));

@@ -88,6 +88,12 @@ jobs:
           path: |
             windows-preview/
             app/release/*.exe
+      - name: Save installer hook diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path preview-diagnostics -Force | Out-Null
+          Copy-Item "$env:TEMP/SimpleMD-preview-*.log" preview-diagnostics/ -ErrorAction SilentlyContinue
       - name: Upload preview diagnostics
         if: always()
         uses: actions/upload-artifact@v4

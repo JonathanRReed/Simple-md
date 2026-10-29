@@ -46,6 +46,8 @@ try {
     $process = Start-Process -FilePath (Resolve-Path -LiteralPath $Installer) -ArgumentList @('/S', '/currentuser', "/D=$install") -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Installer exit $($process.ExitCode)" }
     try {
+        $hookLog = Join-Path $env:TEMP 'SimpleMD-preview-install.log'
+        if (Test-Path -LiteralPath $hookLog) { Get-Content -LiteralPath $hookLog | Write-Host }
         Assert-Installed
         foreach ($extension in $extensions) {
             $key = $root.OpenSubKey("Software\Classes\$extension\OpenWithProgids")

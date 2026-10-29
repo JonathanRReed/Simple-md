@@ -17,8 +17,13 @@
 !macroend
 
 !macro customInstall
-  nsExec::ExecToLog '"$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\native\preview\install.ps1" -CheckRuntime'
+  nsExec::ExecToStack '"$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\native\preview\install.ps1" -CheckRuntime'
   Pop $0
+  Pop $1
+  FileOpen $2 "$TEMP\SimpleMD-preview-install.log" w
+  FileWrite $2 "Exit: $0$\r$\n$1$\r$\n"
+  FileClose $2
+  ClearErrors
   ${If} $0 == 10
     IfSilent previewRuntimeDone
     MessageBox MB_YESNO|MB_ICONQUESTION "Install the Microsoft Evergreen WebView2 runtime for formatted previews? Source previews work without it." IDNO previewRuntimeDone
@@ -44,8 +49,13 @@
 !macroend
 
 !macro customUnInstall
-  nsExec::ExecToLog '"$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\native\preview\uninstall.ps1" -RestartPreviewHost'
+  nsExec::ExecToStack '"$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\native\preview\uninstall.ps1" -RestartPreviewHost'
   Pop $0
+  Pop $1
+  FileOpen $2 "$TEMP\SimpleMD-preview-uninstall.log" w
+  FileWrite $2 "Exit: $0$\r$\n$1$\r$\n"
+  FileClose $2
+  ClearErrors
   ReadRegStr $0 HKCU "Environment" "Path"
   ${UnStrRep} $0 ";$0;" ";$INSTDIR\resources\native;" ";"
   StrCpy $0 $0 "" 1
