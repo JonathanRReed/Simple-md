@@ -1248,7 +1248,7 @@ mod tests {
             preview.Unload()?;
             assert!(!IsWindow(Some(child)).as_bool());
             let second = SHCreateMemStream(Some(
-                b"# Rendered preview\n\n$x^2$\n\n<script>inert</script>",
+                b"---\ntitle: Rendered preview\n---\n# Rendered preview\n\n$x^2$\n\n<script>globalThis.pwned=true</script>\n<img src=\"https://example.com/never.png\" onerror=\"globalThis.pwned=true\">",
             ))
             .unwrap();
             init.Initialize(&second, STGM_READ.0)?;
@@ -1295,6 +1295,27 @@ mod tests {
                 assert!(!enabled.as_bool());
                 settings.IsWebMessageEnabled(&mut enabled)?;
                 assert!(!enabled.as_bool());
+                // Host-issued readback checks the final DOM, not just a successful navigation.
+                let output = Rc::new(RefCell::new(None));
+                let received = output.clone();
+                let lease = ModuleLease::new();
+                let callback = ExecuteScriptCompletedHandler::create(Box::new(move |hr, value| {
+                    let _keep_loaded = &lease;
+                    received.replace(Some(hr.map(|_| value)));
+                    Ok(())
+                }));
+                view.ExecuteScript(w!("Boolean(document.querySelector('h1')?.textContent === 'Rendered preview' && document.querySelector('.katex') && !document.querySelector('script,iframe,[onerror]') && !globalThis.pwned && Array.from(document.images).every(img => !img.getAttribute('src')))") , &callback)?;
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                while output.borrow().is_none() && std::time::Instant::now() < deadline {
+                    let mut msg = MSG::default();
+                    while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
+                        let _ = TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                let actual = output.borrow_mut().take().expect("Final DOM readback")?;
+                assert_eq!(actual, "true");
             }
             preview.Unload()?;
             assert!(state.resources.borrow().input.is_none());
