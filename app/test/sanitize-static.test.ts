@@ -56,7 +56,7 @@ test("policy attributes, inert document constructs and slot-name spoofing match 
     "<template><p id=x>Hidden</p></template><p>Shown</p>", "<noscript><p>Hidden</p></noscript><p>Shown</p>",
     "<![CDATA[<b>Bad</b>]]><?xml test?><p>Shown</p><!--<p>Hidden</p>-->",
     '<p><!--<img>-->&lt;x&gt;</p><textarea>&lt;img onerror=alert(1)&gt;</textarea>',
-    ...values.flatMap((value) => attrs.map((name) => `<p ${name}="${value}">Safe</p>`)),
+    ...values.flatMap((value) => authorTags.flatMap((tag) => attrs.map((name) => `<${tag} ${name}="${value}">Safe</${tag}>`))),
     '<p for="x">Safe</p><p headers="javascript:x">Safe</p>',
     '<a for="x" href="#x">Ref</a><p headers="javascript:x" usemap="#x">Ref</p>',
   ];
@@ -66,6 +66,7 @@ test("policy attributes, inert document constructs and slot-name spoofing match 
   expect(results.filter((result) => !result.equal)).toEqual([]);
   expect(results.filter((result) => result.hazards.length)).toEqual([]);
   expect(sanitizeAuthorHtmlStatic("<frameset><frame src=javascript:run()></frameset>")).toBe("");
+  console.log(`Static policy matrix: ${results.length} pairs; zero differences`);
 }, 60_000);
 
 test("4,000 hostile inputs remain inert and match DOMPurify after browser reparse", async () => {

@@ -95,15 +95,15 @@ sanitized before its generated children are inserted. Slots cannot be supplied
 by source text. ID, name, heading and fragment maps are rebuilt after assembly.
 
 The parser is pinned to [parse5 8.0.1](https://github.com/inikulin/parse5/releases/tag/v8.0.1).
-The parser and serializer bundle to 155,726 minified bytes with Bun 1.4.4. Its
+The parser and serializer bundle to 155,726 minified IIFE bytes with Bun 1.4.4. Its
 [HTML5 tree construction](https://parse5.js.org/) handles foster parenting,
 formatting repair, namespaces and inert `noscript`. A SAX tokenizer would require
 us to implement those rules. parse5 uses the already installed `entities`
 dependency. Bare JavaScriptCore also lacks `URL`, so pinned `core-js-pure 3.51.0`
 supplies that standard implementation only when the host lacks one. This keeps
 the shared URL resolver unchanged. That URL module bundles to 48,701 minified
-bytes. The complete sanitizer module, including the parser, URL implementation,
-policy, fragment handling and slot assembler, bundles to 221,467 minified bytes
+IIFE bytes. The complete sanitizer module, including the parser, URL implementation,
+policy, fragment handling and slot assembler, bundles to 221,467 minified IIFE bytes
 with Bun 1.4.4. It has no Node, Electron or DOM imports.
 
 ### Static sanitizer verification
@@ -126,7 +126,7 @@ No element, attribute, URL, text or namespace difference is allowed in the
 fixture/corpus differential. Comments are removed. Adjacent text nodes are
 normalized before comparison, so their allocation does not affect it.
 
-An additional matrix checks every allowed tag with all policy attributes and
+An additional 30,809-pair matrix checks every allowed tag with all policy attributes and
 each attribute on its own across seven values, including unsafe URL schemes and
 markup. It also covers document wrappers, comments, CDATA, processing
 instructions, templates, noscript and slot-name spoofing. Fragment rewriting
@@ -152,8 +152,9 @@ Shiki, Mermaid code and local images, with no `document`, `window`, Node or fetc
 This proves the bundle's runtime contract. Finder display, extension sandbox
 access, signing and packaged installation remain separate checks.
 
-For size reference, the repository README is 2,834 UTF-8 bytes and produces a
-382,495-byte standalone document with the embedded theme and all KaTeX fonts.
+For size reference, the repository README is 2,834 UTF-8 bytes. Rendering it with
+`filePath = "/project/README.md"` produces a 382,307-byte standalone document with
+the embedded theme and all KaTeX fonts.
 
 ## Thumbnail extension
 
