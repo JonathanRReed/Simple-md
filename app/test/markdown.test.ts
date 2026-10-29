@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { preprocessMdx, renderBlocks, renderFragment, renderMarkdown } from "../src/main/markdown";
 
 const html = async (src: string, file: string | null = "/tmp/note.md") => (await renderMarkdown(src, file)).html;
@@ -121,13 +124,13 @@ describe("security", () => {
 
 describe("images", () => {
   test("relative images resolve against the document folder", async () => {
-    const out = await html("![a](pics/a%20b.png)", "/Users/me/Notes/note.md");
-    expect(out).toContain("file:///Users/me/Notes/pics/a%20b.png");
+    const out = await html("![a](pics/a%20b.png)", path.resolve(os.tmpdir(), "Notes/note.md"));
+    expect(out).toContain(pathToFileURL(path.resolve(os.tmpdir(), "Notes/pics/a b.png")).href);
   });
 
   test("encoded reserved filename characters are not encoded twice", async () => {
-    const out = await html("![a](pics/image%20%231%3F.png)", "/tmp/notes/doc.md");
-    expect(out).toContain("file:///tmp/notes/pics/image%20%231%3F.png");
+    const out = await html("![a](pics/image%20%231%3F.png)", path.resolve(os.tmpdir(), "notes/doc.md"));
+    expect(out).toContain(pathToFileURL(path.resolve(os.tmpdir(), "notes/pics/image #1?.png")).href);
     expect(out).not.toContain("%25");
   });
 
@@ -185,10 +188,11 @@ describe("block rendering cache", () => {
 
   test("reference destination edits invalidate resolved links and images", async () => {
     const source = "[linked][target]\n\n![image][picture]\n\n[target]: https://first.example\n[picture]: old.png";
-    const first = await renderBlocks(source, "/tmp/references.md");
-    const second = await renderBlocks(source.replace("first.example", "next.example").replace("old.png", "new.png"), "/tmp/references.md");
+    const doc = path.resolve(os.tmpdir(), "references.md");
+    const first = await renderBlocks(source, doc);
+    const second = await renderBlocks(source.replace("first.example", "next.example").replace("old.png", "new.png"), doc);
     expect(second.blocks[0]!.html).toContain("https://next.example");
-    expect(second.blocks[1]!.html).toContain("file:///tmp/new.png");
+    expect(second.blocks[1]!.html).toContain(pathToFileURL(path.resolve(os.tmpdir(), "new.png")).href);
     expect(second.blocks[0]!.key).not.toBe(first.blocks[0]!.key);
     expect(second.blocks[1]!.key).not.toBe(first.blocks[1]!.key);
   });

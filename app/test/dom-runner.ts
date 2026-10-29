@@ -16,7 +16,9 @@ export async function runDom(entrypoint: string, inputs: unknown): Promise<unkno
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_OPTIONS;
-    const child = Bun.spawn([String(electron), `--user-data-dir=${path.join(temp, "profile")}`, path.join(import.meta.dir, "corpus/dom-driver.cjs"), input, bundle, output], {
+    // Hosted Linux runners lack a configured SUID sandbox helper; the DOM harness only loads local fixtures.
+    const sandbox = process.platform === "linux" && process.env.CI ? ["--no-sandbox"] : [];
+    const child = Bun.spawn([String(electron), ...sandbox, `--user-data-dir=${path.join(temp, "profile")}`, path.join(import.meta.dir, "corpus/dom-driver.cjs"), input, bundle, output], {
       env, stdout: "ignore", stderr: "pipe", signal: AbortSignal.timeout(60_000),
     });
     const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);

@@ -826,7 +826,14 @@ impl IClassFactory_Impl for Factory_Impl {
         if lock.as_bool() {
             LOCKS.fetch_add(1, Ordering::SeqCst);
         } else {
-            let _ = LOCKS.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+            let mut current = LOCKS.load(Ordering::SeqCst);
+            while let Some(next) = current.checked_sub(1) {
+                match LOCKS.compare_exchange_weak(current, next, Ordering::SeqCst, Ordering::SeqCst)
+                {
+                    Ok(_) => break,
+                    Err(actual) => current = actual,
+                }
+            }
         }
         Ok(())
     }

@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import os from "node:os";
+import path from "node:path";
 import { embedKatexFonts } from "../src/main/export-html";
 
 test("KaTeX font URL replacements embed every format without nested url()", async () => {
@@ -14,7 +16,7 @@ test("KaTeX font URL replacements embed every format without nested url()", asyn
 test("local images embed exact bytes and decode encoded filenames", async () => {
   const { embedLocalImages } = await import("../src/main/export-html");
   const { pathToFileURL } = await import("node:url");
-  const filename = "/tmp/image #1.PNG";
+  const filename = path.resolve(os.tmpdir(), "image #1.PNG");
   const remote = "https://example.com/image.png";
   const data = "data:image/png;base64,AQID";
   const seen: string[] = [];
@@ -28,7 +30,7 @@ test("local images embed exact bytes and decode encoded filenames", async () => 
 
 test("unsupported local image formats fail rather than claiming a portable export", async () => {
   const { embedLocalImages } = await import("../src/main/export-html");
-  await expect(embedLocalImages(["file:///tmp/image.unknown"], async () => Buffer.from("invalid"))).rejects.toThrow("Cannot embed");
+  await expect(embedLocalImages([(await import("node:url")).pathToFileURL(path.resolve(os.tmpdir(), "image.unknown")).href], async () => Buffer.from("invalid"))).rejects.toThrow("Cannot embed");
 });
 
 test("installed KaTeX CSS embeds all fonts with closed URL delimiters", async () => {

@@ -23,7 +23,7 @@ function sinks(directory: string, source?: string): string[] {
   for (const name of files) {
     const content = source ?? fs.readFileSync(path.join(directory, name), "utf8");
     for (const line of content.split("\n")) {
-      if (/\b(?:innerHTML|outerHTML|insertAdjacentHTML|DOMParser|createContextualFragment|parseFromString|setHTMLUnsafe)\b/.test(line) && !/^\s*(?:\/\/|\*)/.test(line)) found.push(`${name}:${line.trim()}`);
+      if (/\b(?:innerHTML|outerHTML|insertAdjacentHTML|DOMParser|createContextualFragment|parseFromString|setHTMLUnsafe)\b/.test(line) && !/^\s*(?:\/\/|\*)/.test(line)) found.push(`${name.split(path.sep).join("/")}:${line.trim()}`);
     }
   }
   return found.sort();
