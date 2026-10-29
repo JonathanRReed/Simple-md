@@ -46,6 +46,12 @@ jobs:
         run: cargo clippy --locked --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc --all-targets -- -D warnings
       - name: Test bounds, inert content, hidden COM lifecycle and fallback
         run: cargo test --locked --manifest-path app/native/windows-preview/Cargo.toml -- --test-threads=1
+      - name: Save hidden-window diagnostics before uninstall
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path preview-diagnostics -Force | Out-Null
+          Copy-Item "$env:USERPROFILE/AppData/LocalLow/SimpleMD/Preview/*.log" preview-diagnostics/ -ErrorAction SilentlyContinue
       - name: Build preview DLL
         run: cargo build --locked --release --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc
       - name: Build NSIS installer
@@ -88,7 +94,7 @@ jobs:
         with:
           name: Windows-preview-diagnostics
           if-no-files-found: ignore
-          path: ~/AppData/LocalLow/SimpleMD/Preview/*.log
+          path: preview-diagnostics/
 
   desktop:
     name: ${{ matrix.name }}

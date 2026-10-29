@@ -237,28 +237,34 @@ impl State {
 }
 
 struct Pending {
+    child: HWND,
     state: Weak<State>,
     generation: u64,
     _lease: ModuleLease,
 }
 thread_local! { static TIMERS: RefCell<HashMap<usize, Pending>> = RefCell::new(HashMap::new()); }
 fn cancel_timer(timer: usize) {
-    if timer != 0 {
-        let _ = unsafe { KillTimer(None, timer) };
-        let pending = TIMERS.with(|timers| timers.borrow_mut().remove(&timer));
-        drop(pending);
+    let pending = TIMERS.with(|timers| timers.borrow_mut().remove(&timer));
+    if let Some(pending) = pending {
+        let _ = unsafe { KillTimer(Some(pending.child), timer) };
+        // KillTimer leaves posted WM_TIMER messages behind. Drain only our private
+        // source HWND before releasing the callback's DLL lease.
+        let mut msg = MSG::default();
+        while unsafe { PeekMessageW(&mut msg, Some(pending.child), WM_TIMER, WM_TIMER, PM_REMOVE) }
+            .as_bool()
+        {}
     }
 }
 unsafe extern "system" fn preview_timeout(_: HWND, _: u32, timer: usize, _: u32) {
     let pending = TIMERS.with(|timers| timers.borrow_mut().remove(&timer));
-    let _ = unsafe { KillTimer(None, timer) };
-    if let Some(pending) = pending
-        && let Some(state) = pending.state.upgrade()
-    {
-        state.fallback(
-            pending.generation,
-            "WebView2 startup/render deadline exceeded",
-        );
+    if let Some(pending) = pending {
+        let _ = unsafe { KillTimer(Some(pending.child), timer) };
+        if let Some(state) = pending.state.upgrade() {
+            state.fallback(
+                pending.generation,
+                "WebView2 startup/render deadline exceeded",
+            );
+        }
     }
 }
 impl State {
@@ -532,7 +538,14 @@ impl IPreviewHandler_Impl for Preview_Impl {
                     self.state.resources.borrow().mode
                 ));
                 // A timer bounds startup and rendering without waiting on the host STA.
-                let timer = unsafe { SetTimer(None, 0, 10_000, Some(preview_timeout)) };
+                let timer = unsafe {
+                    SetTimer(
+                        Some(child),
+                        NEXT_ID.fetch_add(1, Ordering::Relaxed),
+                        10_000,
+                        Some(preview_timeout),
+                    )
+                };
                 if timer == 0 {
                     self.state
                         .fallback(generation, "Cannot create startup deadline");
@@ -542,6 +555,7 @@ impl IPreviewHandler_Impl for Preview_Impl {
                     timers.borrow_mut().insert(
                         timer,
                         Pending {
+                            child,
                             state: Rc::downgrade(&self.state),
                             generation,
                             _lease: ModuleLease::new(),
@@ -822,7 +836,8 @@ fn configure(
                         let text = uri.to_string();
                         CoTaskMemFree(Some(uri.0.cast()));
                         // NavigateToString uses about:blank. Nothing else may navigate.
-                        let blocked = text? != "about:blank";
+                        let text = text?;
+                        let blocked = text != "about:blank" && !text.starts_with("about:blank#");
                         log(if blocked {
                             "Navigation blocked"
                         } else {
