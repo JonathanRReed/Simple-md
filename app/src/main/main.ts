@@ -1164,8 +1164,9 @@ const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
 async function openUrl(value: string): Promise<void> {
   try {
     const target = parseOpenUrl(value);
+    if (!isMarkdown(target.path)) throw new Error("Unsupported URL file.");
     const canonical = await fs.promises.realpath(target.path);
-    if (!isMarkdown(target.path) || !isMarkdown(canonical) || !(await fs.promises.stat(canonical)).isFile()) throw new Error("Unsupported URL file.");
+    if (!isMarkdown(canonical) || !(await fs.promises.stat(canonical)).isFile()) throw new Error("Unsupported URL file.");
     await dispatchCli({ id: "url", command: "open", path: target.path, location: target.location, wait: false }, "", () => {}, new AbortController().signal);
   } catch (error) { console.error("simplemd: rejected open URL", error instanceof Error ? error.message : String(error)); }
 }

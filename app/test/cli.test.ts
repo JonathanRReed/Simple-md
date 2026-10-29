@@ -91,3 +91,13 @@ describe.skipIf(process.platform === "win32")("private Unix CLI transport", () =
     } finally { for (const child of children) child.kill("SIGKILL"); server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
   }, 10000);
 });
+
+test("Windows URL and CLI paths reject UNC and device names before filesystem access", () => {
+  const url = (file: string) => `simplemd://open?path=${encodeURIComponent(file)}`;
+  const local = path.win32.join("C:\\", "notes", "note.md");
+  expect(parseOpenUrl(url(local), "win32").path).toBe(local);
+  for (const file of ["\\\\attacker\\share\\note.md", "//attacker/share/note.md", "\\\\?\\C:\\note.md", "\\\\.\\C:\\note.md", "C:/note.md", "\\note.md", "C:note.md"]) expect(() => parseOpenUrl(url(file), "win32")).toThrow();
+  for (const file of ["\\\\attacker\\share\\note.md", "//attacker/share/note.md", "\\\\?\\UNC\\attacker\\share\\note.md", "\\\\.\\pipe\\x"]) expect(() => parseCliRequest({ ...request, path: file }, secret, 128, "win32")).toThrow();
+  expect(parseCliRequest({ ...request, path: local }, secret, 128, "win32").command).toBe("open");
+  expect(() => parseOpenUrl(url("C:\\secret.txt"), "win32")).toThrow("Markdown");
+});
