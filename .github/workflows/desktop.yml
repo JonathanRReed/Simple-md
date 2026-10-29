@@ -86,8 +86,6 @@ jobs:
         include:
           - name: macOS-arm64
             os: macos-15
-          - name: macOS-x64
-            os: macos-15-intel
           - name: Windows-x64
             os: windows-2025
           - name: Linux-x64

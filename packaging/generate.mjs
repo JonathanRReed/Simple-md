@@ -9,7 +9,7 @@ export function generateManifests(release) {
   const version = releaseVersion(release.tag_name?.replace(/^v/, ""));
   if (release.draft || release.prerelease) throw new Error("Use a published stable release.");
   const values = { VERSION: version };
-  for (const [key, os, arch, extension] of [["WINDOWS", "win", "x64", "exe"], ["MAC_ARM64", "mac", "arm64", "dmg"], ["MAC_X64", "mac", "x64", "dmg"]]) {
+  for (const [key, os, arch, extension] of [["WINDOWS", "win", "x64", "exe"], ["MAC_ARM64", "mac", "arm64", "dmg"]]) {
     const name = `SimpleMD-${version}-${os}-${arch}.${extension}`;
     const asset = release.assets?.find(asset => asset.name === name);
     const url = `https://github.com/${repository}/releases/download/v${version}/${name}`;

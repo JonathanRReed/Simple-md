@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import YAML from "yaml";
 import { macReleasePlan } from "./release-mac.mjs";
 import { feed, releaseConfig, releaseVersion } from "./release-config.mjs";
 import { nativePlan, appDir } from "./native.mjs";
-import { digest, refreshUpdateMetadata, writeChecksums, mergeMacMetadata } from "./release-metadata.mjs";
+import { digest, refreshUpdateMetadata, writeChecksums } from "./release-metadata.mjs";
 import { generateManifests } from "../../packaging/generate.mjs";
 
 const preflight = { version: "1.0.0", expected: "1.0.0", dirty: "", platform: "darwin", arch: "arm64" };
@@ -60,7 +60,7 @@ test("checksums and update metadata describe final signed or stapled bytes", asy
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 const fakeRelease = () => ({ tag_name: "v1.2.3", draft: false, prerelease: false,
-  assets: ["win-x64.exe", "mac-arm64.dmg", "mac-x64.dmg"].map(suffix => ({
+  assets: ["win-x64.exe", "mac-arm64.dmg"].map(suffix => ({
     name: `SimpleMD-1.2.3-${suffix}`, digest: `sha256:${"ab".repeat(32)}`,
     browser_download_url: `https://github.com/JonathanRReed/Simple-md/releases/download/v1.2.3/SimpleMD-1.2.3-${suffix}`,
   })) });
@@ -71,6 +71,7 @@ test("generates winget and Homebrew from a fake release without publishing", () 
   expect(installer.PackageVersion).toBe("1.2.3");
   expect(installer.Installers[0].InstallerSha256).toBe("ab".repeat(32));
   expect(files["homebrew/simplemd.rb"]).toContain('binary "#{appdir}/SimpleMD.app/Contents/Resources/native/simplemd"');
+  expect(files["homebrew/simplemd.rb"]).toContain("depends_on arch: :arm64");
   expect(Object.values(files).join("\n")).not.toContain("{{");
   for (const patch of [{ draft: true }, { prerelease: true }, { assets: [] }, { tag_name: "v1.2.3\nmalicious" }]) expect(() => generateManifests({ ...fakeRelease(), ...patch })).toThrow();
   const release = fakeRelease(); release.assets[0].browser_download_url = "https://example.com/app.exe";
@@ -78,22 +79,4 @@ test("generates winget and Homebrew from a fake release without publishing", () 
   release.assets[0].browser_download_url = fakeRelease().assets[0].browser_download_url;
   release.assets[0].digest = "sha256:nope";
   expect(() => generateManifests(release)).toThrow("SHA-256");
-});
-
-test("per-architecture Mac feeds merge without losing an update ZIP", () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "smd-mac-feeds-"));
-  try {
-    const dirs = ["arm64", "x64"].map(arch => {
-      const dir = path.join(directory, arch); mkdirSync(dir);
-      writeFileSync(path.join(dir, "latest-mac.yml"), YAML.stringify({ version: "1.0.0", path: `SimpleMD-${arch}.zip`, files: [{ url: `SimpleMD-${arch}.zip`, sha512: arch, size: 1 }] }));
-      return dir;
-    });
-    const output = path.join(directory, "merged");
-    mergeMacMetadata(dirs, output);
-    const manifest = YAML.parse(readFileSync(path.join(output, "latest-mac.yml"), "utf8"));
-    expect(manifest.files.map(file => file.url)).toEqual(["SimpleMD-arm64.zip", "SimpleMD-x64.zip"]);
-    expect(() => mergeMacMetadata([dirs[0], dirs[0]], path.join(directory, "duplicate"))).toThrow("distinct");
-    writeFileSync(path.join(dirs[1], "latest-mac.yml"), YAML.stringify({ version: "2.0.0", files: [] }));
-    expect(() => mergeMacMetadata(dirs, path.join(directory, "mismatch"))).toThrow("same version");
-  } finally { rmSync(directory, { recursive: true, force: true }); }
 });

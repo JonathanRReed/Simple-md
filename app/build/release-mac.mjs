@@ -13,7 +13,7 @@ export function macReleasePlan({ version, expected, dirty, platform, arch, ident
   releaseVersion(expected);
   if (version !== expected) throw new Error(`Version mismatch: package is ${version}, requested ${expected}.`);
   if (dirty.trim()) throw new Error("Release requires a clean git tree, including untracked files.");
-  if (platform !== "darwin" || !["arm64", "x64"].includes(arch)) throw new Error("Run on a native arm64 or x64 Mac.");
+  if (platform !== "darwin" || arch !== "arm64") throw new Error("Run on an Apple Silicon Mac. Intel Macs are not supported.");
   if (identity && (!identity.startsWith("Developer ID Application: ") || !identity.endsWith("(AJ9VWBRNZN)"))) throw new Error("Use a Developer ID Application identity for team AJ9VWBRNZN.");
   return {
     version, arch, identity: identity || "Developer ID Application: <owner identity> (AJ9VWBRNZN)",

@@ -24,7 +24,7 @@ It is not a note-taking app, a writing workspace or a vault.
 
 ## Platforms
 
-Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with separate Apple Silicon and Intel downloads (confirm Electron 45's minimum when packaging). Linux builds stay in CI and get runtime qualification after v1.0. The stack stays Electron plus Rust. Platform-specific native pieces (the macOS Quick Look extension in Swift, the Windows preview handler in Rust) live beside it.
+Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, Apple Silicon only; Intel Macs are not supported unless demand appears later (confirm Electron 45's minimum when packaging). Linux builds stay in CI and get runtime qualification after v1.0. The stack stays Electron plus Rust. Platform-specific native pieces (the macOS Quick Look extension in Swift, the Windows preview handler in Rust) live beside it.
 
 ## Decisions
 
