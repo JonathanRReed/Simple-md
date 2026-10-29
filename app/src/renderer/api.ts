@@ -1,7 +1,13 @@
+import type { TabLayoutState } from "../shared/tab-layout.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
-import type { DocumentId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
+import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
+  onLayout(cb: (layout: TabLayoutState) => void): void;
+  onClosed(cb: (id: DocumentId) => void): void;
+  activateTab(id: DocumentId): Promise<void>;
+  focusPane(id: PaneId): Promise<void>;
+  closeTab(id: DocumentId): Promise<boolean>;
   ready(): Promise<{ settings: Settings; platform: string }>;
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;
@@ -29,10 +35,10 @@ export interface Bridge {
   exportHtml(text: string, documentId: DocumentId): Promise<void>;
   print(text: string, documentId: DocumentId): Promise<void>;
   openDialog(): Promise<void>;
-  openPath(p: string, intent?: "read" | "edit"): Promise<boolean>;
-  openLink(href: string, intent?: "read" | "edit"): Promise<boolean>;
+  openPath(p: string, intent?: "read" | "edit", inPlace?: boolean, documentId?: DocumentId): Promise<boolean>;
+  openLink(href: string, intent?: "read" | "edit", newTab?: boolean, documentId?: DocumentId): Promise<boolean>;
   setSettings(patch: Partial<Settings>): Promise<void>;
-  command(cmd: Command): void;
+  command(cmd: Command, documentId?: DocumentId): void;
   hide(): void;
   pathForFile(f: File): string;
 }
