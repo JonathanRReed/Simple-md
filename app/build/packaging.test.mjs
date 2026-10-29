@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { appDir, nativePlan } from "./native.mjs";
-import { localEnvironment, packageMode, unsignedConfig } from "./local-pack.mjs";
+import { localEnvironment, packageMode, unsignedConfig, packagingConfig } from "./local-pack.mjs";
 import { desktopEntry } from "../integrations/linux/desktop-entry.mjs";
 
 describe("host-only packaging", () => {
@@ -31,9 +31,9 @@ describe("host-only packaging", () => {
     expect(() => nativePlan("x86_64-apple-darwin", "darwin", "arm64")).toThrow("does not match");
     expect(() => nativePlan("i686-pc-windows-msvc", "win32", "ia32")).toThrow("does not match");
   });
-  test("cannot enable signing, notarization, publishing or foreign targets through CLI flags", () => {
+  test("requires explicit signing identity and rejects publishing or foreign CLI targets", () => {
     const config = unsignedConfig(nativePlan("aarch64-apple-darwin", "darwin", "arm64"));
-    expect(config.mac).toEqual({ identity: null, notarize: false });
+    expect(config.mac).toEqual({ identity: "-", notarize: false });
     expect(config.dmg.sign).toBe(false);
     expect(config.win.signExecutable).toBe(false);
     expect(config.forceCodeSigning).toBe(false);
@@ -84,7 +84,7 @@ describe("host-only packaging", () => {
       { from: "../LICENSE", to: "LICENSE" },
       ...unsignedConfig(plan).extraResources,
     ]);
-    expect(config.mac.identity).toBeNull();
+    expect(config.mac.identity).toBe("-");
     expect(config.mac.notarize).toBe(false);
     expect(config.dmg.sign).toBe(false);
     expect(config.win.signExecutable).toBe(false);
@@ -145,4 +145,44 @@ test("the package file filter excludes the browser render bundle from app.asar",
     expect(packed).toContain("/dist/render-worker.mjs");
     expect(packed).not.toContain("/dist/render-core.js");
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
+});
+
+describe("Quick Look packaging", () => {
+  test("uses explicit Developer ID or ad-hoc signing without notarization", () => {
+    const plan = nativePlan("aarch64-apple-darwin", "darwin", "arm64");
+    expect(packagingConfig(plan).mac.identity).toBe("-");
+    const signed = packagingConfig(plan, "Developer ID Application: Jonathan Reed (AJ9VWBRNZN)");
+    expect(signed.mac.identity).toBe("Jonathan Reed (AJ9VWBRNZN)");
+    expect(signed.forceCodeSigning).toBe(true);
+    expect(signed.mac.notarize).toBe(false);
+    expect(() => packagingConfig(plan, "Apple Development: somebody")).toThrow("Developer ID");
+  });
+  test("builds extensions before outer signing and excludes PlugIns from Electron signing", () => {
+    const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
+    expect(pkg.build.afterPack).toBe("build/quicklook.mjs");
+    expect(pkg.build.afterSign).toBe("build/quicklook-verify.mjs");
+    expect(pkg.build.mac.signIgnore).toContain("/Contents/PlugIns/");
+    expect(pkg.build.mac.minimumSystemVersion).toBe("13.0");
+    const mdx = pkg.build.mac.extendInfo.UTExportedTypeDeclarations.find(type => type.UTTypeIdentifier === "com.jonathanreed.simplemd.mdx");
+    expect(mdx.UTTypeTagSpecification["public.filename-extension"]).toContain("mdx");
+  });
+  test.skipIf(process.platform !== "darwin")("declares only Markdown and MDX, and App Sandbox only", async () => {
+    const { readPlist } = await import("./quicklook-verify.mjs");
+    const entitlements = readPlist(path.join(appDir, "native/quicklook/extension.entitlements"));
+    expect(entitlements).toEqual({ "com.apple.security.app-sandbox": true });
+    for (const kind of ["preview", "thumbnail"]) {
+      const info = readPlist(path.join(appDir, `native/quicklook/${kind}/Info.plist`));
+      expect(info.CFBundleIdentifier).toBe(`com.jonathanreed.simplemd.${kind}`);
+      expect(info.LSMinimumSystemVersion).toBe("13.0");
+      const attributes = info.NSExtension.NSExtensionAttributes;
+      expect(attributes.QLSupportedContentTypes).toEqual([
+        "net.daringfireball.markdown", "public.markdown", "com.jonathanreed.simplemd.mdx", "com.fluxmarkdown.mdx",
+      ]);
+      if (kind === "preview") expect(attributes.QLIsDataBasedPreview).toBe(true);
+    }
+  });
+  test.skipIf(!process.env.SIMPLEMD_PACKAGED_APP)("verifies the exact packaged layout, signatures and entitlements", async () => {
+    const { verifyQuickLook } = await import("./quicklook-verify.mjs");
+    verifyQuickLook(process.env.SIMPLEMD_PACKAGED_APP);
+  });
 });

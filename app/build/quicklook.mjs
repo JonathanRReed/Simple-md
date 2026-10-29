@@ -14,7 +14,8 @@ export default async function afterPack(context) {
   const scratch = mkdtempSync(path.join(os.tmpdir(), "simplemd-quicklook-"));
   try {
     const output = path.join(scratch, "extensions");
-    const identity = context.packager.platformSpecificBuildOptions.identity || "-";
+    const qualifier = context.packager.platformSpecificBuildOptions.identity;
+    const identity = !qualifier || qualifier === "-" ? "-" : `Developer ID Application: ${qualifier}`;
     run("bash", [path.join(appDir, "native/quicklook/build-extensions.sh"), output, identity]);
     const plugins = path.join(packagedApp(context), "Contents/PlugIns");
     mkdirSync(plugins, { recursive: true });

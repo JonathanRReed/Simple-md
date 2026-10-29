@@ -63,3 +63,19 @@ Uses `QLThumbnailProvider`, drawing a Core Text title card from the first headin
 The hook, `peek.ts`, `peek-request.ts`, the `peek` intent, hide-on-close for peek windows, and the macOS parts of the Rust helper are deleted once the Quick Look extension passes the named fixture set: plain README, math, Mermaid, local image, MDX, a large file, and a non-Markdown file that must not be claimed.
 
 Source: `.audit/research/e-os-integration.md`, Quick Look sections (local only).
+
+## Static renderer integration contract
+
+The M4 extension calls the synchronous global function
+`renderStaticHtml(source, filePath, options): string` in JavaScriptCore.
+`source` and `filePath` are strings. Options contain
+`appearance: "light" | "dark"`, `truncated: boolean`, and
+`invalidUtf8: boolean`. The result is a complete HTML document with no page
+scripts or remote resources. The function must not require a DOM, Node, fetch,
+or native callbacks.
+
+Until the shared static renderer lands, `preview/render-stub.ts` escapes the
+source into a `pre` element. It renders no Markdown, math, diagrams, or images.
+Replace that build entry with the shared browser entry at integration. Preserve
+the global synchronous signature and the size and encoding notices, then run
+the sanitizer parity checks and repeat the packaged fixture checks.
