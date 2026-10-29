@@ -24,7 +24,6 @@
           <button type="button" role="radio" data-mode="split" aria-checked="false">Side by side</button>
           <button type="button" role="radio" data-mode="source" aria-checked="false">Source</button>
         </div>
-        <button id="preferences-btn" type="button" class="text-button">Preferences</button>
         <button id="edit-btn" type="button" class="pill" hidden>Edit</button>
       </div>
     </header>
@@ -45,7 +44,6 @@
               <button id="new-note" type="button" class="pill">New note</button>
             </div>
             <p class="faint">You can also drop a Markdown file here.</p>
-            <button id="empty-preferences" type="button" class="text-button">Preferences</button>
           </div>
         </div>
       </section>
@@ -58,33 +56,6 @@
       </section>
     </main>
 
-    <dialog id="preferences" aria-labelledby="preferences-title">
-      <div class="preferences-header">
-        <h1 id="preferences-title">Preferences</h1>
-      </div>
-      <div class="preferences-content">
-        <fieldset>
-          <legend>Appearance</legend>
-          <div class="pref-row"><label for="pref-theme">Theme</label><select id="pref-theme" autofocus><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
-          <div class="pref-row"><label for="pref-typeface">Reading typeface</label><select id="pref-typeface"><option value="sans">Sans serif</option><option value="serif">Serif</option></select></div>
-          <div class="pref-row"><label for="pref-width">Reading width</label><select id="pref-width"><option value="narrow">Narrow</option><option value="normal">Normal</option><option value="wide">Wide</option></select></div>
-          <div class="pref-row"><label for="pref-zoom">Text size</label><div class="pref-zoom"><input id="pref-zoom" type="range" min="70" max="180" step="5" /><output id="pref-zoom-value" for="pref-zoom">100%</output></div></div>
-        </fieldset>
-        <fieldset>
-          <legend>Editing</legend>
-          <div class="pref-row"><label for="pref-mode">Default editing mode</label><select id="pref-mode"><option value="live">Live</option><option value="split">Side by side</option><option value="source">Source</option></select></div>
-          <label class="pref-row" for="pref-remoteImages"><span>Remote images</span><input id="pref-remoteImages" type="checkbox" /></label>
-          <label class="pref-row" for="pref-autosave"><span>Autosave<span class="pref-detail">Save changes to named notes as you write.</span></span><input id="pref-autosave" type="checkbox" /></label>
-          <label class="pref-row" for="pref-vim"><span>Vim key bindings</span><input id="pref-vim" type="checkbox" /></label>
-          <label class="pref-row" for="pref-spellcheck"><span>Spellcheck</span><input id="pref-spellcheck" type="checkbox" /></label>
-        </fieldset>
-        <fieldset>
-          <legend>Startup</legend>
-          <label class="pref-row" for="pref-launchAtLogin"><span>Launch at login<span class="pref-detail">Keep SimpleMD ready in the menu bar or tray.</span></span><input id="pref-launchAtLogin" type="checkbox" /></label>
-        </fieldset>
-      </div>
-      <div class="preferences-footer"><p id="pref-status" role="status" aria-live="polite">Changes save automatically.</p><button id="pref-done" type="button" class="pill">Done</button></div>
-    </dialog>
 
     <div id="picker" hidden>
       <div class="picker-card">

@@ -36,7 +36,9 @@ import { perfMark } from "./perf.js";
 import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
-import { flushSettings, loadSettings, patchSettings, saveSettings } from "./settings.js";
+import { configEntries } from "../shared/config-schema.js";
+import { createSettingsWindow, systemAccent } from "./settings-window.js";
+import { configStore, flushSettings, loadSettings, patchSettings, saveSettings } from "./settings.js";
 
 // Dev-only launch profiler: SMD_TRACE=1 prints where startup time goes.
 const T0 = performance.now();
@@ -67,6 +69,7 @@ let markRendererLoaded: () => void;
 // Documents opened during startup wait here so they are not sent to a page that has not loaded.
 const rendererLoaded = new Promise<void>((resolve) => (markRendererLoaded = resolve));
 let quitting = false;
+let settingsWindow: ReturnType<typeof createSettingsWindow> | undefined;
 
 const send = (channel: string, ...args: unknown[]) => {
   if (win && !win.isDestroyed()) win.webContents.send(channel, ...args);
@@ -74,15 +77,23 @@ const send = (channel: string, ...args: unknown[]) => {
 
 // ───────── settings ─────────
 
-function applySettings(patch: unknown): void {
+function applySettings(patch: unknown, persist = true): void {
   const prev = settings;
-  const next = patchSettings(settings, patch);
+  let next = patchSettings(settings, patch);
+  if (persist) {
+    const changed = Object.fromEntries(configEntries.filter(([, def]) => next[def.setting] !== settings[def.setting]).map(([, def]) => [def.setting, next[def.setting]]));
+    if (Object.keys(changed).length) next = { ...next, ...configStore().set(changed) };
+  }
+  next.systemAccent = systemAccent();
   settings = next;
   nativeTheme.themeSource = settings.theme;
   if (settings.launchAtLogin !== prev.launchAtLogin) applyLoginItem();
   if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
   saveSettings(settings);
-  send("smd:settings", settings);
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send("smd:settings", settings);
+  }
+  settingsWindow?.changed();
   refreshMenus();
 }
 
@@ -479,8 +490,7 @@ function runCommand(cmd: Command): void {
   const current = currentSession();
   switch (cmd) {
     case "preferences":
-      reveal();
-      void rendererLoaded.then(() => send("smd:cmd", "preferences"));
+      settingsWindow?.open();
       return;
     case "new":
       void newDoc();
@@ -662,7 +672,7 @@ function trayMenu(): Electron.Menu {
     click: () => applySettings({ [key]: value } as Partial<Settings>),
   });
   return Menu.buildFromTemplate([
-    { label: "Preferences…", click: () => runCommand("preferences") },
+    { label: "Settings…", click: () => runCommand("preferences") },
     { type: "separator" },
     { label: "New Note", click: () => runCommand("new") },
     { label: "Open…", click: () => void openDialog() },
@@ -825,7 +835,7 @@ function registerIpc(): void {
   handle("smd:open-dialog", openDialog);
   handle("smd:open-path", (p, intent, id) => { ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent)); });
   handle("smd:open-link", (href, intent, id) => { ipcDocument(id); return openLink(ipcText(href), ipcIntent(intent)); });
-  handle("smd:set-settings", applySettings);
+  handle("smd:set-settings", patch => applySettings(patch));
   handle("smd:export-pdf", (value, id) => {
     const text = ipcText(value);
     const documentId = ipcDocument(id);
@@ -869,6 +879,8 @@ async function prepareQuit(): Promise<void> {
   tray?.destroy();
   tray = undefined;
   registry.dispose();
+  configStore().close();
+  settingsWindow?.close();
   flushSettings();
   trace("quit-resources-closed");
   await disposeRenderer();
@@ -918,6 +930,10 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
     hardenSession();
     registerIpc();
+    settings.systemAccent = systemAccent();
+    settingsWindow = createSettingsWindow({ here, config: configStore(), settings: () => settings, apply: applySettings });
+    configStore().watch(value => applySettings(value, false));
+    nativeTheme.on("updated", () => settingsWindow?.changed());
     win = createWindow();
     trace("window-created");
     // A login launch stays invisible until the first file open; a real launch shows its skeleton

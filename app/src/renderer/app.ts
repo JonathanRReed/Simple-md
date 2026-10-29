@@ -4,7 +4,6 @@ import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-htm
 import { makeDocumentId, makePaneId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
-import { createPreferences, type PreferencesHandle } from "./preferences.js";
 import type { EditorHandle, FormatKind } from "./editor.js";
 import {
   type PickerItem,
@@ -46,7 +45,6 @@ interface DocMeta {
 }
 
 let settings: Settings = DEFAULT_SETTINGS;
-let preferences: PreferencesHandle | null = null;
 interface DocumentState {
   meta: DocMeta;
   hasDoc: boolean;
@@ -326,7 +324,6 @@ function applySettings(s: Settings): void {
   settings = s;
   root.dataset.theme = s.theme;
   root.style.colorScheme = s.theme === "system" ? "light dark" : s.theme;
-  preferences?.sync(s);
   root.dataset.width = s.width;
   root.dataset.typeface = s.typeface;
   root.style.setProperty("--zoom", String(s.zoom));
@@ -756,7 +753,7 @@ function openPalette(): void {
   const cmd = (c: Command) => () => handleCommand(c);
   const items: PickerItem[] = [
     { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
-    { label: "Preferences…", run: () => handleCommand("preferences") },
+    { label: "Settings…", run: () => handleCommand("preferences") },
     { label: "New note", hint: "⌘N", run: cmd("new") },
     { label: "Open…", hint: "⌘O", run: () => void simplemd.openDialog() },
     { label: "Save", hint: "⌘S", run: cmd("save") },
@@ -808,7 +805,7 @@ function handleCommand(cmd: Command): void {
       break;
     case "preferences":
       closeOverlays();
-      preferences?.open();
+      simplemd.command("preferences");
       break;
     case "palette":
       openPalette();
@@ -920,7 +917,7 @@ document.addEventListener("click", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (preferences?.isOpen() || isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
+  if (isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
   const mod = e.metaKey || e.ctrlKey;
   if (pane.view === "read") {
     if (!mod && !e.altKey && (e.key === "Enter" || e.key === "e")) {
@@ -1021,8 +1018,6 @@ async function boot(): Promise<void> {
 
   const ready = await simplemd.ready();
   document.body.dataset.platform = ready.platform;
-  preferences = createPreferences({ settings: () => settings, change: (patch) => simplemd.setSettings(patch) });
-  for (const id of ["preferences-btn", "empty-preferences"]) $(id).addEventListener("click", () => handleCommand("preferences"));
   $("open-file").addEventListener("click", () => void simplemd.openDialog());
   $("new-note").addEventListener("click", () => simplemd.command("new"));
   applySettings(ready.settings);

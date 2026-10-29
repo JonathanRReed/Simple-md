@@ -1,0 +1,19 @@
+:root { color-scheme: light dark; --accent: Highlight; font: 13px/1.4 system-ui, sans-serif; background: light-dark(#f3f3f3, #242424); color: CanvasText; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 600px; margin: auto; padding: 20px 24px; }
+fieldset { min-width: 0; border: 0; padding: 0; margin: 0 0 22px; }
+legend { font-size: 13px; font-weight: 600; padding: 0 0 8px 10px; }
+.group { border: 1px solid light-dark(#dedede, #484848); border-radius: 9px; background: light-dark(#fff, #303030); overflow: hidden; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 42px; padding: 8px 12px; }
+.row + .row { border-top: 1px solid light-dark(#ececec, #414141); }
+label { flex: 1; }
+input, select { font: inherit; color: CanvasText; accent-color: var(--accent); }
+select { width: 204px; min-width: 0; }
+input[type=number] { width: 80px; }
+input[type=checkbox] { margin: 0 2px 0 0; width: 16px; height: 16px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+footer { padding: 0 10px 8px; color: GrayText; overflow-wrap: anywhere; font-size: 11px; }
+#config-errors, #save-error { padding: 12px; border: 1px solid light-dark(#a52222, #ffb4b4); border-radius: 6px; color: light-dark(#a52222, #ffb4b4); }
+#config-errors p { margin: 0 0 6px; }
+[hidden] { display: none !important; }

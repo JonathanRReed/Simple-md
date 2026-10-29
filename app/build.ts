@@ -37,8 +37,10 @@ await bundle({
   naming: "preload.cjs",
 });
 
+await bundle({ entrypoints: ["src/settings-preload.ts"], outdir: out, target: "node", format: "cjs", external: ["electron"], naming: "settings-preload.cjs" });
+
 await bundle({
-  entrypoints: ["src/renderer/app.ts"],
+  entrypoints: ["src/renderer/app.ts", "src/renderer/settings.ts"],
   outdir: `${out}/renderer`,
   target: "browser",
   format: "esm",
@@ -53,3 +55,6 @@ await cp("src/renderer/motion.css", `${out}/renderer/motion.css`);
 await cp("node_modules/katex/dist/katex.min.css", `${out}/renderer/katex.min.css`);
 await cp("node_modules/katex/dist/fonts", `${out}/renderer/fonts`, { recursive: true });
 await cp("assets", `${out}/assets`, { recursive: true });
+
+await cp("src/renderer/settings.html", `${out}/renderer/settings.html`);
+await cp("src/renderer/settings.css", `${out}/renderer/settings.css`);

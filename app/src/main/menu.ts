@@ -43,7 +43,7 @@ export function buildMenu(a: MenuActions): void {
             submenu: [
               { role: "about" },
               { type: "separator" },
-              cmd("Preferences…", "preferences", "Command+,"),
+              cmd("Settings…", "preferences", "Command+,"),
               { type: "separator" },
               { role: "hide" },
               { role: "hideOthers" },
@@ -70,7 +70,7 @@ export function buildMenu(a: MenuActions): void {
         cmd(mac ? "Reveal in Finder" : "Show in File Manager", "reveal"),
         { type: "separator" },
         { role: "close" },
-        ...(mac ? [] : [cmd("Preferences…", "preferences", "Control+,"), { type: "separator" } satisfies MenuItemConstructorOptions]),
+        ...(mac ? [] : [cmd("Settings…", "preferences", "Control+,"), { type: "separator" } satisfies MenuItemConstructorOptions]),
         ...(mac ? [] : [{ label: "Quit", accelerator: "Ctrl+Q", click: a.quit } satisfies MenuItemConstructorOptions]),
       ],
     },

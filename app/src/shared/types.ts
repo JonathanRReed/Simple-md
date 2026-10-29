@@ -33,6 +33,7 @@ export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
 export interface Settings extends UserSettings {
+  systemAccent?: string;
   zoom: number;
   // Legacy layout values remain readable for first-run migration.
   width: ReadingWidth;
