@@ -1,3 +1,4 @@
+import { retainEditorState } from "./editor-history.js";
 import { spellingReplacement } from "./spelling.js";
 import type { ContextResult, NativeContext } from "../shared/native-context.js";
 import type { MdxResult } from "../shared/render-core.js";
@@ -276,16 +277,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       }
     },
     snapshot() {
-      // Retain persistent text, selection, exact byte metadata and bounded history.
-      // Language state, decorations, DOM widgets and callbacks belong to the view.
-      const savedHistory = view.state.field(historyField);
-      const savedBytes = view.state.field(byteText);
-      const withinBudget = JSON.stringify(view.state.toJSON({ history: historyField }).history).length <= 2_000_000;
-      return { scroll: view.scrollSnapshot(), state: EditorState.create({
-        doc: view.state.doc, selection: view.state.selection,
-        extensions: [history({ minDepth: 100 }), byteText.init(() => savedBytes),
-          ...(withinBudget ? [historyField.init(() => savedHistory)] : [])],
-      }) };
+      return { scroll: view.scrollSnapshot(), state: retainEditorState(view.state) };
     },
     getText: () => view.state.field(editorText).text,
     setText(text, addToHistory = false) {

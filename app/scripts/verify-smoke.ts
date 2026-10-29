@@ -932,6 +932,14 @@ await test("settings-tabs-panes", async () => {
   for (const file of [a, b, c]) assert.equal(fs.readFileSync(file, "utf8"), file === b ? text.replace('A quieter page', 'Working draft') : file === c ? text.replace('A quieter page', 'Another page') : text);
 });
 
+await test("tabs-clean-payload", async () => {
+  const a = fixture("tabs-payload/a.md", note), b = fixture("tabs-payload/b.md", "# Clean payload\n");
+  await launch("tabs-clean-payload", a, [evaluate(`window.simplemd.onDoc(payload => { window.lastPayload = payload; });
+    await window.simplemd.openPath(${quote(b)}, 'edit');
+    assert(window.lastPayload.text === ${quote("# Clean payload\n")}, 'Wrong payload text');
+    assert(window.lastPayload.savedText === undefined, 'Clean document sent its source twice');`)], "edit");
+});
+
 await test("tabs-panes", async () => {
   const aText = "\uFEFF# Tab A\r\n\r\n[Sibling](b.md)\r\nTail";
   const bText = "# Tab B\n\nSecond document.\n";

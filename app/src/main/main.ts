@@ -408,7 +408,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   }
   return {
     documentId: doc.documentId,
-    savedText: doc.diskText ?? "",
+    savedText: doc.dirty ? doc.diskText ?? "" : undefined,
     dirty: doc.dirty,
     revisionId: doc.revisionId,
     paneId: context().mainPane.paneId,
