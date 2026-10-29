@@ -183,7 +183,13 @@ async function startupBench(): Promise<void> {
   }
 }
 
-if (import.meta.main && process.argv.includes("--worker-medium")) {
+if (import.meta.main && process.argv.includes("--worker-mdx")) {
+  const at = process.argv.indexOf("--worker-mdx");
+  const baseline = process.argv[at + 1];
+  const file = process.argv[at + 2];
+  if (!baseline || !file) throw new Error("Expected baseline bundle and blog post paths");
+  await (await import("./scripts/bench-render")).workerMdxBench(path.resolve(baseline), path.resolve(file));
+} else if (import.meta.main && process.argv.includes("--worker-medium")) {
   const baseline = process.argv[process.argv.indexOf("--worker-medium") + 1];
   if (!baseline) throw new Error("Pass the pre-change Markdown module bundle after --worker-medium");
   await (await import("./scripts/bench-render")).workerMediumBench(path.resolve(baseline));

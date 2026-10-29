@@ -35,6 +35,12 @@ describe("positioned MDX preview", () => {
     expect(html).not.toContain("run()</");
   });
 
+  test("component blocks retain the complete original source range", async () => {
+    const result = await render("# Before\n\n<Card>\n\n**child**\n\n</Card>\n\nAfter");
+    expect(result.blocks.find((block) => block.html.includes('class="mdx-component"'))?.sourceRange).toEqual([2, 7]);
+    expect(result.blocks.at(-1)?.sourceRange).toEqual([8, 9]);
+  });
+
   test("lowercase HTML uses author nodes with static attributes only and no className mapping", async () => {
     const result = await render('<details className="fake" open>\n\n<summary>Title</summary>\n\n**child** <a href="javascript:run()" onClick={run()}>link</a>\n\n</details>');
     const nodes = result.blocks.flatMap((block) => block.content ? authorNodes(block.content) : []);

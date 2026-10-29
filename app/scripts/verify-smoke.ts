@@ -376,23 +376,63 @@ await test("cache-same-stat", async () => {
   assert.equal(fs.readFileSync(alpha, "utf8"), after);
 });
 
-await test("mdx-readonly", async () => {
-  const source = "import Widget from './widget'\n\n# Smoke MDX\n\n<Widget />\n\n- [ ] protected task\n";
-  const file = fixture("mdx/note.mdx", source);
-  await launch("mdx-readonly", file, [
-    evaluate(`await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke MDX', 'MDX did not render.');
-      assert(document.querySelector('#edit').hidden, 'MDX CLI open entered edit mode.');
-      assert(!document.querySelector('#doc').textContent.includes('import Widget'), 'MDX import was not removed.');
-      assert(document.querySelector('#doc code')?.textContent.includes('<Widget />'), 'MDX JSX did not render as code.');
-      window.simplemd.command('toggle-edit');
-      await new Promise(resolve => setTimeout(resolve, 150));
-      assert(document.querySelector('#edit').hidden, 'Read/edit command made MDX editable.');
-      document.querySelector('#doc .task-list-item')?.click();
-      await new Promise(resolve => setTimeout(resolve, 150));
-      assert(document.querySelector('#dirty').hidden, 'Read-only MDX task became dirty.');
-      assert(!document.querySelector('.cm-content[contenteditable="true"]'), 'MDX has an editable CodeMirror document.');`),
+await test("mdx-editing", async () => {
+  const source = '\uFEFFimport Widget from "./widget"\r\n\r\n# Smoke MDX\r\n\r\n<Card value={1}>\r\n\r\n**inside** and $x$\r\n\r\n![inside](missing.png)\r\n\r\n</Card>\r\n\r\nOutside.\n';
+  const file = fixture("mdx-editing/note.mdx", source);
+  await launch("mdx-editing", file, [
+    evaluate(`await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]'), 'MDX did not enter editing.');
+      const v = document.querySelector('.cm-content').cmTile.root.view;
+      window.mdxView = v;
+      assert(document.querySelector('.cm-mdx-esm'), 'ESM syntax is not highlighted.');
+      assert(document.querySelector('.cm-mdx-tag-name'), 'JSX syntax is not highlighted.');
+      for (const mode of ['live', 'source', 'split']) {
+        window.simplemd.command('mode-' + mode);
+        await waitFor(() => document.querySelector('#edit').dataset.mode === mode, 'MDX mode did not switch.');
+        if (mode === 'live') {
+          assert(document.querySelector('.cm-content').textContent.includes('**inside** and $x$'), 'Live hid markers inside JSX.');
+          assert(!document.querySelector('.cm-rendered, .cm-image, .cm-math-inline'), 'Live made a widget inside JSX.');
+        }
+      }
+      await waitFor(() => document.querySelector('#preview .mdx-component'), 'Component box did not render.');
+      const at = v.state.doc.toString().indexOf('value={1}') + 8;
+      v.dispatch({ changes: { from: at, insert: '0' }, userEvent: 'input.type' });
+      assert(v.state.doc.toString().includes('value={10}'), 'Edit inside MDX failed.');`),
+    { save: true },
+    ...appendCharacter("!"),
+    { save: true },
+    evaluate(`window.simplemd.command('toggle-edit');
+      await waitFor(() => !document.querySelector('#read').hidden, 'MDX did not enter read view.');
+      await waitFor(() => document.querySelector('#doc .mdx-label')?.textContent === 'Card', 'Read component label is missing.');
+      assert(!document.querySelector('#doc').textContent.includes('import Widget'), 'ESM is visible in read view.');`),
   ], "edit");
-  assert.equal(fs.readFileSync(file, "utf8"), source, "Read-only MDX source changed.");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(source.replace('value={1}', 'value={10}') + '!'), 'MDX edits changed untouched bytes.');
+});
+
+await test("mdx-invalid-recovery", async () => {
+  const source = '# Stable MDX\n\n<Widget />\n\nOutside.\n';
+  const file = fixture("mdx-invalid-recovery/note.mdx", source);
+  await launch("mdx-invalid-recovery", file, [
+    evaluate(`await waitFor(() => document.querySelector('.cm-content'), 'MDX editor did not open.');
+      window.simplemd.command('mode-split');
+      await waitFor(() => document.querySelector('#preview .mdx-component'), 'Good preview is missing.');
+      const v = document.querySelector('.cm-content').cmTile.root.view;
+      window.mdxView = v;
+      v.dispatch({ changes: { from: v.state.doc.length, insert: '\\n\\n<Broken value={' }, userEvent: 'input.paste' });
+      await waitFor(() => document.querySelector('#preview .mdx-error'), 'Incomplete MDX error is missing.');
+      assert(document.querySelector('#preview .mdx-component .mdx-label').textContent === 'Widget', 'Last good component disappeared.');
+      assert(document.querySelector('#preview .mdx-error pre').textContent.includes('<Broken value={'), 'Failing source was not escaped.');
+      assert(!document.querySelector('#preview broken'), 'Invalid source became HTML.');`),
+    { save: true },
+    evaluate(`const v = window.mdxView;
+      v.dispatch({ changes: { from: v.state.doc.length, insert: '1} />' }, userEvent: 'input.paste' });
+      await waitFor(() => !document.querySelector('#preview .mdx-error') && [...document.querySelectorAll('#preview .mdx-label')].some(el => el.textContent === 'Broken'), 'Preview did not recover.');
+      window.simplemd.command('undo');
+      await waitFor(() => document.querySelector('#preview .mdx-error'), 'Undo did not restore the incomplete preview.');
+      window.simplemd.command('undo');
+      await waitFor(() => !document.querySelector('#preview .mdx-error') && v.state.doc.toString() === ${quote(source)}, 'Undo did not restore the original source.');`),
+    { save: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(source), 'Recovery and undo changed the original bytes.');
 });
 
 await test("tasks-source-mapping", async () => {

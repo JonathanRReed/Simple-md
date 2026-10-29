@@ -2,7 +2,7 @@ import type { MdxRange } from "./mdx-ranges.js";
 import type { RenderNode } from "./render-tree.js";
 
 const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-export interface MdxPreview { text: string; nodes: Map<string, RenderNode> }
+export interface MdxPreview { text: string; nodes: Map<string, RenderNode>; lines: Map<string, number> }
 
 /** Positions come only from the MDX tokenizer. Placeholders cannot collide with author text. */
 export async function mapMdxPreview(
@@ -16,6 +16,7 @@ export async function mapMdxPreview(
 
   async function section(from: number, to: number, children: readonly MdxRange[]): Promise<MdxPreview> {
     const nodes = new Map<string, RenderNode>();
+    const lines = new Map<string, number>();
     const parts: string[] = [];
     let cursor = from;
     for (const range of children) {
@@ -66,14 +67,15 @@ export async function mapMdxPreview(
       if (node) {
         const marker = `@${prefix}${sequence++}END@`;
         nodes.set(marker, node);
+        lines.set(marker, 1 + (raw.match(/\r\n|[\r\n]/g)?.length ?? 0));
         parts.push(marker);
       }
       // Retain every source line for markdown-it token.map and block ranges.
-      parts.push(raw.replace(/[^\n]/g, ""));
+      parts.push(raw.replace(/[^\r\n]/g, ""));
       cursor = range.end;
     }
     parts.push(source.slice(cursor, to));
-    return { text: parts.join(""), nodes };
+    return { text: parts.join(""), nodes, lines };
   }
   return section(0, source.length, ranges);
 }

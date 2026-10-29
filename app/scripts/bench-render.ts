@@ -82,3 +82,53 @@ export async function shikiEngineBench(): Promise<void> {
   }
   console.log(JSON.stringify({ fences: tokens.length, samples, identicalHtml: true, loadAverage: os.loadavg() }));
 }
+
+/** Same blog bytes and production Node worker, alternating the two implementations. */
+export async function workerMdxBench(baseline: string, file: string): Promise<void> {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-mdx-bench-"));
+  try {
+    const current = path.join(temp, "current.mjs");
+    const built = await Bun.build({ entrypoints: [path.resolve(import.meta.dir, "../src/main/markdown.ts")], target: "node", format: "esm" });
+    if (!built.success || built.outputs.length !== 1) throw new Error(built.logs.join("\n"));
+    await Bun.write(current, built.outputs[0]!);
+    const runner = path.join(temp, "runner.cjs");
+    fs.writeFileSync(runner, `
+      const { Worker } = require('node:worker_threads');
+      const fs = require('node:fs');
+      const source = fs.readFileSync(${JSON.stringify(file)}, 'utf8');
+      const workerCode = \`
+        const { parentPort, workerData } = require('node:worker_threads');
+        (async () => {
+          const { renderBlocks } = await import(workerData.module);
+          const times = [];
+          let blocks;
+          for (let i = 0; i < 31; i++) {
+            const start = performance.now();
+            const result = await renderBlocks(workerData.source, workerData.file);
+            times.push(performance.now() - start);
+            if (!result.blocks.length || result.mdx?.error) throw Error('Invalid blog render');
+            if (!result.blocks.some(block => block.html.includes('<h'))) throw Error('Blog has no headings');
+            blocks = result.blocks.length;
+          }
+          parentPort.postMessage({ first: times[0], warm: times.slice(11).reduce((a,b) => a+b, 0)/20, blocks, successfulRenders: times.length });
+        })().catch(error => { throw error; });
+      \`;
+      async function sample(module) {
+        const worker = new Worker(workerCode, { eval: true, workerData: {module, source, file: ${JSON.stringify(file)}} });
+        try { return await new Promise((resolve, reject) => { worker.once('message', resolve); worker.once('error', reject); }); }
+        finally { await worker.terminate(); }
+      }
+      (async () => {
+        const samples = {before: [], after: []};
+        for (let i = 0; i < 5; i++) for (const side of (i % 2 ? ['after','before'] : ['before','after'])) {
+          samples[side].push(await sample(side === 'before' ? ${JSON.stringify(pathToFileURL(baseline).href)} : ${JSON.stringify(pathToFileURL(current).href)}));
+        }
+        console.log(JSON.stringify({ file: ${JSON.stringify(file)}, fixtureBytes: Buffer.byteLength(source), warmupRenders: 10, warmRendersPerSample: 20, loadAverage: require('node:os').loadavg(), cores: require('node:os').cpus().length, samples }));
+      })().catch(error => { console.error(error); process.exitCode = 1; });
+    `);
+    const child = Bun.spawn(["node", runner], { stdout: "pipe", stderr: "pipe" });
+    const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+    if (code !== 0) throw new Error(stderr);
+    console.log(stdout.trim());
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+}

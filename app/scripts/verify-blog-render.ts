@@ -1,4 +1,4 @@
-// Read-only source qualification. All app opens use byte-identical temporary copies.
+// All edits and saves use byte-identical copies. Original posts are read only.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -11,6 +11,8 @@ const sourceRoot = process.argv[2] ?? "/Users/jonathanreed/Downloads/Personal-Si
 const sourceDir = path.join(sourceRoot, "src/content/blog");
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-blog-"));
 const appRoot = path.resolve(import.meta.dir, "..");
+const audit = path.resolve(appRoot, "../.audit/m1c");
+fs.mkdirSync(audit, { recursive: true });
 const site = path.join(root, "site");
 const copies = path.join(site, "src/content/blog");
 fs.mkdirSync(copies, { recursive: true });
@@ -29,6 +31,7 @@ const inputs = posts.map((name) => {
     rootImages: [...source.matchAll(/<img\b[\s\S]*?>/gi)].flatMap((tag) => [...tag[0].matchAll(/\bsrc\s*=\s*["'](\/[^"']+)["']/g)].map((m) => m[1]!)) };
 });
 const steps: DriverStep[] = [];
+const screenshots = new Set(["Clipboard.mdx", "prompts.mdx", "progress-Bars.mdx"]);
 for (const input of inputs) {
   steps.push({ record: { name: input.name, eval: `(async () => {
     const input = ${JSON.stringify(input)};
@@ -37,6 +40,7 @@ for (const input of inputs) {
     if (document.documentElement.dataset.documentPath !== input.file) await window.simplemd.openPath(input.file, 'peek');
     await wait(() => document.documentElement.dataset.firstReadable === input.file && !document.querySelector('#edit').inert);
     const doc = document.querySelector('#doc');
+    if (doc.querySelector('.mdx-error')) throw Error('Unexpected MDX parse error: ' + input.name);
     const images = [...doc.querySelectorAll('img')];
     await Promise.all(images.map(async image => {
       if (!image.complete) await Promise.race([new Promise(r => { image.addEventListener('load', r, {once:true}); image.addEventListener('error', r, {once:true}); }), new Promise(r => setTimeout(r, 5000))]);
@@ -50,6 +54,23 @@ for (const input of inputs) {
     if (input.rootImages.some(src => !images.some(image => image.src.includes('/site/public' + src)))) throw Error('Astro image root mismatch: ' + input.name);
     return result;
   })()` } });
+  if (screenshots.has(input.name)) {
+    steps.push({ eval: `document.querySelector('#read-scroll').scrollTop = document.querySelector('#doc details:not(.frontmatter), #doc img')?.offsetTop ?? 0;` });
+    steps.push({ wait: 100 }, { shot: path.join(audit, input.name.replace(/\.mdx$/, ".png")) });
+  }
+  steps.push({ eval: `(async () => {
+    const wait = async test => { const deadline = Date.now() + 10000; while (!test()) { if (Date.now() > deadline) throw Error('Blog editor timeout'); await new Promise(r => setTimeout(r, 25)); } };
+    window.simplemd.command('toggle-edit');
+    await wait(() => document.querySelector('.cm-content[contenteditable="true"]'));
+    const view = document.querySelector('.cm-content').cmTile.root.view;
+    window.blogBeforeEdit = view.state.doc.toString();
+    view.dispatch({ changes: { from: view.state.doc.length, insert: ' ' }, userEvent: 'input.paste' });
+    if (view.state.doc.toString() !== window.blogBeforeEdit + ' ') throw Error('Blog edit failed');
+  })()` }, { save: true }, { eval: `(async () => {
+    const view = document.querySelector('.cm-content').cmTile.root.view;
+    window.simplemd.command('undo');
+    if (view.state.doc.toString() !== window.blogBeforeEdit) throw Error('Blog undo failed');
+  })()` }, { save: true }, { eval: `window.simplemd.command('toggle-edit');` });
 }
 steps.push({ shot: path.join(root, "last-blog.png") }, { quit: true });
 const drive = path.join(root, "driver.json");
@@ -69,5 +90,6 @@ for (const name of posts) {
   assert.equal(hash(fs.readFileSync(path.join(sourceDir, name))), originals.get(name), "Original blog source changed");
   assert.equal(hash(fs.readFileSync(path.join(copies, name))), originals.get(name), "Temporary blog copy changed");
 }
-fs.writeFileSync(path.join(root, "results.json"), JSON.stringify({ sourceRoot, originalsUnchanged: true, copiesUnchanged: true, results }, null, 2));
+fs.writeFileSync(path.join(root, "results.json"), JSON.stringify({ sourceRoot, originalsUnchanged: true, copiesUnchanged: true, editedOutsideMdxAndUndone: true, screenshots: [...screenshots].map(name => path.join(audit, name.replace(/\.mdx$/, ".png"))), results }, null, 2));
+fs.copyFileSync(path.join(root, "results.json"), path.join(audit, "blog-results.json"));
 console.log(`Blog render: ${results.length} posts. Results: ${root}/results.json`);

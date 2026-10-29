@@ -118,7 +118,7 @@ export function createRenderCore(services: RenderServices = {}) {
     if (!silent) {
       const token = state.push("mdx_preview", "", 0);
       token.meta = { mdx: node };
-      token.map = [line, line + 1];
+      token.map = [line, line + ((state.env as RenderEnv).mdxLines?.get(marker) ?? 1)];
     }
     state.line = line + 1;
     return true;
@@ -205,7 +205,7 @@ export function createRenderCore(services: RenderServices = {}) {
     visit(state.tokens);
   });
 
-  type RenderEnv = { urls: UrlContext; baseDir?: string; mdxNodes?: Map<string, RenderNode> } & Record<PropertyKey, unknown>;
+  type RenderEnv = { urls: UrlContext; baseDir?: string; mdxNodes?: Map<string, RenderNode>; mdxLines?: Map<string, number> } & Record<PropertyKey, unknown>;
 
   const hash = services.hash ?? defaultHash;
   const byteLength = services.byteLength ?? utf8ByteLength;
@@ -255,7 +255,7 @@ export function createRenderCore(services: RenderServices = {}) {
       }));
       const validBody = ranges.error ? body.slice(0, Math.max(0, ranges.error.start - bodyOffset)) : body;
       const renderChild = async (preview: MdxPreview, inline: boolean): Promise<RenderNode> => {
-        const childEnv = { ...env, mdxNodes: preview.nodes };
+        const childEnv = { ...env, mdxNodes: preview.nodes, mdxLines: preview.lines };
         const childTokens = inline ? md.parseInline(preview.text.trim(), childEnv) : md.parse(preview.text, childEnv);
         await services.prepareHighlighting?.(childTokens);
         return planSequence(childTokens, childEnv, false);
@@ -263,6 +263,7 @@ export function createRenderCore(services: RenderServices = {}) {
       const preview = await mapMdxPreview(validBody, usable, renderChild);
       text = preview.text;
       env.mdxNodes = preview.nodes;
+      env.mdxLines = preview.lines;
     }
     services.mark?.("parse-start");
     const tokens = md.parse(text, env);
