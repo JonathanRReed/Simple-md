@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = { selectWindow: number } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -24,6 +24,13 @@ export async function runDriver(
   let pendingDialog: { response: 0 | 1 | 2; savePath?: string } | undefined;
   try {
     for (const step of steps) {
+      if ("selectWindow" in step) {
+        const { BrowserWindow } = await import("electron");
+        const selected = BrowserWindow.getAllWindows()[step.selectWindow];
+        if (!selected) throw new Error("Driver window is missing.");
+        win = selected;
+        continue;
+      }
       if ("windowCount" in step) {
         const { BrowserWindow } = await import("electron");
         if (BrowserWindow.getAllWindows().length !== step.windowCount) throw new Error("Unexpected document window count.");

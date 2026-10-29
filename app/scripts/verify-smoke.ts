@@ -942,13 +942,14 @@ await test("tabs-windows", async () => {
   await launch("tabs-windows", a, [
     ...appendCharacter("!"),
     evaluate(`window.simplemd.command('move-tab-window');`),
-    { visibility: false },
-    { windowCount: 2 },
+    { wait: 300 },
+    { windowCount: 1 },
+    { selectWindow: 0 },
     { save: true },
     evaluate(`await window.simplemd.openPath(${quote(a)}, 'edit');`),
-    { windowCount: 2 },
+    { windowCount: 1 },
     evaluate(`await window.simplemd.setSettings({ openIn: 'window' }); await window.simplemd.openPath(${quote(b)}, 'edit');`),
-    { windowCount: 3 },
+    { windowCount: 2 },
   ], "edit");
   assert.deepEqual(fs.readFileSync(a), Buffer.from(note + "!"), "Moving a dirty tab lost unsaved bytes.");
 });
@@ -983,6 +984,18 @@ await test("tabs-scroll-selection-shortcuts", async () => {
     { windowCount: 1 },
   ], "edit");
   assert.deepEqual(fs.readFileSync(a), Buffer.from(source));
+});
+
+await test("tabs-last-close", async () => {
+  const file = fixture("tabs-last-close/note.md", note);
+  await launch("tabs-last-close", file, [
+    { shot: path.join(root, "tabs-last-close", "done.png") },
+    evaluate(`window.simplemd.command('close-tab');`),
+    { wait: 200 },
+    { windowCount: 0 },
+    { quit: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(note));
 });
 
 const blog = process.env.SMD_BYTE_BLOG_DIR;

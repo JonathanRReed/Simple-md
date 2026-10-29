@@ -247,14 +247,14 @@ async function closeTab(id = currentSession().documentId): Promise<boolean> {
   send("smd:closed", id);
   syncLayout();
   if (!context().layout.state.tabs.length) {
-    context().win.hide();
-    if (process.platform === "darwin") app.dock?.hide();
+    context().win.destroy();
+    if (process.platform === "darwin" && !windows.size) app.dock?.hide();
   }
   return true;
 }
 async function closeDocumentWindow(): Promise<void> {
   for (const id of [...context().layout.state.tabs]) if (!(await closeTab(id))) return;
-  context().win.hide();
+  if (!context().win.isDestroyed()) context().win.destroy();
 }
 
 // ───────── renderer round trips ─────────
@@ -591,7 +591,7 @@ async function moveTabWindow(): Promise<void> {
   });
   origin.layout.remove(doc.documentId);
   windowScope.run(origin, () => { send("smd:closed", doc.documentId); syncLayout(); });
-  if (!origin.layout.state.tabs.length) origin.win.hide();
+  if (!origin.layout.state.tabs.length) origin.win.destroy();
 }
 async function settleAllWindows(): Promise<boolean> {
   for (const host of windows.values()) {
@@ -607,7 +607,10 @@ async function settleAllWindows(): Promise<boolean> {
 function runCommand(cmd: Command, target = context().layout.active?.documentId): void {
   const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
-    case "close-tab": if (target !== undefined) void documents.run(() => closeTab(target)); return;
+    case "close-tab":
+      if (context().layout.state.tabs.length && target !== undefined) void documents.run(() => closeTab(target));
+      else if (!context().win.isDestroyed()) context().win.destroy();
+      return;
     case "move-tab-window": void documents.run(moveTabToWindow); return;
     case "next-tab": context().layout.cycle(1); syncLayout(); return;
     case "previous-tab": context().layout.cycle(-1); syncLayout(); return;
@@ -828,7 +831,7 @@ function createTray(): void {
   tray.setToolTip("SimpleMD");
   tray.setContextMenu(trayMenu());
   tray.on("click", () => {
-    if (context().win.isVisible() && context().win.isFocused()) void hideWindow();
+    if (!context().win.isDestroyed() && context().win.isVisible() && context().win.isFocused()) void hideWindow();
     else reveal();
   });
 }
