@@ -878,6 +878,60 @@ await test("settings-config-themes", async () => {
   assert(stored.includes('future-setting = keep') && stored.includes('autosave = maybe'), 'Settings dropped unknown or invalid lines.');
 });
 
+await test("settings-tabs-panes", async () => {
+  const shots = path.resolve(appRoot, "../.audit/m5-merge");
+  fs.mkdirSync(shots, { recursive: true });
+  const text = '# A quieter page\n\nSimpleMD keeps the file safe while each pane keeps its own view.\n\n## Read and write\n\nA [useful link](https://example.com) and **clear words**.\n\n```typescript\nconst page = { ready: true };\n```\n';
+  const a = fixture("settings-tabs-panes/reading.md", text);
+  const b = fixture("settings-tabs-panes/writing.md", text.replace('A quieter page', 'Working draft'));
+  const c = fixture("settings-tabs-panes/later.md", text.replace('A quieter page', 'Another page'));
+  await launch("settings-tabs-panes", a, [
+    evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Writing tab did not mount.');
+      window.writingId = Number(document.documentElement.dataset.documentId);
+      window.simplemd.command('split-panes');
+      await waitFor(() => document.querySelectorAll('.document-pane').length === 2, 'Two panes did not mount.');
+      window.simplemd.command('mode-split');
+      await waitFor(() => document.querySelector('[data-element="preview"] pre'), 'Preview did not render.');
+      await window.simplemd.setSettings({ theme: 'light', themeLight: 'editorial-light' });
+      await waitFor(() => [...document.querySelectorAll('.document-pane')].every(p => getComputedStyle(p).backgroundColor === 'rgb(251, 247, 238)'), 'Light theme missed a pane.');
+      window.semanticHeadings = [...document.querySelectorAll('.document-pane .prose h1')];
+      assert(!document.body.textContent.includes('Preferences'), 'Old Preferences text returned.');`),
+    { shot: path.join(shots, "editorial-light.png") },
+    evaluate(`await window.simplemd.setSettings({ theme: 'dark', themeDark: 'editorial-dark' });
+      await waitFor(() => [...document.querySelectorAll('.document-pane')].every(p => getComputedStyle(p).backgroundColor === 'rgb(10, 18, 25)'), 'Dark theme missed a pane.');
+      assert(window.semanticHeadings.every(h => h.isConnected), 'Theme replaced document nodes.');`),
+    { shot: path.join(shots, "editorial-dark.png") },
+    evaluate(`await window.simplemd.setSettings({ readingStyle: 'github', writingFontFamily: 'Georgia', writingFontSize: 20, codeFontFamily: 'Menlo', codeFontSize: 15 });
+      await waitFor(() => [...document.querySelectorAll('.document-pane .prose')].every(p => getComputedStyle(p).fontSize === '16px'), 'GitHub style missed a pane.');
+      assert(window.semanticHeadings.every(h => h.isConnected), 'Reading style replaced document nodes.');
+      const editor = document.querySelector('.cm-content');
+      assert(getComputedStyle(editor).fontSize === '20px' && getComputedStyle(editor).fontFamily.includes('Georgia'), 'Writing typography did not apply.');
+      assert([...document.querySelectorAll('.prose pre code')].every(c => getComputedStyle(c).fontSize === '15px' && getComputedStyle(c).fontFamily.includes('Menlo')), 'Code typography missed a pane.');
+      const reading = [...document.querySelectorAll('.document-pane')].find(p => p.querySelector('[data-element="read"]').hidden === false);
+      assert(reading, 'Reading pane disappeared.');
+      await window.simplemd.focusPane(Number(reading.dataset.paneId));
+      reading.querySelector('[data-element="edit-btn"]').click();
+      await waitFor(() => document.querySelectorAll('.cm-editor').length === 2, 'Reading pane did not enter edit mode.');
+      window.simplemd.command('mode-live');
+      await window.simplemd.setSettings({ readingStyle: 'editorial', readingFontFamily: 'Georgia', readingFontSize: 22 });
+      await waitFor(() => [...document.querySelectorAll('.prose')].every(p => getComputedStyle(p).fontSize === '22px'), 'Reading typography missed a pane.');
+      const modes = [...document.querySelectorAll('[data-element="edit"]')].map(p => p.dataset.mode);
+      assert(modes.includes('live') && modes.includes('split'), 'Reading style changed independent modes.');
+      await window.simplemd.openPath(${quote(c)}, 'edit');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(c)}, 'Third tab did not mount.');
+      window.simplemd.command('split-panes');
+      await waitFor(() => document.querySelectorAll('.document-pane').length === 1, 'Panes did not collapse.');
+      await window.simplemd.setSettings({ writingFontSize: 23, themeDark: 'solarized-dark' });
+      await window.simplemd.activateTab(window.writingId);
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Dormant tab did not remount.');
+      assert(getComputedStyle(document.querySelector('.document-pane')).backgroundColor === 'rgb(0, 43, 54)', 'Remounted tab missed the theme.');
+      assert(getComputedStyle(document.querySelector('.cm-content')).fontSize === '23px', 'Remounted tab missed typography.');
+      assert(document.querySelectorAll('.cm-editor').length === 1, 'Inactive editor remained mounted.');`),
+  ]);
+  for (const file of [a, b, c]) assert.equal(fs.readFileSync(file, "utf8"), file === b ? text.replace('A quieter page', 'Working draft') : file === c ? text.replace('A quieter page', 'Another page') : text);
+});
+
 await test("tabs-panes", async () => {
   const aText = "\uFEFF# Tab A\r\n\r\n[Sibling](b.md)\r\nTail";
   const bText = "# Tab B\n\nSecond document.\n";

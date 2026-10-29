@@ -22,22 +22,37 @@ const listeners = {};
 const pending = [];
 const settings = ${JSON.stringify({ ...DEFAULT_SETTINGS, theme: "light", mode: "source", autosave: false })};
 const calls = { dirty: [], saved: [], opened: [], images: [] };
+let currentDocumentId;
+const withRanges = items => items.map(block => ({sourceRange:[0,0],...block}));
 const blocks = text => [{ key: text, html: '<p>' + text.replaceAll('&', '&amp;').replaceAll('<', '&lt;') + '</p>' }];
 window.simplemd = {
- ready: async () => ({settings:{...settings}, platform:'linux'}),
+ ready: async () => ({settings:{...settings}, platform:'linux', accent:'Highlight'}),
+ onLayout: cb => listeners.layout = cb, onClosed: cb => listeners.closed = cb,
+ releaseView: () => {}, paneMode: () => {}, edit: () => {}, perfMarker: () => {},
+ focusPane: async () => {}, activateTab: async () => {}, closeTab: async () => true,
  onTransition: cb => listeners.transition = cb,
- onDoc: cb => listeners.doc = cb, onSettings: cb => listeners.settings = cb, onSaved: cb => listeners.saved = cb,
+ onDoc: cb => listeners.doc = payload => {
+  currentDocumentId = payload.documentId;
+  cb({revisionId:0,...payload,blocks:withRanges(payload.blocks)});
+  listeners.layout({tabs:[payload.documentId],panes:[{paneId:0,documentId:payload.documentId}],activePane:0,axis:'horizontal'});
+ }, onSettings: cb => listeners.settings = cb, onSaved: cb => listeners.saved = cb,
  onCommand: cb => listeners.command = cb, onDiskChanged: cb => listeners.disk = cb,
- onFlushRequest: cb => listeners.flush = cb, onPrintDoc: () => {}, flushResponse: (id, value) => window.flushed = value,
+ onFlushRequest: cb => listeners.flush = id => cb(id, currentDocumentId), onPrintDoc: () => {}, flushResponse: (id, value) => window.flushed = value,
  editing: id => calls.editing = id,
  setDirty: (value, id) => calls.dirty.push([value,id]), documentReady: id => calls.ready = id,
  renderBlocks: async text => ({title: text, blocks: blocks(text)}), renderFragment: async text => '<pre>' + text + '</pre>',
+ mdxRanges: async () => ({ranges:[]}),
  save: (text, dialog, id) => new Promise(resolve => pending.push({text, dialog, id, resolve})),
  saveImage: async () => 'assets/image (1).png', acceptDisk: async () => true,
  setSettings: async patch => {Object.assign(settings, patch); listeners.settings({...settings})},
  openPath: async p => calls.opened.push(p), openLink: async () => {}, command: cmd => calls.command = cmd, hide: () => {}, pathForFile: () => '',
  exportPdf: async () => {}, exportHtml: async () => {}, print: async () => {}, openDialog: async () => {calls.openDialog = (calls.openDialog ?? 0) + 1}
 };
+let renderBlocks = window.simplemd.renderBlocks;
+Object.defineProperty(window.simplemd, 'renderBlocks', {
+ get: () => async (...args) => { const result = await renderBlocks(...args); return {...result,blocks:withRanges(result.blocks)}; },
+ set: next => { renderBlocks = next; }
+});
 window.fixture = { listeners, pending, settings, calls, blocks, screenshot: name => ipcRenderer.invoke("fixture:screenshot", name), key: (key, modifiers = []) => ipcRenderer.invoke("fixture:key", key, modifiers) };
 `;
 await writeFile(path.join(out, "preload.cjs"), fixture);
@@ -70,8 +85,8 @@ const until = async predicate => { for(let n=0;n<150;n++){if(predicate())return;
 const command = async name => {listeners.command(name);await wait(40)};
 const doc = async (text, name='a.md', id=1, intent='read', html=null) => {listeners.doc({documentId:id,path:'/tmp/'+name,name,text,title:name,intent,baseUrl:'file:///tmp/',blocks:html ?? blocks(text)});await wait(60)};
 await until(() => listeners.command);
-document.querySelector('#open-file').click();
-document.querySelector('#new-note').click();
+document.querySelector('#welcome-open').click();
+document.querySelector('#welcome-new').click();
 assert(calls.openDialog === 1, 'empty-state Open file opens the existing file chooser');
 assert(calls.command === 'new', 'empty-state New note invokes the existing new-note command');
 await doc('first');

@@ -44,16 +44,21 @@ const retained = [...document.querySelector('#doc').children];
 const changes = [];
 const observer = new MutationObserver(records => changes.push(...records));
 observer.observe(document.querySelector('#doc'), {childList:true});
-await doc('retained update', 'retained.md', 6, 'read', [
+const previousRender = window.simplemd.renderBlocks;
+window.simplemd.renderBlocks = async () => ({title:'Retained heading',blocks:[
  {key:'one',html:'<h1>Retained heading</h1>'},
  {key:'two',html:'<p>Retained text</p>'},
  {key:'three',html:'<p>Tail</p>'}
-]);
+]});
+listeners.disk('retained update', 5);
+await wait(80);
 assert(retained.every((node,i) => document.querySelector('#doc').children[i] === node), 'unchanged read blocks retain their DOM identity');
 assert(changes.length === 0, 'unchanged blocks produce zero child-list mutations');
 observer.disconnect();
+window.simplemd.renderBlocks = previousRender;
 
-await doc('A', 'history-a.md', 7);
+await doc('A', 'history-a.md', 7, 'read', [{key:'a-link',html:'<a href="file:///tmp/history-b.md">B</a>'}]);
+document.querySelector('#doc a').click();
 await doc('B', 'history-b.md', 8);
 await command('nav-back');
 await command('nav-back');

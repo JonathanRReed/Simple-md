@@ -1150,7 +1150,8 @@ body:not([data-platform="darwin"]) #tabs { height: 34px; font-size: 13px; }
 .document-pane [data-element="empty"] { height: 100%; display: flex; align-items: center; justify-content: center; }
 #welcome { display: flex; align-items: center; justify-content: center; flex: 1; background: var(--bg); margin: 0; }
 #stage:not([data-panes="0"]) #welcome { display: none; }
-body.print .pane-toolbar, body.print #tabs { display: none !important; }
+body.print .pane-toolbar, body.print #tabs, body.print #welcome { display: none !important; }
+body.print #stage { display: block; }
 body.print .document-pane, body.print .pane-content { display: block; position: static; overflow: visible; }
 .pane-toolbar .seg { flex: none; }
 .pane-toolbar .seg button { padding-inline: 6px; }
