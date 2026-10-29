@@ -24,8 +24,8 @@ test("context validation rejects unsafe protocols, traversal and symlink escapes
     expect(await validateContext({ ...empty, linkURL: pathToFileURL(file).href }, urls)).toEqual({ ...empty, linkURL: pathToFileURL(file).href });
     expect((await validateContext({ ...empty, linkURL: "#user-content-heading" }, urls)).linkURL).toBe("#user-content-heading");
     for (const linkURL of ["javascript:alert(1)", "data:text/html,evil", "https://ok/\u0000", pathToFileURL(outside).href, pathToFileURL(path.join(inside, "escape.md")).href, urls.baseUrl + "%2e%2e/outside.md", urls.baseUrl + "a%2f..%2foutside.md"]) {
-      await expect(validateContext({ ...empty, linkURL }, urls)).rejects.toThrow();
-      await expect(validateContext({ ...empty, imageURL: linkURL }, urls)).rejects.toThrow();
+      expect((await validateContext({ ...empty, linkURL }, urls)).linkURL).toBe("");
+      expect((await validateContext({ ...empty, imageURL: linkURL }, urls)).imageURL).toBe("");
     }
     for (const input of [null, {}, { ...empty, editable: 1 }, { ...empty, suggestions: [1] }, { ...empty, suggestions: Array(33).fill("word") }]) await expect(validateContext(input, urls)).rejects.toThrow();
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -55,4 +55,12 @@ test("spelling replacement and undo preserve BOM and mixed line endings", () => 
   undo({ get state() { return state; }, dispatch(tr) { state = tr.state; } });
   expect(Buffer.from(state.field(editorText).text)).toEqual(Buffer.from(source));
   expect(spellingReplacement(state, range, "stale", "word")).toBeNull();
+});
+
+test("one unsafe URL keeps spelling, selection and the other valid URL", async () => {
+  const context = await validateContext({ ...empty, editable: true, selectionPresent: true, misspelledWord: "wrod", suggestions: ["word"], linkURL: "javascript:alert(1)", imageURL: "https://example.com/image.png" }, {});
+  expect(context.linkURL).toBe(""); expect(context.imageURL).toBe("https://example.com/image.png");
+  const menu = contextTemplate(context, actions);
+  expect(menu.map(item => item.label)).toContain("word");
+  expect(menu.find(item => item.role === "copy")?.enabled).toBe(true);
 });
