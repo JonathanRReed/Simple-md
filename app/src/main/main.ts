@@ -148,8 +148,8 @@ function refreshMenus(): void {
       if (process.platform !== "linux") recentOS.clearRecentDocuments();
       applySettings({ recents: [] });
     },
-    share: () => { const doc = currentSession(); if (doc.path) shareDocument(context().win, doc.path); },
-    canShare: () => !!currentSession().path,
+    share: () => { const doc = currentSession(); if (doc?.path) shareDocument(context().win, doc.path); },
+    canShare: () => !!currentSession()?.path,
     quit: () => app.quit(),
   });
   tray?.setContextMenu(trayMenu());
@@ -245,7 +245,7 @@ function createWindow(): BrowserWindow {
       applySettings({ bounds: w.getBounds() });
     }, 400);
   };
-  w.on("focus", () => { frontmost = windows.get(w.webContents.id) ?? frontmost; trace("win-focus"); refreshMenus(); });
+  w.on("focus", () => { frontmost = windows.get(w.webContents.id) ?? frontmost; trace("win-focus"); if (!quitting) refreshMenus(); });
   w.on("blur", () => trace("win-blur"));
   w.on("hide", () => trace("win-hide"));
   w.on("show", () => trace("win-show"));
