@@ -1,3 +1,4 @@
+import { getMdxRanges, isInMdxRange, setMdxRanges } from "./mdx-syntax.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { ensureSyntaxTree } from "@codemirror/language";
@@ -220,7 +221,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
   const lineTouches = (from: number, to: number) => touches(doc.lineAt(from).from, doc.lineAt(to).to);
   const baseUrl = host.baseUrl();
   const fmEnd = frontmatterEnd(doc.sliceString(0, 4000));
-  const blocked: Array<[number, number]> = []; // ranges where inline scanning must not run
+  const blocked: Array<[number, number]> = getMdxRanges(state).map((range) => [range.start, range.end]); // ranges where inline scanning must not run
 
   const linesOf = (from: number, to: number, cb: (lineFrom: number, index: number) => void) => {
     const last = doc.lineAt(to).number;
@@ -238,7 +239,9 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
     enter(ref) {
       const { name, from, to } = ref;
       if (name === "Document") return;
-      if (from < fmEnd) return false;
+      if (from < fmEnd || isInMdxRange(state, from)) return false;
+      // A parent Markdown node may span JSX. Never replace any part of that node.
+      if (blocked.some(([a, b]) => a < to && b > from)) return;
       const node = ref.node;
 
       switch (name) {
@@ -392,6 +395,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
       endLine = doc.line(m);
       n = m;
     }
+    if (blocked.some(([a, b]) => a < endLine.to && b > line.from)) continue;
     if (touches(line.from, endLine.to)) {
       linesOf(line.from, endLine.to, (lf) => out.push(lineDeco("cm-math-source").range(lf)));
       blocked.push([line.from, endLine.to]);
@@ -407,7 +411,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
     for (let m = INLINE_MATH.exec(line.text); m; m = INLINE_MATH.exec(line.text)) {
       const from = line.from + m.index;
       const to = from + m[0].length;
-      if (touches(from, to)) continue;
+      if (touches(from, to) || isInMdxRange(state, from) || blocked.some(([a, b]) => a < to && b > from)) continue;
       const inner = tree.resolveInner(from, 1);
       if (inner.name === "InlineCode" || inner.name === "CodeText" || inner.name === "URL") continue;
       out.push(Decoration.replace({ widget: new InlineMathWidget(m[1]!) }).range(from, to));
@@ -437,7 +441,7 @@ export function liveExtension(host: LiveHost): Extension {
   const field = StateField.define<DecorationSet>({
     create: (state) => build(state, host),
     update(deco, tr) {
-      if (tr.docChanged || tr.selection || tr.state.facet(EditorView.editable) !== tr.startState.facet(EditorView.editable)) {
+      if (tr.docChanged || tr.selection || tr.effects.some((effect) => effect.is(setMdxRanges)) || tr.state.facet(EditorView.editable) !== tr.startState.facet(EditorView.editable)) {
         return build(tr.state, host);
       }
       return deco;

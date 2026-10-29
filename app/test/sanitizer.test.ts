@@ -47,3 +47,17 @@ A-->B
   expect(results[0]!.generated).toEqual({ shiki: 1, math: 1, checkbox: 1, alerts: 1, footnotes: 1, diagrams: 1, fake: 0 });
   expect(results[0]!.actual).toContain('<pre>fake</pre>');
 }, 30_000);
+
+
+test("MDX lowercase elements share the author policy and expressions remain inert", async () => {
+  const source = '<div className="mermaid" style="display:none" data-evil="x" onClick={run()}>\n\n<img src="/image.svg" onError={run()} />\n\n<a href="javascript:alert(1)">bad</a>\n\n</div>\n\n<Card>\n\n**safe** {"<script>run()</script>"}\n\n</Card>\n\n<style>{`body { display:none }`}</style>\n\n<script>{`globalThis.executed=true`}</script>';
+  const rendered = await core.renderMarkdown(source, "/project/docs/note.mdx");
+  const results = await runDom(path.join(import.meta.dir, "sanitizer/browser.ts"), [{ name: "mdx", source: "", expected: "", rendered }]) as { actual: string; generated: { fake: number } }[];
+  const actual = results[0]!.actual;
+  expect(results[0]!.generated.fake).toBe(0);
+  expect(actual).not.toMatch(/className|data-evil|javascript:|onerror|onclick|style=|display:none|globalThis/);
+  expect(actual).toContain('src="file:///project/public/image.svg"');
+  expect(actual).toContain('<strong>safe</strong>');
+  expect(actual).toContain('class="mdx-component"');
+  expect(actual).toContain('&lt;script&gt;run()&lt;/script&gt;');
+}, 30_000);

@@ -83,7 +83,6 @@ const core = createRenderCore({
   byteLength: Buffer.byteLength,
 });
 export const { renderBlocks, renderMarkdown, renderFragment } = core;
-export { preprocessMdx } from "../shared/render-core.js";
 export type { RenderedBlocks, RenderedDoc, RenderedBlock } from "../shared/render-core.js";
 
 export { urlContext } from "./document-urls.js";

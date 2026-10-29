@@ -118,7 +118,7 @@ export function buildMenu(a: MenuActions): void {
           label: "Editing Mode",
           submenu: (["live", "split", "source"] as const).map((m, i) =>
             radio<EditMode>(
-              { live: "Live Preview", split: "Split", source: "Source" }[m],
+              { live: "Live Preview", split: "Side by side", source: "Source" }[m],
               s.mode,
               m,
               (v) => a.patch({ mode: v }),

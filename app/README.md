@@ -4,9 +4,9 @@ This directory contains the Electron app. Bun bundles the TypeScript code; Rust 
 
 ## Read and edit
 
-Open a Markdown file through File > Open, a file association, or the command line. Switch between live preview, split view, and source editing in the View menu or command palette. Live preview switches to source editing above 250,000 characters.
+Open a Markdown file through File > Open, a file association, or the command line. Switch between Live, Side by side, and Source editing in the View menu or command palette. Live preview switches to source editing above 250,000 characters.
 
-The renderer supports Shiki code highlighting, KaTeX math, Mermaid-compatible diagrams through Pele, task lists, footnotes, GitHub alerts, and frontmatter. Raw HTML is escaped. MDX is read-only, and JSX components never execute.
+The renderer supports Shiki code highlighting, KaTeX math, Mermaid-compatible diagrams through Pele, task lists, footnotes, GitHub alerts, and frontmatter. Author HTML is sanitized. Markdown and MDX are editable. JSX components and expressions never execute.
 
 Preferences opens from the toolbar, app menu, or Command/Control+,. It controls appearance, editing defaults, text size, autosave, Vim, spellcheck, preview integration, login behavior, and the global shortcut. Changes apply immediately and persist. Invalid shortcut changes leave the previous binding in place.
 
@@ -34,7 +34,7 @@ The app must be running for helper-driven previews. Launch at Login is optional 
 
 On macOS, the Rust helper checks Finder's foreground state, text focus, and current Accessibility selection before claiming Space for Markdown. It resolves file URLs outside the key callback. This Space path needs Accessibility permission only. `.txt` stays outside the Markdown Space association. The tray menu controls Space previews and exposes permission guidance. Command+Shift+Space is a separate fallback that may request Automation access to Finder and System Events. Declining permissions still allows File > Open.
 
-In the reading view, Space or Escape dismisses the window. Enter or `e` switches a Markdown note to editing. MDX remains read-only. The helper's `--probe` reports foreground app, text focus, Accessibility state, and selected paths for a separate native check.
+In the reading view, Space or Escape dismisses the window. Enter or `e` switches a Markdown or MDX note to editing. The helper's `--probe` reports foreground app, text focus, Accessibility state, and selected paths for a separate native check.
 
 On Windows, use File > Open, Open With, or the global shortcut. Bare-Space interception is unavailable.
 

@@ -1,10 +1,10 @@
-await doc('read only', 'note.MDX', 2, 'edit');
-await wait(100);
-assert(document.querySelector('#edit').hidden, 'MDX remains read-only for edit intent');
+await doc('editable MDX', 'note.MDX', 2, 'edit');
+await until(() => document.querySelector('.cm-content'));
+assert(!document.querySelector('#edit').hidden, 'MDX enters editing for edit intent');
 await command('toggle-edit');
-assert(document.querySelector('#edit').hidden, 'MDX rejects edit command');
-await command('save');
-assert(pending.length === 0, 'MDX does not save');
+assert(document.querySelector('#edit').hidden, 'MDX switches to read view');
+await command('toggle-edit');
+assert(!document.querySelector('#edit').hidden, 'MDX returns to editing');
 
 await doc('a text', 'a.md', 3, 'edit');
 await until(() => document.querySelector('.cm-content'));

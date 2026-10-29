@@ -296,10 +296,11 @@ const baseUrlOf = (file: string | null) =>
 async function payloadFor(file: string | null, text: string, intent: OpenIntent, fromDisk = false, readOnlyReason?: string): Promise<DocPayload> {
   let title: string;
   let blocks: DocPayload["blocks"];
+  let mdx: DocPayload["mdx"];
   if (!readOnlyReason && intent === "edit" && settings.mode === "source" && path.extname(file ?? "").toLowerCase() !== ".mdx") {
     title = file ? path.basename(file) : "Untitled";
     blocks = [];
-  } else if (file && fromDisk) {
+  } else if (file && fromDisk && path.extname(file).toLowerCase() !== ".mdx") {
     const stat = await fs.promises.stat(file).catch(() => null);
     perfMark("read-and-hash-start", { path: file });
     const hit = stat && getCachedRender(file, stat.mtimeMs, stat.size, text);
@@ -307,11 +308,11 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks } = await renderBlocks(text, file));
+      ({ title, blocks, mdx } = await renderBlocks(text, file));
       if (stat) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks } = await renderBlocks(text, file));
+    ({ title, blocks, mdx } = await renderBlocks(text, file));
   }
   return {
     documentId: current.documentId,
@@ -319,6 +320,7 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     name: file ? path.basename(file) : "Untitled",
     text,
     blocks,
+    mdx,
     title,
     intent,
     baseUrl: baseUrlOf(file),

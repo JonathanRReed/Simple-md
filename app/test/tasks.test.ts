@@ -1,3 +1,4 @@
+import { findMdxRanges } from "../src/shared/mdx-ranges";
 import { describe, expect, test } from "bun:test";
 import { toggleTaskAt } from "../src/renderer/tasks";
 
@@ -82,4 +83,13 @@ test("rendered task ordinals exclude display math and alert bodies use the same 
     expect(toggleTaskAt(source, 0)).toBe(source.replace("[ ] actual", "[x] actual"));
     expect(toggleTaskAt(source, 1)).toBeNull();
   }
+});
+
+
+test("MDX tasks skip inert ESM and expressions and include component children", () => {
+  const text = 'export const data = `\n\n- [ ] hidden\n\n`\n\n<Card>\n- [ ] child\n</Card>\n\n- [ ] outside';
+  const ranges = findMdxRanges(text);
+  expect(ranges.error).toBeUndefined();
+  expect(toggleTaskAt(text, 0, ranges)).toBe(text.replace('[ ] child', '[x] child'));
+  expect(toggleTaskAt(text, 1, ranges)).toBe(text.replace('[ ] outside', '[x] outside'));
 });

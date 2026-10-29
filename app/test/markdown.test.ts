@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { preprocessMdx, renderBlocks, renderFragment, renderMarkdown } from "../src/main/markdown";
+import { renderBlocks, renderFragment, renderMarkdown } from "../src/main/markdown";
 
 const html = async (src: string, file: string | null = "/tmp/note.md") => (await renderMarkdown(src, file)).html;
 
@@ -146,14 +146,12 @@ describe("images", () => {
 });
 
 describe("mdx", () => {
-  test("import/export blocks are dropped", () => {
-    expect(preprocessMdx("import X from './x'\nexport const a = 1\n\n# Hi")).toBe("\n# Hi");
-  });
-
-  test("JSX blocks become code, but fences are left alone", () => {
-    const out = preprocessMdx("<Chart data={x} />\n\ntext\n\n```js\nimport a from 'b'\n```");
-    expect(out).toContain("```jsx\n<Chart data={x} />\n```");
-    expect(out).toContain("import a from 'b'");
+  test("imports stay hidden and JSX renders as a component", async () => {
+    const out = await html("import X from './x'\n\n<X />\n\n```js\nimport a from 'b'\n```", "/a.mdx");
+    expect(out).not.toContain("import X");
+    expect(out).toContain('class="mdx-component"');
+    expect(out).toContain('class="mdx-label">X');
+    expect(out).toContain("import");
   });
 
   test("only .mdx files are preprocessed", async () => {
