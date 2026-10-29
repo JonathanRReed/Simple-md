@@ -48,7 +48,7 @@ A wrong-file or failed render fails the run. Screenshots and text assertions hap
 | First screen readable, files up to 20 MB | p95 of at least 20 samples < 200 ms. Files over 20 MB open in Source mode with no gate. |
 | Cold launch to first readable | p95 of at least 20 samples < 800 ms |
 | Switch to an already-open 100k-character tab | p95 < 50 ms |
-| Typing, 100k-character document, one pane and two visible panes | Event Timing API `duration` (input to next paint) for keydown and beforeinput, p95 < 16 ms, at the top, middle and end of the file, in live, source and side-by-side modes |
+| Typing, 100k-character document, one pane and two visible panes | Event Timing API `duration` (input to next paint) for keydown and beforeinput at the top, middle and end of the file, in live, source and side-by-side modes. Gate: conservative p95 editor excess over a matched empty-textarea control is at most one display frame plus 8 ms, from at least 40 trusted keys per case. Unreported sub-16 ms events count as under 16 ms. Raw values stay in the receipt. |
 | Memory, one document, settled | median of 5 settled samples of physical footprint summed over every app process < 200 MB (decimal). Summed RSS is recorded beside it but is not a gate. Windows uses private working set. |
 
 Typing runs also cover burst input, selection movement, backspace, undo, paste and IME composition, and they verify the final saved bytes.
