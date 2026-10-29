@@ -25,6 +25,7 @@
         "@types/markdown-it": "^14.2.0",
         "@types/node": "^26.6.5",
         "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+        "core-js-pure": "3.51.0",
         "dompurify": "^3.4.17",
         "electron": "^45.0.0",
         "electron-builder": "^26.15.3",
@@ -34,6 +35,7 @@
         "markdown-it": "^15.0.3",
         "micromark": "^4.0.3",
         "micromark-extension-mdxjs": "^3.0.0",
+        "parse5": "8.0.1",
         "pele": "^1.8.0",
         "shiki": "^4.5.0",
         "yaml": "2.8.1",
@@ -353,6 +355,8 @@
 
     "concat-map": ["concat-map@0.0.1", "", {}, "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg=="],
 
+    "core-js-pure": ["core-js-pure@3.51.0", "", { "hasInstallScript": true }, "sha512-NE4SFDJ+qzQeqHG2vVSNwopzS6zZNPYJ5kinIqs+OofTqGzOmICgT89E/yvS9XY7rwb3eU1utWXTJ9nVFqv74A=="],
+
     "core-util-is": ["core-util-is@1.0.3", "", {}, "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ=="],
 
     "crelt": ["crelt@1.0.7", "", {}, "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="],
@@ -654,6 +658,8 @@
     "p-cancelable": ["p-cancelable@2.1.1", "", {}, "sha512-BZOr3nRQHOntUjTrH8+Lh54smKHoHyur8We1V8DSMVrl5A2malOOwuJRnKRDjSnkoeBh4at6BwEnb5I7Jl31wg=="],
 
     "p-limit": ["p-limit@3.1.0", "", { "dependencies": { "yocto-queue": "^0.1.0" } }, "sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ=="],
+
+    "parse5": ["parse5@8.0.1", "", { "dependencies": { "entities": "^8.0.0" } }, "sha512-z1e/HMG90obSGeidlli3hj7cbocou0/wa5HacvI3ASx34PecNjNQeaHNo5WIZpWofN9kgkqV1q5YvXe3F0FoPw=="],
 
     "path-is-absolute": ["path-is-absolute@1.0.1", "", {}, "sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg=="],
 
