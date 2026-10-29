@@ -3,11 +3,11 @@ import type { BlockChanges } from "../shared/change-highlights.js";
 import type { RenderedBlock } from "../shared/render-core.js";
 import { createWorkerRenderCore } from "./markdown.js";
 
-type SourceBlock = Pick<RenderedBlock, "sourceRange">;
+type SourceBlock = Pick<RenderedBlock, "sourceRange" | "fingerprint">;
 
 function fingerprints(text: string, blocks: SourceBlock[]): string[] {
   const lines = text.replace(/^\uFEFF/, "").split(/\r\n|[\r\n]/);
-  return blocks.map(block => createHash("sha256").update(lines.slice(...block.sourceRange).join("\n")).digest("hex"));
+  return blocks.map(block => createHash("sha256").update(lines.slice(...block.sourceRange).join("\n")).update("\0").update(block.fingerprint ?? "").digest("hex"));
 }
 
 /** Occurrence matching plus an increasing subsequence avoids a quadratic LCS table. */
@@ -42,7 +42,7 @@ export function diffSourceBlocks(before: string, old: SourceBlock[], after: stri
     const removed = anchor.old - previousOld - 1;
     const added = anchor.current - previousCurrent - 1;
     for (let i = previousCurrent + 1; i < anchor.current; i++) result.changed.push(current[i]!.sourceRange);
-    if (removed > added) result.deleted.push(current[anchor.current]?.sourceRange[0] ?? after.split(/\r\n|[\r\n]/).length - 1);
+    if (removed > added) result.deleted.push(current[anchor.current]?.sourceRange[0] ?? current.at(-1)?.sourceRange[1] ?? 0);
     previousOld = anchor.old;
     previousCurrent = anchor.current;
   }

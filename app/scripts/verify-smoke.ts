@@ -1,3 +1,5 @@
+import { typingProbe, typingInput, typingLetters, typingRecord, calibratedTyping } from "./perf-typing";
+import { summarizeEventTiming } from "./perf-gate";
 import { assertDocument as assertPerfDocument } from "./perf-gate";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
@@ -213,6 +215,7 @@ await test("m6b-git-head-highlights", async () => {
       assert(document.querySelector('#change-count').title === 'Since last commit', 'Wrong baseline source.');
       document.querySelector('#next-change').click(); document.querySelector('#previous-change').click();`),
     { shot: path.join(audit, "git-head-highlights.png") },
+    evaluate(`window.simplemd.command('toggle-edit'); await waitFor(() => document.querySelector('.cm-line.change-highlight') && document.querySelector('.cm-line.change-deleted-before'), 'Git editor marks did not render.');`),
     { nativeMenu: ["View", "Show Changes Since Last Commit"] },
     evaluate(`await waitFor(() => document.querySelector('#changes').hidden, 'Turning HEAD off kept highlights.');`),
   ]);
@@ -240,6 +243,55 @@ await test("m6b-drag-export", async () => {
   assert.equal(fs.readFileSync(pdf).subarray(0, 5).toString(), "%PDF-");
   for (const receipt of [htmlReceipt, pdfReceipt]) assert(!fs.existsSync(JSON.parse(fs.readFileSync(receipt, "utf8")).file), "Temporary drag export survived normal exit.");
   assert.equal(fs.readFileSync(file, "utf8"), source, "Drag export changed source bytes.");
+});
+
+for (const paneCount of [1, 2]) await test(`m6b-highlighted-typing-${paneCount}`, async () => {
+  const before = ("# Highlighted plan\n\n" + Array.from({length: 300}, (_, i) => `Paragraph ${i} ` + "Read and verify this change. ".repeat(20)).join("\n\n")).slice(0, 100000);
+  const text = before.replace("Paragraph 75 ", "Paragraph XX ");
+  const at = text.indexOf("Paragraph XX"); assert(at > 0);
+  const file = fixture(`m6b-typing-${paneCount}/plan.md`, before);
+  const companion = fixture(`m6b-typing-${paneCount}/companion.md`, text);
+  const dir = path.dirname(file);
+  const git = (...args: string[]) => execFileSync("git", args, {cwd: dir, stdio: "pipe"});
+  git("init"); git("config", "user.name", "Smoke"); git("config", "user.email", "smoke@example.invalid");
+  git("add", "--", file); git("commit", "-m", "fixture"); fs.writeFileSync(file, text);
+  const steps: Step[] = [{diagnostics: "environment"}, evaluate(`
+    window.typingId = Number(document.querySelector('.document-pane').dataset.documentId);
+    if (${paneCount} === 2) {
+      await window.simplemd.openPath(${quote(companion)}, 'edit'); await window.simplemd.activateTab(window.typingId);
+      await waitFor(() => document.documentElement.dataset.documentPath === ${quote(file)}, 'Typing tab did not return.');
+      window.simplemd.command('split-panes'); await waitFor(() => document.querySelectorAll('.cm-editor').length === 2, 'Second editor did not open.');
+    }
+    const pane = document.querySelector('.document-pane[data-document-id="' + window.typingId + '"]');
+    const content = pane.querySelector('.cm-content'), view = content.cmTile.root.view;
+    window.typingView = view;
+    assert(view.state.doc.length === 100000, 'Typing fixture is not 100k.');
+    await window.simplemd.focusPane(Number(pane.dataset.paneId));
+    await window.simplemd.gitStatus(window.typingId); window.simplemd.command('toggle-head-changes', window.typingId);
+    view.dispatch({selection: {anchor: ${at}}, scrollIntoView: true}); view.focus();
+    await waitFor(() => pane.querySelector('.cm-line.change-highlight'), 'Active editor marks did not render.');
+    ${typingProbe}
+  `)];
+  for (const letter of typingLetters) steps.push(...typingInput(letter, "native"), {wait: 25});
+  steps.push({wait: 250}, evaluate(`assert(window.perfCounts.keydown === ${typingLetters.length} && window.perfCounts.beforeinput === ${typingLetters.length}, 'Trusted key count differs.');
+    assert(window.typingView.state.doc.toString() === ${quote(text.slice(0, at) + typingLetters + text.slice(at))}, 'Highlighted typing lost text.');`),
+    {record: {name: "highlighted", eval: typingRecord}}, evaluate(`window.perfObserver.disconnect();
+      const content = document.createElement('textarea'); content.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:1000'; document.body.append(content); content.focus();
+      ${typingProbe}`));
+  for (const letter of typingLetters) steps.push(...typingInput(letter, "native"), {wait: 25});
+  steps.push({wait: 250}, evaluate(`assert(document.querySelector('textarea').value === ${quote(typingLetters)}, 'Control typing lost text.');`), {record: {name: "control", eval: typingRecord}});
+  const name = `m6b-highlighted-typing-${paneCount}`;
+  await launch(name, file, steps, "edit");
+  const records = fs.readFileSync(path.join(root, name, "electron.log"), "utf8").split("\n").filter(line => line.startsWith("smd-perf ")).map(line => JSON.parse(line.slice(9))).filter(record => record.kind === "record");
+  const value = (name: string) => records.find(record => record.name === name)?.value;
+  const editor = summarizeEventTiming(value("highlighted")), control = summarizeEventTiming(value("control"));
+  const frame = 1000 / value("environment").display.displayFrequency;
+  const gate = calibratedTyping(editor.keydown.p95, control.keydown.p95, frame, editor.keydown.total);
+  const receipt = { paneCount, chars: text.length, trustedKeys: editor.keydown.total, gate, editor, control, records };
+  const audit = path.resolve(appRoot, "../.audit/m6b"); fs.mkdirSync(audit, {recursive: true});
+  fs.writeFileSync(path.join(audit, `highlighted-typing-${paneCount}.json`), JSON.stringify(receipt, null, 2));
+  assert.equal(gate.status, "pass", "Active highlights exceeded the calibrated typing budget.");
+  assert.equal(fs.readFileSync(file, "utf8"), text, "Unsaved highlighted typing changed disk bytes.");
 });
 
 await test("normal-read-window", async () => {

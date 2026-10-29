@@ -222,19 +222,30 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const hasChanges = !!(changed.length || deleted.length);
     if (!hasChanges && !paintedChanges) { $("changes").hidden = true; return; }
     paintedChanges = hasChanges;
+    const ranges = [...changed].sort((a, b) => a[0] - b[0]);
+    const maxEnds: number[] = [];
+    for (const [, end] of ranges) maxEnds.push(Math.max(end, maxEnds.at(-1) ?? 0));
+    const changedBlock = (start: number, end: number) => {
+      let lo = 0, hi = ranges.length;
+      while (lo < hi) { const mid = (lo + hi) >>> 1; if (ranges[mid]![0] < end) lo = mid + 1; else hi = mid; }
+      return lo > 0 && maxEnds[lo - 1]! > start;
+    };
     for (const article of [docEl, previewEl]) {
       for (const marker of article.querySelectorAll(":scope > .change-deleted")) marker.remove();
       const blocks = [...article.querySelectorAll<HTMLElement>(":scope > .block")];
       for (const block of blocks) {
         const start = Number(block.dataset.sourceStart), end = Number(block.dataset.sourceEnd);
-        block.classList.toggle("change-highlight", changed.some(([a, b]) => start < b && end > a));
+        block.classList.toggle("change-highlight", changedBlock(start, end));
       }
+      const bySource = deleted.length ? [...blocks].sort((a, b) => Number(a.dataset.sourceStart) - Number(b.dataset.sourceStart)) : [];
       for (const line of deleted) {
+        let lo = 0, hi = bySource.length;
+        while (lo < hi) { const mid = (lo + hi) >>> 1; if (Number(bySource[mid]!.dataset.sourceStart) < line) lo = mid + 1; else hi = mid; }
         const marker = document.createElement("div");
         marker.className = "change-deleted";
         marker.dataset.sourceStart = String(line);
         marker.title = "Deleted block";
-        article.insertBefore(marker, blocks.find(block => Number(block.dataset.sourceStart) >= line) ?? null);
+        article.insertBefore(marker, bySource[lo] ?? null);
       }
     }
     $("changes").hidden = !changed.length && !deleted.length;
@@ -290,7 +301,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function navigateChange(direction: number): void {
     const lines = [...highlights.changes.changed.map(([start]) => start), ...highlights.changes.deleted].sort((a, b) => a - b);
     if (!lines.length) return;
-    changeIndex = (changeIndex + direction + lines.length) % lines.length;
+    changeIndex = changeIndex < 0 ? direction > 0 ? 0 : lines.length - 1 : (changeIndex + direction + lines.length) % lines.length;
     const line = lines[changeIndex]!;
     if (pane.view === "edit") pane.editor?.scrollToLine(line);
     else {
@@ -758,6 +769,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
       invalidateExport();
+      void refreshChanges();
       void simplemd.gitStatus(pane.documentId).then(status => { if (!disposed && pane.documentId === result.documentId) gitStatus = status; }).catch(console.warn);
     }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };

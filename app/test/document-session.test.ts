@@ -148,3 +148,14 @@ test("dirty and explicit conflict reloads do not start watch highlights", async 
   doc.markSeen();
   expect(doc.baseline).toBeNull();
 });
+
+test("Save As clears the baseline associated with the previous file", async () => {
+  const dir = await directory(), file = path.join(dir, "old.md");
+  await fs.writeFile(file, "Current");
+  const doc = registry().create(file, "Current");
+  doc.setHeadBaseline("Committed");
+  doc.gitStatusChecked = true;
+  expect(await doc.save(path.join(dir, "new.md"), doc.revisionId)).not.toBeNull();
+  expect(doc.baseline).toBeNull();
+  expect(doc.gitStatusChecked).toBe(false);
+});

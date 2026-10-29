@@ -8,6 +8,7 @@ test("insertion leaves following blocks unchanged", async () => {
 test("deletion marks the following boundary and the end of an empty document", async () => {
   expect(await calculateBlockChanges("# Title\n\nOne\n\nTwo", "# Title\n\nTwo", null))
     .toEqual({ changed: [], deleted: [2] });
+  expect(await calculateBlockChanges("Stay\n\nGone", "Stay", null)).toEqual({ changed: [], deleted: [1] });
   expect(await calculateBlockChanges("Gone", "", null)).toEqual({ changed: [], deleted: [0] });
 });
 test("moved blocks get an insertion and a deletion without marking retained blocks", async () => {
@@ -38,4 +39,10 @@ test("many small blocks do not require a quadratic diff table", () => {
   const before = Array.from({ length: 10000 }, (_, i) => `Block ${i}`).join("\n");
   const blocks = Array.from({ length: 10000 }, (_, i) => ({ sourceRange: [i, i + 1] satisfies [number, number] }));
   expect(diffSourceBlocks(before, blocks, before.replace("Block 5000\n", "Edited 5000\n"), blocks)).toEqual({ changed: [[5000, 5001]], deleted: [] });
+});
+
+test("changed reference definitions mark the block whose rendered link changed", async () => {
+  const before = "# Same\n\nA [reference][target].\n\nUnchanged.\n\n[target]: https://before.example\n";
+  expect(await calculateBlockChanges(before, before.replace("before.example", "after.example"), null))
+    .toEqual({ changed: [[2, 3]], deleted: [] });
 });

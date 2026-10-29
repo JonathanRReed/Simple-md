@@ -110,7 +110,11 @@ export class DocumentSession {
         return null;
       }
       const moved = target !== this.path;
-      if (moved) this.gitStatusChecked = false;
+      if (moved) {
+      this.markSeen();
+      this.gitStatusChecked = false;
+      this.gitStatus = { available: false, reason: "Checking Git HEAD..." };
+    }
     this.path = target;
       this.diskText = text;
       this.conflict = false;

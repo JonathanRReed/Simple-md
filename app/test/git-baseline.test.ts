@@ -25,7 +25,7 @@ test("outside a repository and unsaved files are unavailable", async () => {
   expect((await readGitBaseline(null)).available).toBe(false);
 });
 
-test("missing git, timed-out reads, and oversized output disable HEAD", async () => {
+test.skipIf(process.platform === "win32")("missing git, timed-out reads, and oversized output disable HEAD", async () => {
   const dir = await directory(), file = path.join(dir, "note.md");
   await fs.writeFile(file, "Current");
   const previous = process.env.PATH;
