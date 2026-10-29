@@ -532,6 +532,9 @@ impl IPreviewHandler_Impl for Preview_Impl {
                 record("Set fallback text", unsafe {
                     SetWindowTextW(child, &HSTRING::from(text))
                 })?;
+                if !self.state.current(generation) {
+                    return Err(E_ABORT.into());
+                }
                 self.state.resources.borrow_mut().started = true;
                 log(&format!(
                     "Native source visible while WebView2 starts; mode=0x{:08X}",
@@ -875,8 +878,16 @@ fn configure(
                     let view = view.ok_or_else(|| Error::from(E_POINTER))?;
                     let mut success = BOOL(0);
                     args.IsSuccess(&mut success)?;
+                    if !state.current(generation) {
+                        return Ok(());
+                    }
                     if !success.as_bool() {
-                        return Err(E_FAIL.into());
+                        let mut status = COREWEBVIEW2_WEB_ERROR_STATUS_UNKNOWN;
+                        args.WebErrorStatus(&mut status)?;
+                        return Err(Error::new(
+                            E_FAIL,
+                            format!("WebView2 navigation status={}", status.0),
+                        ));
                     }
                     if bootstrap.replace(false) {
                         let script = render_script(
@@ -951,10 +962,16 @@ fn configure(
                     CoTaskMemFree(Some(value.0.cast()));
                     let html = html?;
                     // NavigateToString has a 2 MB limit. Oversize results keep native source.
-                    if html.is_empty() || html.len() > 1_900_000 {
-                        return Err(E_FAIL.into());
+                    if html.is_empty() {
+                        return Err(Error::new(E_FAIL, "Static renderer returned no HTML"));
+                    }
+                    if html.len() > 1_900_000 {
+                        return Err(Error::new(E_FAIL, "Static HTML exceeds preview size limit"));
                     }
                     view.Settings()?.SetIsWebMessageEnabled(false)?;
+                    if !state.current(generation) {
+                        return Ok(());
+                    }
                     state.resources.borrow_mut().rendered = true;
                     view.NavigateToString(&HSTRING::from(html))
                 })();
@@ -1105,6 +1122,17 @@ pub extern "system" fn DllCanUnloadNow() -> HRESULT {
     }
 }
 
+// Runtime detection for the per-user installer, without registry probing.
+#[unsafe(no_mangle)]
+pub extern "system" fn SimpleMDWebView2Available() -> BOOL {
+    let mut version = PWSTR::null();
+    let available = unsafe {
+        GetAvailableCoreWebView2BrowserVersionString(PCWSTR::null(), &mut version).is_ok()
+    };
+    unsafe { CoTaskMemFree(Some(version.0.cast())) };
+    BOOL::from(available)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1232,15 +1260,4 @@ mod tests {
         }
         Ok(())
     }
-}
-
-// Runtime detection for the per-user installer, without registry probing.
-#[unsafe(no_mangle)]
-pub extern "system" fn SimpleMDWebView2Available() -> BOOL {
-    let mut version = PWSTR::null();
-    let available = unsafe {
-        GetAvailableCoreWebView2BrowserVersionString(PCWSTR::null(), &mut version).is_ok()
-    };
-    unsafe { CoTaskMemFree(Some(version.0.cast())) };
-    BOOL::from(available)
 }
