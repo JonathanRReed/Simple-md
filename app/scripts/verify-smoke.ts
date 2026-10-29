@@ -840,6 +840,64 @@ await test("bytes-metadata", async () => {
   assert.equal(fs.statSync(file).mode & 0o777, 0o640, "Save changed permissions.");
 });
 
+await test("settings-config-themes", async () => {
+  const artifactDir = path.resolve(appRoot, "../.audit/m5c");
+  fs.mkdirSync(artifactDir, { recursive: true });
+  const file = fixture("settings-config-themes/note.md", '# A quieter page\n\nA document should give its words room. SimpleMD uses the same semantic renderer for an essay, a project README and a working draft.\n\n## Read with focus\n\nThe default is warm paper and clear ink. A [useful link](https://example.com) stays underlined, and **important words** carry their own weight.\n\n> Keep the file safe, and let the reader choose the page.\n\n```typescript\nconst page = { title: "A quieter page", ready: true };\n// The source stays exactly as you wrote it.\n```\n\n| Role | Choice |\n| --- | --- |\n| Reading | Editorial |\n| Writing | System UI |\n');
+  const marker = path.join(root, "settings-config-themes", "external-ready.png");
+  const config = path.join(root, "settings-config-themes", "profile", "config");
+  await launch("settings-config-themes", file, [
+    evaluate(`await waitFor(() => document.querySelector('#doc pre.shiki span'), 'Syntax did not render.');
+      await window.simplemd.setSettings({ theme: 'light' });
+      window.originalHeading = document.querySelector('#doc h1');
+      window.originalCode = document.querySelector('#doc pre');
+      window.originalChrome = getComputedStyle(document.querySelector('.titlebar')).color;
+      assert(!document.querySelector('#preferences') && !document.querySelector('#preferences-btn'), 'In-document Preferences remains.');
+      await waitFor(() => getComputedStyle(document.querySelector('#stage')).backgroundColor === 'rgb(251, 247, 238)', 'Editorial Light did not apply.');`),
+    { shot: path.join(artifactDir, "editorial-light.png") },
+    evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ${process.platform === "darwin" ? "metaKey" : "ctrlKey"}: true, bubbles: true }));`),
+    { settings: [evaluate(`await waitFor(() => document.querySelector('#reading-font-family option')?.textContent, 'Settings did not list fonts.', 20000);
+      assert(typeof window.simplemd === 'undefined' && typeof require === 'undefined', 'Settings has document or Node access.');
+      assert(Object.keys(window.simplemdSettings).sort().join(',') === 'get,set,subscribe', 'Settings preload exposes extra APIs.');
+      const snapshot = await window.simplemdSettings.get();
+      assert(snapshot.fonts.length > 4 && !snapshot.fontError, 'Installed system fonts were not listed.');
+      assert(document.querySelectorAll('select,input').length === 23, 'Schema controls are missing.');
+      const choose = async (key, value) => {
+        const input = document.getElementById(key); input.value = value; input.dispatchEvent(new Event('change', {bubbles:true}));
+        await waitFor(() => !input.disabled, 'Settings did not save.');
+        assert(document.querySelector('#save-error').hidden, 'Settings write failed.');
+      };
+      await choose('appearance', 'dark');
+      await choose('theme-dark', 'solarized-dark');`),
+      { shot: path.join(artifactDir, "settings.png") },
+    ] },
+    evaluate(`await waitFor(() => getComputedStyle(document.querySelector('#stage')).backgroundColor === 'rgb(0, 43, 54)', 'Settings theme did not reach the document.');
+      assert(document.querySelector('#doc h1') === window.originalHeading && document.querySelector('#doc pre') === window.originalCode, 'Theme change reparsed the document.');
+      assert(getComputedStyle(document.querySelector('.titlebar')).color !== getComputedStyle(document.querySelector('#doc')).color, 'Document theme leaked into chrome.');
+      assert(getComputedStyle(document.querySelector('#doc pre span')).color !== 'rgb(0, 0, 0)', 'Syntax did not receive theme colors.');`),
+    { shot: path.join(artifactDir, "solarized-dark.png") },
+    { settings: [evaluate(`document.querySelector('#reading-style').click();
+      await waitFor(() => !document.querySelector('#reading-style').disabled, 'GitHub style did not save.');`)] },
+    evaluate(`await waitFor(() => document.documentElement.dataset.readingStyle === 'github', 'GitHub style did not reach the document.');
+      const prose = getComputedStyle(document.querySelector('#doc'));
+      assert(prose.fontSize === '16px' && prose.maxWidth === '980px', 'GitHub typography differs.');
+      assert(getComputedStyle(document.querySelector('#doc h1')).borderBottomStyle === 'solid', 'GitHub heading has no rule.');
+      assert(document.querySelector('#doc h1') === window.originalHeading, 'Reading style replaced semantic content.');`),
+    { shot: marker },
+    evaluate(`await waitFor(() => getComputedStyle(document.querySelector('#stage')).backgroundColor === 'rgb(255, 255, 255)' && getComputedStyle(document.querySelector('#doc')).fontSize === '21px', 'External config did not reload.');
+      assert(document.documentElement.dataset.readingStyle === 'editorial', 'External reading style did not reload.');`),
+    { shot: path.join(artifactDir, "github-light.png") },
+    { settings: [evaluate(`await waitFor(() => document.querySelector('#config-errors').textContent.includes('future-setting'), 'Unknown config key was not reported.');
+      assert(document.querySelector('#appearance').value === 'light', 'Settings did not follow external appearance.');
+      assert(document.querySelector('#reading-font-size').value === '21', 'Settings did not follow external typography.');
+      const snapshot = await window.simplemdSettings.get();
+      assert(snapshot.issues.some(issue => issue.key === 'autosave'), 'Invalid config value was not reported.');
+      await window.simplemdSettings.set({ vim: true });`)] },
+  ], "read", { marker, file: config, text: '# External edit\nappearance = light\ntheme-light = github-light\nreading-style = editorial\nreading-font-size = 21\nfuture-setting = keep\nautosave = maybe\n' });
+  const stored = fs.readFileSync(config, "utf8");
+  assert(stored.includes('future-setting = keep') && stored.includes('autosave = maybe'), 'Settings dropped unknown or invalid lines.');
+});
+
 const blog = process.env.SMD_BYTE_BLOG_DIR;
 if (blog) for (const name of fs.readdirSync(blog).filter((name) => name.endsWith(".mdx")).sort()) {
   await test(`bytes-blog-${name}`, async () => {

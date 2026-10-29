@@ -22,7 +22,7 @@ test("standalone browser core has no Node imports and renders without Node or a 
   const mdx = await core.renderMarkdown('# MDX &amp; text\n\n<Box>\n\n**child**\n\n</Box>', '/note.mdx');
   expect(mdx.html).toContain('class="mdx-component"');
   expect(mdx.html).toContain('<strong>child</strong>');
-  for (const file of fs.readdirSync(path.resolve(import.meta.dir, "../src/shared"))) {
+  for (const file of fs.readdirSync(path.resolve(import.meta.dir, "../src/shared"), { recursive: true, encoding: "utf8" }).filter(file => fs.statSync(path.resolve(import.meta.dir, "../src/shared", file)).isFile())) {
     expect(fs.readFileSync(path.resolve(import.meta.dir, "../src/shared", file), "utf8"), file).not.toMatch(/(?:from\s*|import\s*\()\s*["'](?:node:|electron["'])/);
   }
 }, 30_000);

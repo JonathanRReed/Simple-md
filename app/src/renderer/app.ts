@@ -921,6 +921,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
   const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key === ",") { e.preventDefault(); simplemd.command("preferences"); return; }
   if (pane.view === "read") {
     if (!mod && !e.altKey && (e.key === "Enter" || e.key === "e")) {
       e.preventDefault();

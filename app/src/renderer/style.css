@@ -1017,7 +1017,7 @@ code,
   --link: light-dark(var(--light-link, #2f638f), var(--dark-link, #8ab9dc));
   --table-bg: light-dark(var(--light-table-background, #e9e3d6), var(--dark-table-background, #14212c));
   --selection-tint: light-dark(var(--light-selection-tint, #e4e7ed), var(--dark-selection-tint, #233443));
-  --selection: color-mix(in srgb, var(--system-accent) 20%, var(--selection-tint));
+  --selection: color-mix(in srgb, var(--system-accent) 12%, var(--selection-tint));
   --accent: var(--link);
   --prose-font: var(--reading-font, Charter, Georgia, serif);
   --measure: var(--reading-width, 66ch);

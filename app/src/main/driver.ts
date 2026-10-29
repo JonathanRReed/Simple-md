@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = { settings: DriverStep[] } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -11,8 +11,9 @@ export async function runDriver(
   toHtml?: (target: string) => Promise<void>,
   requestQuit?: () => void,
   save?: () => Promise<void>,
+  nestedSteps?: DriverStep[],
 ): Promise<"complete" | "menu-quit"> {
-  const steps: DriverStep[] = JSON.parse(await fs.readFile(file, "utf8"));
+  const steps: DriverStep[] = nestedSteps ?? JSON.parse(await fs.readFile(file, "utf8"));
   if (!Array.isArray(steps)) throw new TypeError("Driver steps must be an array.");
   const needsBarrier = steps.some((step) => "barrier" in step);
   const lines = needsBarrier ? createInterface({ input: process.stdin }) : undefined;
@@ -28,7 +29,18 @@ export async function runDriver(
         requestQuit();
         return "menu-quit";
       }
-      if ("save" in step) {
+      if ("settings" in step) {
+        const { BrowserWindow } = await import("electron");
+        let target: BrowserWindow | undefined;
+        const deadline = performance.now() + 20000;
+        while (!target) {
+          target = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().endsWith("/settings.html"));
+          if (performance.now() > deadline) throw new Error("Settings window did not open.");
+          if (!target) await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        while (target.webContents.isLoadingMainFrame()) await new Promise(resolve => setTimeout(resolve, 20));
+        await runDriver(target, file, toPdf, toHtml, requestQuit, save, step.settings);
+      } else if ("save" in step) {
         if (!save) throw new Error("Save is unavailable.");
         await save();
       } else if ("page" in step) {

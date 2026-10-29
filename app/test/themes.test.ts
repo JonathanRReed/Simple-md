@@ -9,6 +9,11 @@ for (const theme of documentThemes) test(`${theme.label}: body, links, quotes, c
       expect(contrast(foreground, background), `${foreground} on ${background}`).toBeGreaterThanOrEqual(4.5);
     }
   }
+  // Extremes bound the luminance of the OS accent contribution to selection.
+  for (const accent of ["#000000", "#ffffff", "#007aff", "#ffcc00"]) {
+    const mixed = "#" + [1, 3, 5].map(start => Math.round(parseInt(accent.slice(start, start + 2), 16) * .12 + parseInt(theme.selectionTint.slice(start, start + 2), 16) * .88).toString(16).padStart(2, "0")).join("");
+    expect(contrast(theme.foreground, mixed), `selected text on ${mixed}`).toBeGreaterThanOrEqual(4.5);
+  }
   for (const foreground of Object.values(theme.syntax)) {
     for (const background of [theme.background, theme.codeBackground]) expect(contrast(foreground, background), `${foreground} on ${background}`).toBeGreaterThanOrEqual(4.5);
   }

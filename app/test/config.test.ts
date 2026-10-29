@@ -58,3 +58,20 @@ test("duplicate keys update together without reordering; an unrelated patch reta
   expect(next).toBe(source.replace("false", "true"));
   expect(parseConfig(next).issues[0]?.key).toBe("reading-font-size");
 });
+test("legacy font and width migrate only when explicitly stored", async () => {
+  const { migrateUserSettings } = await import("../src/main/config-store");
+  const { sanitizeSettings, saveState, flushSettings } = await import("../src/main/settings-store");
+  expect(migrateUserSettings(null, sanitizeSettings(null))).toEqual(configDefaults);
+  const raw = { typeface: "sans", width: "wide", mode: "source", remoteImages: false };
+  const migrated = migrateUserSettings(raw, sanitizeSettings(raw));
+  expect(migrated.readingFontFamily).toBe("system-ui");
+  expect(migrated.contentWidth).toBe(100);
+  expect(migrated.remoteImages).toBe(false);
+  expect(migrated.mode).toBe("source");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-state-"));
+  try {
+    const file = path.join(dir, "settings.json");
+    saveState({ ...sanitizeSettings(raw), recents: ["note.md"], zoom: 1.2 }, file); flushSettings();
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ recents: ["note.md"], zoom: 1.2 });
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

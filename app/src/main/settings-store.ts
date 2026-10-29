@@ -12,14 +12,9 @@ export function sanitizeSettings(raw: unknown): Settings {
   for (const [, def] of configEntries) {
     if (validConfigValue(def, r[def.setting])) Object.assign(s, { [def.setting]: r[def.setting] });
   }
-  if (r.mode === "live" || r.mode === "split" || r.mode === "source") s.mode = r.mode;
-  if (r.theme === "system" || r.theme === "light" || r.theme === "dark") s.theme = r.theme;
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;
   if (r.typeface === "sans" || r.typeface === "serif") s.typeface = r.typeface;
   if (typeof r.zoom === "number" && Number.isFinite(r.zoom)) s.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, r.zoom));
-  for (const key of ["autosave", "launchAtLogin", "vim", "spellcheck", "remoteImages"] as const) {
-    if (typeof r[key] === "boolean") s[key] = r[key];
-  }
   if (Array.isArray(r.recents)) s.recents = r.recents.filter((p): p is string => typeof p === "string").slice(0, 12);
   const b = r.bounds;
   if (record(b) && typeof b.x === "number" && Number.isFinite(b.x) && typeof b.y === "number" && Number.isFinite(b.y) &&
