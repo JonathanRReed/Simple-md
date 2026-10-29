@@ -462,7 +462,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
       if (!restoring) ed.scroller.scrollTop = retainedScroll ?? fraction * Math.max(0, ed.scroller.scrollHeight - ed.scroller.clientHeight);
       retainedScroll = undefined;
-      if (options.active()) ed.focus();
+      if (options.active() && !document.activeElement?.closest("#tabs")) ed.focus();
     });
   }
 
@@ -1070,7 +1070,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (busy) clearTimeout(pane.autosaveTimer);
       else {
         scheduleAutosave();
-        if (pane.view === "edit" && options.active()) {
+        if (pane.view === "edit" && options.active() && !document.activeElement?.closest("#tabs")) {
           pane.editor?.focus();
           if (pane.editor) simplemd.perfMarker(pane.documentId, "ready-for-input");
         }

@@ -40,58 +40,69 @@ function syncChrome(): void {
     }
   }
   const tabFocused = strip.contains(document.activeElement);
-  const closeFocused = document.activeElement?.classList.contains("tab-close");
   const ids = layout.tabs;
   const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
   windowTitle.textContent = ids.length === 1 ? controller?.meta.name ?? "SimpleMD" : "SimpleMD";
   windowTitle.title = ids.length === 1 ? controller?.meta.path ?? "" : "";
   strip.hidden = ids.length <= 1;
-  strip.replaceChildren(...ids.map((id, index) => {
+  for (const node of strip.querySelectorAll<HTMLElement>(".tab")) {
+    if (!ids.some(id => String(id) === node.dataset.documentId)) node.remove();
+  }
+  ids.forEach((id, index) => {
     const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
     const tab = documents.get(id);
     const meta = mounted?.meta ?? tab?.retained?.state.meta ?? tab?.payload;
-    const dirty = mounted?.meta.dirty ?? tab?.retained?.state.dirty ?? tab?.payload.dirty;
-    const button = document.createElement("div");
-    button.className = "tab";
-    button.dataset.documentId = String(id);
-    button.dataset.dirty = String(!!dirty);
-    button.setAttribute("aria-label", `${meta?.name ?? "Untitled"}${dirty ? ", unsaved changes" : ""}`);
-    button.setAttribute("role", "tab");
+    const dirty = !!(mounted?.meta.dirty ?? tab?.retained?.state.dirty ?? tab?.payload.dirty);
+    let button = strip.querySelector<HTMLElement>(`.tab[data-document-id="${id}"]`);
+    if (!button) {
+      button = document.createElement("div");
+      button.className = "tab";
+      button.dataset.documentId = String(id);
+      button.setAttribute("role", "tab");
+      const title = document.createElement("span"); title.className = "tab-name";
+      const close = document.createElement("button");
+      close.type = "button"; close.className = "tab-close";
+      close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
+      button.append(title, close);
+      button.addEventListener("click", () => void api.activateTab(id));
+      button.addEventListener("keydown", e => {
+        if (e.target !== e.currentTarget) return;
+        const tabs = layout?.tabs ?? [];
+        const current = tabs.indexOf(id);
+        let next: DocumentId | undefined;
+        if (e.key === "Enter" || e.key === " ") next = id;
+        else if (e.key === "ArrowRight" || e.key === "ArrowLeft") next = tabs[(current + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+        else if (e.key === "Home") next = tabs[0];
+        else if (e.key === "End") next = tabs.at(-1);
+        if (next !== undefined) { e.preventDefault(); void api.activateTab(next); }
+      });
+    }
+    const title = button.querySelector<HTMLElement>(".tab-name")!;
+    const close = button.querySelector<HTMLButtonElement>(".tab-close")!;
+    title.textContent = meta?.name ?? "Untitled";
+    button.setAttribute("aria-label", `${title.textContent}${dirty ? ", unsaved changes" : ""}`);
     button.setAttribute("aria-selected", String(controller?.documentId === id));
     button.setAttribute("aria-controls", `document-${id}`);
     button.tabIndex = controller?.documentId === id ? 0 : -1;
     button.title = meta?.path ?? "Untitled";
-    const title = document.createElement("span");
-    title.className = "tab-name";
-    title.textContent = meta?.name ?? "Untitled";
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "tab-close";
-    if (dirty) {
-      const dot = document.createElement("span"); dot.className = "tab-dirty"; dot.setAttribute("aria-hidden", "true"); close.append(dot);
-    } else {
-      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      icon.setAttribute("viewBox", "0 0 12 12"); icon.setAttribute("width", "12"); icon.setAttribute("height", "12"); icon.setAttribute("aria-hidden", "true");
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      for (const [name, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(name, value);
-      icon.append(path); close.append(icon);
+    if (button.dataset.dirty !== String(dirty)) {
+      button.dataset.dirty = String(dirty);
+      close.replaceChildren();
+      if (dirty) {
+        const dot = document.createElement("span"); dot.className = "tab-dirty"; dot.setAttribute("aria-hidden", "true"); close.append(dot);
+      } else {
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        icon.setAttribute("viewBox", "0 0 12 12"); icon.setAttribute("width", "12"); icon.setAttribute("height", "12"); icon.setAttribute("aria-hidden", "true");
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        for (const [name, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(name, value);
+        icon.append(path); close.append(icon);
+      }
     }
     close.tabIndex = controller?.documentId === id ? 0 : -1;
     close.setAttribute("aria-label", `Close ${title.textContent}`);
-    close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
-    button.append(title, close);
-    button.addEventListener("click", () => void api.activateTab(id));
-    button.addEventListener("keydown", e => {
-      if (e.target !== button) return;
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void api.activateTab(id); }
-      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-        e.preventDefault(); const next = ids[(index + (e.key === "ArrowRight" ? 1 : -1) + ids.length) % ids.length];
-        if (next !== undefined) void api.activateTab(next);
-      }
-    });
-    return button;
-  }));
-  if (tabFocused) strip.querySelector<HTMLElement>(closeFocused ? '.tab[aria-selected="true"] .tab-close' : '.tab[aria-selected="true"]')?.focus({ preventScroll: true });
+    if (strip.children[index] !== button) strip.insertBefore(button, strip.children[index] ?? null);
+  });
+  if (tabFocused) strip.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus({ preventScroll: true });
   for (const [id, pane] of panes) pane.element.dataset.active = String(id === layout.activePane);
 }
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {
@@ -169,7 +180,7 @@ function mountLayout(next: TabLayoutState): void {
     }
   }
   syncChrome();
-  if (previousActive !== next.activePane) active()?.focus();
+  if (previousActive !== next.activePane && !strip.contains(document.activeElement)) active()?.focus();
 }
 
 async function printView(): Promise<void> {
