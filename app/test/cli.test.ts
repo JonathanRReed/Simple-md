@@ -112,7 +112,7 @@ test.skipIf(process.platform === "win32")("runtime uses private user storage and
     fs.mkdirSync(runtime, { mode: 0o700 });
     fs.writeFileSync(path.join(runtime, "state.json"), JSON.stringify({ pid: 1 }), { mode: 0o600 });
     const prepared = await prepareCliRuntime("unused", root);
-    expect(fs.statSync(runtime).uid).toBe(process.getuid?.());
+    expect(fs.statSync(runtime).uid).toBe(os.userInfo().uid);
     expect(fs.statSync(runtime).mode & 0o777).toBe(0o700);
     expect(JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8")).pid).toBe(process.pid);
     prepared.cleanup();
