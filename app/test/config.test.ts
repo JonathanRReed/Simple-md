@@ -75,3 +75,36 @@ test("legacy font and width migrate only when explicitly stored", async () => {
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ recents: ["note.md"], zoom: 1.2 });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("config writes preserve symlinks and update their real targets", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-config-link-"));
+  try {
+    const target = path.join(dir, "target"); const file = path.join(dir, "config");
+    fs.writeFileSync(target, "# Keep\nautosave = false\n", { mode: 0o640 }); fs.symlinkSync(target, file);
+    const store = new ConfigStore(file, configDefaults, () => {});
+    store.set({ autosave: true }); store.close();
+    expect(fs.lstatSync(file).isSymbolicLink()).toBe(true);
+    expect(fs.readFileSync(target, "utf8")).toBe("# Keep\nautosave = true\n");
+    expect(fs.statSync(target).mode & 0o777).toBe(0o640);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+test("config rejects oversized files without parsing them", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-config-large-"));
+  try {
+    const file = path.join(dir, "config"); fs.writeFileSync(file, "#".repeat(1_000_000));
+    const store = new ConfigStore(file, configDefaults, () => {});
+    expect(store.document.issues[0]?.message).toContain("under 1 MB");
+    expect(() => store.set({ autosave: false })).toThrow("under 1 MB"); store.close();
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+test.skipIf(process.platform === "win32")("config rejects FIFO reads without blocking startup", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-config-fifo-"));
+  try {
+    const file = path.join(dir, "config");
+    const { execFileSync } = await import("node:child_process"); execFileSync("mkfifo", [file]);
+    const source = `import {ConfigStore} from ${JSON.stringify(path.resolve(import.meta.dir, "../src/main/config-store.ts"))}; import {configDefaults} from ${JSON.stringify(path.resolve(import.meta.dir, "../src/shared/config-schema.ts"))}; const s = new ConfigStore(${JSON.stringify(file)}, configDefaults, () => {}); if (!s.document.issues[0]?.message.includes('regular file')) process.exit(2); s.close();`;
+    const child = Bun.spawn([process.execPath, "-e", source], { stdout: "ignore", stderr: "pipe" });
+    const timer = setTimeout(() => child.kill(), 2000);
+    try { expect(await child.exited).toBe(0); } finally { clearTimeout(timer); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

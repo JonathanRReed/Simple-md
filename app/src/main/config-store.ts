@@ -17,6 +17,22 @@ export function migrateUserSettings(raw: unknown, legacy: Settings): UserSetting
   }
   return result;
 }
+function readConfigSource(file: string): string {
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  try {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile()) throw new Error("Config must be a regular file.");
+    if (stat.size >= 1_000_000) throw new Error("Config must be under 1 MB.");
+    const bytes = Buffer.alloc(1_000_000);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = fs.readSync(fd, bytes, length, bytes.length - length, null);
+      if (!count) return bytes.subarray(0, length).toString("utf8");
+      length += count;
+    }
+    throw new Error("Config must be under 1 MB.");
+  } finally { fs.closeSync(fd); }
+}
 export class ConfigStore {
   document: ConfigDocument;
   private stopWatching?: () => void;
@@ -33,18 +49,19 @@ export class ConfigStore {
     this.report(this.document.issues);
   }
   private read(): ConfigDocument {
-    try { return parseConfig(fs.readFileSync(this.file, "utf8")); }
+    try { return parseConfig(readConfigSource(this.file)); }
     catch (error) { return { ...parseConfig(""), issues: [{ line: 0, key: "", message: `Cannot read config: ${error instanceof Error ? error.message : String(error)}` }] }; }
   }
   set(patch: Partial<UserSettings>): UserSettings {
-    const source = fs.existsSync(this.file) ? fs.readFileSync(this.file, "utf8") : "";
+    const source = fs.existsSync(this.file) ? readConfigSource(this.file) : "";
     const next = serializeConfig(source, patch);
     if (next !== source) {
-      const temporary = `${this.file}.${randomUUID()}.tmp`;
+      const target = fs.existsSync(this.file) ? fs.realpathSync(this.file) : this.file;
+      const temporary = `${target}.${randomUUID()}.tmp`;
       try {
         const mode = fs.existsSync(this.file) ? fs.statSync(this.file).mode & 0o777 : 0o600;
         fs.writeFileSync(temporary, next, { flag: "wx", mode });
-        fs.renameSync(temporary, this.file);
+        fs.renameSync(temporary, target);
       } finally { fs.rmSync(temporary, { force: true }); }
     }
     this.document = this.read();
