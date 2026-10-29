@@ -8,6 +8,7 @@ const record = (raw: unknown): raw is Record<string, unknown> => raw !== null &&
 export function sanitizeSettings(raw: unknown): Settings {
   const r = record(raw) ? raw : {};
   const s: Settings = { ...DEFAULT_SETTINGS, recents: [] };
+  if (r.openIn === "tab" || r.openIn === "window") s.openIn = r.openIn;
   if (r.mode === "live" || r.mode === "split" || r.mode === "source") s.mode = r.mode;
   if (r.theme === "system" || r.theme === "light" || r.theme === "dark") s.theme = r.theme;
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;

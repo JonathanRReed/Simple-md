@@ -32,6 +32,7 @@ export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
 export interface Settings {
+  openIn: "tab" | "window";
   theme: ThemeSetting;
   mode: EditMode;
   autosave: boolean;
@@ -49,6 +50,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  openIn: "tab",
   theme: "system",
   // Live is the default because it asks nothing of the user: write, and it renders in place.
   mode: "live",
@@ -107,6 +109,13 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "close-tab"
+  | "move-tab-window"
+  | "next-tab"
+  | "previous-tab"
+  | "split-panes"
+  | "stack-panes"
+  | "focus-pane"
   | "preferences"
   | "new"
   | "save"
