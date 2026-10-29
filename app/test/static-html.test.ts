@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import vm from "node:vm";
 import { renderStaticHtml } from "../src/shared/render-browser";
+import { staticImageUrls, embedStaticImages } from "../src/shared/static-images";
 import { runDom } from "./dom-runner";
 
 const fixture = `# Quick Look
@@ -35,6 +36,28 @@ A-->B
 <img src="https://evil.test/a.png"><video src="https://evil.test/a.mp4"></video>
 <script>globalThis.pwned=true</script><style>body{display:none}</style>
 </details>`;
+
+test("non-math documents omit KaTeX assets and preserve native notices", async () => {
+  for (const source of ["# Plain\n\nText", "```math\nnot math\n```".replace("math", "text"), '<span class="katex">fake</span>']) {
+    const html = await renderStaticHtml(source, null, { truncated: true, invalidUtf8: true });
+    expect(html).not.toContain("data:font/woff2");
+    expect(html).not.toContain("@font-face");
+    expect(html).toContain("Showing the first 4 MB");
+    expect(html).toContain("Invalid UTF-8 bytes");
+  }
+  expect(await renderStaticHtml("```math\nx^2\n```", null)).toContain("data:font/woff2");
+});
+
+test("native image assembly embeds granted raster data and replaces unreadable images", async () => {
+  const html = await renderStaticHtml('![readable](space%20%26.png)\n\n![missing](missing.png)\n\n![remote](https://evil.test/a.png)\n\n<picture><source srcset="other.png 2x"><img src="space%20%26.png" alt="fallback"></picture>', "/project/note.md");
+  expect(staticImageUrls(html).sort()).toEqual(["file:///project/missing.png", "file:///project/space%20%26.png"]);
+  const output = embedStaticImages(html, { "file:///project/space%20%26.png": "data:image/png;base64,AAAA" });
+  expect(output.match(/src="data:image\/png;base64,AAAA"/g)).toHaveLength(2);
+  expect(output).toContain("Image unavailable: missing");
+  expect(output).toContain("Image unavailable: remote");
+  expect(output).not.toMatch(/srcset=|src="file:|https:\/\/evil/);
+  expect(embedStaticImages(html, { "file:///project/missing.png": "javascript:alert(1)" })).not.toContain("javascript:");
+});
 
 test("standalone HTML preserves generated content and denies active/remote author content", async () => {
   const html = await renderStaticHtml(fixture, "/project/docs/README.md");
