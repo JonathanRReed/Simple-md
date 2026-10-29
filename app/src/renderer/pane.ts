@@ -1015,6 +1015,19 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
   function suspend(): DormantDocument {
     doc.readText = currentText();
+    if (settings.autosave && doc.dirty && doc.meta.path && !doc.diskConflict && !isReadOnly()) {
+      const retained = doc;
+      const id = pane.documentId;
+      const text = retained.readText;
+      const save = async () => {
+        const result = await simplemd.save(text, false, id);
+        if (!result) return;
+        retained.savedText = result.text;
+        retained.dirty = retained.readText !== result.text;
+        options.changed();
+      };
+      retained.saveQueue = retained.saveQueue.then(save, save).catch(error => console.error("simplemd: dormant autosave failed", error));
+    }
     const snapshot: DormantDocument = {
       state: doc, editor: pane.editor?.snapshot() ?? retainedEditor,
       view: pane.view,

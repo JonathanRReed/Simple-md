@@ -289,7 +289,7 @@ async function hideCurrentWindow(): Promise<void> {
 
 async function closeTab(id = currentSession().documentId): Promise<boolean> {
   const doc = registry.get(id);
-  if (!doc || !(await transition(() => settle(doc, true)))) return false;
+  if (!doc || !(await transition(() => settle(doc)))) return false;
   context().layout.remove(id);
   registry.remove(id);
   releaseDocumentDelta(id);

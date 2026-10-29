@@ -999,6 +999,29 @@ for (const response of [0, 1] as const) await test(`tabs-dirty-close-${response 
   assert.deepEqual(fs.readFileSync(a), Buffer.from(note + (response === 0 ? "!" : "")));
 });
 
+await test("tabs-autosave-dormant", async () => {
+  const a = fixture("tabs-autosave/a.md", note), b = fixture("tabs-autosave/b.md", "# Other\n");
+  await launch("tabs-autosave-dormant", a, [
+    evaluate(`await window.simplemd.setSettings({ autosave: true }); window.autosaveId = Number(document.documentElement.dataset.documentId);`),
+    ...appendCharacter("!"),
+    evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit');`),
+    { wait: 1100 },
+    evaluate(`await window.simplemd.activateTab(window.autosaveId); await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Autosaved tab did not mount');
+      assert(document.querySelector('#dirty').hidden, 'Dormant tab did not autosave');`),
+  ], "edit");
+  assert.equal(fs.readFileSync(a, "utf8"), note + "!");
+});
+await test("tabs-autosave-close", async () => {
+  const a = fixture("tabs-autosave-close/a.md", note);
+  await launch("tabs-autosave-close", a, [
+    { noSavePrompt: true }, evaluate(`await window.simplemd.setSettings({ autosave: true });`),
+    ...appendCharacter("!"),
+    evaluate(`assert(await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId)), 'Autosave close refused');`),
+    { visibility: false }, { quit: true },
+  ], "edit");
+  assert.equal(fs.readFileSync(a, "utf8"), note + "!");
+});
+
 await test("tabs-render-in-flight", async () => {
   const source = "\uFEFF# Render A\r\n\r\n" + "```ts\r\nconst n = 1;\r\n```\r\n".repeat(200);
   const a = fixture("tabs-render/a.md", source), b = fixture("tabs-render/b.md", "# Render B\n");
@@ -1017,6 +1040,43 @@ await test("tabs-render-in-flight", async () => {
   ], "edit");
   assert.deepEqual(fs.readFileSync(a), Buffer.from(source + "!"));
   assert.deepEqual(fs.readFileSync(b), Buffer.from("# Render B\n"));
+});
+
+await test("tabs-inactive-pane-link", async () => {
+  const a = fixture("tabs-inactive-link/a.md", "# A\n\n[Sibling](c.md)\n");
+  const b = fixture("tabs-inactive-link/b.md", "# B\n");
+  const c = fixture("tabs-inactive-link/c.md", "# C\n");
+  await launch("tabs-inactive-pane-link", a, [evaluate(`
+    window.linkA = Number(document.documentElement.dataset.documentId);
+    await window.simplemd.openPath(${quote(b)}, 'read');
+    window.linkB = Number(document.documentElement.dataset.documentId);
+    window.simplemd.command('split-panes');
+    await waitFor(() => document.querySelectorAll('.document-pane').length === 2, 'Split did not mount');
+    await window.simplemd.activateTab(window.linkB);
+    const clicked = [...document.querySelectorAll('.document-pane')].find(p => Number(p.dataset.documentId) === window.linkA);
+    clicked.querySelector('a').click();
+    await waitFor(() => [...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(c)}), 'Clicked pane did not navigate');
+    assert([...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(b)}), 'Link replaced the active pane');
+    assert(![...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(a)}), 'Clicked pane was not replaced');
+  `)], "read");
+});
+
+await test("tabs-keyboard-focus", async () => {
+  const a = fixture("tabs-focus/a.md", note), b = fixture("tabs-focus/b.md", "# B\n"), c = fixture("tabs-focus/c.md", "# C\n");
+  await launch("tabs-keyboard-focus", a, [
+    evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit'); await window.simplemd.openPath(${quote(c)}, 'edit');
+      window.originalTabNodes = [...document.querySelectorAll('[role=tab]')];
+      document.querySelector('[role=tab][aria-selected=true]').focus();`),
+    { input: { type: "keyDown", keyCode: "Left" } }, { input: { type: "keyUp", keyCode: "Left" } },
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Arrow did not switch tab');
+      await new Promise(r => setTimeout(r, 100));
+      assert(document.activeElement.matches('[role=tab][aria-selected=true]'), 'Arrow moved focus out of the tablist');
+      assert(window.originalTabNodes.every(tab => tab.isConnected), 'Tab update replaced nodes');`),
+    { input: { type: "keyDown", keyCode: "Home" } }, { input: { type: "keyUp", keyCode: "Home" } },
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Home did not select first tab'); assert(document.activeElement.matches('[role=tab]'), 'Home lost focus');`),
+    { input: { type: "keyDown", keyCode: "End" } }, { input: { type: "keyUp", keyCode: "End" } },
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(c)}, 'End did not select last tab'); assert(document.activeElement.matches('[role=tab]'), 'End lost focus');`),
+  ], "edit");
 });
 
 await test("tabs-sibling-command-click", async () => {
