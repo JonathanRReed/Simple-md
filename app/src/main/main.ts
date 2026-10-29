@@ -1,6 +1,6 @@
 import { DragExports, type ExportFormat } from "./drag-export.js";
 import { readGitBaseline } from "./git-baseline.js";
-import { startCliServer, type CliDispatch } from "./cli-server.js";
+import { startOptionalCliServer, type CliDispatch } from "./cli-server.js";
 import { DocumentWaiters, parseOpenUrl } from "./cli-protocol.js";
 import { installCli, bundledCli } from "./install-cli.js";
 import { FlushWaiters } from "./flush-waiters.js";
@@ -79,7 +79,7 @@ const INDEX = path.join(here, "renderer", "index.html");
 let settings: Settings = { ...loadSettings() };
 let tray: Tray | undefined;
 const cliWaiters = new DocumentWaiters();
-let cliServer: Awaited<ReturnType<typeof startCliServer>> | undefined;
+let cliServer: Awaited<ReturnType<typeof startOptionalCliServer>> | undefined;
 const registry = new DocumentRegistry(id => cliWaiters.closed(id));
 const documents = new DocumentQueue();
 interface WindowContext {
@@ -1267,8 +1267,8 @@ if (!app.requestSingleInstanceLock()) {
     if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
-    cliServer = await startCliServer({ binary: bundledCli(), profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
-    trace("cli-ready");
+    cliServer = await startOptionalCliServer({ binary: bundledCli(), profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
+    trace(cliServer ? "cli-ready" : "cli-unavailable");
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {
       try {

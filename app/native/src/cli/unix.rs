@@ -9,9 +9,22 @@ use std::{
     time::Duration,
 };
 pub fn runtime_dir() -> Result<PathBuf, String> {
-    Ok(PathBuf::from(format!("/tmp/smd-{}", unsafe {
-        libc::geteuid()
-    })))
+    #[cfg(target_os = "macos")]
+    let base = {
+        let length = unsafe { libc::confstr(libc::_CS_DARWIN_USER_TEMP_DIR, std::ptr::null_mut(), 0) };
+        if length == 0 { return Err("Cannot locate per-user temporary directory".into()); }
+        let mut bytes = vec![0u8; length];
+        let written = unsafe { libc::confstr(libc::_CS_DARWIN_USER_TEMP_DIR, bytes.as_mut_ptr().cast(), bytes.len()) };
+        if written == 0 || written > bytes.len() { return Err("Cannot locate per-user temporary directory".into()); }
+        bytes.truncate(written - 1);
+        use std::os::unix::ffi::OsStringExt;
+        PathBuf::from(std::ffi::OsString::from_vec(bytes))
+    };
+    #[cfg(not(target_os = "macos"))]
+    let base = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".cache/simplemd-cli")))
+        .ok_or("Cannot locate per-user runtime directory")?;
+    Ok(base.join(format!("smd-{}", unsafe { libc::geteuid() })))
 }
 pub fn validate_runtime(dir: &Path) -> Result<(), String> {
     let meta = fs::symlink_metadata(dir).map_err(|e| e.to_string())?;
@@ -66,5 +79,16 @@ pub fn interrupt_handler() {
     }
     unsafe {
         libc::signal(libc::SIGINT, interrupted as *const () as libc::sighandler_t);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn runtime_is_private_user_storage() {
+        let dir = super::runtime_dir().unwrap();
+        assert_ne!(dir.parent().unwrap(), std::path::Path::new("/tmp"));
+        #[cfg(target_os = "macos")]
+        assert_eq!(std::fs::canonicalize(dir.parent().unwrap()).unwrap(), std::fs::canonicalize(std::env::temp_dir()).unwrap());
     }
 }

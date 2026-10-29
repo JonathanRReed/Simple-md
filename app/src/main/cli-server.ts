@@ -98,3 +98,8 @@ export async function startCliServer(options: { binary: string; profile?: string
   fs.chmodSync(runtime.endpoint, 0o600);
   return { close() { for (const cleanup of active) cleanup(); for (const socket of sockets) socket.destroy(); server.close(); runtime.cleanup(); } };
 }
+
+export async function startOptionalCliServer(options: Parameters<typeof startCliServer>[0]): Promise<Awaited<ReturnType<typeof startCliServer>> | undefined> {
+  try { return await startCliServer(options); }
+  catch (error) { console.error("simplemd: CLI unavailable", error); return undefined; }
+}

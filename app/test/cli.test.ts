@@ -6,7 +6,7 @@ import net from "node:net";
 import { spawn } from "node:child_process";
 import { DocumentWaiters, FRAME_CAP, STDIN_CAP, FrameReader, frame, parseCliRequest, parseOpenUrl } from "../src/main/cli-protocol";
 import { cliRuntime, prepareCliRuntime } from "../src/main/cli-runtime";
-import { startCliServer } from "../src/main/cli-server";
+import { startCliServer, startOptionalCliServer } from "../src/main/cli-server";
 import { DocumentRegistry } from "../src/main/document-registry";
 import { makeRevisionId } from "../src/shared/types";
 const secret = "a".repeat(64);
@@ -100,4 +100,36 @@ test("Windows URL and CLI paths reject UNC and device names before filesystem ac
   for (const file of ["\\\\attacker\\share\\note.md", "//attacker/share/note.md", "\\\\?\\UNC\\attacker\\share\\note.md", "\\\\.\\pipe\\x"]) expect(() => parseCliRequest({ ...request, path: file }, secret, 128, "win32")).toThrow();
   expect(parseCliRequest({ ...request, path: local }, secret, 128, "win32").command).toBe("open");
   expect(() => parseOpenUrl(url("C:\\secret.txt"), "win32")).toThrow("Markdown");
+});
+
+test.skipIf(process.platform === "win32")("runtime uses private user storage and ignores stale PID 1", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-stale-")), runtime = cliRuntime(root);
+  try {
+    expect(runtime.startsWith(os.tmpdir() + path.sep)).toBe(true);
+    fs.mkdirSync(runtime, { mode: 0o700 });
+    fs.writeFileSync(path.join(runtime, "state.json"), JSON.stringify({ pid: 1 }), { mode: 0o600 });
+    const prepared = await prepareCliRuntime("unused", root);
+    expect(JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8")).pid).toBe(process.pid);
+    prepared.cleanup();
+  } finally { fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+});
+test.skipIf(process.platform === "win32")("refused socket is stale even when its state names a live PID", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-refused-")), runtime = cliRuntime(root);
+  try {
+    fs.mkdirSync(runtime, { mode: 0o700 });
+    fs.writeFileSync(path.join(runtime, "state.json"), JSON.stringify({ pid: 1 }), { mode: 0o600 });
+    const child = spawn("node", ["-e", "require('net').createServer().listen(process.argv[1], () => process.exit(0))", path.join(runtime, "ipc.sock")], { stdio: "pipe" });
+    expect(await new Promise(resolve => child.once("close", resolve))).toBe(0);
+    const prepared = await prepareCliRuntime("unused", root);
+    expect(fs.existsSync(prepared.endpoint)).toBe(false); prepared.cleanup();
+  } finally { fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test.skipIf(process.platform === "win32")("a squatted runtime disables only the optional CLI server", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-squatted-")), runtime = cliRuntime(root);
+  try {
+    fs.mkdirSync(runtime, { mode: 0o755 });
+    expect(await startOptionalCliServer({ binary: "unused", profile: root, dispatch: async () => undefined })).toBeUndefined();
+    expect(fs.statSync(runtime).mode & 0o777).toBe(0o755);
+  } finally { fs.rmdirSync(runtime); fs.rmSync(root, { recursive: true, force: true }); }
 });
