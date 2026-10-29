@@ -42,7 +42,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { measureDriverRun } from "../bench";
-import { percentile, readableSample, residentTiming, settledMemory, settledWindow, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
+import { percentile, readableSample, residentTiming, settledMemory, settledWindow, gatedMemoryMB, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
 import { fixtureManifest, perfFixtures, sha256, writePerfFixtures } from "../scripts/perf-fixtures";
 
 describe("performance gate receipts", () => {
@@ -52,10 +52,19 @@ describe("performance gate receipts", () => {
     expect(settledMemory(Array.from({ length: 5 }, () => sample(400e6)))).toBe(true);
     expect(settledMemory([sample(180e6), sample(180e6), sample(400e6), sample(320e6), sample(180e6)])).toBe(false);
     // A later stable window still counts after a transient spike, and the latest window wins.
-    expect(settledMemory([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6)])).toBe(true);
+    expect(gatedMemoryMB([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6)])).toBe(400);
     expect(settledWindow([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6), ...Array.from({ length: 5 }, () => sample(170e6))])?.[0]).toEqual(sample(170e6));
     expect(settledMemory([sample(180e6), sample(180e6), sample(180e6), sample(180e6), sample(180e6, 2)])).toBe(false);
     expect(settledMemory(Array.from({ length: 4 }, () => sample(180e6)))).toBe(false);
+  });
+  test("rejects old stable memory, growth, and late process changes", () => {
+    const sample = (mb: number, pid = 1) => ({ processes: { measured: [{ pid, physicalBytes: mb * 1e6, rssBytes: mb * 1e6 }] } });
+    const early = Array.from({ length: 24 }, () => sample(150));
+    expect(gatedMemoryMB([...early, ...[220, 240, 260, 280, 300, 320].map(mb => sample(mb))])).toBeNull();
+    expect(gatedMemoryMB([...Array.from({ length: 29 }, () => sample(150)), sample(151, 2)])).toBeNull();
+    expect(gatedMemoryMB([...Array.from({ length: 29 }, () => sample(150)), sample(400)])).toBe(400);
+    expect(summarizeGate([gatedMemoryMB([...Array.from({ length: 29 }, () => sample(150)), sample(400)])!], 200, 1).status).toBe("fail");
+    expect(gatedMemoryMB(Array.from({ length: 30 }, (_, i) => sample(150 + i * 0.4)))).toBeCloseTo(161.6);
   });
   test("uses nearest-rank percentiles and strict targets without mutating samples", () => {
     const samples = [9, 1, 5, 3, 7];
