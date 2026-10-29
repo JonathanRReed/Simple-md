@@ -1138,20 +1138,42 @@ body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; pa
 #stage { display: flex; gap: 1px; }
 #stage[data-axis="vertical"] { flex-direction: column; }
 .document-pane { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; background: var(--bg); overflow: hidden; }
-.pane-toolbar { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--rule); font: 12px system-ui; }
-.pane-name { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pane-toolbar {
+  --bg: light-dark(#f5f5f5, #242424); --fg: CanvasText; --muted: GrayText;
+  --rule: light-dark(#dedede, #484848); --code-bg: light-dark(#e6e6e6, #303030); --accent: var(--system-accent);
+  display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 8px;
+  height: 32px; padding: 0 10px; border-bottom: 1px solid var(--rule);
+  background: var(--bg); color: var(--fg); font: 12px system-ui;
+}
+.pane-toolbar::before { content: ""; width: 5px; height: 5px; margin-inline-end: auto; border-radius: 50%; background: transparent; }
+#stage[data-panes="2"] .document-pane[data-active="true"] .pane-toolbar::before { background: var(--accent); }
+.pane-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .pane-content { flex: 1; min-height: 0; position: relative; }
-#stage[data-panes="2"] .document-pane[data-active="true"] .pane-toolbar { box-shadow: inset 0 -2px var(--tab-accent, Highlight); }
+.pane-controls { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
+.document-pane { container-type: inline-size; }
+.pane-toolbar .seg { border-radius: 6px; }
+.pane-toolbar .seg button { padding: 3px 9px; border-radius: 4px; font-size: 11px; }
+.pane-toolbar .seg button[aria-checked="true"] { box-shadow: 0 1px 2px #0002; }
+.mode-menu { display: none; max-width: 140px; height: 24px; font: 11px system-ui; color: CanvasText; color-scheme: inherit; accent-color: var(--accent); }
+@container (max-width: 360px) {
+  .pane-toolbar .seg { display: none; }
+  .mode-menu:not([hidden]) { display: block; }
+}
+#stage[data-panes="1"] .pane-toolbar { height: 0; padding: 0; border: 0; }
+#stage[data-panes="1"] .pane-toolbar::before { display: none; }
+#stage[data-panes="1"] .pane-controls { position: fixed; inset: 6px 12px auto auto; z-index: 2; }
+#stage[data-panes="1"] [data-element="edit-btn"] { display: none; }
+body:not([data-platform="darwin"]) #stage[data-panes="1"] .pane-controls { inset-inline-end: max(150px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px)); }
+.pane-status { flex: none; padding: 3px 12px; color: var(--muted); font: 11px/1.5 var(--sans); text-align: end; }
+.pane-status:has([hidden]) { display: none; }
 .document-pane [data-element="editor-host"] { display: flex; flex: 1 1 0; min-width: 0; height: 100%; }
 .document-pane [data-element="preview-pane"] { flex: 1 1 0; min-width: 0; border-left: 1px solid var(--rule); display: flex; }
 .document-pane [data-element="empty"] { height: 100%; display: flex; align-items: center; justify-content: center; }
 #welcome { display: flex; align-items: center; justify-content: center; flex: 1; background: var(--bg); margin: 0; }
 #stage:not([data-panes="0"]) #welcome { display: none; }
-body.print .pane-toolbar, body.print #tabs, body.print #welcome { display: none !important; }
+body.print .pane-toolbar, body.print .pane-status, body.print #tabs, body.print #welcome { display: none !important; }
 body.print #stage { display: block; }
 body.print .document-pane, body.print .pane-content { display: block; position: static; overflow: visible; }
-.pane-toolbar .seg { flex: none; }
-.pane-toolbar .seg button { padding-inline: 6px; }
-.pane-name { min-width: 0; flex: 1; }
+
 .document-pane [data-element="banner"] { display: flex; flex: none; align-items: center; justify-content: center; gap: 12px; padding: 6px 12px; font-size: 13px; background: color-mix(in srgb, var(--tab-accent, Highlight) 10%, transparent); }
 .document-pane [data-element="banner"] button { border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: inherit; font-size: 12px; }
