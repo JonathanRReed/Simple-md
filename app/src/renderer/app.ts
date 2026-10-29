@@ -24,6 +24,7 @@ api.onContextMenu(context => { if (contextTarget) void contextTarget.contextMenu
 const active = () => layout ? panes.get(layout.activePane)?.controller : undefined;
 function applyWindowSettings(next: Settings): void {
   applyDocumentStyle(next);
+  document.documentElement.style.setProperty("--tab-accent", next.systemAccent ?? "Highlight");
   document.documentElement.dataset.theme = next.theme;
   document.documentElement.style.colorScheme = next.theme === "system" ? "light dark" : next.theme;
   document.documentElement.style.setProperty("--zoom", String(next.zoom));
@@ -221,7 +222,6 @@ async function boot(): Promise<void> {
   });
   const ready = await api.ready();
   settings = ready.settings;
-  document.documentElement.style.setProperty("--tab-accent", ready.accent);
   document.body.dataset.platform = ready.platform;
   applyWindowSettings(settings);
   document.querySelector("#welcome-open")!.addEventListener("click", () => void api.openDialog());

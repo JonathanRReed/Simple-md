@@ -945,7 +945,7 @@ function registerIpc(): void {
     trace("renderer-ready");
     context().rendererReady = true;
     context().markLoaded();
-    return { settings, platform: process.platform, accent: process.platform === "darwin" || process.platform === "win32" ? `#${systemPreferences.getAccentColor().slice(0, 6)}` : "Highlight", performanceTracing: testProfile && process.env.SMD_PERF === "1" };
+    return { settings, platform: process.platform, accent: systemAccent(), performanceTracing: testProfile && process.env.SMD_PERF === "1" };
   });
   on("smd:pane-mode", (_e, id, mode) => {
     if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "live" && mode !== "source" && mode !== "split")) return;
