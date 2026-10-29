@@ -43,6 +43,8 @@ function syncChrome(): void {
     const button = document.createElement("div");
     button.className = "tab";
     button.dataset.documentId = String(id);
+    button.dataset.dirty = String(!!dirty);
+    button.setAttribute("aria-label", `${meta?.name ?? "Untitled"}${dirty ? ", unsaved changes" : ""}`);
     button.setAttribute("role", "tab");
     button.setAttribute("aria-selected", String(controller?.documentId === id));
     button.setAttribute("aria-controls", `document-${id}`);
@@ -54,7 +56,8 @@ function syncChrome(): void {
     const close = document.createElement("button");
     close.type = "button";
     close.className = "tab-close";
-    close.textContent = dirty ? "●" : "×";
+    close.innerHTML = dirty ? '<span class="tab-dirty" aria-hidden="true"></span>' : '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+    close.tabIndex = controller?.documentId === id ? 0 : -1;
     close.setAttribute("aria-label", `Close ${title.textContent}`);
     close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
     button.append(title, close);

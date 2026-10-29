@@ -1116,28 +1116,25 @@ code,
 body:not([data-platform="darwin"]) #tabs { height: 34px; font-size: 13px; }
 .tab {
   display: flex;
-  flex: 1 1 180px;
-  min-width: 100px;
-  max-width: 260px;
+  flex: 0 1 auto;
+  min-width: 96px;
+  max-width: 224px;
   align-items: center;
-  gap: 10px;
-  padding: 0 9px 0 14px;
+  gap: 12px;
+  padding: 0 8px 0 12px;
   border-inline-end: 1px solid var(--rule);
   position: relative;
   user-select: none;
 }
-.tab[aria-selected="true"] { background: Canvas; }
-.tab[aria-selected="true"]::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: 2px;
-  background: var(--tab-accent, Highlight);
-}
-.tab:focus-visible { outline: 2px solid var(--tab-accent, Highlight); outline-offset: -3px; }
+.tab[aria-selected="true"] { background: light-dark(#fff, #3a3a3a); color: CanvasText; }
+.tab:hover:not([aria-selected="true"]) { background: color-mix(in srgb, CanvasText 5%, transparent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .tab-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.tab-close { border: 0; padding: 0; width: 18px; height: 18px; border-radius: 4px; background: transparent; color: inherit; font: 14px / 18px system-ui; }
+.tab-close { display: grid; place-items: center; flex: none; border: 0; padding: 0; width: 18px; height: 18px; border-radius: 4px; background: transparent; color: inherit; opacity: 0; }
+.tab:is(:hover, :focus-within, [aria-selected="true"], [data-dirty="true"]) .tab-close { opacity: 1; }
 .tab-close:hover { background: color-mix(in srgb, CanvasText 12%, transparent); }
+.tab-dirty { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; padding-inline: 12px 8px; }
 #stage { display: flex; gap: 1px; }
 #stage[data-axis="vertical"] { flex-direction: column; }
 .document-pane { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; background: var(--bg); overflow: hidden; }
