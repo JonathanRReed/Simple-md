@@ -1090,14 +1090,18 @@ await test("tabs-scroll-selection-shortcuts", async () => {
   assert.deepEqual(fs.readFileSync(a), Buffer.from(source));
 });
 
-await test("tabs-last-close", async () => {
-  const file = fixture("tabs-last-close/note.md", note);
-  await launch("tabs-last-close", file, [
-    { shot: path.join(root, "tabs-last-close", "done.png") },
-    evaluate(`window.simplemd.command('close-tab');`),
-    { wait: 200 },
-    { windowCount: 0 },
-    { quit: true },
+for (const native of [false, true]) await test(`tabs-last-close-${native ? "native" : "command"}`, async () => {
+  const name = `tabs-last-close-${native ? "native" : "command"}`;
+  const file = fixture(`${name}/note.md`, note);
+  await launch(name, file, [
+    evaluate(`window.residentToken = 'same renderer';`),
+    native ? { closeWindow: true } : evaluate(`window.simplemd.command('close-tab');`),
+    { wait: 200 }, { windowCount: 1 }, { visibility: false },
+    evaluate(`assert(document.querySelectorAll('.cm-editor').length === 0 && document.querySelectorAll('[role="tab"]').length === 0, 'Closed layout was retained');
+      await window.simplemd.openPath(${quote(file)}, 'edit');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)}, 'Resident window did not reopen');
+      assert(window.residentToken === 'same renderer', 'Reopen replaced resident renderer');`),
+    { visibility: true },
   ], "edit");
   assert.deepEqual(fs.readFileSync(file), Buffer.from(note));
 });

@@ -296,14 +296,25 @@ async function closeTab(id = currentSession().documentId): Promise<boolean> {
   send("smd:closed", id);
   syncLayout();
   if (!context().layout.state.tabs.length) {
-    context().win.destroy();
-    if (process.platform === "darwin" && !windows.size) app.dock?.hide();
+    finishClosedWindow(context());
   }
   return true;
 }
 async function closeDocumentWindow(): Promise<void> {
   for (const id of [...context().layout.state.tabs]) if (!(await closeTab(id))) return;
-  if (!context().win.isDestroyed()) context().win.destroy();
+  if (!context().layout.state.tabs.length) finishClosedWindow(context());
+}
+function finishClosedWindow(host: WindowContext): void {
+  if (host.win.isDestroyed()) return;
+  if (windows.size > 1) { host.win.destroy(); return; }
+  host.paneModes.clear();
+  host.win.setTitle("SimpleMD");
+  if (process.platform === "darwin") {
+    host.win.setDocumentEdited(false);
+    host.win.setRepresentedFilename("");
+  }
+  host.win.hide();
+  if (process.platform === "darwin") app.dock?.hide();
 }
 
 // ───────── renderer round trips ─────────

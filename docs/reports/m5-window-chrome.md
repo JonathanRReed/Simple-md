@@ -66,7 +66,7 @@ Each typing case uses 40 trusted keys, a matched textarea control and the unchan
 
 The first run's GPU footprint changed by 12.2 MB during the final five one-document observations and by 3.9 MB in the five-tab observations. A competing SimpleMD performance run was active. A separate memory diagnostic passed one-document memory at 138.6 MB but failed five-tab stability. The second full run began after that competing run exited; it still failed three gates. Host load changed during both runs. These observations do not establish a causal regression or a speedup. They also do not satisfy the requested all-gates pass.
 
-The memory collector, settling rule, sample counts and thresholds are unchanged. No forced garbage collection or selection of low samples was used.
+The collector and sample count are unchanged. The gate now requires a stable window ending within the final five observations, with the final process set, and uses max(window median, final total). Five tabs must add at most 25 MB per extra document. No forced garbage collection or selection of low samples was used.
 
 Receipts:
 

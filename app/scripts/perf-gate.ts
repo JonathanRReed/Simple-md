@@ -9,7 +9,7 @@ import { measureDriverRun, type DriverEvent } from "../bench";
 import type { DriverStep } from "../src/main/driver";
 import { perfFixtures, sha256, writePerfFixtures } from "./perf-fixtures";
 
-type State = "process-cold-fresh-profile" | "process-cold-reused-profile" | "resident-visible" | "resident-hidden" | "resident-new-file-miss" | "A-to-B-to-A";
+type State = "process-cold-fresh-profile" | "process-cold-reused-profile" | "resident-visible" | "resident-hidden" | "resident-closed" | "resident-new-file-miss" | "A-to-B-to-A";
 export function percentile(values: number[], fraction: number): number | null {
   if (!values.length) return null;
   if (values.some((value) => !Number.isFinite(value) || value < 0)) throw new Error("Invalid performance sample");
@@ -146,7 +146,7 @@ export async function perfGate(): Promise<void> {
   if (!Number.isSafeInteger(count) || count < 2) throw new Error("At least two samples are required");
   const only = process.argv.find(arg => arg.startsWith("--only="))?.split("=")[1];
   const includes = (name: string) => !only || only.split(",").includes(name);
-  if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing", "tab-switch-100k"].includes(name))) throw new Error("Unknown performance subset");
+  if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing", "tab-switch-100k"].includes(name))) throw new Error("Unknown performance subset");
   const typingCases = process.argv.find(arg => arg.startsWith("--typing-cases="))?.slice("--typing-cases=".length).split(",");
   if (typingCases?.some(value => !/^(live|source|split)\/(top|middle|end)\/(native|cdp)$/.test(value))) throw new Error("Unknown typing case");
   const typingPaneCounts = process.argv.includes("--two-panes") ? [2] : [1, 2];
@@ -290,7 +290,7 @@ export async function perfGate(): Promise<void> {
       });
     }
     const normal = smoke ? ["small.md", "unicode.md"] : Object.keys(fixtureText).filter((name) => !["huge.md", "ceiling.md", "typing-100k.md"].includes(name));
-    for (const state of ["resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A"] as const) {
+    for (const state of ["resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A"] as const) {
       if (!includes(state)) continue;
       const names = state === "resident-new-file-miss" && !smoke ? [...normal, "huge.md", "ceiling.md"] : normal;
       for (const fixture of names.filter(name => !fixtureFilter || fixtureFilter.includes(name))) await attempt(`${state}/${fixture}`, async () => {
@@ -307,6 +307,7 @@ export async function perfGate(): Promise<void> {
           }
           const barrier = `${state}-${sample}-${fixture}`;
           if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
+          if (state === "resident-closed") steps.push(evaluate(`while (document.querySelectorAll(".document-pane").length) { window.simplemd.command("close-tab"); await new Promise(r => setTimeout(r, 30)); }`), { wait: hiddenDwell(sample) }, { visibility: false });
           if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: hiddenDwell(sample) }, { visibility: false });
           const assertion = assertDocument(file, fixtureText[fixture]!);
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
@@ -505,7 +506,7 @@ export async function perfGate(): Promise<void> {
   } catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
   for (const state of ["process-cold-fresh-profile", "process-cold-reused-profile"] as const) receipt.gates[state] = summarizeGate(samples.filter((sample) => sample.state === state).map((sample) => sample.ms), 800, smoke ? 2 : 20);
   const normalFixtures = smoke ? ["small.md", "unicode.md"] : Object.keys(fixtureText).filter((name) => !["huge.md", "ceiling.md", "typing-100k.md"].includes(name));
-  for (const state of ["resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A"] as const) {
+  for (const state of ["resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A"] as const) {
     for (const fixture of normalFixtures) receipt.gates[`${state}/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === state && sample.fixture === fixture).map((sample) => sample.ms), 150, smoke ? 2 : 20);
   }
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);
