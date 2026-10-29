@@ -1,3 +1,5 @@
+import { contextTemplate, validateContext } from "./context-menu.js";
+import type { NativeContext } from "../shared/native-context.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
 import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
@@ -8,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   BrowserWindow,
+  clipboard,
   Menu,
   Tray,
   app,
@@ -70,6 +73,7 @@ interface WindowContext {
   paneModes: Map<ReturnType<typeof makePaneId>, Settings["mode"]>;
   mainPane: { paneId: ReturnType<typeof makePaneId>; documentId: DocumentId };
   rendererReady: boolean;
+  nativeContext?: NativeContext;
   loaded: Promise<void>;
   markLoaded(): void;
 }
@@ -199,6 +203,16 @@ function createWindow(): BrowserWindow {
   if (!settings.bounds) w.center();
   void w.loadFile(INDEX);
 
+  w.webContents.on("context-menu", (_event, params) => {
+    const host = windows.get(w.webContents.id);
+    if (!host) return;
+    host.nativeContext = {
+      selectionPresent: params.selectionText.length > 0, editable: params.isEditable,
+      linkURL: params.linkURL, imageURL: params.srcURL,
+      misspelledWord: params.misspelledWord, suggestions: params.dictionarySuggestions.slice(0, 32),
+    };
+    w.webContents.send("smd:context-request", host.nativeContext);
+  });
   w.webContents.setWindowOpenHandler(({ url }) => {
     openLink(url);
     return { action: "deny" };
@@ -1000,6 +1014,27 @@ function registerIpc(): void {
   handle("smd:open-dialog", openDialog);
   handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true); });
   handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id)));
+  handle("smd:context-menu", async (input, id) => {
+    const host = context();
+    const doc = ipcSession(id);
+    const native = host.nativeContext;
+    host.nativeContext = undefined;
+    if (!native || JSON.stringify(input) !== JSON.stringify(native)) throw new Error("Stale context menu request.");
+    const c = await validateContext(input, urlContext(doc.path ? path.dirname(doc.path) : undefined));
+    if (!host.layout.has(doc.documentId) || host.win.isDestroyed()) return null;
+    return new Promise<string | null>(resolve => {
+      let replacement: string | null = null;
+      const menu = Menu.buildFromTemplate(contextTemplate(c, {
+        replace: word => { replacement = word; },
+        dictionary: word => { host.win.webContents.session.addWordToSpellCheckerDictionary(word); },
+        open: (url, newTab) => { void windowScope.run(host, () => openLink(url, doc.intent, newTab, doc)); },
+        copy: text => { void clipboard.writeText(text); },
+        reveal: url => { void containedLocalFile(url, urlContext(doc.path ? path.dirname(doc.path) : undefined)).then(file => shell.showItemInFolder(file)).catch(() => {}); },
+        lookup: () => host.win.webContents.showDefinitionForSelection(),
+      }));
+      menu.popup({ window: host.win, callback: () => resolve(replacement) });
+    });
+  });
   handle("smd:set-settings", patch => applySettings(patch));
   handle("smd:export-pdf", (value, id) => {
     const text = ipcText(value);

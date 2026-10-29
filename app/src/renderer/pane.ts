@@ -1008,6 +1008,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     return snapshot;
   }
   return {
+    async contextMenu(context: import("../shared/native-context.js").NativeContext) {
+      const request = () => simplemd.contextMenu(context, pane.documentId);
+      if (context.editable && pane.editor) await pane.editor.contextMenu(context, request);
+      else await request();
+    },
     load: onDoc, suspend, settings: applySettings, command: handleCommand, saved: onSaved, diskChanged: onDiskChanged,
     focus() { if (pane.view === "edit") pane.editor?.focus(); else readScroll.focus(); },
     get documentId() { return pane.documentId; },

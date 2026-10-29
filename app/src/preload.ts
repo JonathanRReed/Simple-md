@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld("simplemd", {
     return ready;
   },
 
+  onContextMenu: (cb: (context: import("./shared/native-context.js").NativeContext) => void) => on("smd:context-request", cb),
+  contextMenu: (context: import("./shared/native-context.js").NativeContext, id: DocumentId) => ipcRenderer.invoke("smd:context-menu", context, id),
   onLayout: (cb: (state: import("./shared/tab-layout.js").TabLayoutState) => void) => on("smd:layout", (state: import("./shared/tab-layout.js").TabLayoutState) => {
     const active = state.panes.find(p => p.paneId === state.activePane);
     if (active) activeDocumentId = active.documentId;

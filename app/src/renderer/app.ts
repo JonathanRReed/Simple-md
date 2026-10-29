@@ -16,6 +16,11 @@ let layout: TabLayoutState | undefined;
 let firstPane = true;
 const documents = new Map<DocumentId, { payload: DocPayload; retained?: DormantDocument; disk?: { text: string; reason?: string } }>();
 const panes = new Map<PaneId, { element: HTMLElement; controller: PaneController }>();
+let contextTarget: PaneController | undefined;
+document.addEventListener("contextmenu", event => {
+  contextTarget = [...panes.values()].find(p => event.target instanceof Node && p.element.contains(event.target))?.controller;
+});
+api.onContextMenu(context => { if (contextTarget) void contextTarget.contextMenu(context).catch(console.error); });
 const active = () => layout ? panes.get(layout.activePane)?.controller : undefined;
 function applyWindowSettings(next: Settings): void {
   applyDocumentStyle(next);

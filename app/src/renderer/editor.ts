@@ -1,3 +1,5 @@
+import { spellingReplacement } from "./spelling.js";
+import type { NativeContext } from "../shared/native-context.js";
 import type { MdxResult } from "../shared/render-core.js";
 import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
 import { editorMdxRanges } from "./mdx-positions.js";
@@ -43,6 +45,7 @@ export interface Heading {
 }
 
 export interface EditorHandle {
+  contextMenu(context: NativeContext, request: () => Promise<string | null>): Promise<void>;
   getText(): string;
   snapshot(): EditorSnapshot;
   setMdx(source: string, result: MdxResult): void;
@@ -127,6 +130,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   let silent = false;
   let destroyed = false;
   let vimSeq = 0;
+  let contextPosition: number | null = null;
   const insertions = new Set<{ from: number; to: number }>();
 
   const liveFor = (m: EditMode, length: number) => (m === "live" && length <= LIVE_MAX_CHARS ? liveExtension(opts.host) : []);
@@ -168,6 +172,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
           if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
         }),
         EditorView.domEventHandlers({
+          contextmenu(event, v) {
+            contextPosition = v.posAtCoords({ x: event.clientX, y: event.clientY });
+            return false;
+          },
           keydown(event) {
             // app.ts turns Escape in the edit view into "back to read mode", which
             // would yank vim out from under the user. Vim-handled Escapes arrive
@@ -243,6 +251,28 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
 
   return {
     scroller: view.scrollDOM,
+    async contextMenu(context, request) {
+      const state = view.state;
+      const pos = contextPosition;
+      contextPosition = null;
+      const word = context.misspelledWord;
+      let range: { from: number; to: number } | undefined;
+      if (pos !== null && word) {
+        const line = state.doc.lineAt(pos);
+        let from = line.text.indexOf(word);
+        while (from >= 0) {
+          if (line.from + from <= pos && line.from + from + word.length >= pos) {
+            range = { from: line.from + from, to: line.from + from + word.length }; break;
+          }
+          from = line.text.indexOf(word, from + 1);
+        }
+      }
+      const replacement = await request();
+      if (!destroyed && view.state.doc === state.doc && range && replacement) {
+        const transaction = spellingReplacement(view.state, range, word, replacement);
+        if (transaction) { view.dispatch(transaction); view.focus(); }
+      }
+    },
     snapshot() {
       // Retain persistent text, selection, exact byte metadata and bounded history.
       // Language state, decorations, DOM widgets and callbacks belong to the view.
