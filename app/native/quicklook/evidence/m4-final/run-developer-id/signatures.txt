@@ -1,0 +1,94 @@
+Executable=/Users/jonathanreed/Applications/SimpleMD-M4-final.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+Identifier=com.jonathanreed.simplemd.preview
+Format=bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=621 flags=0x10000(runtime) hashes=8+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=1d35102cd06d3cd5d0cac1e2c80f42d9caeff1c0
+CandidateCDHashFull sha256=1d35102cd06d3cd5d0cac1e2c80f42d9caeff1c089eedac350d6718ec1198308
+Hash choices=sha256
+CMSDigest=1d35102cd06d3cd5d0cac1e2c80f42d9caeff1c089eedac350d6718ec1198308
+CMSDigestType=2
+CDHash=1d35102cd06d3cd5d0cac1e2c80f42d9caeff1c0
+Signature size=9046
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 29, 2026 at 2:50:31 AM
+Info.plist entries=8
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=1
+Internal requirements count=1 size=196
+Total signatures=1
+Chosen signature=1
+[Dict]
+	[Key] com.apple.security.app-sandbox
+	[Value]
+		[Bool] true
+/Users/jonathanreed/Applications/SimpleMD-M4-final.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview (architecture x86_64):
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform MACOS
+    minos 13.0
+      sdk 27.0
+   ntools 1
+     tool LD
+  version 27037.1
+/Users/jonathanreed/Applications/SimpleMD-M4-final.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview (architecture arm64):
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform MACOS
+    minos 13.0
+      sdk 27.0
+   ntools 1
+     tool LD
+  version 27037.1
+Executable=/Users/jonathanreed/Applications/SimpleMD-M4-final.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail
+Identifier=com.jonathanreed.simplemd.thumbnail
+Format=bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=623 flags=0x10000(runtime) hashes=8+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=43522ab4fb33ef9fa9cfbedf7e3083e3744bdecf
+CandidateCDHashFull sha256=43522ab4fb33ef9fa9cfbedf7e3083e3744bdecf07580a1a89b732450d04142a
+Hash choices=sha256
+CMSDigest=43522ab4fb33ef9fa9cfbedf7e3083e3744bdecf07580a1a89b732450d04142a
+CMSDigestType=2
+CDHash=43522ab4fb33ef9fa9cfbedf7e3083e3744bdecf
+Signature size=9047
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 29, 2026 at 2:50:36 AM
+Info.plist entries=8
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=0
+Internal requirements count=1 size=196
+Total signatures=1
+Chosen signature=1
+[Dict]
+	[Key] com.apple.security.app-sandbox
+	[Value]
+		[Bool] true
+/Users/jonathanreed/Applications/SimpleMD-M4-final.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail (architecture x86_64):
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform MACOS
+    minos 13.0
+      sdk 27.0
+   ntools 1
+     tool LD
+  version 27037.1
+/Users/jonathanreed/Applications/SimpleMD-M4-final.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail (architecture arm64):
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform MACOS
+    minos 13.0
+      sdk 27.0
+   ntools 1
+     tool LD
+  version 27037.1

@@ -1,0 +1,20 @@
+[
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 820,
+      "Width": 816,
+      "X": 348,
+      "Y": 67
+    },
+    "kCGWindowIsOnscreen": true,
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowName": "",
+    "kCGWindowNumber": 53385,
+    "kCGWindowOwnerName": "qlmanage",
+    "kCGWindowOwnerPID": 37482,
+    "kCGWindowSharingState": 1,
+    "kCGWindowStoreType": 1
+  }
+]

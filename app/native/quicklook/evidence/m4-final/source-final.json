@@ -1,0 +1,16 @@
+{
+  "implementation_commit": "f4cabca01e0f143c5b5334b1bf045636d9420c63",
+  "files": {
+    "app/src/shared/render-browser.ts": "306bf0cffd77fde564c3020a4a61d8df598ba0d88c4eac4c4698863797c99da3",
+    "app/src/shared/static-images.ts": "86255c1413e90c2fa7c62e0a15089ba232f350d1919925c7d75ff833a00ad463",
+    "app/src/shared/sanitize-static.ts": "4881750b815b0ce51be71a1ab040bfeb75eb996e4ba2b0c02c629e22a293f98f",
+    "app/native/quicklook/build-extensions.sh": "c25e030f7d760439201773c7d5eeb712037f322dcfdc59be476f305f953adc00",
+    "app/native/quicklook/preview/PreviewProvider.swift": "0cc8d7056f141dc9afc271914de6a52fce7d52d5bccba46940263ca27dccbcba",
+    "app/native/quicklook/preview/StaticRenderer.swift": "978221dc8fdcc4f39104f4bb8ac6cb832c328b1244e07ce26f0e69590b7b3860",
+    "app/native/quicklook/preview/PreviewSource.swift": "c7f1ba40e497b680be7c230ed2bbcdb4441cc3b915ec7f98a27b1adf5cbc4034",
+    "app/native/quicklook/preview/Info.plist": "75172bc40df7dd64d7598ce156dc231f6eaa165bd185d8ec5c9e670360851989",
+    "app/native/quicklook/thumbnail/Info.plist": "656102e9c4c06ef801b3823c211e9aeba0ad02cdf88b60dd9bc75bf499e7b0ce",
+    "app/native/quicklook/extension.entitlements": "dc540d332e8a6e8e3126300099b4b51cbcb3d886ab6e4c8f12b037075b130e0c",
+    "app/package.json": "de3c7de7e5877c41d79d9a76aef0d6e3628ae8c36d7c213867913d099ed8ce56"
+  }
+}

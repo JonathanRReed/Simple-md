@@ -167,8 +167,10 @@ data URLs and replaces missing, denied, remote or unsupported images with escape
 alt text in an "Image unavailable" box. Picture sources cannot override that image.
 There is no native file bridge in JavaScript and no additional sandbox entitlement.
 
-The repository README is now 2,905 UTF-8 bytes. It produces a 13,705-byte page,
-compared with 382,425 bytes before conditional math assets. The math fixture keeps
+The repository README is now 2,905 UTF-8 bytes. With a fixed `/project/` base, it produces a
+13,705-byte page,
+compared with 382,425 bytes before conditional math assets. Absolute link lengths
+change the installed reply size. The math fixture keeps
 all 20 fonts. See `app/native/quicklook/evidence/m4-final/` for exact fixtures,
 page sizes and packaged runtime evidence.
 
@@ -202,3 +204,11 @@ The synchronous escaped-source stub is removed. The bare-context test and the
 packaged Swift check exercise the real renderer, including lazy grammar and math
 imports. Package signing still uses App Sandbox as the extensions' sole
 entitlement, with no network access or page scripts.
+
+
+The packaged rich preview passed the complete M4 fixture set in both ad-hoc and
+Developer ID runs on October 29, 2026, with the main app closed. Thumbnail routing
+remains unqualified. The final runs used Apple's text thumbnail provider for
+Markdown and MDX, despite matching declared UTIs. See the
+[qualification report](../../app/native/quicklook/evidence/m4-final/REPORT.md)
+for screenshots, timing stages, declaration comparisons, and cleanup receipts.

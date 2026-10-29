@@ -1,0 +1,68 @@
+{
+  "checked_at": "2026-10-29T07:56:17.084947+00:00",
+  "extensions": {
+    "com.jonathanreed.simplemd.preview": {
+      "code": 0,
+      "absent": true
+    },
+    "com.jonathanreed.simplemd.thumbnail": {
+      "code": 0,
+      "absent": true
+    },
+    "com.jonathanreed.simplemd.qlspike.preview": {
+      "code": 0,
+      "absent": true
+    },
+    "com.jonathanreed.simplemd.qlspike.thumbnail": {
+      "code": 0,
+      "absent": true
+    }
+  },
+  "flux_default": true,
+  "flux_before_after_equal": {
+    "run-adhoc": true,
+    "run-adhoc-final": true,
+    "run-developer-id": true,
+    "routing-reset": true,
+    "spike-replay": true
+  },
+  "removed_paths_still_exist": {
+    "/Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.preview": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.thumbnail": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.thumbnail": false,
+    "/tmp/simplemd-m4-spike-replay.zBJNCz": false,
+    "/tmp/simplemd-m4-test.C4ak5n": false,
+    "/tmp/simplemd-m4-test.FmECcG": false,
+    "/tmp/simplemd-m4-test.HRDS1Q": false,
+    "/tmp/simplemd-m4-test.wZJFLf": false,
+    "/Users/jonathanreed/Applications/SimpleMD-M4-final.app": false
+  },
+  "containers_exist": {
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.preview": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.thumbnail": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.preview": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.thumbnail": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike": false,
+    "/Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd": false
+  },
+  "launchservices_matches": [],
+  "processes": [],
+  "generated_large_fixtures_removed": [
+    {
+      "path": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/evidence/m4-final/run-adhoc/fixtures/large.md",
+      "bytes": 4750044
+    },
+    {
+      "path": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/evidence/m4-final/run-adhoc-final/fixtures/large.md",
+      "bytes": 4750044
+    },
+    {
+      "path": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/evidence/m4-final/run-developer-id/fixtures/large.md",
+      "bytes": 4750044
+    }
+  ],
+  "signed_product_retained_unregistered": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app",
+  "passed": true
+}

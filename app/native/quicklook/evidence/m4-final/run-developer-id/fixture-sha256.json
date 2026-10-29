@@ -1,0 +1,46 @@
+{
+  "large.md": {
+    "bytes": 4750044,
+    "sha256": "14f0bb3baf478ac4224538b727198db6a9d35f95593bfb46bd33951a0dc596be"
+  },
+  "non-utf8.md": {
+    "bytes": 33,
+    "sha256": "c02a94e265c42f5d8e6e8be17a60e07283761d067a78b99b38b0a5dcd68f29bd"
+  },
+  "not-markdown.txt": {
+    "bytes": 43,
+    "sha256": "b7d062d1c222d5e985282acc25537d043ed55cebf07539fc0ba1aa38c9bb8a57"
+  },
+  "dot.png": {
+    "bytes": 221,
+    "sha256": "9e2da8f68f025a608826f7b368aa1e516bf5757ae08ecf4250df759bae940438"
+  },
+  "math.md": {
+    "bytes": 36,
+    "sha256": "c2569680cfb717e5ae99deb018167afd68d15e86f297e1b9a7a097240b9acddd"
+  },
+  "hostile.md": {
+    "bytes": 174,
+    "sha256": "62e3ba55073595d55dcc6ff2813f37e4cecbab2c2d4e360aee0420dd005d44d4"
+  },
+  "README.md": {
+    "bytes": 2905,
+    "sha256": "f3e55c45751c3d6df1d0c390fcc49aac2498c741ee327c705562794d9ca16c15"
+  },
+  "local-image.md": {
+    "bytes": 98,
+    "sha256": "97d9a6d8769a4649b17d9f9f1795f5ea88ffbfd5e690a8d4f861cbaea5ad8464"
+  },
+  "fixture.mdx": {
+    "bytes": 116,
+    "sha256": "e00683d35eda49f475e60062f545a4ccc776e19d661eaa5cefec172d91ce9acf"
+  },
+  "mermaid.md": {
+    "bytes": 53,
+    "sha256": "f1cc7ebd4dc565297a85a8bf6bf181f130116520f9ed743645487a67d3a51c88"
+  },
+  "empty.md": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
