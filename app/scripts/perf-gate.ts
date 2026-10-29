@@ -29,8 +29,8 @@ function stableWindow(window: { processes: { measured: ProcessMemory[] } }[]): b
     return bytes.every((value): value is number => value !== undefined) && Math.max(...bytes) - Math.min(...bytes) <= 2_000_000;
   });
 }
-// The most recent five consecutive observations in which every process stays within 2 MB.
-// Later windows win; values are never chosen by size, and every observation stays in the receipt.
+// Use the latest stable window ending within the final five observations and
+// sharing the final process set. The gate also includes the final total.
 export function settledWindow<T extends { processes: { measured: ProcessMemory[] } }>(samples: T[]): T[] | null {
   for (let end = samples.length; end >= Math.max(5, samples.length - 4); end--) {
     const window = samples.slice(end - 5, end);
@@ -517,7 +517,10 @@ export async function perfGate(): Promise<void> {
   const stableMemory = settled.length === 5;
   const oneDocMB = gatedMemoryMB(oneDocumentMemory);
   const fiveTabMB = gatedMemoryMB(fiveTabMemory);
-  receipt.gates.memory = { ...summarizeGate(oneDocMB === null ? [] : [oneDocMB], 200, 1, "median"), physicalMB: oneDocMB, settled: stableMemory, observations: oneDocumentMemory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
+  receipt.gates.memory = { status: oneDocMB !== null && oneDocMB < 200 ? "pass" : "fail", count: settled.length, minimum: 5, target: 200,
+    statistic: "max(window median, final total)", physicalMB: oneDocMB,
+    windowMedianMB: percentile(settled.map(sample => sample.physicalBytes / 1_000_000), 0.5), finalMB: oneDocumentMemory.at(-1)?.physicalBytes! / 1_000_000,
+    windowEnd: settled.at(-1)?.at ?? null, settled: stableMemory, observations: oneDocumentMemory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
   for (const panes of typingPaneCounts) for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
     if (typingCases && !typingCases.includes(`${mode}/${position}/${method}`)) continue;
     const sample = typing.find((value) => value.panes === panes && value.method === method && value.mode === mode && value.position === position);

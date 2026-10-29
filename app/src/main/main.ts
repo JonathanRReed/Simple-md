@@ -368,7 +368,7 @@ async function settle(current = currentSession(), prompt = false, host = context
     flush: () => requestFlush(current, host),
     save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
     choose: async () => {
-      reveal();
+      reveal(host);
       const { response } = await dialog.showMessageBox(host.win, {
         type: "warning",
         message: `Save changes to “${current.name}”?`,
@@ -442,8 +442,8 @@ function updateTitle(host = context()): void {
   }
 }
 
-function watch(doc: DocumentSession): void {
-  doc.watch((text, reason) => send("smd:disk-changed", text, doc.documentId, reason));
+function watch(doc: DocumentSession, host = context()): void {
+  doc.watch((text, reason) => sendTo(host, "smd:disk-changed", text, doc.documentId, reason));
 }
 
 const documentWaiters = new Map<string, Set<() => void>>();
@@ -470,7 +470,7 @@ async function present(payload: DocPayload, host = context()): Promise<void> {
   payload.paneId = host.mainPane.paneId;
   if (!host.layout.has(previous)) registry.remove(previous);
   const doc = currentSession(host);
-  watch(doc);
+  watch(doc, host);
   updateTitle(host);
   const usable = waitUntilUsable(payload.documentId, host);
   perfMark("renderer-send", { path: payload.path, documentId: payload.documentId });
@@ -687,10 +687,12 @@ async function newDocumentWindow(): Promise<void> {
 function runCommand(cmd: Command, target = context().layout.active?.documentId): void {
   const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
-    case "close-tab":
-      if (context().layout.state.tabs.length && target !== undefined) void documents.run(() => closeTab(target));
-      else if (!context().win.isDestroyed()) context().win.destroy();
+    case "close-tab": {
+      const host = context();
+      if (host.layout.state.tabs.length && target !== undefined) void documents.run(() => closeTab(target, host));
+      else finishClosedWindow(host);
       return;
+    }
     case "move-tab-window": void documents.run(moveTabToWindow); return;
     case "next-tab": context().layout.cycle(1); syncLayout(); return;
     case "previous-tab": context().layout.cycle(-1); syncLayout(); return;
@@ -966,7 +968,7 @@ function registerIpc(): void {
     context().layout.focus(id); syncLayout();
     return context().layout.active?.documentId;
   });
-  handle("smd:close-tab", id => { const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId)); });
+  handle("smd:close-tab", id => { const host = context(); const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId, host)); });
   handle("smd:ready", () => {
     trace("renderer-ready");
     context().rendererReady = true;
@@ -1059,7 +1061,7 @@ function registerIpc(): void {
   });
   handle("smd:open-dialog", openDialog);
   handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true, inPlace === true ? ipcDocument(id) : undefined, context()); });
-  handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id)));
+  handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id), context()));
   handle("smd:find-read", readFindText);
   handle("smd:find-write", text => writeFindText(ipcText(text)));
   handle("smd:context-menu", async (input, id) => {
@@ -1077,7 +1079,7 @@ function registerIpc(): void {
         dictionary: word => { host.win.webContents.session.addWordToSpellCheckerDictionary(word); },
         open: (url, newTab) => {
           if (url.startsWith("#")) result = { kind: "fragment", href: url };
-          else void windowScope.run(host, () => openLink(url, doc.intent, newTab, doc));
+          else void windowScope.run(host, () => openLink(url, doc.intent, newTab, doc, host));
         },
         copy: text => { void clipboard.writeText(text); },
         reveal: url => { void containedLocalFile(url, urlContext(doc.path ? path.dirname(doc.path) : undefined)).then(file => shell.showItemInFolder(file)).catch(() => {}); },
