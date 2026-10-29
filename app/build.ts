@@ -18,7 +18,7 @@ await bundle({
   target: "node",
   format: "esm",
   splitting: true,
-  external: ["electron"],
+  external: ["electron", "electron-updater"],
   naming: { entry: "[name].mjs", chunk: "chunks/[name]-[hash].mjs", asset: "chunks/[name]-[hash].[ext]" },
 });
 

@@ -22,7 +22,9 @@
     "check:rust": "cargo check --locked --manifest-path native/Cargo.toml",
     "test:rust": "cargo test --locked --manifest-path native/Cargo.toml",
     "perf:gate": "bun run build && bun run bench.ts --perf-gate",
-    "test:cli": "bun scripts/verify-cli.ts"
+    "test:cli": "bun scripts/verify-cli.ts",
+    "release:mac": "bun run build/release-mac.mjs",
+    "test:release": "bun test build/release.test.mjs test/update-policy.test.ts"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.4",
@@ -224,5 +226,8 @@
     ]
   },
   "desktopName": "simplemd.desktop",
-  "homepage": "https://github.com/JonathanRReed/Simple-md"
+  "homepage": "https://github.com/JonathanRReed/Simple-md",
+  "dependencies": {
+    "electron-updater": "6.8.3"
+  }
 }

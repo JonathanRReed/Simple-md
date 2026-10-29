@@ -21,4 +21,5 @@ autosave = true
 vim = false
 spellcheck = true
 remote-images = true
+auto-update = true
 launch-at-login = false

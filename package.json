@@ -18,6 +18,8 @@
     "pack:plan": "bun run --cwd app pack:plan",
     "dist": "bun run --cwd app dist",
     "bench": "bun run --cwd app bench",
-    "perf:gate": "bun run --cwd app perf:gate"
+    "perf:gate": "bun run --cwd app perf:gate",
+    "release:mac": "bun run --cwd app release:mac",
+    "test:release": "bun run --cwd app test:release"
   }
 }

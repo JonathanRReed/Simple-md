@@ -119,6 +119,7 @@ function createDocumentWindow(): WindowContext {
   frontmost = host;
   return host;
 }
+let updates: ReturnType<typeof import("./updater.js")["createUpdater"]> | undefined;
 let quitting = false;
 let settingsWindow: ReturnType<typeof createSettingsWindow> | undefined;
 
@@ -175,6 +176,8 @@ function refreshMenus(): void {
     share: () => { const doc = currentSession(); if (doc?.path) shareDocument(context().win, doc.path); },
     hasDocumentPath: () => !!activeDoc?.path,
     installCli: () => void installCli(),
+    checkUpdates: () => void updates?.check(true),
+    installUpdate: () => void updates?.install(),
     quit: () => app.quit(),
   });
   if (next.tray !== lastMenuState?.tray) tray?.setContextMenu(trayMenu());
@@ -1218,6 +1221,7 @@ function scheduleCliServer(): void {
 async function prepareQuit(): Promise<void> {
   trace("quit-cleanup-start");
   quitting = true;
+  updates?.stop();
   tray?.destroy();
   tray = undefined;
   await cliStartup;
@@ -1311,6 +1315,16 @@ if (!app.requestSingleInstanceLock()) {
     // File and URL opens have painted. Blank and background launches wait for the renderer,
     // then yield an idle tick. CLI imports and runtime probes never gate the first window.
     void context().loaded.then(scheduleCliServer);
+    if (app.isPackaged) void context().loaded.then(async () => {
+      const { createUpdater } = await import("./updater.js");
+      if (quitting) return;
+      updates = createUpdater(() => settings.autoUpdate, () => documents.run(async () => {
+        if (!await settleAllWindows()) return false;
+        await prepareQuit();
+        return true;
+      }));
+      void updates.check();
+    });
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {
       try {

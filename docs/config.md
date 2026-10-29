@@ -34,6 +34,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `vim` | `false` | true, false |
 | `spellcheck` | `true` | true, false |
 | `remote-images` | `true` | true, false |
+| `auto-update` | `true` | true, false |
 | `launch-at-login` | `false` | true, false |
 
 The default appearance follows the system and selects the configured light or dark theme. Theme colors apply only to the document. Chrome, focus and selection use the system accent. GitHub style fixes reading typography at 16px system UI, line height 1.5 and a maximum width of 980px. Switching back restores the reading font, size and measure. Writing and code typography remain independent. Widths use characters of the selected font; code blocks scroll horizontally when needed. No fonts are bundled for these roles. KaTeX retains its math fonts.
@@ -66,5 +67,6 @@ autosave = true
 vim = false
 spellcheck = true
 remote-images = true
+auto-update = true
 launch-at-login = false
 ```

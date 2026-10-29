@@ -1,0 +1,21 @@
+import { readFileSync } from "node:fs";
+import { appDir, buildNative, currentNativePlan, run } from "./native.mjs";
+import { localEnvironment } from "./local-pack.mjs";
+import { releaseConfig, releaseVersion } from "./release-config.mjs";
+import { withLinuxCliHooks } from "./linux-cli.mjs";
+import path from "node:path";
+
+const version = releaseVersion(JSON.parse(readFileSync(path.join(appDir, "package.json"))).version);
+if (process.env.GITHUB_REF_TYPE === "tag" && process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error("Tag does not match package version.");
+if (!["win32", "linux"].includes(process.platform) || process.arch !== "x64") throw new Error("CI release supports Windows and Linux x64.");
+const clean = localEnvironment(process.env);
+for (const key of Object.keys(process.env)) if (!(key in clean)) delete process.env[key];
+Object.assign(process.env, clean);
+run(process.execPath, ["run", "build"]);
+const plan = currentNativePlan();
+buildNative(plan);
+const config = { ...releaseConfig(plan, "release"), forceCodeSigning: false, win: { signExecutable: false }, nsis: { differentialPackage: false } };
+const { build, createTargets, Platform } = await import("electron-builder");
+const options = { projectDir: appDir, targets: createTargets([Platform.current()], null, "x64"), config, publish: "never" };
+if (process.platform === "linux") await withLinuxCliHooks(config, combined => build({ ...options, config: combined }));
+else await build(options);

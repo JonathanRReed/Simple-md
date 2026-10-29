@@ -16,6 +16,8 @@ export interface MenuActions {
   hasDocumentPath(): boolean;
   quit(): void;
   installCli(): void;
+  checkUpdates(): void;
+  installUpdate(): void;
 }
 
 export function buildMenu(a: MenuActions): void {
@@ -50,6 +52,8 @@ export function buildMenu(a: MenuActions): void {
             label: app.name,
             submenu: [
               { role: "about" },
+              { label: "Check for Updates…", click: a.checkUpdates },
+              { label: "Restart to Install Update…", click: a.installUpdate },
               { type: "separator" },
               cmd("Settings…", "preferences", "Command+,"),
               { label: "Install Command Line Tool", click: a.installCli },
@@ -179,6 +183,10 @@ export function buildMenu(a: MenuActions): void {
       ],
     },
     { role: "windowMenu" },
+    ...(mac ? [] : [{ label: "Help", submenu: [
+      { label: "Check for Updates…", click: a.checkUpdates },
+      { label: "Restart to Install Update…", click: a.installUpdate },
+    ] } satisfies MenuItemConstructorOptions]),
   ];
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

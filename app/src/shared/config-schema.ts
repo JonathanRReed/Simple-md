@@ -31,6 +31,7 @@ export const configSchema = {
   "vim": { ...boolean("vim", "Vim key bindings", "Behavior", false), setting: "vim" },
   "spellcheck": { ...boolean("spellcheck", "Spellcheck", "Behavior", true), setting: "spellcheck" },
   "remote-images": { ...boolean("remoteImages", "Remote images", "Behavior", true), setting: "remoteImages" },
+  "auto-update": { ...boolean("autoUpdate", "Automatic updates", "Behavior", true), setting: "autoUpdate" },
   "launch-at-login": { ...boolean("launchAtLogin", "Launch at login", "Behavior", false), setting: "launchAtLogin" },
 } as const;
 export type ConfigKey = keyof typeof configSchema;
