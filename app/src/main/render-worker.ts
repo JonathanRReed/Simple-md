@@ -1,4 +1,3 @@
-import { calculateBlockChanges } from "./block-changes.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
 import { IncrementalBlocks } from "./incremental-blocks.js";
 import { blockDelta, type BlockDelta } from "../shared/block-delta.js";
@@ -45,9 +44,11 @@ port.on("message", async (request: RenderRequest) => {
   try {
     let response: RenderResponse;
     switch (request.kind) {
-      case "changes":
+      case "changes": {
+        const { calculateBlockChanges } = await import("./block-changes.js");
         response = { id: request.id, kind: "changes", value: await calculateBlockChanges(request.before, request.text, request.filePath, request.baselineKey) };
         break;
+      }
       case "stream-start":
         incremental = undefined;
         response = { id: request.id, kind: "blocks", value: await streams.start(request.text, request.filePath) };

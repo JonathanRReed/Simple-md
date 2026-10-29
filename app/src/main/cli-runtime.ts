@@ -16,10 +16,18 @@ async function refused(endpoint: string): Promise<boolean> {
   return new Promise(resolve => {
     perfMark("cli-probe-start");
     const socket = net.createConnection(endpoint);
-    const done = (stale: boolean) => { perfMark("cli-probe-end", { stale }); socket.destroy(); resolve(stale); };
+    let settled = false;
+    const timer = setTimeout(() => done(false), 100);
+    const done = (stale: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      perfMark("cli-probe-end", { stale });
+      socket.destroy();
+      resolve(stale);
+    };
     socket.once("connect", () => done(false));
     socket.once("error", error => done("code" in error && (error.code === "ECONNREFUSED" || error.code === "ENOENT")));
-    socket.setTimeout(400, () => done(false));
   });
 }
 export async function prepareCliRuntime(binary: string, profile?: string): Promise<{ directory: string; endpoint: string; secret: string; cleanup(): void }> {

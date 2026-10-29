@@ -1,6 +1,5 @@
-import { DragExports, type ExportFormat } from "./drag-export.js";
-import { readGitBaseline } from "./git-baseline.js";
-import { startOptionalCliServer, type CliDispatch } from "./cli-server.js";
+import type { DragExports, ExportFormat } from "./drag-export.js";
+import type { startOptionalCliServer, CliDispatch } from "./cli-server.js";
 import { DocumentWaiters, parseOpenUrl } from "./cli-protocol.js";
 import { installCli, bundledCli } from "./install-cli.js";
 import { FlushWaiters } from "./flush-waiters.js";
@@ -47,7 +46,7 @@ import type {
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
-import { createExportJobs, printWaiters, writeExportAtomic } from "./export-job.js";
+import { writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
 import { blockChanges, startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
@@ -81,6 +80,7 @@ let settings: Settings = { ...loadSettings() };
 let tray: Tray | undefined;
 const cliWaiters = new DocumentWaiters();
 let cliServer: Awaited<ReturnType<typeof startOptionalCliServer>> | undefined;
+let cliStartup: Promise<void> | undefined;
 const registry = new DocumentRegistry(id => cliWaiters.closed(id));
 const documents = new DocumentQueue();
 interface WindowContext {
@@ -750,13 +750,23 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
 
 // ───────── export & print ─────────
 
-const exportJobs = createExportJobs(here, () => settings);
+let exportModule: typeof import("./export-job.js") | undefined;
+let exportJobs: ReturnType<typeof import("./export-job.js")["createExportJobs"]> | undefined;
+async function getExportJobs() {
+  exportModule ??= await import("./export-job.js");
+  return exportJobs ??= exportModule.createExportJobs(here, () => settings);
+}
 const exportSource = (text: string, current = currentSession()) => ({ path: current.path, name: current.name, text });
-const makePdf = (text: string, current = currentSession()) => exportJobs.makePdf(exportSource(text, current));
-const makeHtml = (text: string, current = currentSession()) => exportJobs.makeHtml(exportSource(text, current));
-const withPrintWindow = <T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()) =>
-  exportJobs.withPrintWindow(exportSource(text, current), use);
-const dragExports = new DragExports();
+const makePdf = async (text: string, current = currentSession()) => (await getExportJobs()).makePdf(exportSource(text, current));
+const makeHtml = async (text: string, current = currentSession()) => (await getExportJobs()).makeHtml(exportSource(text, current));
+const withPrintWindow = async <T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()) =>
+  (await getExportJobs()).withPrintWindow(exportSource(text, current), use);
+let dragExports: DragExports | undefined;
+async function getDragExports() {
+  if (dragExports) return dragExports;
+  const { DragExports } = await import("./drag-export.js");
+  return dragExports ??= new DragExports();
+}
 
 // M6a can unify this adapter with its shared export job without changing drag lifetime.
 async function exportDocumentBytes(doc: DocumentSession, text: string, format: ExportFormat): Promise<Buffer> {
@@ -1022,6 +1032,7 @@ function registerIpc(): void {
     const generation = doc.baselineGeneration;
     const file = doc.path;
     if (enabled) {
+      const { readGitBaseline } = await import("./git-baseline.js");
       const result = await readGitBaseline(file);
       if (doc.path !== file || registry.get(doc.documentId) !== doc || generation !== doc.baselineGeneration) throw new Error("The document or change baseline was replaced.");
       doc.gitStatus = result.available ? { available: true, active: true } : result;
@@ -1077,17 +1088,19 @@ function registerIpc(): void {
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (text !== doc.text || (format !== "html" && format !== "pdf")) throw new TypeError("Invalid export source or format.");
-    return documents.run(() => doc.render(revisionId, () => dragExports.prepare(doc.documentId, revisionId, doc.name, format, () => exportDocumentBytes(doc, text, format))));
+    return documents.run(() => doc.render(revisionId, async () => (await getDragExports()).prepare(doc.documentId, revisionId, doc.name, format, () => exportDocumentBytes(doc, text, format))));
   });
   on("smd:start-drag-export", (event, id, revision, token) => {
     try {
       const doc = ipcSession(id);
       const revisionId = ipcRevision(doc, revision);
       if (typeof token !== "string") throw new TypeError("Invalid export token.");
-      const file = dragExports.take(token, doc.documentId, revisionId);
+      const exports = dragExports;
+      if (!exports) throw new Error("Prepare an export before dragging.");
+      const file = exports.take(token, doc.documentId, revisionId);
       void app.getFileIcon(file, { size: "small" }).then(icon => {
         if (event.sender.isDestroyed() || !doc.isCurrent(revisionId)) return;
-        event.sender.startDrag({ file: dragExports.take(token, doc.documentId, revisionId), icon });
+        event.sender.startDrag({ file: exports.take(token, doc.documentId, revisionId), icon });
       }).catch(error => console.warn("simplemd: could not start export drag", error));
     } catch (error) { console.warn("simplemd: drag export unavailable", error); }
   });
@@ -1107,7 +1120,7 @@ function registerIpc(): void {
     return documents.run(() => { ipcDocument(documentId); return printDoc(text); });
   });
   ipcMain.on("smd:print-ready", (e, error: unknown) => {
-    if (e.senderFrame === e.sender.mainFrame) printWaiters.get(e.sender.id)?.(typeof error === "string" ? error : undefined);
+    if (e.senderFrame === e.sender.mainFrame) exportModule?.printWaiters.get(e.sender.id)?.(typeof error === "string" ? error : undefined);
   });
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
@@ -1132,7 +1145,8 @@ const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
     const output = await fs.promises.realpath(request.output).catch(() => path.resolve(request.output));
     if (input === output) throw new Error("Export cannot replace its input.");
     const source = { path: request.path, name: path.basename(request.path), text };
-    const data = request.format === "html" ? await exportJobs.makeHtml(source) : await exportJobs.makePdf(source);
+    const jobs = await getExportJobs();
+    const data = request.format === "html" ? await jobs.makeHtml(source) : await jobs.makePdf(source);
     if (signal.aborted) throw new Error("CLI disconnected.");
     await writeExportAtomic(request.output, data, request.overwrite);
     return;
@@ -1178,11 +1192,27 @@ function fileArg(argv: string[]): string | undefined {
   return argv.slice(1).find((a) => !a.startsWith("-") && isMarkdown(a) && fs.existsSync(a));
 }
 
+function scheduleCliServer(): void {
+  if (cliStartup || quitting) return;
+  cliStartup = new Promise<void>(resolve => setImmediate(resolve)).then(async () => {
+    if (quitting) return;
+    trace("cli-start");
+    const { startOptionalCliServer } = await import("./cli-server.js");
+    if (quitting) return;
+    const binary = testProfile && process.platform === "win32" ? path.join(app.getAppPath(), "native/target/cli-tests/release/simplemd.exe") : bundledCli();
+    const server = await startOptionalCliServer({ binary, profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
+    if (quitting) server?.close();
+    else cliServer = server;
+    trace(server ? "cli-ready" : "cli-unavailable");
+  }).catch(error => { console.error("simplemd: CLI unavailable", error); trace("cli-unavailable"); });
+}
+
 async function prepareQuit(): Promise<void> {
   trace("quit-cleanup-start");
   quitting = true;
   tray?.destroy();
   tray = undefined;
+  await cliStartup;
   cliServer?.close();
   cliWaiters.clear();
   registry.dispose();
@@ -1190,7 +1220,7 @@ async function prepareQuit(): Promise<void> {
   settingsWindow?.close();
   flushSettings();
   trace("quit-resources-closed");
-  await dragExports.dispose();
+  await dragExports?.dispose();
   await disposeRenderer();
   trace("quit-worker-stopped");
   for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
@@ -1270,10 +1300,9 @@ if (!app.requestSingleInstanceLock()) {
     if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
-    const cliBinary = testProfile && process.platform === "win32" ? path.join(app.getAppPath(), "native/target/cli-tests/release/simplemd.exe") : bundledCli();
-    trace("cli-start");
-    cliServer = await startOptionalCliServer({ binary: cliBinary, profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
-    trace(cliServer ? "cli-ready" : "cli-unavailable");
+    // File and URL opens have painted. Blank and background launches wait for the renderer,
+    // then yield an idle tick. CLI imports and runtime probes never gate the first window.
+    void context().loaded.then(scheduleCliServer);
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {
       try {
