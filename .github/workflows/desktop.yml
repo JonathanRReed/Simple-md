@@ -45,6 +45,8 @@ jobs:
       - name: Lint preview
         run: cargo clippy --locked --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc --all-targets -- -D warnings
       - name: Test bounds, inert content, hidden COM lifecycle and fallback
+        id: preview-tests
+        continue-on-error: true
         run: cargo test --locked --manifest-path app/native/windows-preview/Cargo.toml -- --test-threads=1
       - name: Save hidden-window diagnostics before uninstall
         if: always()
@@ -101,6 +103,9 @@ jobs:
           name: Windows-preview-diagnostics
           if-no-files-found: ignore
           path: preview-diagnostics/
+      - name: Require preview tests to pass
+        if: always() && steps.preview-tests.outcome != 'success'
+        run: exit 1
 
   desktop:
     name: ${{ matrix.name }}

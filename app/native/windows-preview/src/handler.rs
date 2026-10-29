@@ -303,7 +303,7 @@ unsafe extern "system" fn preview_timer(_: HWND, _: u32, timer: usize, _: u32) {
             state.resources.borrow_mut().timer = 0;
             match pending.work {
                 PendingWork::Start => {
-                    if schedule(&state, pending.generation, PendingWork::Deadline, 10_000) {
+                    if schedule(&state, pending.generation, PendingWork::Deadline, 15_000) {
                         state.start(pending.generation);
                     } else {
                         state.fallback(pending.generation, "Cannot create startup deadline");
@@ -1293,7 +1293,7 @@ mod tests {
             state.fallback(stale, "Test: stale failure must not cancel new selection");
             assert!(state.current(current));
             // Let the real controller callbacks run. Either rich output or the bounded fallback is valid.
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(12);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(18);
             while state.current(current)
                 && state.resources.borrow().timer != 0
                 && std::time::Instant::now() < deadline

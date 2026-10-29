@@ -53,7 +53,7 @@ Do not install both copies at once.
    does not establish Explorer sandbox compatibility.
 3. For formatted preview, find `Static preview visible NavigationCompleted success=true`.
    For source preview, find `Native fallback:` with its reason or HRESULT.
-   Startup or render deadlines expire after 10 seconds. Source remains visible
+   Startup or render deadlines expire after 15 seconds. Source remains visible
    during startup. Find `Unload complete` and any deferred user-data cleanup.
 4. Send the source commit, Actions run URL, Windows version/architecture,
    WebView2 version from the log, screenshots, log, and the results of each step.

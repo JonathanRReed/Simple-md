@@ -10,14 +10,14 @@ CI builds a minimal Rust `IPreviewHandler` DLL that shows a fixed HTML page in W
 - where its user data folder can live, and
 - whether it renders and unloads cleanly when the selection changes.
 
-**M7 fallback:** the handler always shows bounded, read-only native source while WebView2 starts. If the runtime is missing, startup fails in low integrity, rendering fails or the 10-second deadline expires, it keeps source visible and logs the reason. Never disable the preview sandbox to make rendering work.
+**M7 fallback:** the handler always shows bounded, read-only native source while WebView2 starts. If the runtime is missing, startup fails in low integrity, rendering fails or the 15-second deadline expires, it keeps source visible and logs the reason. Never disable the preview sandbox to make rendering work.
 
 ## Lifecycle
 
 1. `Initialize` reads the stream through short reads up to 4 MB plus one truncation byte, decodes UTF-8 with replacement and records the access mode. It releases the stream before returning.
 2. `SetSite` keeps the host interface for accelerator forwarding.
 3. `SetWindow` and `SetRect` create and resize a child HWND.
-4. `DoPreview` displays literal source in a monospace, scrollable read-only EDIT control, capped at 128 Ki characters. A private one-shot timer queues WebView2 startup on the owning STA after `DoPreview` returns. A second timer bounds startup and rendering to 10 seconds. Both cancel on fallback or unload. The controller stays hidden until the final static document loads.
+4. `DoPreview` displays literal source in a monospace, scrollable read-only EDIT control, capped at 128 Ki characters. A private one-shot timer queues WebView2 startup on the owning STA after `DoPreview` returns. A second timer bounds startup and rendering to 15 seconds. Both cancel on fallback or unload. The controller stays hidden until the final static document loads.
 5. A generation counter cancels stale async work when the selection changes.
 6. `Unload` closes the controller, releases COM references, drops document data, and destroys the child window.
 
