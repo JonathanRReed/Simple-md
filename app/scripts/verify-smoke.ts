@@ -1102,6 +1102,60 @@ await test("tabs-last-close", async () => {
   assert.deepEqual(fs.readFileSync(file), Buffer.from(note));
 });
 
+
+const contextBase = { selectionPresent: false, editable: false, linkURL: "", imageURL: "", misspelledWord: "", suggestions: [] };
+await test("native-context-link-image", async () => {
+  const sibling = fixture("native-context/sibling.md", "# Sibling\n");
+  const image = fixture("native-context/image.svg", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20"/></svg>');
+  const file = fixture("native-context/note.md", "[Sibling](sibling.md)\n\n![Image](image.svg)\n");
+  await launch("native-context-link-image", file, [
+    evaluate(`await waitFor(() => document.querySelector('.prose a') && document.querySelector('.prose img'), 'Context fixtures did not render');`),
+    { nativeContext: { selector: ".prose img", context: { ...contextBase, imageURL: new URL("file://" + image).href }, labels: ["Copy Image Address", process.platform === "darwin" ? "Reveal in Finder" : process.platform === "win32" ? "Reveal in Explorer" : "Show in File Manager"] } },
+    { nativeContext: { selector: ".prose a", context: { ...contextBase, linkURL: new URL("file://" + sibling).href }, labels: ["Open Link", "Copy Link", "Open in New Tab"], choose: "Open in New Tab" } },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 2 && document.documentElement.dataset.documentPath === ${quote(sibling)}, 'Context action did not open sibling tab');`),
+  ]);
+});
+await test("native-context-spelling", async () => {
+  const text = "\ufeffwrod 😀\r\nnext  \rlast\n";
+  const file = fixture("native-spelling/note.md", text);
+  await launch("native-context-spelling", file, [
+    evaluate(`await waitFor(() => document.querySelector('.cm-line'), 'Missing editor');`),
+    { nativeContext: { selector: ".cm-line", context: { ...contextBase, editable: true, misspelledWord: "wrod", suggestions: ["word"] }, labels: ["word", "Add to Dictionary", "Cut", "Copy", "Paste", "Paste as Plain Text", "Select All"], choose: "word" } },
+    evaluate(`await waitFor(() => editorText().startsWith('word'), 'Spelling action did not replace through CodeMirror');`),
+    { save: true },
+    evaluate(`window.simplemd.command('undo'); await waitFor(() => editorText().startsWith('wrod'), 'Spelling undo did not restore source');`),
+    { save: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(text));
+});
+await test("native-recents-identity-accent", async () => {
+  const file = fixture("native-recents/note.md", "# Native\n");
+  await launch("native-recents-identity-accent", file, [
+    evaluate(`const ready = await window.simplemd.ready(); assert(ready.settings.recents.includes(${quote(file)}), 'Opened file missing from recents');`),
+    { nativeIdentity: { file, edited: false } },
+    evaluate(`document.documentElement.style.setProperty('--tab-accent', '#000000');`),
+    { nativeAccent: true },
+    evaluate(`if (document.body.dataset.platform !== 'linux') await waitFor(() => document.documentElement.style.getPropertyValue('--tab-accent') === document.documentElement.style.getPropertyValue('--system-accent'), 'Accent event did not update tabs');`),
+    { nativeMenu: ["File", "Open Recent", "Clear Menu"] },
+    evaluate(`assert((await window.simplemd.ready()).settings.recents.length === 0, 'Clear Menu retained recents'); window.simplemd.command('new'); await waitFor(() => document.documentElement.dataset.documentPath === '', 'Untitled tab did not open');`),
+    { nativeIdentity: { file: "", edited: false } },
+  ], "edit");
+});
+if (process.platform === "darwin") await test("native-find-pasteboard", async () => {
+  const file = fixture("native-find/note.md", "find this word\n");
+  await launch("native-find-pasteboard", file, [
+    { nativeFind: null },
+    evaluate(`const line = document.querySelector('.prose p'); const range = document.createRange(); range.selectNodeContents(line); window.getSelection().removeAllRanges(); window.getSelection().addRange(range);`),
+    { nativeMenu: ["Edit", "Use Selection for Find"] },
+    { wait: 100 },
+    { nativeFind: "find this word" },
+    { nativeMenu: ["Edit", "Find…"] },
+    evaluate(`await waitFor(() => document.querySelector('#find-input').value === 'find this word', 'Read find did not read system pasteboard'); document.querySelector('#find-input').dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true})); window.simplemd.command('toggle-edit'); await waitFor(() => document.querySelector('.cm-content'), 'Editor did not open');`),
+    { nativeMenu: ["Edit", "Find…"] },
+    evaluate(`await waitFor(() => document.querySelector('.cm-search input[name=search]')?.value === 'find this word', 'Editor find did not read system pasteboard');`),
+  ]);
+});
+
 const blog = process.env.SMD_BYTE_BLOG_DIR;
 if (blog) for (const name of fs.readdirSync(blog).filter((name) => name.endsWith(".mdx")).sort()) {
   await test(`bytes-blog-${name}`, async () => {

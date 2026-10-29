@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+type NativeStep = { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
+export type DriverStep = NativeStep | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -18,6 +19,7 @@ export async function runDriver(
   const needsBarrier = steps.some((step) => "barrier" in step);
   const lines = needsBarrier ? createInterface({ input: process.stdin }) : undefined;
   const acknowledgements = lines?.[Symbol.asyncIterator]();
+  let restoreFind: (() => Promise<void>) | undefined;
   let restoreSend: (() => void) | undefined;
   let removeDiagnostics: (() => void) | undefined;
   const flushStarted = new Map<number, number>();
@@ -25,6 +27,64 @@ export async function runDriver(
   let pendingDialog: { response: 0 | 1 | 2; savePath?: string } | undefined;
   try {
     for (const step of steps) {
+      if ("nativeMenu" in step || "nativeContext" in step || "nativeIdentity" in step || "nativeFind" in step || "nativeAccent" in step) {
+        const { BrowserWindow, Menu, clipboard, ClipboardItem, systemPreferences } = await import("electron");
+        const target = BrowserWindow.getAllWindows().find(w => w.webContents === win.webContents);
+        if (!target) throw new Error("Native driver window is missing.");
+        if ("nativeMenu" in step) {
+          let menu = Menu.getApplicationMenu();
+          let item: Electron.MenuItem | undefined;
+          for (const label of step.nativeMenu) {
+            item = menu?.items.find(i => i.label.replaceAll("&", "") === label);
+            if (!item) throw new Error(`Missing native menu item: ${label}`);
+            menu = item.submenu ?? null;
+          }
+          if (!item?.enabled) throw new Error("Native menu item is disabled.");
+          item.click({}, target, target.webContents);
+        } else if ("nativeIdentity" in step && process.platform === "darwin") {
+          if (target.getRepresentedFilename() !== step.nativeIdentity.file || target.isDocumentEdited() !== step.nativeIdentity.edited) throw new Error("Native document identity differs.");
+        } else if ("nativeFind" in step && process.platform === "darwin") {
+          const { readFindText } = await import("./find-pasteboard.js");
+          if (!restoreFind) {
+            const previous = await readFindText();
+            restoreFind = () => clipboard.write([new ClipboardItem({ "electron application/findtext": previous })]);
+          }
+          if (step.nativeFind !== null && await readFindText() !== step.nativeFind) throw new Error("Native find pasteboard differs.");
+        } else if ("nativeAccent" in step && process.platform !== "linux") {
+          systemPreferences.emit("accent-color-changed", {}, systemPreferences.getAccentColor());
+        } else if ("nativeContext" in step) {
+          const c = step.nativeContext;
+          const popup = Menu.prototype.popup;
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          try {
+            const shown = new Promise<void>((resolve, reject) => {
+              timer = setTimeout(() => reject(new Error("Native context menu did not open.")), 10000);
+              Menu.prototype.popup = function(options) {
+                try {
+                  for (const label of c.labels) if (!this.items.some(item => item.label === label)) throw new Error(`Missing context action: ${label}`);
+                  if (c.choose) {
+                    const item = this.items.find(item => item.label === c.choose);
+                    if (!item) throw new Error("Missing selected context action.");
+                    item.click({}, target, target.webContents);
+                  }
+                  resolve();
+                } catch (error) { reject(error); }
+                finally { options?.callback?.(); }
+              };
+            });
+            await target.webContents.executeJavaScript(`(() => {
+              const el = document.querySelector(${JSON.stringify(c.selector)});
+              if (!el) throw new Error('Missing context target');
+              const r = el.getBoundingClientRect();
+              el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.x + 4, clientY: r.y + r.height / 2 }));
+            })()`);
+            target.webContents.emit("context-menu", {}, { selectionText: c.context.selectionPresent ? "selected" : "", isEditable: c.context.editable,
+              linkURL: c.context.linkURL, srcURL: c.context.imageURL, misspelledWord: c.context.misspelledWord, dictionarySuggestions: c.context.suggestions });
+            await shown;
+          } finally { clearTimeout(timer); Menu.prototype.popup = popup; }
+        }
+        continue;
+      }
       if ("selectWindow" in step) {
         const { BrowserWindow } = await import("electron");
         const all = BrowserWindow.getAllWindows();
@@ -169,5 +229,5 @@ export async function runDriver(
     }
     if (pendingDialog) throw new Error("Expected close dialog did not appear.");
     return "complete";
-  } finally { restoreDialogs?.(); removeDiagnostics?.(); restoreSend?.(); lines?.close(); }
+  } finally { restoreDialogs?.(); removeDiagnostics?.(); restoreSend?.(); await restoreFind?.(); lines?.close(); }
 }

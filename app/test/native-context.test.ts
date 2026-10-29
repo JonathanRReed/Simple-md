@@ -39,6 +39,8 @@ test("native templates contain link, image, editor and spelling actions", () => 
   expect(spelling.map(i => i.label)).toContain("Add to Dictionary");
   expect(spelling.map(i => i.role)).toEqual(expect.arrayContaining(["cut", "copy", "paste", "pasteAndMatchStyle", "selectAll"]));
   expect(contextTemplate(empty, actions).map(i => i.role)).toEqual(["copy", "selectAll"]);
+  expect(contextTemplate(empty, { ...actions, share: noop }, "darwin").map(i => i.label)).toContain("Share");
+  for (const platform of ["win32", "linux"]) expect(contextTemplate({ ...empty, selectionPresent: true }, { ...actions, share: noop }, platform).map(i => i.label)).not.toContain("Share");
 });
 test("spelling replacement and undo preserve BOM and mixed line endings", () => {
   const source = "\ufeff# Title\r\nwrod 😀\rtrailing  \nlast\r\n";
