@@ -144,38 +144,40 @@ const blockEls = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 function mountBlocks(el: HTMLElement, blocks: RenderedBlock[], append = false): void {
   const prev = blockEls.get(el) ?? new Map<string, HTMLElement>();
   const next = append ? prev : new Map<string, HTMLElement>();
-  const fresh: HTMLElement[] = [];
+  const pending = document.createDocumentFragment();
   let cursor = append ? null : el.firstChild;
   for (const block of blocks) {
     let node = prev.get(block.key);
     if (node && node.dataset.fingerprint !== (block.fingerprint ?? block.key)) {
       destroyDiagrams(node);
       mountRenderedHtml(node, block, settings.remoteImages);
-      fresh.push(node);
     }
     if (!node) {
       node = document.createElement("div");
       node.className = "block";
       mountRenderedHtml(node, block, settings.remoteImages);
-      fresh.push(node);
     }
     node.dataset.fingerprint = block.fingerprint ?? block.key;
     node.dataset.sourceStart = String(block.sourceRange[0]);
     node.dataset.sourceEnd = String(block.sourceRange[1]);
     prev.delete(block.key);
     next.set(block.key, node);
-    if (node === cursor) cursor = cursor.nextSibling;
-    else el.insertBefore(node, cursor);
+    if (node === cursor) {
+      if (pending.childNodes.length) el.insertBefore(pending, cursor);
+      cursor = cursor.nextSibling;
+    } else pending.append(node);
   }
+  if (pending.childNodes.length) el.insertBefore(pending, cursor);
   for (const stale of append ? [] : prev.values()) {
     destroyDiagrams(stale);
     stale.remove();
   }
   blockEls.set(el, next);
   updateFragments(el);
+  // renderDiagrams is idempotent per block, so retained blocks only rejoin the readiness wait.
   const id = pane.documentId;
-  void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
-    if (id === pane.documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
+  void Promise.all([...next.values()].map((node) => renderDiagrams(node))).then(() => {
+    if (id === pane.documentId && blockEls.get(el) === next && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
   });
 }
 

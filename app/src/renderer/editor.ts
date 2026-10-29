@@ -13,7 +13,8 @@ import { classHighlighter } from "@lezer/highlight";
 import { type EditMode, LIVE_MAX_CHARS } from "../shared/types.js";
 import { type LiveHost, clearLiveCache, frontmatterExtension, liveExtension } from "./live.js";
 import { tableKeymap } from "./tables.js";
-import { byteText, exactText, parseByteText, restoreByteText } from "./byte-text.js";
+import { editorText } from "./editor-text.js";
+import { byteText, parseByteText, restoreByteText } from "./byte-text.js";
 
 export type FormatKind = "bold" | "italic" | "code" | "strike" | "link";
 
@@ -130,6 +131,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       extensions: [
         historySlot.of(history()),
         byteText.init(() => initial.format),
+        editorText,
         drawSelection(),
         dropCursor(),
         indentOnInput(),
@@ -154,7 +156,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             range.from = update.changes.mapPos(range.from, 1);
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
-          if (update.docChanged && !silent) opts.onChange(exactText(update.state));
+          if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
         }),
         EditorView.domEventHandlers({
           keydown(event) {
@@ -232,9 +234,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
 
   return {
     scroller: view.scrollDOM,
-    getText: () => exactText(view.state),
+    getText: () => view.state.field(editorText).text,
     setText(text, addToHistory = false) {
-      if (exactText(view.state) === text) return;
+      if (view.state.field(editorText).text === text) return;
       const next = parseByteText(text);
       const old = view.state.doc.toString();
       text = next.text;

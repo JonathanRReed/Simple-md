@@ -31,7 +31,8 @@ export async function runBatch(inputs: ComparisonInput[]) {
       root.append(copy);
     }
     document.body.append(root);
-    await renderDiagrams(root);
+    // Corpus parity checks every diagram, including those outside the viewport.
+    await renderDiagrams(root, { eager: true });
     const diagrams = sources.map((source, i) => {
       const holder = root.children[i];
       return { source, rendered: !!holder?.querySelector(".diagram-canvas svg") && !holder.querySelector('.diagram-error:not([hidden])') };
