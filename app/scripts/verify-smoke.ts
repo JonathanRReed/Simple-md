@@ -170,6 +170,7 @@ await test("m6b-watch-highlights", async () => {
       assert(!(await window.simplemd.headChanges(id, true)).available, 'Outside-repo HEAD read succeeded.');
       await window.simplemd.openPath(${quote(other)}, 'read');
       await window.simplemd.openPath(${quote(file)}, 'read');`),
+    { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: false, tooltip: true } },
   ], "read", { marker, file, text: after });
   assert.equal(fs.readFileSync(file, "utf8"), after, "Watch or Mark Seen changed source bytes.");
 });
@@ -205,6 +206,7 @@ await test("m6b-git-head-highlights", async () => {
   await launch("m6b-git-head-highlights", file, [
     evaluate(`const id = Number(document.querySelector('.document-pane').dataset.documentId);
       assert((await window.simplemd.gitStatus(id)).available, 'Git HEAD toggle is unavailable.');`),
+    { nativeMenuState: { path: ["View", "Show Changes Since Last Commit"], enabled: true, checked: false } },
     { nativeMenu: ["View", "Show Changes Since Last Commit"] },
     evaluate(`await waitFor(() => document.querySelector('#doc .change-highlight') && document.querySelector('#doc .change-deleted'), 'Git HEAD changes did not render.');
       assert(document.querySelectorAll('#doc .change-highlight').length === 1, 'HEAD marked unchanged blocks.');
@@ -215,6 +217,29 @@ await test("m6b-git-head-highlights", async () => {
     evaluate(`await waitFor(() => document.querySelector('#changes').hidden, 'Turning HEAD off kept highlights.');`),
   ]);
   assert.equal(fs.readFileSync(file, "utf8"), current);
+});
+
+await test("m6b-drag-export", async () => {
+  const source = '# Finished export\n\n![Local](image.png)\n\n<strong>Safe text</strong>\n\n<script>window.bad = true</script>\n';
+  const file = fixture("m6b-drag/note.md", source);
+  fs.writeFileSync(path.join(path.dirname(file), "image.png"), png);
+  const html = path.join(root, "drag-result.html"), pdf = path.join(root, "drag-result.pdf");
+  const htmlReceipt = path.join(root, "html-drag.json"), pdfReceipt = path.join(root, "pdf-drag.json");
+  await launch("m6b-drag-export", file, [
+    { dragExport: { format: "html", target: html, receipt: htmlReceipt } },
+    evaluate(`assert(document.querySelector('#drag-export').draggable, 'Finished HTML did not enable dragging.');
+      window.simplemd.command('toggle-edit'); await waitFor(() => document.querySelector('.cm-content'), 'Editor did not open.');
+      const view = document.querySelector('.cm-content').cmTile.root.view;
+      view.dispatch({changes: {from: view.state.doc.length, insert: '\\nEdited export.\\n'}});
+      assert(!document.querySelector('#drag-export').draggable, 'An edit left a stale export draggable.');`),
+    { dragExport: { format: "pdf", target: pdf, receipt: pdfReceipt } },
+  ]);
+  const exported = fs.readFileSync(html, "utf8");
+  assert(exported.includes('data:image/png;base64,') && exported.includes('<strong>Safe text</strong>'), "HTML drag lost images or safe markup.");
+  assert(!/<script\b|src=["']file:/i.test(exported), "Drag HTML retained executable markup or local resource paths.");
+  assert.equal(fs.readFileSync(pdf).subarray(0, 5).toString(), "%PDF-");
+  for (const receipt of [htmlReceipt, pdfReceipt]) assert(!fs.existsSync(JSON.parse(fs.readFileSync(receipt, "utf8")).file), "Temporary drag export survived normal exit.");
+  assert.equal(fs.readFileSync(file, "utf8"), source, "Drag export changed source bytes.");
 });
 
 await test("normal-read-window", async () => {

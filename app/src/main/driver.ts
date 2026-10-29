@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
 type NativeStep = { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
-export type DriverStep = NativeStep | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = NativeStep | { nativeMenuState: { path: string[]; enabled: boolean; checked?: boolean; tooltip?: boolean } } | { dragExport: { format: "html" | "pdf"; target: string; receipt: string } } | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -28,6 +28,46 @@ export async function runDriver(
   let pendingDialog: { response: 0 | 1 | 2; savePath?: string } | undefined;
   try {
     for (const step of steps) {
+      if ("nativeMenuState" in step) {
+        const { Menu } = await import("electron");
+        let menu = Menu.getApplicationMenu();
+        let item: Electron.MenuItem | undefined;
+        for (const label of step.nativeMenuState.path) { item = menu?.items.find(i => i.label.replaceAll("&", "") === label); menu = item?.submenu ?? null; }
+        if (!item || item.enabled !== step.nativeMenuState.enabled || step.nativeMenuState.checked !== undefined && item.checked !== step.nativeMenuState.checked || step.nativeMenuState.tooltip && !item.toolTip) throw new Error("Native menu state differs.");
+        continue;
+      }
+      if ("dragExport" in step) {
+        const { BrowserWindow } = await import("electron");
+        const target = BrowserWindow.getAllWindows().find(w => w.webContents === win.webContents);
+        if (!target) throw new Error("Drag source window is missing.");
+        const startDrag = target.webContents.startDrag;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const dragged = new Promise<void>((resolve, reject) => {
+            timer = setTimeout(() => reject(new Error("Prepared export did not reach startDrag.")), 20000);
+            target.webContents.startDrag = options => {
+              void (async () => {
+                const bytes = await fs.readFile(options.file);
+                if (step.dragExport.format === "pdf" ? bytes.subarray(0, 5).toString() !== "%PDF-" : !bytes.toString().startsWith("<!doctype html>")) throw new Error("Drag export is incomplete or has the wrong format.");
+                if (options.icon && typeof options.icon !== "string" && options.icon.isEmpty()) throw new Error("Drag icon is empty.");
+                await fs.copyFile(options.file, step.dragExport.target);
+                await fs.writeFile(step.dragExport.receipt, JSON.stringify({ file: options.file, bytes: bytes.length }));
+              })().then(resolve, reject);
+            };
+          });
+          await target.webContents.executeJavaScript(`(async () => {
+            const format = document.querySelector('[data-active="true"] [data-element="export-format"]');
+            const button = document.querySelector('[data-active="true"] [data-element="drag-export"]');
+            format.value = ${JSON.stringify(step.dragExport.format)}; format.dispatchEvent(new Event('change'));
+            button.click();
+            const deadline = performance.now() + 15000;
+            while (!button.draggable) { if (performance.now() > deadline) throw new Error('Export was not prepared.'); await new Promise(r => setTimeout(r, 25)); }
+            button.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true}));
+          })()`);
+          await dragged;
+        } finally { clearTimeout(timer); target.webContents.startDrag = startDrag; }
+        continue;
+      }
       if ("nativeMenu" in step || "nativeContext" in step || "nativeIdentity" in step || "nativeFind" in step || "nativeAccent" in step) {
         const { BrowserWindow, Menu, clipboard, ClipboardItem, systemPreferences } = await import("electron");
         const target = BrowserWindow.getAllWindows().find(w => w.webContents === win.webContents);

@@ -24,3 +24,25 @@ test("outside a repository and unsaved files are unavailable", async () => {
   expect((await readGitBaseline(file)).available).toBe(false);
   expect((await readGitBaseline(null)).available).toBe(false);
 });
+
+test("missing git, timed-out reads, and oversized output disable HEAD", async () => {
+  const dir = await directory(), file = path.join(dir, "note.md");
+  await fs.writeFile(file, "Current");
+  const previous = process.env.PATH;
+  try {
+    process.env.PATH = dir;
+    expect(await readGitBaseline(file)).toEqual({ available: false, reason: "Git is unavailable." });
+    const executable = path.join(dir, "git");
+    const root = JSON.stringify(await fs.realpath(dir));
+    const script = (body: string) => `#!${process.execPath}\nif (process.argv.includes('rev-parse')) process.stdout.write(${root}); else { ${body} }\n`;
+    await fs.writeFile(executable, script("process.stdout.write('Fixture');"), { mode: 0o700 });
+    expect(await readGitBaseline(file)).toEqual({ available: true, text: "Fixture" });
+    await fs.writeFile(executable, script("process.stdout.write('x'.repeat(26 * 1024 * 1024));"), { mode: 0o700 });
+    expect((await readGitBaseline(file)).available).toBe(false);
+    await fs.writeFile(executable, script("setTimeout(() => process.stdout.write('Late'), 10000);"), { mode: 0o700 });
+    const start = performance.now();
+    expect((await readGitBaseline(file)).available).toBe(false);
+    expect(performance.now() - start).toBeGreaterThan(1500);
+    expect(performance.now() - start).toBeLessThan(5000);
+  } finally { process.env.PATH = previous; }
+});

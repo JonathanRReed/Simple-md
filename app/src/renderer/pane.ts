@@ -96,6 +96,45 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let visibleSince = 0;
   let seenOnReturn: RevisionId | undefined;
   let active = options.active();
+  const exportButton = $<HTMLButtonElement>("drag-export");
+  const exportFormat = $<HTMLSelectElement>("export-format");
+  let preparedExport: { token: string; name: string; revision: RevisionId } | undefined;
+  let exportSequence = 0;
+  function invalidateExport(): void {
+    ++exportSequence;
+    if (!preparedExport && !exportButton.disabled && !exportButton.draggable) return;
+    preparedExport = undefined;
+    exportButton.draggable = false;
+    exportButton.disabled = false;
+    exportButton.textContent = "Export";
+    exportButton.title = "Prepare a file to drag";
+  }
+  exportFormat.addEventListener("change", invalidateExport);
+  exportButton.addEventListener("click", () => {
+    if (preparedExport) return;
+    const id = pane.documentId, revision = doc.revisionId, sequence = ++exportSequence;
+    const format = exportFormat.value === "pdf" ? "pdf" : "html";
+    exportButton.disabled = true;
+    exportButton.textContent = "Preparing...";
+    void simplemd.prepareDragExport(currentText(), id, revision, format).then(result => {
+      if (disposed || id !== pane.documentId || revision !== doc.revisionId || sequence !== exportSequence) return;
+      preparedExport = { ...result, revision };
+      exportButton.disabled = false;
+      exportButton.draggable = true;
+      exportButton.textContent = `Drag ${format.toUpperCase()}`;
+      exportButton.title = `Drag ${result.name}`;
+    }).catch(error => {
+      if (disposed || id !== pane.documentId || sequence !== exportSequence) return;
+      invalidateExport();
+      toast(`Export failed: ${String(error)}`);
+    });
+  });
+  exportButton.addEventListener("dragstart", event => {
+    event.preventDefault();
+    if (!preparedExport || preparedExport.revision !== doc.revisionId) return;
+    simplemd.startDragExport(pane.documentId, preparedExport.revision, preparedExport.token);
+  });
+
 
   interface PaneState {
     paneId: PaneId;
@@ -138,6 +177,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     root.dataset.revisionId = String(doc.revisionId);
     simplemd.edit(text, pane.documentId, doc.revisionId);
     visibleRevision = undefined;
+    invalidateExport();
     if (highlights.kind) scheduleChanges();
   }
 
@@ -176,8 +216,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   // Retained blocks stay attached so diagrams and browser selections survive unchanged renders.
   const blockEls = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 
+  let paintedChanges = false;
   function paintChanges(): void {
     const { changed, deleted } = highlights.changes;
+    const hasChanges = !!(changed.length || deleted.length);
+    if (!hasChanges && !paintedChanges) { $("changes").hidden = true; return; }
+    paintedChanges = hasChanges;
     for (const article of [docEl, previewEl]) {
       for (const marker of article.querySelectorAll(":scope > .change-deleted")) marker.remove();
       const blocks = [...article.querySelectorAll<HTMLElement>(":scope > .block")];
@@ -593,6 +637,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
     disposed = false;
+    invalidateExport();
     clearTimeout(changeTimer);
     ++changeSequence;
     changeWork = undefined;
@@ -711,6 +756,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function onSaved(result: SaveResult): void {
     if (result.documentId !== pane.documentId) return;
     const moved = doc.meta.baseUrl !== result.baseUrl;
+    if (doc.meta.path !== result.path) {
+      invalidateExport();
+      void simplemd.gitStatus(pane.documentId).then(status => { if (!disposed && pane.documentId === result.documentId) gitStatus = status; }).catch(console.warn);
+    }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
     if (moved) {
       pane.editor?.setMode(pane.mode);

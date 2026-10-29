@@ -1165,7 +1165,7 @@ body:has(#stage[data-panes="1"] .document-pane[data-view="edit"]) .tb-title { ma
 body:not([data-platform="darwin"]) #stage[data-panes="1"] .pane-controls { inset-inline-end: max(150px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px)); }
 .pane-status { flex: none; padding: 3px 12px; color: var(--muted); font: 11px/1.5 var(--sans); text-align: end; }
 .pane-status { display: flex; align-items: center; gap: 8px; min-height: 26px; }
-.pane-status:has(> #hint[hidden]):has(> .change-controls[hidden]) { display: none; }
+
 .document-pane [data-element="editor-host"] { display: flex; flex: 1 1 0; min-width: 0; height: 100%; }
 .document-pane [data-element="preview-pane"] { flex: 1 1 0; min-width: 0; border-left: 1px solid var(--rule); display: flex; }
 .document-pane [data-element="empty"] { height: 100%; display: flex; align-items: center; justify-content: center; }
@@ -1188,3 +1188,9 @@ body.print .document-pane, body.print .pane-content { display: block; position: 
 .change-controls[hidden] { display: none; }
 .change-controls button { font: inherit; color: inherit; background: none; border: 0; border-radius: 4px; padding: 2px 4px; cursor: pointer; }
 .change-controls button:hover { background: var(--code-bg); }
+
+.drag-export-controls { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.drag-export-controls select, .drag-export-controls button { font: inherit; color: inherit; border: 0; background: transparent; border-radius: 4px; padding: 2px 4px; }
+.drag-export-controls button[draggable="true"] { cursor: grab; }
+.drag-export-controls button:hover { background: var(--code-bg); }
+.drag-export-controls button:disabled { opacity: .6; }

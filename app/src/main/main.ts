@@ -1,3 +1,4 @@
+import { DragExports, type ExportFormat } from "./drag-export.js";
 import { readGitBaseline } from "./git-baseline.js";
 import { FlushWaiters } from "./flush-waiters.js";
 import { menuState } from "./menu-state.js";
@@ -736,10 +737,11 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
 
 // ───────── export & print ─────────
 
+const dragExports = new DragExports();
 const printWaiters = new Map<number, (error?: string) => void>();
 
-async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>): Promise<T> {
-  const doc = await payloadFor(currentSession(), false, text, "read");
+async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()): Promise<T> {
+  const doc = await payloadFor(current, false, text, "read");
   const pw = new BrowserWindow({
     show: false,
     webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
@@ -766,10 +768,15 @@ async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: Doc
   }
 }
 
-function makePdf(text: string): Promise<Buffer> {
+function makePdf(text: string, current = currentSession()): Promise<Buffer> {
   return withPrintWindow(text, (pw) =>
-    pw.webContents.printToPDF({ printBackground: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
+    pw.webContents.printToPDF({ printBackground: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }), current,
   );
+}
+
+// M6a can unify this adapter with its shared export job without changing drag lifetime.
+async function exportDocumentBytes(doc: DocumentSession, text: string, format: ExportFormat): Promise<Buffer> {
+  return format === "pdf" ? makePdf(text, doc) : Buffer.from(await makeHtml(text, doc));
 }
 
 async function exportPdf(text: string): Promise<void> {
@@ -794,8 +801,7 @@ async function exportHtml(text: string): Promise<void> {
   shell.showItemInFolder(res.filePath);
 }
 
-async function makeHtml(text: string): Promise<string> {
-  const current = currentSession();
+async function makeHtml(text: string, current = currentSession()): Promise<string> {
   const { title, html } = await withPrintWindow(text, async (pw, doc) => {
     const sources: unknown = await pw.webContents.executeJavaScript(`Array.from(document.querySelectorAll('#doc img'), image => image.currentSrc || image.getAttribute('src') || '')`);
     if (!Array.isArray(sources) || !sources.every((source): source is string => typeof source === "string")) throw new Error("Invalid export images.");
@@ -814,7 +820,7 @@ async function makeHtml(text: string): Promise<string> {
     })()`);
     if (typeof html !== "string") throw new Error("Invalid export document.");
     return { title: doc.title, html };
-  });
+  }, current);
   const dir = path.join(here, "renderer");
   const css = await fs.promises.readFile(path.join(dir, "style.css"), "utf8");
   const katex = await embedKatexFonts(
@@ -1145,6 +1151,25 @@ function registerIpc(): void {
     });
   });
   handle("smd:set-settings", patch => applySettings(patch));
+  handle("smd:prepare-drag-export", (value, id, revision, format) => {
+    const text = ipcText(value);
+    const doc = ipcSession(id);
+    const revisionId = ipcRevision(doc, revision);
+    if (text !== doc.text || (format !== "html" && format !== "pdf")) throw new TypeError("Invalid export source or format.");
+    return documents.run(() => doc.render(revisionId, () => dragExports.prepare(doc.documentId, revisionId, doc.name, format, () => exportDocumentBytes(doc, text, format))));
+  });
+  on("smd:start-drag-export", (event, id, revision, token) => {
+    try {
+      const doc = ipcSession(id);
+      const revisionId = ipcRevision(doc, revision);
+      if (typeof token !== "string") throw new TypeError("Invalid export token.");
+      const file = dragExports.take(token, doc.documentId, revisionId);
+      void app.getFileIcon(file, { size: "small" }).then(icon => {
+        if (event.sender.isDestroyed() || !doc.isCurrent(revisionId)) return;
+        event.sender.startDrag({ file: dragExports.take(token, doc.documentId, revisionId), icon });
+      }).catch(error => console.warn("simplemd: could not start export drag", error));
+    } catch (error) { console.warn("simplemd: drag export unavailable", error); }
+  });
   handle("smd:export-pdf", (value, id) => {
     const text = ipcText(value);
     const documentId = ipcDocument(id);
@@ -1192,6 +1217,7 @@ async function prepareQuit(): Promise<void> {
   settingsWindow?.close();
   flushSettings();
   trace("quit-resources-closed");
+  await dragExports.dispose();
   await disposeRenderer();
   trace("quit-worker-stopped");
   for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
