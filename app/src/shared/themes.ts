@@ -1,0 +1,10 @@
+import editorialLight from "./themes/editorial-light.json";
+import editorialDark from "./themes/editorial-dark.json";
+import githubLight from "./themes/github-light.json";
+import githubDark from "./themes/github-dark.json";
+import solarizedLight from "./themes/solarized-light.json";
+import solarizedDark from "./themes/solarized-dark.json";
+import contrastLight from "./themes/contrast-light.json";
+import contrastDark from "./themes/contrast-dark.json";
+export const documentThemes = [editorialLight, editorialDark, githubLight, githubDark, solarizedLight, solarizedDark, contrastLight, contrastDark];
+export type DocumentTheme = typeof editorialLight;

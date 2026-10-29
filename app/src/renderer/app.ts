@@ -1,3 +1,4 @@
+import { applyDocumentStyle } from "./document-style.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
@@ -322,6 +323,7 @@ function applySettings(s: Settings): void {
   const modeChanged = settings.mode !== s.mode;
   const vimChanged = settings.vim !== s.vim;
   settings = s;
+  applyDocumentStyle(s);
   root.dataset.theme = s.theme;
   root.style.colorScheme = s.theme === "system" ? "light dark" : s.theme;
   root.dataset.width = s.width;

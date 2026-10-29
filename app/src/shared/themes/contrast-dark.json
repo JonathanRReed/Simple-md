@@ -1,0 +1,21 @@
+{
+  "id": "contrast-dark",
+  "label": "High Contrast Dark",
+  "appearance": "dark",
+  "background": "#000000",
+  "foreground": "#ffffff",
+  "muted": "#d8d8d8",
+  "link": "#8fcaff",
+  "rule": "#a0a0a0",
+  "codeBackground": "#101010",
+  "tableBackground": "#101010",
+  "selectionTint": "#253b4d",
+  "syntax": {
+    "keyword": "#ffa5a5",
+    "string": "#b7f5bd",
+    "number": "#a8d7ff",
+    "comment": "#d0d0d0",
+    "name": "#e4c5ff",
+    "type": "#ffd39f"
+  }
+}

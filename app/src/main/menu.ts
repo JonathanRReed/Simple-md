@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Menu, app, type MenuItemConstructorOptions } from "electron";
-import type { Command, EditMode, ReadingWidth, Settings, ThemeSetting, Typeface } from "../shared/types.js";
+import type { Command, EditMode, Settings, ThemeSetting } from "../shared/types.js";
 
 export interface MenuActions {
   settings(): Settings;
@@ -134,16 +134,8 @@ export function buildMenu(a: MenuActions): void {
           ),
         },
         {
-          label: "Typeface",
-          submenu: (["sans", "serif"] as const).map((t) =>
-            radio<Typeface>({ sans: "Sans", serif: "Serif" }[t], s.typeface, t, (v) => a.patch({ typeface: v })),
-          ),
-        },
-        {
-          label: "Reading Width",
-          submenu: (["narrow", "normal", "wide"] as const).map((w) =>
-            radio<ReadingWidth>({ narrow: "Narrow", normal: "Normal", wide: "Wide" }[w], s.width, w, (v) => a.patch({ width: v })),
-          ),
+          label: "GitHub Style", type: "checkbox", checked: s.readingStyle === "github",
+          click: () => a.patch({ readingStyle: s.readingStyle === "github" ? "editorial" : "github" }),
         },
         { type: "separator" },
         cmd("Zoom In", "zoom-in", "CommandOrControl+="),

@@ -1,68 +1,20 @@
+/* System colors belong to chrome. Document tokens are scoped below. */
 :root {
-  --bg: #fcfcfb;
-  --fg: #26262a;
-  --muted: #8a8a92;
-  --rule: rgba(0, 0, 0, 0.07);
-  --code-bg: rgba(20, 20, 30, 0.04);
-  --accent: #3b6df0;
-  --selection: rgba(59, 109, 240, 0.2);
-  --tok-keyword: #cf222e;
-  --tok-string: #0a3069;
-  --tok-number: #0550ae;
-  --tok-comment: #6e7781;
-  --tok-name: #8250df;
-  --tok-type: #953800;
-  --sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
-  --serif: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
-  --prose-font: var(--sans);
-  --measure: 44rem;
+  --bg: light-dark(#f5f5f5, #242424);
+  --fg: CanvasText;
+  --muted: GrayText;
+  --rule: light-dark(#dedede, #484848);
+  --code-bg: light-dark(#ececec, #303030);
+  --system-accent: Highlight;
+  --accent: var(--system-accent);
+  --selection: color-mix(in srgb, var(--system-accent) 25%, transparent);
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: Charter, "Sitka Text", Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --prose-font: var(--serif);
+  --measure: 66ch;
   --zoom: 1;
   color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #161617;
-    --fg: #e6e6ea;
-    --muted: #7d7d86;
-    --rule: rgba(255, 255, 255, 0.08);
-    --code-bg: rgba(255, 255, 255, 0.05);
-    --accent: #7ea2ff;
-    --selection: rgba(126, 162, 255, 0.28);
-    --tok-keyword: #ff7b72;
-    --tok-string: #a5d6ff;
-    --tok-number: #79c0ff;
-    --tok-comment: #8b949e;
-    --tok-name: #d2a8ff;
-    --tok-type: #ffa657;
-  }
-}
-
-:root[data-theme="dark"] {
-    --bg: #161617;
-    --fg: #e6e6ea;
-    --muted: #7d7d86;
-    --rule: rgba(255, 255, 255, 0.08);
-    --code-bg: rgba(255, 255, 255, 0.05);
-    --accent: #7ea2ff;
-    --selection: rgba(126, 162, 255, 0.28);
-    --tok-keyword: #ff7b72;
-    --tok-string: #a5d6ff;
-    --tok-number: #79c0ff;
-    --tok-comment: #8b949e;
-    --tok-name: #d2a8ff;
-    --tok-type: #ffa657;
-}
-
-:root[data-typeface="serif"] {
-  --prose-font: var(--serif);
-}
-:root[data-width="narrow"] {
-  --measure: 36rem;
-}
-:root[data-width="wide"] {
-  --measure: 62rem;
 }
 
 [hidden] {
@@ -89,13 +41,8 @@ body {
   overflow: hidden;
 }
 
-/* macOS gets native vibrancy behind a translucent surface. */
-body[data-platform="darwin"] {
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-}
-
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline: 2px solid var(--system-accent);
   outline-offset: 2px;
 }
 
@@ -479,7 +426,7 @@ body[data-platform="darwin"] .picker-card {
 
 .shiki,
 .shiki span {
-  color: light-dark(var(--shiki-light), var(--shiki-dark));
+  color: var(--smd-foreground, light-dark(var(--shiki-light), var(--shiki-dark)));
 }
 .prose pre.shiki {
   background: var(--code-bg) !important;
@@ -1058,4 +1005,97 @@ code,
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* Document theme and typography tokens. No theme variables escape #stage. */
+#stage {
+  --bg: light-dark(var(--light-background, #fbf7ee), var(--dark-background, #0a1219));
+  --fg: light-dark(var(--light-foreground, #1a2432), var(--dark-foreground, #f6efe1));
+  --muted: light-dark(var(--light-muted, #4b5364), var(--dark-muted, #cdbd9c));
+  --rule: light-dark(var(--light-rule, #d7c8aa), var(--dark-rule, #796744));
+  --code-bg: light-dark(var(--light-code-background, #f6f1e6), var(--dark-code-background, #0c161f));
+  --link: light-dark(var(--light-link, #2f638f), var(--dark-link, #8ab9dc));
+  --table-bg: light-dark(var(--light-table-background, #e9e3d6), var(--dark-table-background, #14212c));
+  --selection-tint: light-dark(var(--light-selection-tint, #e4e7ed), var(--dark-selection-tint, #233443));
+  --selection: color-mix(in srgb, var(--system-accent) 20%, var(--selection-tint));
+  --accent: var(--link);
+  --prose-font: var(--reading-font, Charter, Georgia, serif);
+  --measure: var(--reading-width, 66ch);
+  --mono: var(--code-font, ui-monospace, Menlo, monospace);
+  --tok-keyword: light-dark(var(--light-tok-keyword), var(--dark-tok-keyword));
+  --tok-string: light-dark(var(--light-tok-string), var(--dark-tok-string));
+  --tok-number: light-dark(var(--light-tok-number), var(--dark-tok-number));
+  --tok-comment: light-dark(var(--light-tok-comment), var(--dark-tok-comment));
+  --tok-name: light-dark(var(--light-tok-name), var(--dark-tok-name));
+  --tok-type: light-dark(var(--light-tok-type), var(--dark-tok-type));
+  --smd-background: var(--code-bg);
+  --smd-foreground: var(--fg);
+  --smd-token-keyword: var(--tok-keyword);
+  --smd-token-string: var(--tok-string);
+  --smd-token-string-expression: var(--tok-string);
+  --smd-token-constant: var(--tok-number);
+  --smd-token-comment: var(--tok-comment);
+  --smd-token-function: var(--tok-name);
+  --smd-token-parameter: var(--tok-type);
+  --smd-token-punctuation: var(--fg);
+  --smd-token-link: var(--link);
+  --smd-token-inserted: var(--tok-string);
+  --smd-token-deleted: var(--tok-keyword);
+  --smd-token-changed: var(--tok-type);
+  background: var(--bg);
+  color: var(--fg);
+}
+#stage ::selection { background: var(--selection); color: var(--fg); }
+#stage input, #stage button { accent-color: var(--system-accent); }
+#stage .prose { font-size: calc(var(--reading-size, 19px) * var(--zoom)); line-height: var(--reading-line-height, 1.68); }
+#stage .prose h1 { font-size: 2.05em; line-height: 1.15; }
+#stage .prose h2 { font-size: 1.55em; line-height: 1.22; }
+#stage .prose h3 { font-size: 1.25em; line-height: 1.3; }
+#stage .prose h4 { font-size: 1.08em; line-height: 1.4; }
+#stage .prose :is(h1, h2, h3, h4, h5, h6) { margin: 1.8em 0 .55em; font-weight: 600; }
+#stage .prose > :first-child { margin-top: 0; }
+#stage .prose :is(p, ul, ol, pre, table, blockquote, details) { margin-bottom: .9em; }
+#stage .prose li + li { margin-top: .25em; }
+#stage .prose a { text-decoration: underline; text-underline-offset: .14em; border-bottom: 0; }
+#stage .prose a:hover { text-decoration-thickness: 2px; }
+#stage .prose blockquote { border-inline-start: 2px solid var(--rule); }
+#stage .prose :is(code, pre), #stage .cm-code-text, #stage .cm-code-inline {
+  font-family: var(--mono); font-size: calc(var(--code-size, 14px) * var(--zoom)); line-height: var(--code-line-height, 1.55); font-variant-ligatures: none;
+}
+#stage .prose pre { max-width: var(--code-width, 100ch); padding: 16px; border: 1px solid var(--rule); border-radius: 6px; }
+#stage .prose pre code { font-size: inherit; line-height: inherit; }
+#stage .prose img { border-radius: 4px; }
+#stage .prose table { font-size: .9em; line-height: 1.5; }
+#stage .prose :is(td, th) { padding: 8px 12px; }
+#stage .prose tbody tr:nth-child(even) { background: var(--table-bg); }
+#stage .cm-content {
+  font-family: var(--writing-font, system-ui, sans-serif);
+  font-size: calc(var(--writing-size, 17px) * var(--zoom)); line-height: var(--writing-line-height, 1.65);
+  max-width: var(--writing-width, 66ch); margin-inline: auto;
+}
+#stage .cm-editor[data-mode="live"] .cm-content { font-family: var(--writing-font, system-ui, sans-serif); }
+#stage .cm-panels { --accent: var(--system-accent); }
+:root[data-reading-style="github"] #stage .prose {
+  --prose-font: var(--sans); --measure: 980px;
+  font-family: var(--sans); font-size: calc(16px * var(--zoom)); line-height: 1.5;
+  max-width: 980px; overflow-wrap: break-word;
+}
+:root[data-reading-style="github"] #stage .prose :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 24px; margin-bottom: 16px; line-height: 1.25; font-weight: 600; letter-spacing: normal;
+}
+:root[data-reading-style="github"] #stage .prose :is(h1, h2) { padding-bottom: .3em; border-bottom: 1px solid var(--rule); }
+:root[data-reading-style="github"] #stage .prose h1 { font-size: 2em; }
+:root[data-reading-style="github"] #stage .prose h2 { font-size: 1.5em; }
+:root[data-reading-style="github"] #stage .prose h3 { font-size: 1.25em; }
+:root[data-reading-style="github"] #stage .prose h4 { font-size: 1em; }
+:root[data-reading-style="github"] #stage .prose h5 { font-size: .875em; }
+:root[data-reading-style="github"] #stage .prose h6 { font-size: .85em; color: var(--muted); }
+:root[data-reading-style="github"] #stage .prose > :first-child { margin-top: 0; }
+:root[data-reading-style="github"] #stage .prose :is(p, ul, ol, pre, table, blockquote, details) { margin-top: 0; margin-bottom: 16px; }
+:root[data-reading-style="github"] #stage .prose :is(ul, ol) { padding-left: 2em; }
+:root[data-reading-style="github"] #stage .prose blockquote { padding: 0 1em; border-left-width: .25em; }
+:root[data-reading-style="github"] #stage .prose :is(td, th) { padding: 6px 13px; border: 1px solid var(--rule); }
+:root[data-reading-style="github"] #stage .prose table { font-size: 1em; }
+@media print {
+  #stage { --bg: white; --fg: #111; --muted: #454545; --rule: #ddd; --code-bg: #f5f5f5; --link: #174a8b; background: white; }
 }

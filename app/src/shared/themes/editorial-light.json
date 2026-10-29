@@ -1,0 +1,21 @@
+{
+  "id": "editorial-light",
+  "label": "Editorial Light",
+  "appearance": "light",
+  "background": "#fbf7ee",
+  "foreground": "#1a2432",
+  "muted": "#4b5364",
+  "link": "#2f638f",
+  "rule": "#d7c8aa",
+  "codeBackground": "#f6f1e6",
+  "tableBackground": "#e9e3d6",
+  "selectionTint": "#e4e7ed",
+  "syntax": {
+    "keyword": "#9c2438",
+    "string": "#245e3b",
+    "number": "#225e92",
+    "comment": "#626154",
+    "name": "#6845a2",
+    "type": "#8a4816"
+  }
+}

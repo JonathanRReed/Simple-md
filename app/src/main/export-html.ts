@@ -37,6 +37,7 @@ export async function embedKatexFonts(css: string, readFont: (relativePath: stri
 
 export const EXPORT_LIGHT_THEME = `
 :root { color-scheme: light; --bg: #fff; --fg: #242426; --muted: #65656b; --rule: #dedee2; --accent: #315cc5; --code-bg: #f2f2f4; --tok-keyword: #cf222e; --tok-string: #0a3069; --tok-number: #0550ae; --tok-comment: #6e7781; --tok-name: #8250df; --tok-type: #953800; }
+#stage { --bg: #fff; --fg: #242426; --muted: #454545; --rule: #dedee2; --code-bg: #f2f2f4; --link: #315cc5; --tok-keyword: #a51c30; --tok-string: #245e3b; --tok-number: #0550ae; --tok-comment: #59636e; --tok-name: #6b35b5; --tok-type: #953800; }
 body { background: var(--bg); color: var(--fg); }
-.shiki, .shiki span { color: var(--shiki-light) !important; background-color: var(--shiki-light-bg) !important; }
+.shiki { color: var(--smd-foreground, var(--shiki-light)) !important; background-color: var(--shiki-light-bg) !important; }
 `;

@@ -1,0 +1,21 @@
+{
+  "id": "github-dark",
+  "label": "GitHub Dark",
+  "appearance": "dark",
+  "background": "#0d1117",
+  "foreground": "#f0f6fc",
+  "muted": "#9198a1",
+  "link": "#58a6ff",
+  "rule": "#3d444d",
+  "codeBackground": "#151b23",
+  "tableBackground": "#151b23",
+  "selectionTint": "#1b2635",
+  "syntax": {
+    "keyword": "#ff7b72",
+    "string": "#a5d6ff",
+    "number": "#79c0ff",
+    "comment": "#9198a1",
+    "name": "#d2a8ff",
+    "type": "#ffa657"
+  }
+}

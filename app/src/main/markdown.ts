@@ -12,7 +12,7 @@ const resolveLang = (info: string) => {
   return LANGUAGE_ALIASES[raw] ?? raw;
 };
 
-const THEMES = { light: "github-light", dark: "github-dark" } as const;
+
 
 const MAX_HIGHLIGHT_CHARS = 100_000;
 const LANGUAGE_ALIASES: Record<string, string> = { gitignore: "ini" };
@@ -24,8 +24,8 @@ function getHighlighter(): Promise<HighlighterCore> {
   highlighterPromise ??= Promise.all([
     import("shiki/core"),
     import("shiki/engine/oniguruma"),
-  ]).then(([{ createHighlighterCore }, { createOnigurumaEngine }]) => createHighlighterCore({
-    themes: [import("shiki/themes/github-light.mjs"), import("shiki/themes/github-dark.mjs")],
+  ]).then(([{ createHighlighterCore, createCssVariablesTheme }, { createOnigurumaEngine }]) => createHighlighterCore({
+    themes: [createCssVariablesTheme({ name: "simplemd", variablePrefix: "--smd-" })],
     langs: [],
     engine: createOnigurumaEngine(import("shiki/wasm")),
   })).then((h) => (highlighter = h)).catch((error) => {
@@ -63,7 +63,7 @@ function highlight(code: string, lang: string): string {
   const hit = highlightCache.get(key);
   if (hit !== undefined) return hit;
   perfMark("highlight-start");
-  const html = highlighter!.codeToHtml(code, { lang, themes: THEMES, defaultColor: false });
+  const html = highlighter!.codeToHtml(code, { lang, theme: "simplemd" });
   perfMark("highlight-end");
   const bytes = Buffer.byteLength(key) + Buffer.byteLength(html);
   highlightCache.set(key, html, 2 * bytes);

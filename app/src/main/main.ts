@@ -16,6 +16,7 @@ import {
   screen,
   session,
   shell,
+  systemPreferences,
 } from "electron";
 import { isDocumentId, isRevisionId, isRequestId, makePaneId, makeRequestId, type DocumentId, type RequestId, type RevisionId } from "../shared/types.js";
 import { DocumentRegistry } from "./document-registry.js";
@@ -933,7 +934,8 @@ if (!app.requestSingleInstanceLock()) {
     settings.systemAccent = systemAccent();
     settingsWindow = createSettingsWindow({ here, config: configStore(), settings: () => settings, apply: applySettings });
     configStore().watch(value => applySettings(value, false));
-    nativeTheme.on("updated", () => settingsWindow?.changed());
+    nativeTheme.on("updated", () => applySettings({}, false));
+    if (process.platform !== "linux") systemPreferences.on("accent-color-changed", () => applySettings({}, false));
     win = createWindow();
     trace("window-created");
     // A login launch stays invisible until the first file open; a real launch shows its skeleton
