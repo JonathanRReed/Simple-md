@@ -457,3 +457,202 @@ host copies, the research clones, temporary helpers, and the dependency symlink.
 Scratch host unregistration can return `-10814` because those copies were never
 registered. The owner's `/tmp/simplemd-ql-netclient` scratch copy was read only
 and remains untouched. Retained evidence is under `evidence/followup/`.
+
+## Thumbnail
+
+Tested on 2026-10-28 in `t3/9cad2633`, based on `m0-foundations` at
+`0f1469fd2be986ce7a13b58c0db26ac328a55716`. The final run passes the six thumbnail
+fixtures, provider attribution, size and scale checks, and cleanup.
+
+`thumbnail/ThumbnailProvider.swift` subclasses `QLThumbnailProvider`.
+`ThumbnailCard.swift` reads at most 65,536 bytes with `FileHandle`, replaces
+invalid UTF-8 sequences, and draws with Core Text and Core Graphics. It selects
+the first ATX or Setext heading outside frontmatter and fenced code, or the file
+name. It strips simple inline Markdown, skips MDX import/export lines, and draws
+fenced code in Menlo on a gray block. Titles stop at 180 characters; the body
+keeps at most 24 source lines and 512 characters per line. Text wraps and clips
+inside the paper card. Empty files show their name and badge.
+
+The thumbnail has only App Sandbox. It has no WebKit, JavaScriptCore, network
+code, or network entitlement. The binary's direct dependencies and actual
+entitlements are in [signatures.txt](evidence/thumbnail/run-3/signatures.txt).
+The supported types include `com.fluxmarkdown.mdx`, because the installed
+FluxMarkdown declaration still determines `.mdx` on this Mac. This does not
+change the preview spike's type declarations or prove clean-machine MDX behavior.
+
+### Build and checks
+
+The final fresh-shell build was:
+
+```sh
+env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  /bin/bash --noprofile --norc app/native/quicklook/build.sh \
+  'Developer ID Application: Jonathan Reed (AJ9VWBRNZN)' \
+  /tmp/simplemd-ql-thumbnail-9cad2633-scale view \
+  > app/native/quicklook/evidence/thumbnail/build-scale.txt 2>&1
+```
+
+It returned 0. The host and both extensions contain arm64 and x86_64 slices,
+with minimum OS 13.0 in their Mach-O build commands. Each extension is signed
+before the enclosing host, with hardened runtime and a secure timestamp.
+`codesign --verify --deep --strict --verbose=2` passed on the build and installed
+host. No keychain prompt blocked signing. No Xcode or system software was
+installed, and nothing was notarized. The CLT linker still reports the known
+missing x86_64 slice in `libswiftCompatibilityPacks.a`, six warnings across the
+three universal executables. [Build](evidence/thumbnail/build-scale.txt),
+[installed checks](evidence/thumbnail/run-3/signatures.txt),
+[source hashes](evidence/thumbnail/source-sha256.txt).
+
+The `view`, `data`, and `data-static` arguments remain available. A fresh-shell
+`data-static` build also passed, and its preview logged `Data ready bytes=896`
+in run 2. The final view-based preview logged `Preview ready` in run 3.
+The real-parser `data` mode was not rerun. Preview source is unchanged.
+
+Run the parser checks and the registration/test/cleanup script from the repo root:
+
+```sh
+bash app/native/quicklook/thumbnail/check.sh
+bash app/native/quicklook/thumbnail/test-thumbnails.sh \
+  /tmp/simplemd-ql-thumbnail-9cad2633-scale \
+  app/native/quicklook/evidence/thumbnail/run-3
+```
+
+Both output directories must be new. The test script removes the supplied build
+directory's host app on exit. Rebuild before running it again. It copies
+`app/README.md` and creates the other fixtures, records signatures, generates the
+PNGs, checks provider logs and pixel coverage, and cleans up with an EXIT trap.
+INT and TERM also enter that cleanup. The parser checks cover frontmatter, MDX,
+heading selection, code fences, lists, invalid UTF-8, and the read/layout bounds.
+[Final checks](evidence/thumbnail/run-3/content-check.txt).
+
+### Registration and CLI gotchas
+
+All three runs used only this temporary installed host:
+
+```text
+/Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app
+```
+
+Each run used `ditto` to copy the build, `lsregister -f -v` to register the host,
+`open -n` once, and `pluginkit -a` for its two extensions. The thumbnail election
+was `use`. FluxMarkdown stayed enabled during thumbnail generation. Only the
+separate four-second preview check temporarily set FluxMarkdown to `ignore`
+and the spike preview to `use`. The script restored FluxMarkdown to `default`
+immediately after that check and again in its EXIT trap.
+
+Use server mode for this thumbnail extension on the tested Mac:
+
+```sh
+qlmanage -r cache
+qlmanage -t -x -s 512 -o "$output" "$fixture"
+qlmanage -t -x -s 128 -o "$small_output" "$small_fixture"
+qlmanage -t -x -s 256 -f 2 -o "$retina_output" "$retina_fixture"
+/usr/bin/log show --start "$start" --style compact --info --debug \
+  --predicate 'subsystem == "com.jonathanreed.simplemd.qlspike"'
+```
+
+Run 1 used the requested `qlmanage -t -s 512` without `-x`. It returned PNGs but
+never launched this thumbnail extension. Its raw-text images failed attribution
+and are retained separately in [run-1](evidence/thumbnail/run-1). Adding `-x`
+invoked the registered provider in runs 2 and 3. Run 2 restaged and re-signed the
+same loose compiler outputs after the first run's cleanup.
+
+The first 2x image also exposed a scale bug. Quick Look allocated a 512-pixel
+context for a 256-point request, but the drawing occupied only its lower-left
+quarter. The provider now applies `request.scale` to the Core Graphics context
+before drawing in points. The pixel check rejects that old image and passes the
+final 128-point and 2x outputs. [Failing check](evidence/thumbnail/scale-regression-red.txt),
+[passing check](evidence/thumbnail/run-3/content-check.txt).
+
+### Results and timings
+
+Final PNGs are 512 by 512 pixels. `SimpleMDQLThumbnail` PID 37360 logged
+`Thumbnail preparing` and `Thumbnail drawn` for every fixture. It logged
+`AppSandbox request successful`, and the focused log contains no thumbnail
+sandbox denials. The long-line read was exactly 65,536 bytes; the empty read was
+zero bytes. [Runtime log](evidence/thumbnail/run-3/runtime.txt),
+[fixture hashes](evidence/thumbnail/run-3/fixture-sha256.txt).
+
+| Fixture | qlmanage wall time, ms | Read through completed drawing, ms |
+| --- | ---: | ---: |
+| README.md | 352.232 | 25.750 |
+| no-heading.md | 34.111 | 3.389 |
+| frontmatter.mdx | 32.603 | 1.939 |
+| long-line.md | 47.092 | 10.373 |
+| empty.md | 33.236 | 1.645 |
+| non-utf8.md | 42.162 | 11.205 |
+
+These are one observation per fixture, in the listed order. Wall time starts
+before spawning `qlmanage` and ends after it exits with the PNG written. All six
+commands returned 0 and each has a matching draw log. The first request launched
+the provider; subsequent requests reused it. The internal interval starts before
+reading the file and ends after drawing, so it excludes process launch and reply
+transfer. The cache was cleared before the sequence. The host had load averages
+62.65, 97.83, and 81.75 on 14 logical CPUs. These timings do not establish a
+performance gate or a speed comparison. [Wall times](evidence/thumbnail/run-3/timings.json),
+[environment](evidence/thumbnail/run-3/environment.txt).
+
+### Images
+
+I viewed all six final fixture PNGs and both size variants. The README has its
+heading and readable opening paragraphs. The file without a heading uses its
+name and shows literal fenced code in a monospaced block. The MDX card omits
+frontmatter and ESM lines and has an MDX badge. The long line wraps and clips
+inside the card. The empty file has its name and an empty body. Invalid bytes
+appear as replacement glyphs while the remaining text stays readable. The
+128-point and 2x cards fill their canvases at the expected sizes.
+
+![README thumbnail](evidence/thumbnail/run-3/pngs/README.md.png)
+![Filename fallback and code block](evidence/thumbnail/run-3/pngs/no-heading.md.png)
+![MDX thumbnail](evidence/thumbnail/run-3/pngs/frontmatter.mdx.png)
+![Long-line thumbnail](evidence/thumbnail/run-3/pngs/long-line.md.png)
+![Empty-file thumbnail](evidence/thumbnail/run-3/pngs/empty.md.png)
+![Non-UTF-8 thumbnail](evidence/thumbnail/run-3/pngs/non-utf8.md.png)
+![128-point thumbnail](evidence/thumbnail/run-3/small/small.md.png)
+![256-point thumbnail at 2x](evidence/thumbnail/run-3/retina/retina.md.png)
+
+### Cleanup and proof limits
+
+The three runs registered and removed these exact bundles beneath the temporary
+installed host. Each run restored both spike elections with `pluginkit -e default`,
+then removed both extensions with `pluginkit -r` and unregistered the host with
+`lsregister -u`.
+
+| Bundle ID | Bundle path relative to the host |
+| --- | --- |
+| com.jonathanreed.simplemd.qlspike | The host itself |
+| com.jonathanreed.simplemd.qlspike.preview | Contents/PlugIns/SimpleMDQLPreview.appex |
+| com.jonathanreed.simplemd.qlspike.thumbnail | Contents/PlugIns/SimpleMDQLThumbnail.appex |
+
+The trap deleted the installed host and these containers after every run:
+
+```text
+~/Library/Containers/com.jonathanreed.simplemd.qlspike
+~/Library/Containers/com.jonathanreed.simplemd.qlspike.preview
+~/Library/Containers/com.jonathanreed.simplemd.qlspike.thumbnail
+```
+
+It also deleted each tested scratch host app and cleared the thumbnail cache
+with `qlmanage -r cache`. Scratch host unregistration returned the expected
+`-10814` for copies that were not registered. The three build directories,
+including all loose binaries and module caches, were then deleted:
+
+```text
+/tmp/simplemd-ql-thumbnail-9cad2633-view
+/tmp/simplemd-ql-thumbnail-9cad2633-final
+/tmp/simplemd-ql-thumbnail-9cad2633-scale
+```
+
+Final checks found no spike PlugInKit matches, LaunchServices identifiers,
+processes, host copies, containers, or test scratch directories. FluxMarkdown's
+full before/after snapshots matched in all three runs, and its final election
+is default. The Quick Look provider snapshots also matched. The final audit
+cleared the thumbnail cache again. [Run cleanup](evidence/thumbnail/run-3/cleanup.txt),
+[build deletion](evidence/thumbnail/cleanup-builds.txt),
+[final audit](evidence/thumbnail/cleanup-final.txt).
+
+This proves local arm64 extension rendering on macOS 27.2. Intel and macOS 13
+execution, Finder thumbnail display, clean-machine type resolution, notarized
+distribution, and electron-builder integration remain untested. No `app/src`
+file or packaging configuration changed. This work does not remove the
+Accessibility hook or qualify milestone 4.

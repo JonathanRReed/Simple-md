@@ -1,0 +1,24 @@
++    com.jonathanreed.simplemd.qlspike.thumbnail(0.0.1)
+	            Path = /Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+	            UUID = 00AB7ABB-7457-4656-BD1F-2B646D77A277
+	       Timestamp = 2026-10-29 02:03:04 +0000
+	             SDK = com.apple.quicklook.thumbnail
+	   Parent Bundle = /Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app
+	    Display Name = SimpleMDQLThumbnail
+	      Short Name = SimpleMDQLThumbnail
+	     Parent Name = SimpleMDQLThumbnailSpike
+	        Platform = macOS
+
+ (1 plug-in)
+     com.jonathanreed.simplemd.qlspike.preview(0.0.1)
+	            Path = /Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+	            UUID = 78388D0E-2502-4207-8BE2-1BA655118BDE
+	       Timestamp = 2026-10-29 02:03:04 +0000
+	             SDK = com.apple.quicklook.preview
+	   Parent Bundle = /Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app
+	    Display Name = SimpleMDQLPreview
+	      Short Name = SimpleMDQLPreview
+	     Parent Name = SimpleMDQLThumbnailSpike
+	        Platform = macOS
+
+ (1 plug-in)

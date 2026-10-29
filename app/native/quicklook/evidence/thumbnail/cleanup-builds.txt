@@ -1,0 +1,9 @@
+UNREGISTER /tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app
+exit 1  failed to scan /tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app: -10814
+ from spotlight
+REMOVE /tmp/simplemd-ql-thumbnail-9cad2633-view existed=True
+UNREGISTER /tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app
+exit 1  failed to scan /tmp/simplemd-ql-thumbnail-9cad2633-final/SimpleMDQLSpike.app: -10814
+ from spotlight
+REMOVE /tmp/simplemd-ql-thumbnail-9cad2633-final existed=True
+REMOVE /tmp/simplemd-ql-thumbnail-9cad2633-scale existed=True

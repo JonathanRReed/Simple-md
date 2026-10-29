@@ -1,0 +1,22 @@
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/Info.plist: OK
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/Info.plist: OK
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/Info.plist: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/thumbnail/thumbnail.entitlements: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/host.entitlements: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-9cad2633/app/native/quicklook/preview.entitlements: OK
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex: replacing existing signature
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex: replacing existing signature
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app: replacing existing signature
+--prepared:/private/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--prepared:/private/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+--validated:/private/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--validated:/private/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app: valid on disk
+/tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app: satisfies its Designated Requirement
+Built and signed: /tmp/simplemd-ql-thumbnail-9cad2633-view/SimpleMDQLSpike.app

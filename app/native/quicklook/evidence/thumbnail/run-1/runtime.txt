@@ -1,0 +1,7 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-28 21:03:05.973 Df secinitd[90404:bc3860] SimpleMDQLHost[16578]: AppSandbox request successful
+2026-10-28 21:03:08.097 I  secinitd[90404:bc3860] SimpleMDQLPreview[16740]: AppSandbox request
+2026-10-28 21:03:08.098 Df secinitd[90404:bc3860] SimpleMDQLPreview[16740]: root path for bundle "<private>" of main executable "<private>"
+2026-10-28 21:03:08.163 Df secinitd[90404:bc3860] SimpleMDQLPreview[16740]: AppSandbox request successful
+2026-10-28 21:03:08.267 Df SimpleMDQLPreview[16740:bc3e18] [com.jonathanreed.simplemd.qlspike:data] Data preparing no-heading.md pid=16740
+2026-10-28 21:03:08.268 Df SimpleMDQLPreview[16740:bc3e18] [com.jonathanreed.simplemd.qlspike:data] Data ready bytes=896

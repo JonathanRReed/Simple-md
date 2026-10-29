@@ -1,0 +1,44 @@
+swift-driver version: 1.168.6 [
+  {
+    "fixture": "README.md",
+    "milliseconds": 433.034,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "no-heading.md",
+    "milliseconds": 315.036,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "frontmatter.mdx",
+    "milliseconds": 215.86,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "long-line.md",
+    "milliseconds": 232.542,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "empty.md",
+    "milliseconds": 225.618,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "non-utf8.md",
+    "milliseconds": 246.102,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  }
+]
