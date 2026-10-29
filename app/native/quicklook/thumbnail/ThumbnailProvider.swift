@@ -4,7 +4,7 @@ import os
 
 @objc(ThumbnailProvider)
 final class ThumbnailProvider: QLThumbnailProvider {
-    private let logger = Logger(subsystem: "com.jonathanreed.simplemd.qlspike", category: "thumbnail")
+    private let logger = Logger(subsystem: "com.jonathanreed.simplemd.quicklook", category: "thumbnail")
 
     override func provideThumbnail(for request: QLFileThumbnailRequest,
                                    _ handler: @escaping (QLThumbnailReply?, Error?) -> Void) {

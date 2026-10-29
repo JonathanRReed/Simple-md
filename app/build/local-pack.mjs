@@ -9,10 +9,20 @@ export function unsignedConfig(plan) {
     extraResources: [
       { from: plan.binary, to: `native/${plan.executable}` },
     ],
-    mac: { identity: null, notarize: false },
+    mac: { identity: "-", notarize: false },
     dmg: { sign: false },
     win: { signExecutable: false },
   };
+}
+
+export function packagingConfig(plan, identity) {
+  const config = unsignedConfig(plan);
+  if (identity) {
+    if (!identity.startsWith("Developer ID Application: ")) throw new Error("Supply a Developer ID Application identity.");
+    config.mac.identity = identity.slice("Developer ID Application: ".length);
+    config.forceCodeSigning = true;
+  }
+  return config;
 }
 
 export function localEnvironment(env) {
@@ -34,7 +44,7 @@ if (import.meta.main) {
   const args = process.argv.slice(2);
   const mode = packageMode(args);
   const plan = currentNativePlan();
-  const config = unsignedConfig(plan);
+  const config = packagingConfig(plan, process.env.SIMPLEMD_SIGN_IDENTITY);
   if (args.includes("--dry-run")) {
     const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
     console.log(JSON.stringify({ productName: pkg.build.productName, platform: process.platform, arch: process.arch, mode, native: plan, config, publish: "never" }, null, 2));

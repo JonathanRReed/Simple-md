@@ -1,0 +1,4 @@
+swift-driver version: 1.168.6 Traceback (most recent call last):
+  File "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-1101377a/app/native/quicklook/test-packaged.py", line 100, in <module>
+    assert preview and drawn, result
+AssertionError: {'fixture': 'README.md', 'preview_launch_epoch': 1793257772.7663949, 'capture_bound_ms': 4221.593, 'thumbnail_wall_ms': 76.014, 'thumbnail_pixels': (512, 512)}

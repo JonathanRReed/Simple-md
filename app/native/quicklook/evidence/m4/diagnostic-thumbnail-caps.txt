@@ -1,0 +1,7 @@
+swift-driver version: 1.168.6 Timestamp               Ty Process[PID:TID]
+2026-10-29 02:22:51.538 Df SimpleMDQLThumbnail[78545:eac2f3] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail preparing file=large.mdx bytes=65536 size=512.000000x512.000000 scale=1.000000
+2026-10-29 02:22:51.549 Df SimpleMDQLThumbnail[78545:eac2f5] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail drawn file=large.mdx elapsed_ms=32.997250
+2026-10-29 02:22:51.596 Df SimpleMDQLThumbnail[78545:eac2f5] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail preparing file=empty.mdx bytes=0 size=512.000000x512.000000 scale=1.000000
+2026-10-29 02:22:51.598 Df SimpleMDQLThumbnail[78545:eac2f5] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail drawn file=empty.mdx elapsed_ms=2.278583
+2026-10-29 02:22:51.644 Df SimpleMDQLThumbnail[78545:eac2f5] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail preparing file=non-utf8.mdx bytes=43 size=512.000000x512.000000 scale=1.000000
+2026-10-29 02:22:51.651 Df SimpleMDQLThumbnail[78545:eac2f5] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail drawn file=non-utf8.mdx elapsed_ms=7.435208

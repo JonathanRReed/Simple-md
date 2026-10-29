@@ -34,6 +34,27 @@ Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 - Outline: Command/Control+Shift+O
 - Editing modes: Command/Control+Alt+1, 2, or 3
 
+## Quick Look on macOS
+
+Packaged macOS apps include preview and thumbnail extensions. They work with
+SimpleMD closed and need no Accessibility or Automation permission. Both accept
+Markdown and MDX, never plain text. The preview reads at most 4 MB and shows a
+truncation note. Thumbnails read at most 64 KB and draw a title card with Core Text.
+
+The current preview uses an escaped-source stub while the shared static renderer
+is integrated. Math, Mermaid fences, MDX, and image syntax appear as source.
+No document code executes and no remote images load. The final renderer must
+show a placeholder when the sandbox cannot read a local image.
+
+The packaged check on macOS 27.2 passes preview attribution and MDX thumbnails.
+Markdown thumbnails currently route to Apple's Text extension despite SimpleMD's
+selected election. This remains an open qualification gate. See the
+[fixture report](native/quicklook/evidence/m4/REPORT.md).
+
+When another previewer such as FluxMarkdown is installed, choose SimpleMD in
+System Settings > General > Login Items & Extensions > Quick Look. macOS may
+keep the existing previewer selected after installing SimpleMD.
+
 ## File-manager integration
 
 The app stays resident in the tray for warm file opens. Launch at Login is optional and off by default. Closing a normal document window hides it after settling edits; Quit exits the app. Clicking the tray icon shows or hides the current window.
@@ -112,11 +133,24 @@ Both packaging commands build JavaScript and the Rust helper first. The helper b
 
 Output goes to `app/release/`. A build only targets the host's current architecture. Build separately on each OS and architecture you intend to support.
 
-Local scripts set `CSC_IDENTITY_AUTO_DISCOVERY=false`, `mac.identity=null`, `mac.notarize=false`, `dmg.sign=false`, `win.signExecutable=false`, and `publish=never`. They discard inherited signing and publishing credentials before building. Windows resource metadata and icons remain enabled. The scripts can download build tools; they never request notarization or upload a release. `pack:plan` reads the Rust host and prints the unsigned configuration without compiling, packaging, or importing electron-builder.
+Local scripts set `CSC_IDENTITY_AUTO_DISCOVERY=false`, `mac.identity="-"`, `mac.notarize=false`, `dmg.sign=false`, `win.signExecutable=false`, and `publish=never`. They discard inherited signing and publishing credentials before building. Windows resource metadata and icons remain enabled. The scripts can download build tools; they never request notarization or upload a release. `pack:plan` reads the Rust host and prints the unsigned configuration without compiling, packaging, or importing electron-builder.
 
-These artifacts have no publisher signing or notarization from this project. Electron's upstream signatures can remain on shipped components. Unsigned macOS bundles, especially on arm64, still need direct launch and trust-policy checks. Windows SmartScreen and Linux sandbox or AppImage dependencies are separate runtime checks. This repository does not bypass those checks or select signing identities automatically.
+macOS packages use ad-hoc signing by default. To sign with the supplied identity:
 
-`build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist` give the main app and Electron helpers JIT support. Neither grants Apple Events access. Neither file adds unsigned executable memory or library-validation exceptions. These are inputs for a future reviewed signing workflow; the unsigned path does not apply them. Before signed distribution, inspect the main app, Electron helpers, and Rust helper signatures and entitlements in the exact package, then test saves and Quick Look behavior. Signing, notarization, Gatekeeper checks, and installed-app QA remain separate work.
+```sh
+SIMPLEMD_SIGN_IDENTITY='Developer ID Application: Jonathan Reed (AJ9VWBRNZN)' bun run pack
+```
+
+The `afterPack` hook builds universal arm64 and x86_64 Quick Look extensions with
+Command Line Tools and a macOS 13 minimum. It bundles the preview JavaScript,
+signs each extension with hardened runtime and App Sandbox only, then copies
+them into `Contents/PlugIns`. Developer ID signing uses a secure timestamp.
+Electron's signing pass skips PlugIns and signs the enclosing app with the same
+identity. The `afterSign` hook verifies the app recursively and checks extension
+architectures, deployment targets, identities, timestamps, and entitlements.
+Neither path notarizes or publishes.
+
+`build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist` give the main app and Electron helpers JIT support. Neither grants Apple Events access. Neither file adds unsigned executable memory or library-validation exceptions. These are inputs for a future reviewed signing workflow; the unsigned path does not apply them. Before signed distribution, inspect the main app, Electron helpers, and Rust helper signatures and entitlements in the exact package, then test saves and Quick Look behavior. Signing, notarization, Gatekeeper checks, and installed-app QA remain separate work. Quick Look never inherits either file. Downloaded-app Gatekeeper acceptance, notarization, Intel execution, and macOS 13 runtime behavior remain separate release checks.
 
 ## CI and remaining gates
 

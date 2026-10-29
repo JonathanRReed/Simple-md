@@ -1,0 +1,42 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-29 02:09:35.712 Df secinitd[39254:e77ac7] SimpleMDQLPreview[26253]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:35.788 Df secinitd[39254:e77ac7] SimpleMDQLPreview[26253]: AppSandbox request successful
+2026-10-29 02:09:35.953 Df SimpleMDQLPreview[26253:e84164] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=README.md pid=26253
+2026-10-29 02:09:35.962 Df SimpleMDQLPreview[26253:e847e1] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=README.md read_bytes=16150 truncated=false invalid_utf8=false html_bytes=16759 elapsed_ms=9.198292
+2026-10-29 02:09:37.326 Df secinitd[39254:e77ac7] SimpleMDQLPreview[27152]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:37.332 Df secinitd[39254:e77ac7] SimpleMDQLPreview[27152]: AppSandbox request successful
+2026-10-29 02:09:37.418 Df SimpleMDQLPreview[27152:e84b12] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=math.md pid=27152
+2026-10-29 02:09:37.420 Df SimpleMDQLPreview[27152:e84b4c] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=math.md read_bytes=36 truncated=false invalid_utf8=false html_bytes=548 elapsed_ms=2.009958
+2026-10-29 02:09:41.765 Df secinitd[39254:e77ac7] SimpleMDQLPreview[27906]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:41.772 Df secinitd[39254:e77ac7] SimpleMDQLPreview[27906]: AppSandbox request successful
+2026-10-29 02:09:41.863 Df SimpleMDQLPreview[27906:e852de] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=mermaid.md pid=27906
+2026-10-29 02:09:41.865 Df SimpleMDQLPreview[27906:e852e2] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=mermaid.md read_bytes=53 truncated=false invalid_utf8=false html_bytes=571 elapsed_ms=2.343125
+2026-10-29 02:09:46.071 Df secinitd[39254:e77ac7] SimpleMDQLPreview[28077]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:46.078 Df secinitd[39254:e77ac7] SimpleMDQLPreview[28077]: AppSandbox request successful
+2026-10-29 02:09:46.177 Df SimpleMDQLPreview[28077:e856d3] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=local-image.md pid=28077
+2026-10-29 02:09:46.179 Df SimpleMDQLPreview[28077:e856d7] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=local-image.md read_bytes=98 truncated=false invalid_utf8=false html_bytes=617 elapsed_ms=2.238375
+2026-10-29 02:09:50.433 I  secinitd[39254:e84781] SimpleMDQLPreview[28207]: AppSandbox request
+2026-10-29 02:09:50.433 Df secinitd[39254:e84781] SimpleMDQLPreview[28207]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:50.439 Df secinitd[39254:e84781] SimpleMDQLPreview[28207]: AppSandbox request successful
+2026-10-29 02:09:50.525 Df SimpleMDQLPreview[28207:e85abb] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=fixture.mdx pid=28207
+2026-10-29 02:09:50.527 Df SimpleMDQLPreview[28207:e85acd] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=fixture.mdx read_bytes=116 truncated=false invalid_utf8=false html_bytes=661 elapsed_ms=2.037042
+2026-10-29 02:09:54.519 I  secinitd[39254:e77ac7] SimpleMDQLThumbnail[28307]: AppSandbox request
+2026-10-29 02:09:54.520 Df secinitd[39254:e77ac7] SimpleMDQLThumbnail[28307]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:54.653 Df secinitd[39254:e77ac7] SimpleMDQLThumbnail[28307]: AppSandbox request successful
+2026-10-29 02:09:54.681 Df SimpleMDQLThumbnail[28307:e85d76] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail preparing file=fixture.mdx bytes=116 size=512.000000x512.000000 scale=1.000000
+2026-10-29 02:09:54.690 Df SimpleMDQLThumbnail[28307:e85d76] [com.jonathanreed.simplemd.quicklook:thumbnail] Thumbnail drawn file=fixture.mdx elapsed_ms=9.736042
+2026-10-29 02:09:54.944 I  secinitd[39254:e77ac7] SimpleMDQLPreview[28317]: AppSandbox request
+2026-10-29 02:09:54.944 Df secinitd[39254:e77ac7] SimpleMDQLPreview[28317]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:54.950 Df secinitd[39254:e77ac7] SimpleMDQLPreview[28317]: AppSandbox request successful
+2026-10-29 02:09:55.035 Df SimpleMDQLPreview[28317:e85da1] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=large.md pid=28317
+2026-10-29 02:09:55.078 Df SimpleMDQLPreview[28317:e85dab] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=large.md read_bytes=4194304 truncated=true invalid_utf8=false html_bytes=4194888 elapsed_ms=42.876125
+2026-10-29 02:09:59.377 I  secinitd[39254:e84781] SimpleMDQLPreview[28497]: AppSandbox request
+2026-10-29 02:09:59.378 Df secinitd[39254:e84781] SimpleMDQLPreview[28497]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:09:59.385 Df secinitd[39254:e84781] SimpleMDQLPreview[28497]: AppSandbox request successful
+2026-10-29 02:09:59.480 Df SimpleMDQLPreview[28497:e862dd] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=empty.md pid=28497
+2026-10-29 02:09:59.482 Df SimpleMDQLPreview[28497:e862e0] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=empty.md read_bytes=0 truncated=false invalid_utf8=false html_bytes=513 elapsed_ms=1.875417
+2026-10-29 02:10:03.708 I  secinitd[39254:e84781] SimpleMDQLPreview[28740]: AppSandbox request
+2026-10-29 02:10:03.708 Df secinitd[39254:e84781] SimpleMDQLPreview[28740]: root path for bundle "<private>" of main executable "<private>"
+2026-10-29 02:10:03.716 Df secinitd[39254:e84781] SimpleMDQLPreview[28740]: AppSandbox request successful
+2026-10-29 02:10:03.804 Df SimpleMDQLPreview[28740:e8693d] [com.jonathanreed.simplemd.quicklook:preview] Preview preparing file=non-utf8.md pid=28740
+2026-10-29 02:10:03.806 Df SimpleMDQLPreview[28740:e8696e] [com.jonathanreed.simplemd.quicklook:preview] Preview ready file=non-utf8.md read_bytes=33 truncated=false invalid_utf8=true html_bytes=613 elapsed_ms=2.094792

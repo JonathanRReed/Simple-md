@@ -1,0 +1,2 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-29 02:21:53.973 Df log[76807:eaa031] [com.apple.log:] log run noninteractively, parent: 76796 (zsh), args: '/usr/bin/log' 'show' '--start' '2026-10-29 02:09:29' '--style' 'compact' '--info' '--debug' '--predicate' 'eventMessage CONTAINS "SimpleMDQL" AND (eventMessage CONTAINS[c] "deny" OR eventMessage CONTAI

@@ -1,0 +1,6 @@
+app/native/quicklook/preview/render-stub.ts: OK
+app/native/quicklook/preview/PreviewProvider.swift: OK
+app/native/quicklook/preview/StaticRenderer.swift: OK
+app/native/quicklook/preview/PreviewSource.swift: OK
+app/native/quicklook/thumbnail/ThumbnailCard.swift: OK
+app/native/quicklook/thumbnail/ThumbnailProvider.swift: OK

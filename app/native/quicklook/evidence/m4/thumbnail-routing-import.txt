@@ -1,0 +1,243 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-29 02:13:34.040 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.055 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.055 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.055 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.056 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.057 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.057 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.057 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.057 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.057 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.058 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.058 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.058 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (CoreServicesInternal) CFURLResolveBookmarkData
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 18
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fef] [com.apple.xpc:connection] [0x7a758a1e00] activating connection: mach=false listener=false peer=true name=com.apple.quicklook.ThumbnailsAgent.peer[59035].0x7a758a1e00
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 0
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 0
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 0
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 0
+2026-10-29 02:13:34.444 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3eb20> no visible outcome changes
+2026-10-29 02:13:34.444 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3d560> no visible outcome changes
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3d560> delivering update to host (0 plugins)
+2026-10-29 02:13:34.444 A  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] (ExtensionFoundation) discovering extensions
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.extensionkit:NSExtension] discovered extensions: attributes <private>, extensionSet {(
+)}
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3d560> delivering update to host (0 plugins)
+2026-10-29 02:13:34.444 A  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] (ExtensionFoundation) discovering extensions
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.extensionkit:NSExtension] discovered extensions: attributes <private>, extensionSet {(
+)}
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3d560> delivering update to host (0 plugins)
+2026-10-29 02:13:34.444 A  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] (ExtensionFoundation) discovering extensions
+2026-10-29 02:13:34.444 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.extensionkit:NSExtension] discovered extensions: attributes <private>, extensionSet {(
+)}
+2026-10-29 02:13:34.445 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 18
+2026-10-29 02:13:34.445 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3eb20> delivering update to host (18 plugins)
+2026-10-29 02:13:34.445 A  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] (ExtensionFoundation) discovering extensions
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9B303460-335A-449C-AAA9-3E9A7C3F2B78] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9B303460-335A-449C-AAA9-3E9A7C3F2B78] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 0C2D7F4F-9DAD-546E-9AFC-D7C974DE4870] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 0C2D7F4F-9DAD-546E-9AFC-D7C974DE4870] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u FD6D8F87-7373-503B-BF81-5DD51864097C] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u FD6D8F87-7373-503B-BF81-5DD51864097C] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A4414778-FAA0-4A32-935F-347B0BB02628] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A4414778-FAA0-4A32-935F-347B0BB02628] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4876BA9D-94A7-52F9-9D91-2E6A4D154B59] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4876BA9D-94A7-52F9-9D91-2E6A4D154B59] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A3F5FBF5-143C-59E1-B079-57B1C2ED160C] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A3F5FBF5-143C-59E1-B079-57B1C2ED160C] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2F8EC71E-541A-56F1-BEA0-2250AEA80F66] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2F8EC71E-541A-56F1-BEA0-2250AEA80F66] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 37F81FAC-533E-5781-96CD-D54DBD5D75AB] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 37F81FAC-533E-5781-96CD-D54DBD5D75AB] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4351B343-2746-5330-8459-909831159134] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4351B343-2746-5330-8459-909831159134] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 206DAC21-3304-5464-968F-D83EF7AF7BFD] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 206DAC21-3304-5464-968F-D83EF7AF7BFD] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 3C1A8160-1B0E-572A-B4D3-51C446329DA7] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 3C1A8160-1B0E-572A-B4D3-51C446329DA7] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2BAEC57F-B0FE-55C7-BBD5-96053F950584] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2BAEC57F-B0FE-55C7-BBD5-96053F950584] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u D4D61F4D-6C7D-51A1-8701-95D8ABEF27B4] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u D4D61F4D-6C7D-51A1-8701-95D8ABEF27B4] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u EA27416F-675E-5B5F-ACC0-DFF0056703E1] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u EA27416F-675E-5B5F-ACC0-DFF0056703E1] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 353BDF09-B8BD-55D8-AE0C-4420D1215DBD] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 353BDF09-B8BD-55D8-AE0C-4420D1215DBD] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 835C3E78-3ABD-407A-8E20-AAD7172FAF1A] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 835C3E78-3ABD-407A-8E20-AAD7172FAF1A] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9E5D5DD3-C7BE-59EA-BC1E-3C0582D779FB] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9E5D5DD3-C7BE-59EA-BC1E-3C0582D779FB] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u E5B2D65D-93D3-56CE-AFAD-C187F5023D7D] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.445 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u E5B2D65D-93D3-56CE-AFAD-C187F5023D7D] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.extensionkit:NSExtension] discovered extensions: attributes <private>, extensionSet {(
+    <EXConcreteExtension: 0x7a753caae0> {id = com.jonathanreed.simplemd.preview},
+    <EXConcreteExtension: 0x7a753ca840> {id = com.apple.Notes.QuickLookExtension},
+    <EXConcreteExtension: 0x7a753ca220> {id = com.apple.tips.TipsQuicklook},
+    <EXConcreteExtension: 0x7a753c97a0> {id = com.xykong.Markdown.QuickLook},
+    <EXConcreteExtension: 0x7a753ca4c0> {id = com.apple.Safari.SafariQuickLookPreview},
+    <EXConcreteExtension: 0x7a753cb720> {id = com.apple.CalendarUI.SpotlightEventPreview},
+    <EXConcreteExtension: 0x7a753c9ce0> {id = com.apple.osanalytics.IPSExtension},
+    <EXConcreteExtension: 0x7a753c9880> {id = com.apple.mail.MailQuickLookExtension},
+    <EXConcreteExtension: 0x7a753c8620> {id = com.apple.helpviewer.HelpViewer-Quicklook},
+    <EXConcreteExtension: 0x7a753cb800> {id = com.apple.shortcuts.QuickLookExtension},
+    <EXConcreteExtension: 0x7a753cb480> {id = com.apple.SceneKitQLPreviewExtension},
+    <EXConcreteExtension: 0x7a753ca5a0> {id = com.apple.CoreHapticsTools.QLP
+2026-10-29 02:13:34.446 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 18
+2026-10-29 02:13:34.446 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3eb20> delivering update to host (18 plugins)
+2026-10-29 02:13:34.446 A  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] (ExtensionFoundation) discovering extensions
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9B303460-335A-449C-AAA9-3E9A7C3F2B78] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9B303460-335A-449C-AAA9-3E9A7C3F2B78] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 0C2D7F4F-9DAD-546E-9AFC-D7C974DE4870] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 0C2D7F4F-9DAD-546E-9AFC-D7C974DE4870] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u FD6D8F87-7373-503B-BF81-5DD51864097C] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u FD6D8F87-7373-503B-BF81-5DD51864097C] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A4414778-FAA0-4A32-935F-347B0BB02628] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A4414778-FAA0-4A32-935F-347B0BB02628] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4876BA9D-94A7-52F9-9D91-2E6A4D154B59] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4876BA9D-94A7-52F9-9D91-2E6A4D154B59] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A3F5FBF5-143C-59E1-B079-57B1C2ED160C] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u A3F5FBF5-143C-59E1-B079-57B1C2ED160C] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2F8EC71E-541A-56F1-BEA0-2250AEA80F66] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2F8EC71E-541A-56F1-BEA0-2250AEA80F66] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 37F81FAC-533E-5781-96CD-D54DBD5D75AB] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 37F81FAC-533E-5781-96CD-D54DBD5D75AB] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4351B343-2746-5330-8459-909831159134] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 4351B343-2746-5330-8459-909831159134] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 206DAC21-3304-5464-968F-D83EF7AF7BFD] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 206DAC21-3304-5464-968F-D83EF7AF7BFD] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 3C1A8160-1B0E-572A-B4D3-51C446329DA7] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 3C1A8160-1B0E-572A-B4D3-51C446329DA7] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2BAEC57F-B0FE-55C7-BBD5-96053F950584] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 2BAEC57F-B0FE-55C7-BBD5-96053F950584] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u D4D61F4D-6C7D-51A1-8701-95D8ABEF27B4] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.446 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u D4D61F4D-6C7D-51A1-8701-95D8ABEF27B4] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u EA27416F-675E-5B5F-ACC0-DFF0056703E1] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u EA27416F-675E-5B5F-ACC0-DFF0056703E1] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 353BDF09-B8BD-55D8-AE0C-4420D1215DBD] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 353BDF09-B8BD-55D8-AE0C-4420D1215DBD] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 835C3E78-3ABD-407A-8E20-AAD7172FAF1A] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 835C3E78-3ABD-407A-8E20-AAD7172FAF1A] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9E5D5DD3-C7BE-59EA-BC1E-3C0582D779FB] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u 9E5D5DD3-C7BE-59EA-BC1E-3C0582D779FB] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u E5B2D65D-93D3-56CE-AFAD-C187F5023D7D] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.447 I  com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.PlugInKit:ls] [u E5B2D65D-93D3-56CE-AFAD-C187F5023D7D] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.447 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.extensionkit:NSExtension] discovered extensions: attributes <private>, extensionSet {(
+    <EXConcreteExtension: 0x7a753cb560> {id = com.jonathanreed.simplemd.preview},
+    <EXConcreteExtension: 0x7a753c9420> {id = com.apple.Notes.QuickLookExtension},
+    <EXConcreteExtension: 0x7a753ca5a0> {id = com.apple.tips.TipsQuicklook},
+    <EXConcreteExtension: 0x7a753cb480> {id = com.xykong.Markdown.QuickLook},
+    <EXConcreteExtension: 0x7a753c8620> {id = com.apple.Safari.SafariQuickLookPreview},
+    <EXConcreteExtension: 0x7a753c9880> {id = com.apple.CalendarUI.SpotlightEventPreview},
+    <EXConcreteExtension: 0x7a753c9ce0> {id = com.apple.osanalytics.IPSExtension},
+    <EXConcreteExtension: 0x7a753cb720> {id = com.apple.mail.MailQuickLookExtension},
+    <EXConcreteExtension: 0x7a753ca4c0> {id = com.apple.helpviewer.HelpViewer-Quicklook},
+    <EXConcreteExtension: 0x7a753c97a0> {id = com.apple.shortcuts.QuickLookExtension},
+    <EXConcreteExtension: 0x7a753cb800> {id = com.apple.SceneKitQLPreviewExtension},
+    <EXConcreteExtension: 0x7a753ca840> {id = com.apple.CoreHapticsTools.QLP
+2026-10-29 02:13:34.448 Df com.apple.quicklook.ThumbnailsAgent[22830:e97fa2] [com.apple.PlugInKit:discovery] [d <private>] <PKHost:0x7a751b7000> Completed discovery. Final # of matches: 18
+2026-10-29 02:13:34.448 Df com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:discovery] <PKDiscoveryDriver:0x7a74c3eb20> delivering update to host (18 plugins)
+2026-10-29 02:13:34.448 A  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] (ExtensionFoundation) discovering extensions
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 9B303460-335A-449C-AAA9-3E9A7C3F2B78] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 9B303460-335A-449C-AAA9-3E9A7C3F2B78] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 0C2D7F4F-9DAD-546E-9AFC-D7C974DE4870] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 0C2D7F4F-9DAD-546E-9AFC-D7C974DE4870] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u FD6D8F87-7373-503B-BF81-5DD51864097C] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u FD6D8F87-7373-503B-BF81-5DD51864097C] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u A4414778-FAA0-4A32-935F-347B0BB02628] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u A4414778-FAA0-4A32-935F-347B0BB02628] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 4876BA9D-94A7-52F9-9D91-2E6A4D154B59] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 4876BA9D-94A7-52F9-9D91-2E6A4D154B59] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u A3F5FBF5-143C-59E1-B079-57B1C2ED160C] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u A3F5FBF5-143C-59E1-B079-57B1C2ED160C] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 2F8EC71E-541A-56F1-BEA0-2250AEA80F66] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 2F8EC71E-541A-56F1-BEA0-2250AEA80F66] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 37F81FAC-533E-5781-96CD-D54DBD5D75AB] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 37F81FAC-533E-5781-96CD-D54DBD5D75AB] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 4351B343-2746-5330-8459-909831159134] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 4351B343-2746-5330-8459-909831159134] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 206DAC21-3304-5464-968F-D83EF7AF7BFD] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 206DAC21-3304-5464-968F-D83EF7AF7BFD] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 3C1A8160-1B0E-572A-B4D3-51C446329DA7] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 3C1A8160-1B0E-572A-B4D3-51C446329DA7] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 2BAEC57F-B0FE-55C7-BBD5-96053F950584] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 2BAEC57F-B0FE-55C7-BBD5-96053F950584] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u D4D61F4D-6C7D-51A1-8701-95D8ABEF27B4] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u D4D61F4D-6C7D-51A1-8701-95D8ABEF27B4] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u EA27416F-675E-5B5F-ACC0-DFF0056703E1] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u EA27416F-675E-5B5F-ACC0-DFF0056703E1] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 353BDF09-B8BD-55D8-AE0C-4420D1215DBD] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 353BDF09-B8BD-55D8-AE0C-4420D1215DBD] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 835C3E78-3ABD-407A-8E20-AAD7172FAF1A] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 835C3E78-3ABD-407A-8E20-AAD7172FAF1A] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 9E5D5DD3-C7BE-59EA-BC1E-3C0582D779FB] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u 9E5D5DD3-C7BE-59EA-BC1E-3C0582D779FB] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u E5B2D65D-93D3-56CE-AFAD-C187F5023D7D] [<private>(<private>)] got localized name: <private>
+2026-10-29 02:13:34.448 I  com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.PlugInKit:ls] [u E5B2D65D-93D3-56CE-AFAD-C187F5023D7D] [<private>(<private>)] got localized short name: <private>
+2026-10-29 02:13:34.448 Df com.apple.quicklook.ThumbnailsAgent[22830:e9811e] [com.apple.extensionkit:NSExtension] discovered extensions: attributes <private>, extensionSet {(
+    <EXConcreteExtension: 0x7a753cae60> {id = com.jonathanreed.simplemd.preview},
+    <EXConcreteExtension: 0x7a753ca220> {id = com.apple.Notes.QuickLookExtension},
+    <EXConcreteExtension: 0x7a753ca140> {id = com.apple.tips.TipsQuicklook},
+    <EXConcreteExtension: 0x7a753cb800> {id = com.xykong.Markdown.QuickLook},
+    <EXConcreteExtension: 0x7a753ca4c0> {id = com.apple.Safari.SafariQuickLookPreview},
+    <EXConcreteExtension: 0x7a753c97a0> {id = com.apple.CalendarUI.SpotlightEventPreview},
+    <EXConcreteExtension: 0x7a753c9ce0> {id = com.apple.osanalytics.IPSExtension},
+    <EXConcreteExtension: 0x7a753c9880> {id = com.apple.mail.MailQuickLookExtension},
+    <EXConcreteExtension: 0x7a753ca5a0> {id = com.apple.helpviewer.HelpViewer-Quicklook},
+    <EXConcreteExtension: 0x7a753c9420> {id = com.apple.shortcuts.QuickLookExtension},
+    <EXConcreteExtension: 0x7a753cb560> {id = com.apple.SceneKitQLPreviewExtension},
+    <EXConcreteExtension: 0x7a753cb1e0> {id = com.apple.CoreHapticsTools.QLP
+2026-10-29 02:13:34.464 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (QuickLookThumbnailingDaemon) Thumbnail Request Enqueued
+2026-10-29 02:13:34.464 A  com.apple.quicklook.ThumbnailsAgent[22830:e97fef] (QuickLookThumbnailingDaemon) Thumbnail Generation
+2026-10-29 02:13:34.511 Df com.apple.quicklook.ThumbnailsAgent[22830:e96cea] [com.apple.foundation.filecoordination:claims] Read options: 1 -- URL: <private> -- purposeID: 4E62049F-EE06-4B7E-B2C2-08B41585AB86 -- claimID: D2B0E12B-E572-4555-A21D-1BF4826AEA28
+2026-10-29 02:13:34.513 Df com.apple.quicklook.ThumbnailsAgent[22830:e96cea] [com.apple.foundation.filecoordination:claims] Claim D2B0E12B-E572-4555-A21D-1BF4826AEA28 granted in client
+2026-10-29 02:13:34.513 Df com.apple.quicklook.ThumbnailsAgent[22830:e96cea] [com.apple.foundation.filecoordination:claims] Claim D2B0E12B-E572-4555-A21D-1BF4826AEA28 invoked in client
+2026-10-29 02:13:34.513 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.extensionkit:launch] Launching process with config: identity: RecordIdentity(record: ExtensionFoundation.Database._ExtensionRecord(lsRecord: <LSApplicationExtensionRecord 0x7a74c3eb80> { bundleID: com.apple.quicklook.thumbnail.TextExtension, URL: file:///System/Library/ExtensionKit/Extensions/TextThumbnailExtension.appex/, super: <LSApplicationExtensionRecord 0x7a74c3eb80> { table: 24, unit: e8c, attached: yes } })) instance: _InstanceIdentifier(_id: nil)
+2026-10-29 02:13:34.519 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.runningboard:process] Starting death monitoring for handle <private>
+2026-10-29 02:13:34.519 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.extensionkit:launch] Launched process with PID: 23138
+2026-10-29 02:13:34.519 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.xpc:connection] [0x7a758a21c0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-10-29 02:13:34.523 A  com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] (QuickLookThumbnailingDaemon) Completion
+2026-10-29 02:13:34.527 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.xpc:connection] [0x7a758a1e00] invalidated because the client process (pid 59035) either cancelled the connection or exited
+2026-10-29 02:13:34.549 Df com.apple.quicklook.ThumbnailsAgent[22830:e96cea] [com.apple.xpc:connection] [0x7a758a1e00] activating connection: mach=false listener=false peer=true name=com.apple.quicklook.ThumbnailsAgent.peer[59036].0x7a758a1e00
+2026-10-29 02:13:34.549 A  com.apple.quicklook.ThumbnailsAgent[22830:e96cea] (QuickLookThumbnailingDaemon) Thumbnail Request Enqueued
+2026-10-29 02:13:34.549 A  com.apple.quicklook.ThumbnailsAgent[22830:e96cea] (QuickLookThumbnailingDaemon) Thumbnail Generation
+2026-10-29 02:13:34.550 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.foundation.filecoordination:claims] Read options: 1 -- URL: <private> -- purposeID: 7AF1102B-04A9-4B29-9EAA-4FA35A05BD1C -- claimID: 62C00F61-0BC3-4775-9F9C-CB62383ACDB7
+2026-10-29 02:13:34.551 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.foundation.filecoordination:claims] Claim 62C00F61-0BC3-4775-9F9C-CB62383ACDB7 granted in client
+2026-10-29 02:13:34.551 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.foundation.filecoordination:claims] Claim 62C00F61-0BC3-4775-9F9C-CB62383ACDB7 invoked in client
+2026-10-29 02:13:34.551 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.extensionkit:launch] Launching process with config: identity: RecordIdentity(record: ExtensionFoundation.Database._ExtensionRecord(lsRecord: <LSApplicationExtensionRecord 0x7a74c3eb80> { bundleID: com.apple.quicklook.thumbnail.TextExtension, URL: file:///System/Library/ExtensionKit/Extensions/TextThumbnailExtension.appex/, super: <LSApplicationExtensionRecord 0x7a74c3eb80> { table: 24, unit: e8c, attached: yes } })) instance: _InstanceIdentifier(_id: nil)
+2026-10-29 02:13:34.556 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.runningboard:process] Starting death monitoring for handle <private>
+2026-10-29 02:13:34.556 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.extensionkit:launch] Launched process with PID: 23138
+2026-10-29 02:13:34.559 A  com.apple.quicklook.ThumbnailsAgent[22830:e98055] (QuickLookThumbnailingDaemon) Completion
+2026-10-29 02:13:34.562 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.xpc:connection] [0x7a758a1e00] invalidated because the client process (pid 59036) either cancelled the connection or exited
+2026-10-29 02:13:34.584 Df com.apple.quicklook.ThumbnailsAgent[22830:e98055] [com.apple.xpc:connection] [0x7a758a1e00] activating connection: mach=false listener=false peer=true name=com.apple.quicklook.ThumbnailsAgent.peer[59037].0x7a758a1e00
+2026-10-29 02:13:34.585 A  com.apple.quicklook.ThumbnailsAgent[22830:e98055] (QuickLookThumbnailingDaemon) Thumbnail Request Enqueued
+2026-10-29 02:13:34.585 A  com.apple.quicklook.ThumbnailsAgent[22830:e98055] (QuickLookThumbnailingDaemon) Thumbnail Generation
+2026-10-29 02:13:34.586 Df com.apple.quicklook.ThumbnailsAgent[22830:e98055] [com.apple.foundation.filecoordination:claims] Read options: 1 -- URL: <private> -- purposeID: 2C541DB6-AC7C-4A92-AEC8-A39C90759333 -- claimID: F48D7B9D-8C46-4096-8BDA-C973A9EF0DC1
+2026-10-29 02:13:34.587 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.foundation.filecoordination:claims] Claim F48D7B9D-8C46-4096-8BDA-C973A9EF0DC1 granted in client
+2026-10-29 02:13:34.587 Df com.apple.quicklook.ThumbnailsAgent[22830:e97b95] [com.apple.foundation.filecoordination:claims] Claim F48D7B9D-8C46-4096-8BDA-C973A9EF0DC1 invoked in client
+2026-10-29 02:13:34.587 Df com.apple.quicklook.ThumbnailsAgent[22830:e98055] [com.apple.extensionkit:launch] Launching process with config: identity: RecordIdentity(record: ExtensionFoundation.Database._ExtensionRecord(lsRecord: <LSApplicationExtensionRecord 0x7a74c3eb80> { bundleID: com.apple.quicklook.thumbnail.TextExtension, URL: file:///System/Library/ExtensionKit/Extensions/TextThumbnailExtension.appex/, super: <LSApplicationExtensionRecord 0x7a74c3eb80> { table: 24, unit: e8c, attached: yes } })) instance: _InstanceIdentifier(_id: nil)
+2026-10-29 02:13:34.592 Df com.apple.quicklook.ThumbnailsAgent[22830:e98055] [com.apple.runningboard:process] Starting death monitoring for handle <private>
+2026-10-29 02:13:34.592 Df com.apple.quicklook.ThumbnailsAgent[22830:e98055] [com.apple.extensionkit:launch] Launched process with PID: 23138
+2026-10-29 02:13:34.594 A  com.apple.quicklook.ThumbnailsAgent[22830:e98055] (QuickLookThumbnailingDaemon) Completion
+2026-10-29 02:13:34.599 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.xpc:connection] [0x7a758a1e00] invalidated because the client process (pid 59037) either cancelled the connection or exited
+2026-10-29 02:13:34.626 Df com.apple.quicklook.ThumbnailsAgent[22830:e98055] [com.apple.xpc:connection] [0x7a758a1e00] activating connection: mach=false listener=false peer=true name=com.apple.quicklook.ThumbnailsAgent.peer[59041].0x7a758a1e00
+2026-10-29 02:13:34.626 A  com.apple.quicklook.ThumbnailsAgent[22830:e98055] (QuickLookThumbnailingDaemon) Thumbnail Request Enqueued
+2026-10-29 02:13:34.626 A  com.apple.quicklook.ThumbnailsAgent[22830:e98055] (QuickLookThumbnailingDaemon) Thumbnail Generation
+2026-10-29 02:13:34.627 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.foundation.filecoordination:claims] Read options: 1 -- URL: <private> -- purposeID: 25E98497-44D9-4A35-A71F-350DBBA9D968 -- claimID: D52DDC58-BF26-4242-BFA7-A009174D392E
+2026-10-29 02:13:34.628 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.foundation.filecoordination:claims] Claim D52DDC58-BF26-4242-BFA7-A009174D392E granted in client
+2026-10-29 02:13:34.628 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.foundation.filecoordination:claims] Claim D52DDC58-BF26-4242-BFA7-A009174D392E invoked in client
+2026-10-29 02:13:34.630 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.extensionkit:launch] Launching process with config: identity: RecordIdentity(record: ExtensionFoundation.Database._ExtensionRecord(lsRecord: <LSApplicationExtensionRecord 0x7a74c4a040> { bundleID: com.jonathanreed.simplemd.thumbnail, URL: file:///Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/, super: <LSApplicationExtensionRecord 0x7a74c4a040> { table: 24, unit: 15f8, attached: yes } })) instance: _InstanceIdentifier(_id: nil)
+2026-10-29 02:13:34.654 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.runningboard:process] Starting death monitoring for handle <private>
+2026-10-29 02:13:34.654 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.extensionkit:launch] Launched process with PID: 59043
+2026-10-29 02:13:34.654 Df com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] [com.apple.xpc:connection] [0x7a758a1b80] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-10-29 02:13:37.500 A  com.apple.quicklook.ThumbnailsAgent[22830:e97cbc] (QuickLookThumbnailingDaemon) Completion
+2026-10-29 02:13:37.504 Df com.apple.quicklook.ThumbnailsAgent[22830:e96cea] [com.apple.xpc:connection] [0x7a758a1e00] invalidated because the client process (pid 59041) either cancelled the connection or exited
