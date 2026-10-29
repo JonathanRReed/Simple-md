@@ -30,3 +30,13 @@ test("large histories keep the newest events instead of losing every undo", () =
   expect(exactText(restored)).toBe("\uFEFFstart\r\n" + chunk.repeat(30));
   expect(redo(target)).toBe(true);
 });
+test("history containing a multi-megabyte deletion keeps undo and redo", () => {
+  const original = "\uFEFFstart\r\n" + "x".repeat(2_100_000);
+  let state = initial(original);
+  state = state.update({ changes: { from: 6, to: state.doc.length }, annotations: isolateHistory.of("full") }).state;
+  let restored = retainEditorState(state);
+  expect(undoDepth(restored)).toBe(1);
+  const target = { get state() { return restored; }, dispatch(tr: import("@codemirror/state").Transaction) { restored = tr.state; } };
+  expect(undo(target)).toBe(true); expect(exactText(restored)).toBe(original);
+  expect(redo(target)).toBe(true); expect(exactText(restored)).toBe(exactText(state));
+});
