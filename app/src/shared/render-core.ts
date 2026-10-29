@@ -28,7 +28,7 @@ function utf8ByteLength(text: string): number {
   return bytes;
 }
 function splitFrontmatter(src: string): { body: string; title?: string; raw?: string } {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(src);
+  const m = /^---(?:\r\n|[\r\n])([\s\S]*?)(?:\r\n|[\r\n])---(?:(?:\r\n|[\r\n])|$)/.exec(src);
   if (!m) return { body: src };
   const title = /^title:\s*["']?(.+?)["']?\s*$/m.exec(m[1]!)?.[1];
   return { body: src.slice(m[0].length), title, raw: m[1] };
@@ -118,7 +118,7 @@ export function createRenderCore(services: RenderServices = {}) {
     if (!silent) {
       const token = state.push("mdx_preview", "", 0);
       token.meta = { mdx: node };
-      token.map = [line, line + ((state.env as RenderEnv).mdxLines?.get(marker) ?? 1)];
+      token.map = [line, line + 1];
     }
     state.line = line + 1;
     return true;
@@ -205,7 +205,7 @@ export function createRenderCore(services: RenderServices = {}) {
     visit(state.tokens);
   });
 
-  type RenderEnv = { urls: UrlContext; baseDir?: string; mdxNodes?: Map<string, RenderNode>; mdxLines?: Map<string, number> } & Record<PropertyKey, unknown>;
+  type RenderEnv = { urls: UrlContext; baseDir?: string; mdxNodes?: Map<string, RenderNode> } & Record<PropertyKey, unknown>;
 
   const hash = services.hash ?? defaultHash;
   const byteLength = services.byteLength ?? utf8ByteLength;
@@ -247,6 +247,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const baseDir = filePath ? filePath.replace(/[/\\][^/\\]*$/, "") : undefined;
     const env: RenderEnv = { baseDir, urls: services.urls?.(baseDir, false) ?? {} };
     let text = body;
+    let sourceLine = (line: number) => line;
     if (ranges) {
       const bodyOffset = src.length - body.length;
       const usable = ranges.filter((range) => !ranges.error || range.end <= ranges.error.start).map((range) => ({
@@ -255,7 +256,7 @@ export function createRenderCore(services: RenderServices = {}) {
       }));
       const validBody = ranges.error ? body.slice(0, Math.max(0, ranges.error.start - bodyOffset)) : body;
       const renderChild = async (preview: MdxPreview, inline: boolean): Promise<RenderNode> => {
-        const childEnv = { ...env, mdxNodes: preview.nodes, mdxLines: preview.lines };
+        const childEnv = { ...env, mdxNodes: preview.nodes };
         const childTokens = inline ? md.parseInline(preview.text.trim(), childEnv) : md.parse(preview.text, childEnv);
         await services.prepareHighlighting?.(childTokens);
         return planSequence(childTokens, childEnv, false);
@@ -263,7 +264,7 @@ export function createRenderCore(services: RenderServices = {}) {
       const preview = await mapMdxPreview(validBody, usable, renderChild);
       text = preview.text;
       env.mdxNodes = preview.nodes;
-      env.mdxLines = preview.lines;
+      sourceLine = (line) => preview.lineMap[line] ?? preview.endLine;
     }
     services.mark?.("parse-start");
     const tokens = md.parse(text, env);
@@ -282,8 +283,8 @@ export function createRenderCore(services: RenderServices = {}) {
     }
 
     const balancedGroups = groupRawWrappers(groups);
-    const lineCount = body.split("\n").length;
-    const offset = src.replace(/^\uFEFF/, "").slice(0, src.replace(/^\uFEFF/, "").length - body.length).split("\n").length - 1;
+    const lineCount = 1 + (body.match(/\r\n|[\r\n]/g)?.length ?? 0);
+    const offset = src.replace(/^\uFEFF/, "").slice(0, src.replace(/^\uFEFF/, "").length - body.length).match(/\r\n|[\r\n]/g)?.length ?? 0;
     services.mark?.("html-serialize-start");
     const blocks: RenderedBlock[] = [];
     const seenKeys = new Map<string, number>();
@@ -313,7 +314,7 @@ export function createRenderCore(services: RenderServices = {}) {
       const seen = seenKeys.get(key) ?? 0;
       seenKeys.set(key, seen + 1);
       const maps = group.flatMap((token) => token.map ? [token.map] : []);
-      const sourceRange: [number, number] = maps.length ? [offset + Math.min(...maps.map((m) => m[0])), offset + Math.max(...maps.map((m) => m[1]))] : [offset + lineCount - 1, offset + lineCount - 1];
+      const sourceRange: [number, number] = maps.length ? [offset + sourceLine(Math.min(...maps.map((m) => m[0]))), offset + sourceLine(Math.max(...maps.map((m) => m[1])))] : [offset + lineCount - 1, offset + lineCount - 1];
       blocks.push({ key: seen ? `${key}~${seen}` : key, ...rendered, urls: env.urls, sourceRange });
     }
     if (mdx?.error) {

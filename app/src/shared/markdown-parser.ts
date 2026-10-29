@@ -5,7 +5,7 @@ import { katex } from "@mdit/plugin-katex";
 import { tasklist } from "@mdit/plugin-tasklist";
 
 export function createMarkdownParser(highlight?: MarkdownItOptions["highlight"]) {
-  return new MarkdownIt({ html: true, linkify: true, typographer: true, highlight })
+  return new MarkdownIt({ html: true, linkify: true, typographer: false, highlight })
     .use(katex, { throwOnError: false, trust: false, strict: "ignore", maxSize: 20, maxExpand: 1000 })
     .use(tasklist, { disabled: true })
     .use(footnote)

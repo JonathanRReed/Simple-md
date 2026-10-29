@@ -566,7 +566,7 @@ async function insertImages(files: File[]): Promise<string | null> {
 // none), so clicks land on the <li>; we map the click back to the source by ordinal. The
 // The parser maps rendered checkbox order, including relocated footnotes.
 async function toggleTask(item: HTMLElement): Promise<void> {
-  if (!hasDoc || view !== "read" || transitioning || isReadOnly()) return;
+  if (!hasDoc || view !== "read" || transitioning || isReadOnly() || mdx?.error) return;
   if (!meta.path) {
     toast("Save the note first to check off tasks.");
     return;
@@ -583,7 +583,7 @@ async function toggleTask(item: HTMLElement): Promise<void> {
   if (!matchesMountedSource()) return;
   const ed = await ensureEditor();
   if (!ed || !matchesMountedSource()) return;
-  const next = toggleTaskAt(source, index);
+  const next = toggleTaskAt(source, index, mdx?.ranges);
   if (next === null) {
     toast("Couldn't find that task in the source.");
     return;

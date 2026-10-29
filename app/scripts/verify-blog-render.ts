@@ -55,7 +55,7 @@ for (const input of inputs) {
     return result;
   })()` } });
   if (screenshots.has(input.name)) {
-    steps.push({ eval: `document.querySelector('#read-scroll').scrollTop = document.querySelector('#doc details:not(.frontmatter), #doc img')?.offsetTop ?? 0;` });
+    steps.push({ eval: `{ const target = document.querySelector('#doc details:not(.frontmatter), #doc img'); if (target?.matches('details')) target.open = true; target?.scrollIntoView({ block: 'start' }); }` });
     steps.push({ wait: 100 }, { shot: path.join(audit, input.name.replace(/\.mdx$/, ".png")) });
   }
   steps.push({ eval: `(async () => {
@@ -69,7 +69,11 @@ for (const input of inputs) {
   })()` }, { save: true }, { eval: `(async () => {
     const view = document.querySelector('.cm-content').cmTile.root.view;
     window.simplemd.command('undo');
-    if (view.state.doc.toString() !== window.blogBeforeEdit) throw Error('Blog undo failed');
+    const deadline = Date.now() + 10000;
+    while (view.state.doc.toString() !== window.blogBeforeEdit) {
+      if (Date.now() > deadline) throw Error('Blog undo failed');
+      await new Promise(r => setTimeout(r, 25));
+    }
   })()` }, { save: true }, { eval: `window.simplemd.command('toggle-edit');` });
 }
 steps.push({ shot: path.join(root, "last-blog.png") }, { quit: true });

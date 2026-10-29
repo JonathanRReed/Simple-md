@@ -396,7 +396,12 @@ await test("mdx-editing", async () => {
       await waitFor(() => document.querySelector('#preview .mdx-component'), 'Component box did not render.');
       const at = v.state.doc.toString().indexOf('value={1}') + 8;
       v.dispatch({ changes: { from: at, insert: '0' }, userEvent: 'input.type' });
-      assert(v.state.doc.toString().includes('value={10}'), 'Edit inside MDX failed.');`),
+      assert(v.state.doc.toString().includes('value={10}'), 'Edit inside MDX failed.');
+      window.simplemd.command('mode-live');
+      await waitFor(() => document.querySelector('#edit').dataset.mode === 'live', 'Live did not return after editing.');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      assert(document.querySelector('.cm-content').textContent.includes('**inside** and $x$'), 'Reparse hid markers inside edited JSX.');
+      assert(!document.querySelector('.cm-rendered, .cm-image, .cm-math-inline'), 'Reparse made a widget inside JSX.');`),
     { save: true },
     ...appendCharacter("!"),
     { save: true },
