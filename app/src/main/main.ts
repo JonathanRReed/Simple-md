@@ -895,10 +895,12 @@ function registerIpc(): void {
     currentSession().intent = "edit";
     if (process.platform === "darwin") void app.dock?.show();
   });
-  ipcMain.on("smd:perf-marker", (e, id: unknown, marker: unknown) => {
+  ipcMain.on("smd:perf-marker", (e, id: unknown, marker: unknown, rendererEpochMs: unknown) => {
     if (testProfile && mainSender(e) && id === currentSession().documentId && typeof marker === "string" &&
         ["renderer-receive", "renderer-mount", "first-readable", "fully-highlighted", "diagrams-ready", "ready-for-input"].includes(marker)) {
-      perfMark(marker, { documentId: id, path: currentSession().path });
+      perfMark(marker, { documentId: id, path: currentSession().path,
+        rendererEpochMs: typeof rendererEpochMs === "number" && Number.isFinite(rendererEpochMs) ? rendererEpochMs : null,
+        receiverEpochMs: performance.timeOrigin + performance.now(), windowVisible: win.isVisible() });
     }
   });
   ipcMain.on("smd:document-ready", (e, id: unknown) => {
