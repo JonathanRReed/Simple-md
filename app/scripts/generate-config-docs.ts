@@ -32,6 +32,9 @@ ${serializeConfig("# SimpleMD\n", configDefaults).trimEnd()}
 \`\`\`
 `;
 const file = path.resolve(import.meta.dir, "../../docs/config.md");
+const exampleFile = path.resolve(import.meta.dir, "../../docs/config.example");
+const example = serializeConfig("# SimpleMD\n", configDefaults);
 if (process.argv.includes("--check")) {
+  if (await Bun.file(exampleFile).text() !== example) throw new Error("Regenerate docs/config.example from the config schema.");
   if (await Bun.file(file).text() !== output) throw new Error("Regenerate docs/config.md from the config schema.");
-} else await Bun.write(file, output);
+} else { await Bun.write(file, output); await Bun.write(exampleFile, example); }

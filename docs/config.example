@@ -1,0 +1,24 @@
+# SimpleMD
+theme-light = editorial-light
+theme-dark = editorial-dark
+appearance = system
+reading-style = editorial
+reading-font-family = Charter
+reading-font-size = 19
+reading-line-height = 1.68
+content-width = 66
+writing-font-family = system-ui
+writing-font-size = 17
+writing-line-height = 1.65
+writing-content-width = 66
+code-font-family = ui-monospace
+code-font-size = 14
+code-line-height = 1.55
+code-content-width = 100
+mode = live
+open-in = tab
+autosave = true
+vim = false
+spellcheck = true
+remote-images = true
+launch-at-login = false
