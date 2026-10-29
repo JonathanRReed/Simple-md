@@ -221,11 +221,7 @@
           "simplemd"
         ]
       }
-    ],
-    "deb": {
-      "afterInstall": "build/linux-after-install.sh",
-      "afterRemove": "build/linux-after-remove.sh"
-    }
+    ]
   },
   "desktopName": "simplemd.desktop",
   "homepage": "https://github.com/JonathanRReed/Simple-md"

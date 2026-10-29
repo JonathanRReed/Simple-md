@@ -1,3 +1,4 @@
+import { withLinuxCliHooks } from "./linux-cli.mjs";
 import afterPack, { packagedApp, quickLookIdentity } from "./quicklook.mjs";
 import { verifyQuickLook } from "./quicklook-verify.mjs";
 import { appDir, buildNative, currentNativePlan, run } from "./native.mjs";
@@ -79,6 +80,7 @@ if (import.meta.main) {
       publish: "never",
     };
     if (process.platform === "darwin") await buildAndVerify(build, options, () => finalApp);
+    else if (process.platform === "linux") await withLinuxCliHooks(config, combined => build({ ...options, config: combined }));
     else await build(options);
   }
 }

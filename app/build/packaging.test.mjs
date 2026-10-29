@@ -210,3 +210,22 @@ test("Quick Look identity comes from the explicit full identity", async () => {
     .toBe('Developer ID Application: Jonathan Reed (AJ9VWBRNZN)');
   expect(() => quickLookIdentity({ SIMPLEMD_SIGN_IDENTITY: 'Jonathan Reed' })).toThrow('Developer ID');
 });
+
+
+test("Linux CLI hooks retain builder launcher and sandbox setup and clean their temporary scripts", async () => {
+  const { withLinuxCliHooks } = await import("./linux-cli.mjs");
+  let generated;
+  await withLinuxCliHooks({}, async config => {
+    generated = config.deb.afterInstall;
+    const install = readFileSync(config.deb.afterInstall, "utf8");
+    const remove = readFileSync(config.deb.afterRemove, "utf8");
+    expect(install).toContain("update-alternatives --install");
+    expect(install).toContain("chrome-sandbox");
+    expect(install).toContain("apparmor_parser");
+    expect(install).toContain("resources/native/simplemd");
+    expect(remove).toContain("update-alternatives --remove");
+    expect(remove).toContain("resources/native/simplemd");
+  });
+  const { existsSync } = await import("node:fs");
+  expect(existsSync(generated)).toBe(false);
+});
