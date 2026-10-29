@@ -133,3 +133,23 @@ test.skipIf(process.platform === "win32")("a squatted runtime disables only the 
     expect(fs.statSync(runtime).mode & 0o777).toBe(0o755);
   } finally { fs.rmdirSync(runtime); fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test.skipIf(process.platform === "win32")("authenticated waiters have a separate 256-connection cap", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-cap-")), runtime = cliRuntime(root);
+  const server = await startCliServer({ binary: "unused", profile: root, dispatch: async () => () => {} });
+  const sockets: net.Socket[] = [];
+  async function connect(index: number): Promise<unknown> {
+    const socket = net.createConnection(path.join(runtime, "ipc.sock")); sockets.push(socket);
+    const state = JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8"));
+    return new Promise((resolve, reject) => {
+      const reader = new FrameReader();
+      socket.once("connect", () => socket.write(frame(Buffer.from(JSON.stringify({ ...request, id: `cap-${index}`, secret: state.secret })))));
+      socket.on("data", bytes => reader.push(bytes, frame => resolve(JSON.parse(frame.toString()))));
+      socket.once("error", reject); socket.once("close", () => reject(new Error("Closed before response")));
+    });
+  }
+  try {
+    for (let i = 0; i < 256; i++) expect(await connect(i)).toMatchObject({ status: "accepted" });
+    expect(await connect(256)).toMatchObject({ status: "error", message: "Too many authenticated CLI connections. Close a waiting session and retry." });
+  } finally { for (const socket of sockets) socket.destroy(); server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+}, 15000);

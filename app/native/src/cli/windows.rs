@@ -264,6 +264,7 @@ pub fn broker() -> Result<(), String> {
         std::process::exit(1);
     });
     let active = Arc::new(AtomicUsize::new(0));
+    let authenticated = Arc::new(AtomicUsize::new(0));
     let sd = descriptor()?;
     let attributes = SECURITY_ATTRIBUTES {
         nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
@@ -283,7 +284,7 @@ pub fn broker() -> Result<(), String> {
                 name.as_ptr(),
                 PIPE_ACCESS_DUPLEX | first,
                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-                64,
+                PIPE_UNLIMITED_INSTANCES,
                 65536,
                 65536,
                 15000,
@@ -311,6 +312,7 @@ pub fn broker() -> Result<(), String> {
         let clients = clients.clone();
         let active = active.clone();
         let secret = secret.clone();
+        let authenticated = authenticated.clone();
         thread::spawn(move || {
             let watchdog = file.try_clone().ok();
             let finished = Arc::new(AtomicUsize::new(0));
@@ -330,6 +332,7 @@ pub fn broker() -> Result<(), String> {
                     thread::sleep(Duration::from_millis(50));
                 }
             });
+            let mut authorized = false;
             let result = (|| -> Result<(), String> {
                 let request: Value = serde_json::from_slice(
                     &read_frame(&mut file, FRAME_CAP).map_err(|e| e.to_string())?,
@@ -338,6 +341,13 @@ pub fn broker() -> Result<(), String> {
                 if !secret_matches(&secret, request["secret"].as_str().unwrap_or("")) {
                     return Err("Unauthorized".into());
                 }
+                if authenticated.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| (count < 256).then_some(count + 1)).is_err() {
+                    let response = json!({"version":1,"id":request["id"],"status":"error","message":"Too many authenticated CLI connections. Close a waiting session and retry."});
+                    write_frame(&mut file, &serde_json::to_vec(&response).map_err(|e| e.to_string())?, FRAME_CAP).map_err(|e| e.to_string())?;
+                    return Err("Authenticated connection limit".into());
+                }
+                authorized = true;
+                active.fetch_sub(1, Ordering::SeqCst);
                 let mut text = String::new();
                 if request["command"] == "stdin" {
                     let length = request["length"]
@@ -365,7 +375,7 @@ pub fn broker() -> Result<(), String> {
             finished.store(1, Ordering::SeqCst);
             clients.lock().unwrap().remove(&id);
             emit(json!({"connection":id,"disconnected":true,"failed":result.is_err()}));
-            active.fetch_sub(1, Ordering::SeqCst);
+            if authorized { authenticated.fetch_sub(1, Ordering::SeqCst); } else { active.fetch_sub(1, Ordering::SeqCst); }
         });
     }
 }

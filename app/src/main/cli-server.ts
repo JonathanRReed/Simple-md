@@ -67,9 +67,11 @@ export async function startCliServer(options: { binary: string; profile?: string
     return { close() { for (const cleanup of active) cleanup(); broker.kill(); runtime.cleanup(); } };
   }
   const sockets = new Set<net.Socket>();
+  const unauthenticated = new Set<net.Socket>();
+  const authenticated = new Set<net.Socket>();
   const server = net.createServer(socket => {
-    if (sockets.size >= 16) { socket.destroy(); return; }
-    sockets.add(socket);
+    if (unauthenticated.size >= 16) { socket.destroy(); return; }
+    sockets.add(socket); unauthenticated.add(socket);
     const reader = new FrameReader();
     let pending: CliRequest | undefined; let started = false;
     const client = handle(value => socket.write(frame(Buffer.from(JSON.stringify(value)))), () => socket.end());
@@ -87,12 +89,18 @@ export async function startCliServer(options: { binary: string; profile?: string
           dispatch(pending, text); return;
         }
         const request = parseCliRequest(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)), runtime.secret, bytes.length);
+        if (authenticated.size >= 256) {
+          started = true; reader.cap = 0;
+          socket.end(frame(Buffer.from(JSON.stringify({ version: CLI_VERSION, id: request.id, status: "error", message: "Too many authenticated CLI connections. Close a waiting session and retry." }))));
+          return;
+        }
+        unauthenticated.delete(socket); authenticated.add(socket);
         if (request.command === "stdin" && request.length) { pending = request; reader.cap = Math.min(STDIN_CAP, request.length); }
         else dispatch(request, "");
       }); } catch { socket.destroy(); }
     });
     socket.on("error", () => {});
-    socket.on("close", () => { sockets.delete(socket); client.cleanup(); });
+    socket.on("close", () => { sockets.delete(socket); unauthenticated.delete(socket); authenticated.delete(socket); client.cleanup(); });
   });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(runtime.endpoint, () => resolve()); });
   fs.chmodSync(runtime.endpoint, 0o600);
