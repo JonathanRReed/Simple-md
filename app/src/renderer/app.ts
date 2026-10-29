@@ -107,11 +107,11 @@ const katexCss = new Promise<void>((resolve) => {
 // Retained blocks stay attached so diagrams and browser selections survive unchanged renders.
 const blockEls = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 
-function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
+function mountBlocks(el: HTMLElement, blocks: RenderedBlock[], append = false): void {
   const prev = blockEls.get(el) ?? new Map<string, HTMLElement>();
-  const next = new Map<string, HTMLElement>();
+  const next = append ? prev : new Map<string, HTMLElement>();
   const fresh: HTMLElement[] = [];
-  let cursor = el.firstChild;
+  let cursor = append ? null : el.firstChild;
   for (const block of blocks) {
     let node = prev.get(block.key);
     if (node && node.dataset.fingerprint !== (block.fingerprint ?? block.key)) {
@@ -133,7 +133,7 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
     if (node === cursor) cursor = cursor.nextSibling;
     else el.insertBefore(node, cursor);
   }
-  for (const stale of prev.values()) {
+  for (const stale of append ? [] : prev.values()) {
     destroyDiagrams(stale);
     stale.remove();
   }
@@ -162,7 +162,7 @@ async function appendStream(payload: DocPayload, id: number): Promise<void> {
         return;
       }
       blocks = applyBlockUpdate(blocks, update);
-      mountBlocks(docEl, blocks);
+      mountBlocks(docEl, update.kind === "append" ? update.blocks : blocks, update.kind === "append");
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     }
   } catch {
@@ -435,7 +435,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
   delete root.dataset.documentPainted;
   delete root.dataset.firstReadable;
   delete root.dataset.fullyHighlighted;
-  delete root.dataset.renderComplete;
+  root.dataset.renderComplete = "";
   hasDoc = true;
   readText = payload.text;
   savedText = payload.text;

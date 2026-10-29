@@ -27,3 +27,23 @@ test("a replaced stream cannot return old patches", async () => {
   expect(await streams.next(old.stream!)).toEqual({ kind: 'done' });
   expect(await streams.next(fresh.stream!)).toEqual({ kind: 'done' });
 });
+
+test("a huge document sends a prefix and bounded block batches before the final oracle", async () => {
+  const streams = new BlockStreams();
+  const text = '# Huge\n\n' + Array.from({length: 400}, (_, i) => `Paragraph ${i}. ${'text '.repeat(200)}\n\n`).join('');
+  const first = await streams.start(text, '/tmp/huge.md');
+  expect(first.blocks.map(block => block.html).join('').length).toBeLessThan(20_000);
+  let blocks = first.blocks;
+  let appends = 0;
+  for (;;) {
+    const update = await streams.next(first.stream!);
+    if (update.kind === 'done') break;
+    if (update.kind === 'append') {
+      appends++;
+      expect(update.blocks.map(block => block.html).join('').length).toBeLessThan(70_000);
+    }
+    blocks = applyBlockUpdate(blocks, update);
+  }
+  expect(appends).toBeGreaterThan(1);
+  expect(blocks).toEqual((await renderBlocks(text, '/tmp/huge.md')).blocks);
+});

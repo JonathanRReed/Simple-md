@@ -88,7 +88,7 @@ const core = createRenderCore({
   mark: perfMark,
   byteLength: Buffer.byteLength,
 });
-export const { renderBlocks, renderMarkdown, renderFragment } = core;
+export const { renderBlocks, renderBlockBatches, renderMarkdown, renderFragment } = core;
 export type { RenderedBlocks, RenderedDoc, RenderedBlock } from "../shared/render-core.js";
 
 export { urlContext } from "./document-urls.js";

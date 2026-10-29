@@ -88,7 +88,7 @@ function assertDocument(file: string, text: string): DriverStep {
   const heading = /^# (.+)$/m.exec(text.replace(/^\uFEFF/, ""))?.[1];
   return evaluate(`${waitFor}
     const file = ${quote(file)};
-    await waitFor(() => document.documentElement.dataset.firstReadable === file && document.documentElement.dataset.documentPainted === file && document.documentElement.dataset.renderComplete === file);
+    await waitFor(() => document.documentElement.dataset.firstReadable === file && document.documentElement.dataset.documentPainted === file && (document.documentElement.dataset.renderComplete === undefined || document.documentElement.dataset.renderComplete === file));
     if (document.documentElement.dataset.documentPath !== file) throw new Error('Wrong perf file');
     if (document.querySelector('#doc h1')?.textContent !== ${quote(heading)}) throw new Error('Failed perf heading render');
     await waitFor(() => !document.querySelector('#doc pre.mermaid'));

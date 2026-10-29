@@ -259,7 +259,7 @@ export function createRenderCore(services: RenderServices = {}) {
     return ranges;
   }
 
-  async function renderBlocks(src: string, filePath: string | null, highlighted = true): Promise<RenderedBlocks> {
+  async function* renderBlockBatches(src: string, filePath: string | null, highlighted = true): AsyncGenerator<RenderedBlocks> {
     highlighting = highlighted;
     const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
     const isMdx = filePath !== null && /\.mdx$/i.test(filePath);
@@ -310,7 +310,9 @@ export function createRenderCore(services: RenderServices = {}) {
     const offset = src.replace(/^\uFEFF/, "").slice(0, src.replace(/^\uFEFF/, "").length - body.length).match(/\r\n|[\r\n]/g)?.length ?? 0;
     highlighting = highlighted;
     services.mark?.("html-serialize-start");
-    const blocks: RenderedBlock[] = [];
+    let blocks: RenderedBlock[] = [];
+    let batchBytes = 0;
+    const result = (): RenderedBlocks => ({ ...(mdx ? { mdx } : {}), title: title ?? (filePath ? filePath.split(/[/\\]/).pop()!.replace(/\.[^.]*$/, "") : "Untitled"), blocks });
     const seenKeys = new Map<string, number>();
     if (raw !== undefined) {
       const html = renderFrontmatter(raw);
@@ -341,13 +343,30 @@ export function createRenderCore(services: RenderServices = {}) {
       const maps = group.flatMap((token) => token.map ? [token.map] : []);
       const sourceRange: [number, number] = maps.length ? [offset + sourceLine(Math.min(...maps.map((m) => m[0]))), offset + sourceLine(Math.max(...maps.map((m) => m[1])))] : [offset + lineCount - 1, offset + lineCount - 1];
       blocks.push({ key: seen ? `${key}~${seen}` : key, fingerprint: hash(rendered.html + (rendered.content ? JSON.stringify(rendered.content) : "")), ...rendered, urls: env.urls, sourceRange });
+      batchBytes += byteLength(rendered.html);
+      if (batchBytes >= 64 * 1024) {
+        yield result();
+        blocks = [];
+        batchBytes = 0;
+        highlighting = highlighted;
+      }
     }
     if (mdx?.error) {
       const html = `<div class="mdx-error"><span class="mdx-label">Incomplete MDX</span><pre>${escapeHtml(src.slice(mdx.error.start, mdx.error.end))}</pre></div>`;
       blocks.push({ key: "mdx-error" + hash(html), html, urls: env.urls, sourceRange: [mdx.error.startLine - 1, mdx.error.endLine] });
     }
     services.mark?.("html-serialize-end");
-    return { ...(mdx ? { mdx } : {}), title: title ?? (filePath ? filePath.split(/[/\\]/).pop()!.replace(/\.[^.]*$/, "") : "Untitled"), blocks };
+    if (blocks.length || !balancedGroups.length) yield result();
+  }
+
+  async function renderBlocks(src: string, filePath: string | null, highlighted = true): Promise<RenderedBlocks> {
+    let result: RenderedBlocks = { title: "Untitled", blocks: [] };
+    const blocks: RenderedBlock[] = [];
+    for await (const batch of renderBlockBatches(src, filePath, highlighted)) {
+      result = batch;
+      blocks.push(...batch.blocks);
+    }
+    return { ...result, blocks };
   }
 
   async function renderBody(text: string, baseDir: string | undefined): Promise<RenderedHtml> {
@@ -411,6 +430,6 @@ export function createRenderCore(services: RenderServices = {}) {
     }
     return { kind: author ? "author" : "app", parts };
   }
-  return { renderBlocks, renderMarkdown, renderFragment };
+  return { renderBlocks, renderBlockBatches, renderMarkdown, renderFragment };
 
 }
