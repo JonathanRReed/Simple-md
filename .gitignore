@@ -22,3 +22,5 @@ coverage/
 *.log
 .DS_Store
 resources/.DS_Store
+
+app/native/windows-preview/render-core.js
