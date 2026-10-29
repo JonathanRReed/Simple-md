@@ -438,11 +438,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (!doc.hasDoc || (transitioning && !initializing) || isReadOnly()) return;
     closeReadFind();
     const id = pane.documentId;
+    const owner = pane;
     const seq = ++pane.viewSeq;
     const fraction = scrollFraction(readScroll);
     const restoring = !!retainedEditor;
     const ed = await ensureEditor();
-    if (!ed || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
+    if (!ed || pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
     pane.view = "edit";
     simplemd.editing(pane.documentId);
     updateChrome();
@@ -450,12 +451,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (prepared) mountBlocks(previewEl, prepared);
       else await renderPreview();
     }
-    if (id !== pane.documentId || seq !== pane.viewSeq) return;
+    if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq) return;
     if (pane.mode === "live" && doc.readText.length > LIVE_MAX_CHARS) {
       toast("This note is large, so Live Preview is off to keep typing fast.");
     }
     requestAnimationFrame(() => {
-      if (id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
+      if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
       if (!restoring) ed.scroller.scrollTop = retainedScroll ?? fraction * Math.max(0, ed.scroller.scrollHeight - ed.scroller.clientHeight);
       retainedScroll = undefined;
       if (options.active()) ed.focus();
@@ -467,12 +468,13 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     ++pane.viewSeq;
     ++pane.previewRenderSeq;
     const id = pane.documentId;
+    const owner = pane;
     const fraction = pane.editor ? pane.editor.scrollFraction() : scrollFraction(readScroll);
     doc.readText = currentText();
     pane.view = "read";
     updateChrome();
     await renderRead(doc.readText, false);
-    if (id !== pane.documentId || pane.view !== "read") return;
+    if (pane !== owner || id !== pane.documentId || pane.view !== "read") return;
     setScrollFraction(readScroll, fraction);
     if (settings.autosave) void saveNow(false, true);
   }
@@ -512,6 +514,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (!retained) doc.revisionId = payload.revisionId;
     root.dataset.revisionId = String(doc.revisionId);
     pane = createPaneState(paneId, id);
+    const owner = pane;
     pane.mode = mode;
     simplemd.paneMode(pane.paneId, mode);
     retainedEditor = retained?.editor;
@@ -549,15 +552,15 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     updateChrome();
     if (sourceEdit) {
       await showEdit(true, retained || !payload.blocks.length ? undefined : payload.blocks);
-      if (disposed || id !== pane.documentId) return;
+      if (disposed || pane !== owner || id !== pane.documentId) return;
     }
     if (retained && !sourceEdit && !doc.lastGoodBlocks) await renderRead(doc.readText, false);
-    if (disposed || id !== pane.documentId) return;
+    if (disposed || pane !== owner || id !== pane.documentId) return;
     simplemd.perfMarker(id, "renderer-mount");
     // This marker does not await fonts, highlighting completion checks or diagram work.
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (disposed || id !== pane.documentId) return;
+      if (disposed || pane !== owner || id !== pane.documentId) return;
       root.dataset.firstReadable = payload.path ?? "";
       simplemd.perfMarker(id, "first-readable");
       if (!retained && payload.stream !== undefined) void appendStream(payload, id);
@@ -571,10 +574,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (!sourceOnly && visibleRoot.querySelector(".katex")) {
       await katexCss;
       await document.fonts.ready;
-      if (disposed || id !== pane.documentId) return;
+      if (disposed || pane !== owner || id !== pane.documentId) return;
     }
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (disposed || id !== pane.documentId) return;
+      if (disposed || pane !== owner || id !== pane.documentId) return;
       root.dataset.documentPainted = payload.path ?? "";
       root.dataset.documentId = String(id);
       simplemd.documentReady(id);

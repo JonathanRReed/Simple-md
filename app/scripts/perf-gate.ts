@@ -466,6 +466,7 @@ export async function perfGate(): Promise<void> {
       const paced = recordValue(result.events, "paced-typing");
       if (typeof record !== "object" || record === null || !("events" in record) || !Array.isArray(record.events) || !("lowerBound" in record) || !("finalText" in record) || record.finalText !== expected) throw new Error("Missing or invalid typing evidence");
       assert.equal(fs.readFileSync(file, "utf8"), expected, "Final saved typing bytes differ");
+      if (typingPanes === 2) assert.equal(fs.readFileSync(path.join(fixtureDirectory, "typing-companion.md"), "utf8"), text, "Typing changed the companion document");
       const eventTiming = parseTiming(paced);
       if (typeof paced !== "object" || paced === null || !("frames" in paced) || !Array.isArray(paced.frames) || !paced.frames.every(value => typeof value === "number")) throw new Error("Missing frame calibration");
       const frameMs = percentile(paced.frames, 0.5);

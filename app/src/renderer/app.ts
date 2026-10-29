@@ -127,8 +127,15 @@ function mountLayout(next: TabLayoutState): void {
       });
     } else if (entry.element.dataset.documentPainted !== undefined) {
       const id = slot.documentId;
+      delete entry.element.dataset.firstReadable;
+      delete entry.element.dataset.documentPainted;
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (entry?.controller.documentId === id) api.perfMarker(id, "first-readable");
+        if (entry?.controller.documentId === id) {
+          const file = documents.get(id)?.payload.path ?? "";
+          entry.element.dataset.firstReadable = file;
+          entry.element.dataset.documentPainted = file;
+          api.perfMarker(id, "first-readable"); api.documentReady(id);
+        }
       }));
     }
   }

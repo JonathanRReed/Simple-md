@@ -939,6 +939,7 @@ await test("tabs-sibling-command-click", async () => {
 
 await test("tabs-windows", async () => {
   const a = fixture("tabs-windows/a.md", note), b = fixture("tabs-windows/b.md", "# Separate window\n");
+  const c = fixture("tabs-windows/c.md", "# New tab in remaining window\n");
   await launch("tabs-windows", a, [
     ...appendCharacter("!"),
     evaluate(`window.simplemd.command('move-tab-window');`),
@@ -950,6 +951,13 @@ await test("tabs-windows", async () => {
     { windowCount: 1 },
     evaluate(`await window.simplemd.setSettings({ openIn: 'window' }); await window.simplemd.openPath(${quote(b)}, 'edit');`),
     { windowCount: 2 },
+    { selectWindow: b },
+    evaluate(`await window.simplemd.setSettings({ openIn: 'tab' }); window.simplemd.command('close-tab');`),
+    { wait: 200 },
+    { windowCount: 1 },
+    { selectWindow: a },
+    evaluate(`await window.simplemd.openPath(${quote(c)}, 'edit');`),
+    { windowCount: 1 },
   ], "edit");
   assert.deepEqual(fs.readFileSync(a), Buffer.from(note + "!"), "Moving a dirty tab lost unsaved bytes.");
 });
@@ -972,7 +980,11 @@ await test("tabs-scroll-selection-shortcuts", async () => {
       await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Scrolled tab did not return.');
       const restored = document.querySelector('.cm-content').cmTile.root.view;
       assert(restored.state.selection.main.head === 50000, 'Selection lost across switch.');
-      await waitFor(() => { const scroll = restored.scrollSnapshot().value; return scroll.range.head === window.savedScroll.range.head && Math.abs(scroll.yMargin - window.savedScroll.yMargin) < 3; }, 'Visible source position lost across switch.');`),
+      await waitFor(() => { const scroll = restored.scrollSnapshot().value; return scroll.range.head === window.savedScroll.range.head && Math.abs(scroll.yMargin - window.savedScroll.yMargin) < 3; }, 'Visible source position lost across switch.');
+      const otherId = [...document.querySelectorAll('[role=tab]')].map(tab => Number(tab.dataset.documentId)).find(id => id !== window.scrollId);
+      await Promise.all([window.simplemd.activateTab(otherId), window.simplemd.activateTab(window.scrollId), window.simplemd.activateTab(otherId), window.simplemd.activateTab(window.scrollId)]);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelectorAll('.cm-editor').length === 1, 'Rapid activations did not converge.');`),
     ...key("Tab", ["control"]),
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Control-Tab did not cycle.');`),
     ...key("1", [mod]),

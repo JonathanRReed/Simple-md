@@ -219,7 +219,10 @@ function createWindow(): BrowserWindow {
     void windowScope.run(windows.get(w.webContents.id)!, () => documents.run(() => closeDocumentWindow()));
   });
   const webContentsId = w.webContents.id;
-  w.on("closed", () => { windows.delete(webContentsId); });
+  w.on("closed", () => {
+    windows.delete(webContentsId);
+    if (frontmost?.win === w) frontmost = [...windows.values()].find(host => !host.win.isDestroyed() && host.win.isVisible()) ?? [...windows.values()].at(-1) ?? frontmost;
+  });
   return w;
 }
 
@@ -377,7 +380,22 @@ function watch(doc: DocumentSession): void {
   doc.watch((text, reason) => send("smd:disk-changed", text, doc.documentId, reason));
 }
 
-const documentWaiters = new Map<DocumentId, () => void>();
+const documentWaiters = new Map<string, Set<() => void>>();
+function waitUntilUsable(id: DocumentId): Promise<void> {
+  const key = `${context().win.webContents.id}:${id}`;
+  const waiters = documentWaiters.get(key) ?? new Set<() => void>();
+  documentWaiters.set(key, waiters);
+  return new Promise<void>((resolve, reject) => {
+    const remove = () => { waiters.delete(done); if (!waiters.size) documentWaiters.delete(key); };
+    const timer = setTimeout(() => { remove(); reject(new Error("The document did not finish loading.")); }, 15_000);
+    const done = () => {
+      clearTimeout(timer); remove();
+      trace(`document-usable id=${id} name=${registry.get(id)?.name}`);
+      resolve();
+    };
+    waiters.add(done);
+  });
+}
 async function present(payload: DocPayload): Promise<void> {
   await context().loaded;
   const previous = context().mainPane.documentId;
@@ -388,18 +406,7 @@ async function present(payload: DocPayload): Promise<void> {
   const doc = currentSession();
   watch(doc);
   updateTitle();
-  const usable = new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      documentWaiters.delete(payload.documentId);
-      reject(new Error("The document did not finish loading."));
-    }, 15_000);
-    documentWaiters.set(payload.documentId, () => {
-      clearTimeout(timer);
-      documentWaiters.delete(payload.documentId);
-      trace(`document-usable id=${payload.documentId} name=${payload.name}`);
-      resolve();
-    });
-  });
+  const usable = waitUntilUsable(payload.documentId);
   perfMark("renderer-send", { path: payload.path, documentId: payload.documentId });
   send("smd:doc", payload);
   syncLayout();
@@ -436,9 +443,11 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       if (file && (file === abs || await fs.promises.realpath(file).catch(() => file) === canonical)) { existing = id; break; }
     }
     if (existing !== undefined) return windowScope.run(host, async () => {
+      const usable = waitUntilUsable(existing);
+      perfMark("file-open-arrival", { path: abs });
       host.layout.activate(existing);
       syncLayout(); reveal();
-      perfMark("file-open-arrival", { path: abs });
+      await usable;
       return true;
     });
   }
@@ -914,7 +923,7 @@ function registerIpc(): void {
     }
   });
   on("smd:document-ready", (e, id: unknown) => {
-    if (mainSender(e) && isDocumentId(id) && id === currentSession().documentId) documentWaiters.get(id)?.();
+    if (mainSender(e) && isDocumentId(id) && id === currentSession().documentId) documentWaiters.get(`${e.sender.id}:${id}`)?.forEach(done => done());
   });
   on("smd:flush-response", (e, id: unknown, r: unknown) => {
     if (!mainSender(e) || !isRequestId(id) || !r || typeof r !== "object") return;

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { selectWindow: number } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -26,7 +26,11 @@ export async function runDriver(
     for (const step of steps) {
       if ("selectWindow" in step) {
         const { BrowserWindow } = await import("electron");
-        const selected = BrowserWindow.getAllWindows()[step.selectWindow];
+        const all = BrowserWindow.getAllWindows();
+        const selection = step.selectWindow;
+        const selected = typeof selection === "number" ? all[selection] : (await Promise.all(all.map(async window => ({
+          window, file: await window.webContents.executeJavaScript("document.documentElement.dataset.documentPath"),
+        })))).find(entry => entry.file === selection)?.window;
         if (!selected) throw new Error("Driver window is missing.");
         win = selected;
         continue;
