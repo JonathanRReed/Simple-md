@@ -641,6 +641,15 @@ details.frontmatter pre {
 .cm-editor .cm-line {
   padding: 0;
 }
+/* Stop compositor ticks after four blinks. A distinct initial name lets
+   CodeMirror's first selection change restart the completed animation. */
+.cm-editor.cm-focused > .cm-scroller > .cm-cursorLayer {
+  animation-name: smd-initial-blink;
+  animation-iteration-count: 4;
+}
+@keyframes smd-initial-blink {
+  50% { opacity: 0; }
+}
 .cm-cursor,
 .cm-dropCursor {
   border-left: 1.5px solid var(--fg);

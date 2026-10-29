@@ -167,7 +167,10 @@ export async function runDriver(
       }
       if ("windowCount" in step) {
         const { BrowserWindow } = await import("electron");
-        if (BrowserWindow.getAllWindows().length !== step.windowCount) throw new Error("Unexpected document window count.");
+        const deadline = performance.now() + 5000;
+        while (BrowserWindow.getAllWindows().length !== step.windowCount && performance.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+        const actual = BrowserWindow.getAllWindows().length;
+        if (actual !== step.windowCount) throw new Error(`Unexpected document window count: ${actual}, expected ${step.windowCount}.`);
         continue;
       }
       if ("noSavePrompt" in step) {
