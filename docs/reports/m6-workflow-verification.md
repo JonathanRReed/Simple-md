@@ -50,3 +50,50 @@ failures in sequence. Its one failure was caused by rebuilding `dist` while
 the suite was launching `bytes-roundtrip-binary-looking`, temporarily removing
 `main-app.mjs`. This run is excluded from final acceptance. The two acceptance
 runs will use a fixed build and separate temporary blog copies.
+
+## Functional acceptance
+
+All five reported smoke cases passed individually after the menu fix. Both
+required full smoke runs passed **90/90** cases. Each used a separate copy of
+`/Users/jonathanreed/Downloads/Personal-Site/src/content/blog`. SHA-256 checks
+confirmed the originals and both copies were unchanged. Logs and copy paths
+are in `.audit/m6-finish/smoke-runs.json`, `smoke-1.log`, and `smoke-2.log`.
+
+The initial menu, CLI-unavailable, size, and window-count errors do not
+reproduce on the fresh build, either alone or in sequence. Stale output is
+a possible explanation, not an established cause of those earlier results.
+The confirmed product defects were the disabled Git retry and its stale
+checkbox. The watch test's expectation of a disabled retry was wrong.
+The current window-count assertion and lifecycle implementation agree, so
+neither was changed. Optional CLI startup remained non-fatal.
+
+The CLI verifier now accepts a case filter, so
+`bun run test:cli cold-open` checks cold start alone. It passed, as did the
+full seven-scenario `bun run test:cli`. Both receipts identify
+`native/target/cli-tests/release/simplemd` and record the Electron executable
+in `SMD_CLI_APP` and app directory in `SMD_CLI_APP_ROOT`. `buildTestCli()`
+builds this binary with `cli-test-hooks`. The release CLI's packaging check
+confirms it contains none of `SMD_CLI_RUNTIME`, `SMD_CLI_APP`, or
+`SMD_CLI_APP_ROOT`. Release platform launch behavior was not changed.
+
+| Check | Result |
+| --- | --- |
+| `bun run build:native`, run first | Passed |
+| `bun run typecheck` | Passed, repeated after the CLI filter change |
+| `bun run test` | 345 passed, 1 skipped, 0 failed |
+| `bun run test:corpus` | 41 documents, 0 semantic edits |
+| `bun run test:packaging` | 21 passed, 1 skipped, 0 failed |
+| `bun run check:rust` | Passed |
+| `bun run test:rust` | 7 passed across the Rust binaries |
+| `bun run build` | Passed before the acceptance smoke runs |
+| `bun run test:cli cold-open` | 1/1 passed |
+| `bun run test:cli` | 7/7 passed |
+| Full smoke, blog copy 1 | 90/90 passed |
+| Full smoke, blog copy 2 | 90/90 passed |
+
+The skipped test requires an actual packaged Quick Look app. These checks
+do not qualify a signed distribution bundle or Windows hardware.
+
+The host has 14 logical cores. Smoke run 1 started at load averages
+19.42, 21.70, 20.58 and ended at 18.28, 20.67, 20.32. Run 2 ended at
+32.95, 27.19, 23.08. The perf gate will record its own load and failures.

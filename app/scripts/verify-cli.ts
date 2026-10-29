@@ -12,6 +12,8 @@ import { frame } from "../src/main/cli-protocol";
 const appRoot = path.resolve(import.meta.dir, "..");
 const cli = buildTestCli();
 const electron = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
+const devLaunch = { SMD_CLI_APP: electron, SMD_CLI_APP_ROOT: appRoot };
+const filter = process.argv[2];
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "smd-cli-smoke-")));
 const bin = path.join(root, "bin"); fs.mkdirSync(bin); fs.symlinkSync(cli, path.join(bin, process.platform === "win32" ? "simplemd.exe" : "simplemd"));
 const first = path.join(root, "seed.md"); fs.writeFileSync(first, "# Seed\n\nKeep this document.\n");
@@ -39,6 +41,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, input?: st
   return { child, done, errors: () => errors, output: () => output };
 }
 async function session(name: string, steps: DriverStep[], actions: Record<string, (env: NodeJS.ProcessEnv) => Promise<void>>, settings: object = {}) {
+  if (filter && !name.includes(filter)) return;
   const profile = path.join(root, name); fs.mkdirSync(profile);
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ mode: "source", autosave: false, launchAtLogin: false, ...settings }));
   const drive = path.join(profile, "drive.json"); fs.writeFileSync(drive, JSON.stringify(steps));
@@ -173,16 +176,19 @@ try {
     "git-finished": async () => { assert.equal(await git.done, 0, git.errors()); assert.equal(spawnSync("git", ["log", "-1", "--format=%s"], { cwd: repo, encoding: "utf8" }).stdout.trim(), "CLI editor commit"); },
   });
   // The CLI starts Electron itself, then retries its private socket.
-  const profile = path.join(root, "cold"); fs.mkdirSync(profile);
-  const runtime = cliRuntime(profile); runtimes.add(runtime);
-  fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ launchAtLogin: false, autosave: false }));
-  const shot = path.join(root, "cold.png"), drive = path.join(root, "cold-drive.json");
-  fs.writeFileSync(drive, JSON.stringify([painted(file), { shot }, { wait: 150 }]));
-  const env: NodeJS.ProcessEnv = { ...process.env, SMD_USER_DATA: profile, SMD_CLI_RUNTIME: runtime, SMD_CLI_APP: electron, SMD_CLI_APP_ROOT: appRoot, SMD_DRIVE: drive };
-  delete env.ELECTRON_RUN_AS_NODE;
-  await ok(env, [file]); await until(() => fs.existsSync(shot)); await until(() => !fs.existsSync(path.join(runtime, "state.json")));
-  results.push("cold-open");
-  fs.writeFileSync(path.join(root, "receipt.json"), JSON.stringify({ results, cli, root }, null, 2));
+  if (!filter || "cold-open".includes(filter)) {
+    const profile = path.join(root, "cold"); fs.mkdirSync(profile);
+    const runtime = cliRuntime(profile); runtimes.add(runtime);
+    fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ launchAtLogin: false, autosave: false }));
+    const shot = path.join(root, "cold.png"), drive = path.join(root, "cold-drive.json");
+    fs.writeFileSync(drive, JSON.stringify([painted(file), { shot }, { wait: 150 }]));
+    const env: NodeJS.ProcessEnv = { ...process.env, ...devLaunch, SMD_USER_DATA: profile, SMD_CLI_RUNTIME: runtime, SMD_DRIVE: drive };
+    delete env.ELECTRON_RUN_AS_NODE;
+    await ok(env, [file]); await until(() => fs.existsSync(shot)); await until(() => !fs.existsSync(path.join(runtime, "state.json")));
+    results.push("cold-open");
+  }
+  assert(results.length, `No CLI smoke cases match ${JSON.stringify(filter)}.`);
+  fs.writeFileSync(path.join(root, "receipt.json"), JSON.stringify({ results, cli, devLaunch, root }, null, 2));
   console.log(JSON.stringify({ status: "pass", results, receipt: path.join(root, "receipt.json") }, null, 2));
 } finally {
   for (const child of processes) if (child.exitCode === null) child.kill("SIGKILL");
