@@ -1,3 +1,4 @@
+import { configEntries, validConfigValue } from "../shared/config-schema.js";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -8,6 +9,9 @@ const record = (raw: unknown): raw is Record<string, unknown> => raw !== null &&
 export function sanitizeSettings(raw: unknown): Settings {
   const r = record(raw) ? raw : {};
   const s: Settings = { ...DEFAULT_SETTINGS, recents: [] };
+  for (const [, def] of configEntries) {
+    if (validConfigValue(def, r[def.setting])) Object.assign(s, { [def.setting]: r[def.setting] });
+  }
   if (r.mode === "live" || r.mode === "split" || r.mode === "source") s.mode = r.mode;
   if (r.theme === "system" || r.theme === "light" || r.theme === "dark") s.theme = r.theme;
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;
@@ -49,7 +53,7 @@ export function migrateSettings({ userData, appData, isolated }: { userData: str
 }
 
 let timer: NodeJS.Timeout | undefined;
-let pending: { file: string; settings: Settings } | undefined;
+let pending: { file: string; settings: Settings | Pick<Settings, "recents" | "bounds" | "zoom"> } | undefined;
 
 export function flushSettings(): void {
   clearTimeout(timer);
@@ -76,4 +80,11 @@ export function saveSettings(s: Settings, settingsFile: string): void {
 
 export function patchSettings(current: Settings, patch: unknown): Settings {
   return sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+}
+
+export function saveState(settings: Settings, settingsFile: string): void {
+  clearTimeout(timer);
+  pending = { file: settingsFile, settings: { recents: settings.recents, bounds: settings.bounds, zoom: settings.zoom } };
+  timer = setTimeout(flushSettings, 150);
+  timer.unref();
 }

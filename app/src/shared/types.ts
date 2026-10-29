@@ -1,3 +1,4 @@
+import { configDefaults, type UserSettings } from "./config-schema.js";
 export type DocumentId = number & { readonly __brand: "DocumentId" };
 export type PaneId = number & { readonly __brand: "PaneId" };
 export type RevisionId = number & { readonly __brand: "RevisionId" };
@@ -31,17 +32,9 @@ export type EditMode = "live" | "split" | "source";
 export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
-export interface Settings {
-  theme: ThemeSetting;
-  mode: EditMode;
-  autosave: boolean;
-  /** Start SimpleMD in the tray so normal file opens stay warm. */
-  launchAtLogin: boolean;
-  /** Modal editing in the source modes. */
-  vim: boolean;
-  spellcheck: boolean;
-  remoteImages: boolean;
+export interface Settings extends UserSettings {
   zoom: number;
+  // Legacy layout values remain readable for first-run migration.
   width: ReadingWidth;
   typeface: Typeface;
   recents: string[];
@@ -49,18 +42,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: "system",
-  // Live is the default because it asks nothing of the user: write, and it renders in place.
-  mode: "live",
-  autosave: true,
-  launchAtLogin: false,
-  vim: false,
-  spellcheck: true,
-  remoteImages: true,
-  zoom: 1,
-  width: "normal",
-  typeface: "sans",
-  recents: [],
+  ...configDefaults, zoom: 1, width: "normal", typeface: "serif", recents: [],
 };
 
 export const ZOOM_MIN = 0.7;
