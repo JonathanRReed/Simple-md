@@ -82,7 +82,7 @@ function applySettings(patch: unknown, persist = true): void {
   const prev = settings;
   let next = patchSettings(settings, patch);
   if (persist) {
-    const changed = Object.fromEntries(configEntries.filter(([, def]) => next[def.setting] !== settings[def.setting]).map(([, def]) => [def.setting, next[def.setting]]));
+    const changed = Object.fromEntries(configEntries.filter(([, def]) => patch !== null && typeof patch === "object" && Object.hasOwn(patch, def.setting)).map(([, def]) => [def.setting, next[def.setting]]));
     if (Object.keys(changed).length) next = { ...next, ...configStore().set(changed) };
   }
   next.systemAccent = systemAccent();
@@ -932,7 +932,7 @@ if (!app.requestSingleInstanceLock()) {
     hardenSession();
     registerIpc();
     settings.systemAccent = systemAccent();
-    settingsWindow = createSettingsWindow({ here, config: configStore(), settings: () => settings, apply: applySettings });
+    settingsWindow = createSettingsWindow({ here, config: configStore(), apply: applySettings });
     configStore().watch(value => applySettings(value, false));
     nativeTheme.on("updated", () => applySettings({}, false));
     if (process.platform !== "linux") systemPreferences.on("accent-color-changed", () => applySettings({}, false));

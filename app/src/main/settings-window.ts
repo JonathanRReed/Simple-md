@@ -1,19 +1,18 @@
 import path from "node:path";
 import { BrowserWindow, app, ipcMain, nativeTheme, systemPreferences } from "electron";
 import { validateUserPatch } from "../shared/config.js";
-import type { Settings } from "../shared/types.js";
 import type { ConfigStore } from "./config-store.js";
 import type { SettingsSnapshot } from "../shared/settings-window.js";
 import { systemFonts } from "./system-fonts.js";
 export function systemAccent(): string {
   try { return `#${systemPreferences.getAccentColor()}`; } catch { return "Highlight"; }
 }
-export function createSettingsWindow(options: { here: string; config: ConfigStore; settings(): Settings; apply(patch: unknown): void }) {
+export function createSettingsWindow(options: { here: string; config: ConfigStore; apply(patch: unknown): void }) {
   let win: BrowserWindow | undefined;
-  const snapshot = async (): Promise<SettingsSnapshot> => ({
-    settings: options.settings(), file: options.config.file, issues: options.config.document.issues,
-    accent: systemAccent(), ...await systemFonts(),
-  });
+  const snapshot = async (): Promise<SettingsSnapshot> => {
+    const fonts = await systemFonts();
+    return { settings: options.config.document.settings, file: options.config.file, issues: options.config.document.issues, accent: systemAccent(), ...fonts };
+  };
   for (const action of ["get", "set"] as const) {
     ipcMain.handle(`smd:settings-window:${action}`, async (event, patch: unknown) => {
       if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error("Untrusted Settings sender.");
