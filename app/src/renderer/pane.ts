@@ -437,6 +437,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   async function showEdit(initializing = false, prepared?: RenderedBlock[]): Promise<void> {
     if (!doc.hasDoc || (transitioning && !initializing) || isReadOnly()) return;
     closeReadFind();
+    pane.view = "edit";
     const id = pane.documentId;
     const owner = pane;
     const seq = ++pane.viewSeq;
