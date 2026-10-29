@@ -333,13 +333,14 @@ function requestFlush(doc = currentSession(), host = context()): Promise<FlushRe
   return new Promise((resolve) => {
     if (!doc || !host.rendererReady || host.win.isDestroyed()) return resolve(null);
     const id = makeRequestId(++flushSeq);
+    const windowId = host.win.webContents.id;
     const timer = setTimeout(() => {
-      flushWaiters.delete(host.win.webContents.id, id);
+      flushWaiters.delete(windowId, id);
       resolve(null);
     }, 1500);
-    flushWaiters.set(host.win.webContents.id, id, (r) => {
+    flushWaiters.set(windowId, id, (r) => {
       clearTimeout(timer);
-      flushWaiters.delete(host.win.webContents.id, id);
+      flushWaiters.delete(windowId, id);
       if (r?.documentId !== doc.documentId || !doc.isCurrent(r.revisionId) || !doc.edit(r.text, r.revisionId)) return resolve(null);
       if (r.conflict) doc.conflict = true;
       resolve(r);
