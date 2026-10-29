@@ -19,7 +19,7 @@ Measure each state separately and never mix them:
 - process cold with a fresh profile
 - process cold with a reused profile
 - resident visible
-- resident hidden (tray)
+- resident hidden (tray), after a one-second dwell before the external start. The prior hide and native window-ordering transition must finish before measuring a resident open. Use `--hidden-dwell-ms=30` to reproduce the separate rapid hide/reopen diagnostic. The receipt records the dwell, and no latency is subtracted after the external start
 - resident with a new file (cache miss)
 - an A to B to A revisit
 

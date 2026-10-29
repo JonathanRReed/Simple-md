@@ -120,6 +120,8 @@ export async function perfGate(): Promise<void> {
   if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing"].includes(name))) throw new Error("Unknown performance subset");
   const electronSwitch = process.argv.find(arg => arg.startsWith("--electron-switch="))?.split("=")[1];
   if (electronSwitch && !["disable-backgrounding-occluded-windows", "disable-renderer-backgrounding", "disable-background-timer-throttling"].includes(electronSwitch)) throw new Error("Unknown Electron performance switch");
+  const hiddenDwellMs = Number(process.argv.find(arg => arg.startsWith("--hidden-dwell-ms="))?.split("=")[1] ?? 1000);
+  if (!Number.isSafeInteger(hiddenDwellMs) || hiddenDwellMs < 0 || hiddenDwellMs > 60_000) throw new Error("Invalid hidden dwell");
   const fixtureFilter = process.argv.find(arg => arg.startsWith("--fixtures="))?.split("=")[1]?.split(",");
   fs.mkdirSync(path.join(repo, ".audit"), { recursive: true });
   const root = fs.mkdtempSync(path.join(repo, ".audit/perf-"));
@@ -138,7 +140,7 @@ export async function perfGate(): Promise<void> {
   const runResults = new Map<string, Awaited<ReturnType<typeof measureDriverRun>>>();
   const loadAtBarrier = new Map<string, number[]>();
   const receipt = {
-    schemaVersion: 2, subset: only ?? null, sampleCount: count, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
+    schemaVersion: 2, subset: only ?? null, sampleCount: count, hiddenDwellMs, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
     revision: command("git", ["rev-parse", "HEAD"]), branch: command("git", ["branch", "--show-current"]), dirtyPatchHash: sourceDirtyHash,
     memoryHelper: { sha256: null as string | null, sourceSha256: sha256(fs.readFileSync(path.join(appRoot, "native/src/bin/perf-memory.rs"))) },
     lockfileHash: sha256(fs.readFileSync(path.join(appRoot, "bun.lock"))), dist: treeHash(path.join(appRoot, "dist")),
@@ -150,7 +152,7 @@ export async function perfGate(): Promise<void> {
       fresh: "New user-data and NODE_COMPILE_CACHE directories, worker inherits this compile-cache directory. No disk render cache, Shiki starts unloaded, no retained DOM.",
       reused: "Explicit seed process exits cleanly and flushes compile and disk render caches, then a new process uses those directories. Shiki and DOM start empty in each process.",
       residentClock: "The gate keeps parent acknowledgement to first-readable. deliveryMs and afterArrivalMs split command delivery from work after file-open-arrival; neither is subtracted from the gate.",
-      resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
+      resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible and held for hiddenDwellMs before the external barrier so preceding native window-ordering work can settle. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
       memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 20 samples. Gate the final five only if every process spans at most 2 MB with unchanged PIDs. All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
     },
@@ -271,7 +273,7 @@ export async function perfGate(): Promise<void> {
           }
           const barrier = `${state}-${sample}-${fixture}`;
           if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
-          if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: 30 }, { visibility: false });
+          if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: hiddenDwellMs }, { visibility: false });
           const assertion = assertDocument(file, fixtureText[fixture]!);
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
           steps.push({ barrier }, { record: { name: barrier, eval: `(async () => {
