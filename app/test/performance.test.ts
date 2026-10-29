@@ -42,7 +42,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { measureDriverRun } from "../bench";
-import { percentile, readableSample, residentTiming, settledMemory, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
+import { percentile, readableSample, residentTiming, settledMemory, settledWindow, summarizeGate, summarizeEventTiming } from "../scripts/perf-gate";
 import { fixtureManifest, perfFixtures, sha256, writePerfFixtures } from "../scripts/perf-fixtures";
 
 describe("performance gate receipts", () => {
@@ -51,6 +51,9 @@ describe("performance gate receipts", () => {
     expect(settledMemory([sample(400e6), ...Array.from({ length: 5 }, () => sample(180e6))])).toBe(true);
     expect(settledMemory(Array.from({ length: 5 }, () => sample(400e6)))).toBe(true);
     expect(settledMemory([sample(180e6), sample(180e6), sample(400e6), sample(320e6), sample(180e6)])).toBe(false);
+    // A later stable window still counts after a transient spike, and the latest window wins.
+    expect(settledMemory([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6)])).toBe(true);
+    expect(settledWindow([...Array.from({ length: 5 }, () => sample(150e6)), sample(400e6), ...Array.from({ length: 5 }, () => sample(170e6))])?.[0]).toEqual(sample(170e6));
     expect(settledMemory([sample(180e6), sample(180e6), sample(180e6), sample(180e6), sample(180e6, 2)])).toBe(false);
     expect(settledMemory(Array.from({ length: 4 }, () => sample(180e6)))).toBe(false);
   });

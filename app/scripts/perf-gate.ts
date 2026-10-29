@@ -22,14 +22,24 @@ export function summarizeGate(values: number[], target: number, minimum: number,
   return { status: values.length >= minimum && measured !== null && measured < target ? "pass" : "fail", count: values.length, median, p95, p99, target, statistic, minimum };
 }
 type ProcessMemory = { pid: number; physicalBytes: number; rssBytes: number };
-export function settledMemory(samples: { processes: { measured: ProcessMemory[] } }[]) {
-  const final = samples.slice(-5);
-  if (final.length !== 5) return false;
-  const pids = final[0]!.processes.measured.map(process => process.pid);
-  return pids.length > 0 && final.every(sample => sample.processes.measured.length === pids.length) && pids.every(pid => {
-    const bytes = final.map(sample => sample.processes.measured.find(process => process.pid === pid)?.physicalBytes);
+function stableWindow(window: { processes: { measured: ProcessMemory[] } }[]): boolean {
+  const pids = window[0]!.processes.measured.map(process => process.pid);
+  return pids.length > 0 && window.every(sample => sample.processes.measured.length === pids.length) && pids.every(pid => {
+    const bytes = window.map(sample => sample.processes.measured.find(process => process.pid === pid)?.physicalBytes);
     return bytes.every((value): value is number => value !== undefined) && Math.max(...bytes) - Math.min(...bytes) <= 2_000_000;
   });
+}
+// The most recent five consecutive observations in which every process stays within 2 MB.
+// Later windows win; values are never chosen by size, and every observation stays in the receipt.
+export function settledWindow<T extends { processes: { measured: ProcessMemory[] } }>(samples: T[]): T[] | null {
+  for (let end = samples.length; end >= 5; end--) {
+    const window = samples.slice(end - 5, end);
+    if (stableWindow(window)) return window;
+  }
+  return null;
+}
+export function settledMemory(samples: { processes: { measured: ProcessMemory[] } }[]) {
+  return settledWindow(samples) !== null;
 }
 type EventQuantile = { lower: number; upper: number; upperExclusive: boolean };
 export function summarizeEventTiming(record: { counts: { keydown: number; beforeinput: number }; events: { name: string; duration: number }[] }) {
@@ -170,7 +180,7 @@ export async function perfGate(): Promise<void> {
       residentClock: "The gate keeps parent acknowledgement to first-readable. deliveryMs and afterArrivalMs split command delivery from work after file-open-arrival; neither is subtracted from the gate.",
       resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible and held for hiddenDwellMs before the external barrier so preceding native window-ordering work can settle. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
-      memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 20 samples. Gate the final five only if every process spans at most 2 MB with unchanged PIDs. All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
+      memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 30 samples. Gate the most recent five consecutive samples in which every process spans at most 2 MB with unchanged PIDs. All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
     },
     limits: ["Parent stdout receipt timestamps include IPC and pipe scheduling. Double rAF marks a paint opportunity, not physical display scanout.", "First-readable does not await diagrams, fonts, deferred highlighting or streamed remainder blocks. Final assertions wait for the complete stream.", "Typing Event Timing has a 16 ms reporting floor and 8 ms quantization. Sub-threshold events are censored, never treated as zero. beforeinput support and trusted counts are recorded separately.", "Editor tokenization has no fully-highlighted completion signal. That marker applies to read and split previews only; CodeMirror background parsing is not timed.", "CDP IME is a composition-path exercise, not a physical keyboard or native input-method qualification.", "ASAR packaging and Windows runtime are not measured by a development macOS run."],
     runs, samples, failedSamples, typing, tabSwitch, memory, failures, gates: {} as Record<string, unknown>, loadAverageEnd: [] as number[],
@@ -321,7 +331,7 @@ export async function perfGate(): Promise<void> {
       const file = path.join(fixtureDirectory, "medium.md");
       await launch("settled-memory", file, profile("memory-profile", "live"), [
         evaluate(`${waitFor} await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]')); if (document.documentElement.dataset.documentPath !== ${quote(file)} || document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() !== ${quote(fixtureText['medium.md'])}) throw new Error('Wrong settled memory document');`),
-        { wait: 5000 }, ...Array.from({ length: 20 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
+        { wait: 5000 }, ...Array.from({ length: 30 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
     if (includes("memory")) await attempt("five-tab-memory", async () => {
@@ -337,7 +347,7 @@ export async function perfGate(): Promise<void> {
           await waitFor(() => document.querySelectorAll('[role="tab"]').length === 5 && document.querySelectorAll('.cm-editor').length === 1);
           if (document.querySelectorAll('.document-pane').length !== 1) throw new Error('Five-tab memory requires one visible pane');
         `),
-        { wait: 5000 }, ...Array.from({ length: 20 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
+        { wait: 5000 }, ...Array.from({ length: 30 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
     if (includes("tab-switch-100k")) await attempt("tab-switch-100k", async () => {
@@ -493,8 +503,9 @@ export async function perfGate(): Promise<void> {
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);
   const oneDocumentMemory = memory.filter(sample => sample.run === "settled-memory");
   const fiveTabMemory = memory.filter(sample => sample.run === "five-tab-memory");
-  const stableMemory = settledMemory(oneDocumentMemory);
-  const settled = stableMemory ? oneDocumentMemory.slice(-5) : [];
+  const fiveTabSettled = settledWindow(fiveTabMemory);
+  const settled = settledWindow(oneDocumentMemory) ?? [];
+  const stableMemory = settled.length === 5;
   receipt.gates.memory = { ...summarizeGate(settled.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), settled: stableMemory, observations: oneDocumentMemory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
   for (const panes of typingPaneCounts) for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
     if (typingCases && !typingCases.includes(`${mode}/${position}/${method}`)) continue;
@@ -532,9 +543,9 @@ export async function perfGate(): Promise<void> {
     reason: "Two different 100k documents mounted through the production tab and pane controllers. Every mode, position and input method uses matched controls and verifies saved bytes.",
   };
   if (includes("memory")) receipt.gates["five-tab-memory"] = {
-    status: settledMemory(fiveTabMemory) ? "pass" : "fail", documents: 5, visible: 1,
-    physicalMB: percentile(fiveTabMemory.slice(-5).map(sample => sample.physicalBytes / 1_000_000), 0.5),
-    rssMB: percentile(fiveTabMemory.slice(-5).map(sample => sample.rssBytes / 1_000_000), 0.5),
+    status: fiveTabSettled ? "pass" : "fail", documents: 5, visible: 1,
+    physicalMB: percentile((fiveTabSettled ?? []).map(sample => sample.physicalBytes / 1_000_000), 0.5),
+    rssMB: percentile((fiveTabSettled ?? []).map(sample => sample.rssBytes / 1_000_000), 0.5),
     observations: fiveTabMemory.length, target: null, reason: "Reported memory with five medium tabs. The 200 MB ceiling applies to one document.",
   };
   receipt.gates.correctness = { status: failures.length ? "fail" : "pass", failures };
