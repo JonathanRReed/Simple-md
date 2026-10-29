@@ -25,6 +25,15 @@ struct PreviewTests {
         precondition(exact.bytesRead == PreviewSource.byteLimit && !exact.truncated)
         let large = try read(Data(repeating: 0x61, count: PreviewSource.byteLimit + 100))
         precondition(large.bytesRead == PreviewSource.byteLimit && large.truncated)
+        for scalar in ["é", "€", "😀"] {
+            for split in 1..<scalar.utf8.count {
+                var bytes = Data(repeating: 0x61, count: PreviewSource.byteLimit - split)
+                bytes.append(contentsOf: (scalar + "tail").utf8)
+                let clipped = try read(bytes)
+                precondition(clipped.truncated && !clipped.invalidUtf8 && !clipped.text.contains("\u{fffd}"), "UTF-8 truncation split")
+                precondition(clipped.bytesRead == PreviewSource.byteLimit)
+            }
+        }
         let hostile = try read(Data("<script>alert('x')</script>\n![image](https://example.com/x.png)".utf8))
         let html = try renderer.html(source: hostile, filePath: "/tmp/<file>.md")
         precondition(!html.contains("<script>") && !html.contains("alert("))

@@ -190,3 +190,21 @@ describe("Quick Look packaging", () => {
     verifyQuickLook(process.env.SIMPLEMD_PACKAGED_APP);
   });
 });
+
+test("local build verifies its final app even when the builder skips afterSign", async () => {
+  const { buildAndVerify } = await import('./local-pack.mjs');
+  const events = [];
+  const app = '/tmp/final/SimpleMD.app';
+  await buildAndVerify(async () => { events.push('build'); }, {}, () => app,
+    target => { expect(target).toBe(app); events.push('verify'); });
+  expect(events).toEqual(['build', 'verify']);
+  await expect(buildAndVerify(async () => {}, {}, () => app, () => { throw Error('unsigned'); })).rejects.toThrow('unsigned');
+});
+
+test("Quick Look identity comes from the explicit full identity", async () => {
+  const { quickLookIdentity } = await import('./quicklook.mjs');
+  expect(quickLookIdentity({})).toBe('-');
+  expect(quickLookIdentity({ SIMPLEMD_SIGN_IDENTITY: 'Developer ID Application: Jonathan Reed (AJ9VWBRNZN)' }))
+    .toBe('Developer ID Application: Jonathan Reed (AJ9VWBRNZN)');
+  expect(() => quickLookIdentity({ SIMPLEMD_SIGN_IDENTITY: 'Jonathan Reed' })).toThrow('Developer ID');
+});
