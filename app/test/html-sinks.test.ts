@@ -9,10 +9,6 @@ const approved = [
   "renderer/author-html.ts:template.innerHTML = html;",
   // KaTeX has trust:false. Source cannot produce links or arbitrary attributes.
   "renderer/live.ts:el.innerHTML = katex.renderToString(this.tex, { ...mathOptions, displayMode: false });",
-  // Fixed app UI strings. No document input is interpolated.
-  `renderer/app.ts:if (ready.platform === "darwin") hint.innerHTML = 'Or select a Markdown file in Finder and press <kbd>⌘⇧Space</kbd>';`,
-  `renderer/app.ts:else if (ready.platform === "win32") hint.innerHTML = 'Or select a Markdown file in Explorer and press <kbd>Ctrl+Shift+Space</kbd>';`,
-  `renderer/app.ts:else hint.innerHTML = 'Press <kbd>Ctrl+Shift+Space</kbd> to choose a file';`,
   // Serialization of the sanitized print DOM. This is a getter, never insertion.
   "main/main.ts:return clone.innerHTML;",
 ].sort();
