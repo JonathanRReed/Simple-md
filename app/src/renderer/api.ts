@@ -1,3 +1,4 @@
+import { type RenderedHtml } from "../shared/render-tree.js";
 import type { Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
@@ -18,7 +19,7 @@ export interface Bridge {
   setDirty(dirty: boolean, documentId: number): void;
   printReady(error?: string): void;
   renderBlocks(text: string, documentId: number): Promise<{ title: string; blocks: RenderedBlock[] }>;
-  renderFragment(text: string, documentId: number): Promise<string>;
+  renderFragment(text: string, documentId: number): Promise<RenderedHtml>;
   save(text: string, forceDialog: boolean, documentId: number): Promise<SaveResult | null>;
   saveImage(bytes: Uint8Array, ext: string, documentId: number): Promise<string | null>;
   exportPdf(text: string, documentId: number): Promise<void>;

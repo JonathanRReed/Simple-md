@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: https: http:; font-src 'self' data:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: https: http:; font-src 'self' data:; media-src 'self' file: https: http:"
     />
     <meta name="color-scheme" content="light dark" />
     <title>SimpleMD</title>
@@ -74,6 +74,7 @@
         <fieldset>
           <legend>Editing</legend>
           <div class="pref-row"><label for="pref-mode">Default editing mode</label><select id="pref-mode"><option value="live">Live</option><option value="split">Split</option><option value="source">Source</option></select></div>
+          <label class="pref-row" for="pref-remoteImages"><span>Remote images</span><input id="pref-remoteImages" type="checkbox" /></label>
           <label class="pref-row" for="pref-autosave"><span>Autosave<span class="pref-detail">Save changes to named notes as you write.</span></span><input id="pref-autosave" type="checkbox" /></label>
           <label class="pref-row" for="pref-vim"><span>Vim key bindings</span><input id="pref-vim" type="checkbox" /></label>
           <label class="pref-row" for="pref-spellcheck"><span>Spellcheck</span><input id="pref-spellcheck" type="checkbox" /></label>

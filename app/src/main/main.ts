@@ -1,3 +1,5 @@
+import { resolveAuthorUrl } from "../shared/url-resolver.js";
+import { urlContext } from "./document-urls.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -490,16 +492,15 @@ async function openLink(href: string, intent: OpenIntent = "edit"): Promise<bool
     await shell.openExternal(href);
     return false;
   }
-  if (!current.path || /^[a-z][a-z0-9+.-]*:/i.test(href)) return false;
-  let rel = href.split("#")[0] ?? "";
+  if (!current.path) return false;
+  const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
+  if (!resolved || !resolved.startsWith("file:")) return false;
   try {
-    rel = decodeURIComponent(rel);
+    const target = fileURLToPath(resolved);
+    return isMarkdown(target) ? openFile(target, intent) : false;
   } catch {
     return false;
   }
-  if (!rel) return false;
-  const target = path.resolve(path.dirname(current.path), rel);
-  return isMarkdown(target) ? openFile(target, intent) : false;
 }
 
 function runCommand(cmd: Command): void {

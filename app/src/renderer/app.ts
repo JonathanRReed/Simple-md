@@ -1,3 +1,4 @@
+import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
 import { type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
@@ -34,7 +35,6 @@ const hintEl = $("hint");
 const modesEl = $("modes");
 const editBtn = $("edit-btn");
 
-const FRAGMENT_PREFIX = "user-content-";
 const root = document.documentElement;
 
 interface DocMeta {
@@ -104,9 +104,11 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
     if (!node) {
       node = document.createElement("div");
       node.className = "block";
-      node.innerHTML = block.html;
+      mountRenderedHtml(node, block, settings.remoteImages);
       fresh.push(node);
     }
+    node.dataset.sourceStart = String(block.sourceRange[0]);
+    node.dataset.sourceEnd = String(block.sourceRange[1]);
     prev.delete(block.key);
     next.set(block.key, node);
     if (node === cursor) cursor = cursor.nextSibling;
@@ -117,6 +119,7 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
     stale.remove();
   }
   blockEls.set(el, next);
+  updateFragments(el);
   const id = documentId;
   void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
     if (id === documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
@@ -221,6 +224,7 @@ function updateChrome(): void {
 }
 
 function applySettings(s: Settings): void {
+  const remoteChanged = settings.remoteImages !== s.remoteImages;
   const modeChanged = settings.mode !== s.mode;
   const vimChanged = settings.vim !== s.vim;
   settings = s;
@@ -237,6 +241,20 @@ function applySettings(s: Settings): void {
     if (s.mode === "split") void renderPreview();
   }
   if (editor && vimChanged) editor.setVim(s.vim);
+  if (remoteChanged && hasDoc) {
+    blockEls.delete(docEl);
+    blockEls.delete(previewEl);
+    destroyDiagrams(docEl);
+    destroyDiagrams(previewEl);
+    docEl.replaceChildren();
+    previewEl.replaceChildren();
+    if (view === "read") void renderRead(currentText(), true);
+    if (editor) {
+      editor.setMode("source");
+      editor.setMode(s.mode);
+      if (s.mode === "split") void renderPreview();
+    }
+  }
   updateChrome();
 }
 
@@ -261,6 +279,7 @@ function ensureEditor(): Promise<EditorHandle | null> {
       host: {
         renderFragment: (text) => simplemd.renderFragment(text, id),
         baseUrl: () => meta.baseUrl,
+        remoteImages: () => settings.remoteImages,
         openLink: (href) => void simplemd.openLink(href),
       },
       onChange(text) {
@@ -698,15 +717,8 @@ function handleCommand(cmd: Command): void {
 // ───────── events ─────────
 
 function scrollToFragment(href: string): void {
-  let id = href.slice(1);
-  try {
-    id = decodeURIComponent(id);
-  } catch {
-    // Keep the raw fragment.
-  }
   const scope = view === "read" ? docEl : previewEl;
-  const el = scope.querySelector<HTMLElement>(`[id="${CSS.escape(FRAGMENT_PREFIX + id)}"], [id="${CSS.escape(id)}"]`);
-  el?.scrollIntoView({ block: "start" });
+  fragmentTarget(scope, href)?.scrollIntoView({ block: "start" });
 }
 
 document.addEventListener("click", (e) => {
@@ -784,11 +796,17 @@ async function boot(): Promise<void> {
       applySettings(s);
       emptyEl.hidden = true;
       docEl.hidden = false;
-      docEl.innerHTML = doc.blocks.map((b) => b.html).join("");
+      docEl.replaceChildren();
+      for (const block of doc.blocks) {
+        const node = document.createElement("div");
+        mountRenderedHtml(node, block, s.remoteImages);
+        docEl.append(node);
+      }
+      updateFragments(docEl);
       void renderDiagrams(docEl)
         .then(() => katexCss)
         .then(() => document.fonts.ready)
-        .then(() => Promise.all([...docEl.querySelectorAll("img")].map(async (image) => {
+        .then(() => Promise.all([...docEl.querySelectorAll("img")].filter((image) => image.hasAttribute("src") || image.currentSrc || image.closest("picture")?.querySelector("source[srcset]")).map(async (image) => {
           image.loading = "eager";
           if (!image.complete) await new Promise<void>((resolve, reject) => {
             image.addEventListener("load", () => resolve(), { once: true });

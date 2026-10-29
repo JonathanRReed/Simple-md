@@ -1,3 +1,5 @@
+import { mountRenderedHtml, updateFragments } from "../../src/renderer/author-html";
+import type { RenderedHtml } from "../../src/shared/render-tree";
 import { destroyDiagrams, renderDiagrams } from "../../src/renderer/diagrams";
 import { compare, normalizeHtml, type Context } from "./normalize";
 
@@ -5,12 +7,19 @@ export interface ComparisonInput {
   id: string;
   expected: string;
   actual: string;
+  rendered?: RenderedHtml;
   context: Omit<Context, "side" | "diagrams">;
 }
 
 export async function runBatch(inputs: ComparisonInput[]) {
   const results = [];
   for (const input of inputs) {
+    if (input.rendered) {
+      const safe = document.createElement("div");
+      mountRenderedHtml(safe, input.rendered);
+      updateFragments(safe);
+      input.actual = safe.innerHTML;
+    }
     const parsed = new DOMParser().parseFromString(input.actual, "text/html");
     const root = document.createElement("div");
     const sources: string[] = [];

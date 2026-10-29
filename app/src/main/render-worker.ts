@@ -1,3 +1,4 @@
+import { type RenderedHtml } from "../shared/render-tree.js";
 import { perfMark } from "./perf.js";
 import { parentPort } from "node:worker_threads";
 import { renderBlocks, renderFragment, type RenderedBlocks } from "./markdown.js";
@@ -11,7 +12,7 @@ export type RenderRequest = RenderCommand & { id: number };
 
 export type RenderResponse =
   | { id: number; kind: "blocks"; value: RenderedBlocks }
-  | { id: number; kind: "fragment"; value: string }
+  | { id: number; kind: "fragment"; value: RenderedHtml }
   | { id: number; kind: "warmup" }
   | { id: number; kind: "error"; message: string };
 

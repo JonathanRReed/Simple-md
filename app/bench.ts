@@ -183,7 +183,13 @@ async function startupBench(): Promise<void> {
   }
 }
 
-if (import.meta.main && process.argv.includes("--render-sample")) {
+if (import.meta.main && process.argv.includes("--worker-medium")) {
+  const baseline = process.argv[process.argv.indexOf("--worker-medium") + 1];
+  if (!baseline) throw new Error("Pass the pre-change Markdown module bundle after --worker-medium");
+  await (await import("./scripts/bench-render")).workerMediumBench(path.resolve(baseline));
+} else if (import.meta.main && process.argv.includes("--shiki-engines")) {
+  await (await import("./scripts/bench-render")).shikiEngineBench();
+} else if (import.meta.main && process.argv.includes("--render-sample")) {
   console.log(JSON.stringify(await renderSample()));
 } else if (import.meta.main && process.argv.includes("--perf-gate")) {
   const { perfGate } = await import("./scripts/perf-gate");

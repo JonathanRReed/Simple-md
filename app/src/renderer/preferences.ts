@@ -36,7 +36,7 @@ export function createPreferences(options: {
   const shortcut = control<HTMLInputElement>("pref-shortcut");
   const applyShortcut = control<HTMLButtonElement>("pref-shortcut-apply");
   const status = control<HTMLElement>("pref-status");
-  const toggles = ["autosave", "vim", "spellcheck", "spacePreview", "launchAtLogin"] as const;
+  const toggles = ["autosave", "vim", "spellcheck", "spacePreview", "launchAtLogin", "remoteImages"] as const;
   let returnFocus: HTMLElement | null = null;
 
   function sync(settings: Settings): void {

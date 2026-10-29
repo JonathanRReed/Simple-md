@@ -10,7 +10,7 @@ const file = () => {
   dirs.push(dir);
   return path.join(dir, "render-cache.json");
 };
-const blocks = [{ key: "one", html: "<p>Current</p>" }];
+const blocks = [{ key: "one", html: "<p>Current</p>", urls: {}, sourceRange: [0, 1] as [number, number] }];
 afterEach(() => { for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }); });
 
 describe("disk render cache", () => {
@@ -46,11 +46,11 @@ describe("disk render cache", () => {
     const target = file();
     const cache = new RenderCache(target, 1000);
     cache.set("/first.md", 1, 1, "Small", blocks, "a");
-    cache.set("/huge.md", 1, 1, "Huge", [{ key: "huge", html: "界".repeat(1000) }], "b");
+    cache.set("/huge.md", 1, 1, "Huge", [{ key: "huge", html: "界".repeat(1000), urls: {}, sourceRange: [0, 1] }], "b");
     cache.flush();
     expect(cache.get("/huge.md", 1, 1, "b")).toBeNull();
     expect(cache.get("/first.md", 1, 1, "a")).not.toBeNull();
-    for (let i = 0; i < 10; i++) cache.set(`/unicode-${i}.md`, 1, 1, "Unicode", [{ key: "unicode", html: "界".repeat(80) }], "c");
+    for (let i = 0; i < 10; i++) cache.set(`/unicode-${i}.md`, 1, 1, "Unicode", [{ key: "unicode", html: "界".repeat(80), urls: {}, sourceRange: [0, 1] }], "c");
     cache.flush();
     expect(fs.statSync(target).size).toBeLessThanOrEqual(1000);
     expect(cache.get("/unicode-9.md", 1, 1, "c")).not.toBeNull();

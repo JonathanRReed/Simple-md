@@ -129,3 +129,12 @@ test("SMD_USER_DATA isolation skips migration even with an old profile", () => {
   migrateSettings({ ...profile, isolated: true });
   expect(fs.existsSync(profile.userData)).toBe(false);
 });
+
+test("remote images default on and persist an explicit boolean preference", () => {
+  for (const raw of [null, {}, { remoteImages: "false" }, { remoteImages: 0 }]) expect(sanitizeSettings(raw).remoteImages).toBe(true);
+  const file = settingsFile();
+  saveSettings(sanitizeSettings({ remoteImages: false }), file);
+  flushSettings();
+  expect(loadSettings(file).remoteImages).toBe(false);
+  expect(patchSettings(loadSettings(file), { remoteImages: true }).remoteImages).toBe(true);
+});

@@ -1,3 +1,4 @@
+import { isRenderedBlock } from "../shared/render-tree.js";
 import { perfMark } from "./perf.js";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -11,7 +12,7 @@ interface CacheEntry extends RenderedBlocks {
   sourceHash: string;
 }
 
-export const RENDER_CACHE_VERSION = 2;
+export const RENDER_CACHE_VERSION = 3;
 const MAX_ENTRIES = 24;
 const MAX_BYTES = 16 * 1024 * 1024;
 const ENVELOPE_BYTES = Buffer.byteLength(JSON.stringify({ version: RENDER_CACHE_VERSION, entries: {} }));
@@ -22,19 +23,13 @@ const sourceHash = (text: string) => {
   return hash;
 };
 
-function isBlock(value: unknown): value is RenderedBlock {
-  return typeof value === "object" && value !== null &&
-    "key" in value && typeof value.key === "string" &&
-    "html" in value && typeof value.html === "string";
-}
-
 function isEntry(value: unknown): value is CacheEntry {
   return typeof value === "object" && value !== null &&
     "mtimeMs" in value && typeof value.mtimeMs === "number" && Number.isFinite(value.mtimeMs) &&
     "size" in value && typeof value.size === "number" && Number.isFinite(value.size) && value.size >= 0 &&
     "sourceHash" in value && typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash) &&
     "title" in value && typeof value.title === "string" &&
-    "blocks" in value && Array.isArray(value.blocks) && value.blocks.every(isBlock);
+    "blocks" in value && Array.isArray(value.blocks) && value.blocks.every(isRenderedBlock);
 }
 
 export class RenderCache {
