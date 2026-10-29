@@ -121,3 +121,28 @@ describe("Linux launch integration", () => {
     }
   });
 });
+
+test("the package file filter excludes the browser render bundle from app.asar", async () => {
+  const fs = await import("node:fs/promises");
+  const { FileMatcher } = await import("app-builder-lib/out/fileMatcher.js");
+  const { createPackageFromFiles, listPackage } = await import("@electron/asar");
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "smd-package-filter-"));
+  try {
+    const source = path.join(dir, "app");
+    await fs.mkdir(path.join(source, "dist"), { recursive: true });
+    const names = ["dist/main.mjs", "dist/render-worker.mjs", "dist/render-core.js", "package.json"];
+    for (const name of names) await fs.writeFile(path.join(source, name), "fixture");
+    const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
+    const filter = new FileMatcher(source, path.join(dir, "stage"), value => value, pkg.build.files).createFilter();
+    const files = [];
+    for (const name of names) {
+      const file = path.join(source, name);
+      if (filter(file, await fs.stat(file))) files.push(file);
+    }
+    const archive = path.join(dir, "app.asar");
+    await createPackageFromFiles(source, archive, files);
+    const packed = listPackage(archive);
+    expect(packed).toContain("/dist/render-worker.mjs");
+    expect(packed).not.toContain("/dist/render-core.js");
+  } finally { await fs.rm(dir, { recursive: true, force: true }); }
+});

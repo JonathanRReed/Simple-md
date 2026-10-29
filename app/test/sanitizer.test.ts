@@ -5,7 +5,7 @@ import { createRenderCore } from "../src/shared/render-core";
 import { runDom } from "./dom-runner";
 import { fixtures } from "./sanitizer/fixtures";
 
-const core = createRenderCore({ urls: () => ({ baseUrl: "file:///project/docs/", rootUrl: "file:///project/public/" }) });
+const core = createRenderCore({ urls: () => ({ baseUrl: "file:///project/docs/", rootUrl: "file:///project/" }) });
 test("author HTML hostile fixtures produce the expected DOM", async () => {
   const inputs = await Promise.all(fixtures.map(async (fixture) => ({ ...fixture,
     ...('markdown' in fixture ? { rendered: await core.renderMarkdown(fixture.source, "/project/docs/note.md") } : {}) })));
@@ -56,7 +56,7 @@ test("MDX lowercase elements share the author policy and expressions remain iner
   const actual = results[0]!.actual;
   expect(results[0]!.generated.fake).toBe(0);
   expect(actual).not.toMatch(/className|data-evil|javascript:|onerror|onclick|style=|display:none|globalThis/);
-  expect(actual).toContain('src="file:///project/public/image.svg"');
+  expect(actual).toContain('src="file:///project/image.svg"');
   expect(actual).toContain('<strong>safe</strong>');
   expect(actual).toContain('class="mdx-component"');
   expect(actual).toContain('&lt;script&gt;run()&lt;/script&gt;');

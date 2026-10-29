@@ -1,5 +1,5 @@
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
-import { urlContext } from "./document-urls.js";
+import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -26,13 +26,12 @@ import type {
   SaveResult,
 } from "../shared/types.js";
 import { FileConflictError, isMarkdown, isPeekable, readDocument, readDiskText, saveImageNextTo, watchDocument, writeAtomic } from "./files.js";
-import { stopMetadataHelper } from "./file-metadata.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
 import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { disposeRenderer, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
+import { disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { PeekHelper, type PeekRequest } from "./peek.js";
@@ -297,9 +296,11 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
   let title: string;
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
-  if (!readOnlyReason && intent === "edit" && settings.mode === "source" && path.extname(file ?? "").toLowerCase() !== ".mdx") {
+  const isMdx = path.extname(file ?? "").toLowerCase() === ".mdx";
+  if (!readOnlyReason && intent === "edit" && settings.mode !== "split" && (settings.mode === "source" || isMdx)) {
     title = file ? path.basename(file) : "Untitled";
     blocks = [];
+    if (isMdx) mdx = await mdxRanges(text);
   } else if (file && fromDisk && path.extname(file).toLowerCase() !== ".mdx") {
     const stat = await fs.promises.stat(file).catch(() => null);
     perfMark("read-and-hash-start", { path: file });
@@ -413,6 +414,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
     return await openPreparedDocument({
       valid,
       prepare: async () => {
+        invalidateUrlContext(path.dirname(abs));
         perfMark("read-start", { path: abs });
         const { text, readOnlyReason } = await readDocument(abs);
         perfMark("read-end", { path: abs });
@@ -505,8 +507,9 @@ async function openLink(href: string, intent: OpenIntent = "edit"): Promise<bool
   const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
   if (!resolved || !resolved.startsWith("file:")) return false;
   try {
+    const canonical = await containedLocalFile(resolved, urlContext(path.dirname(current.path)));
     const target = fileURLToPath(resolved);
-    return isMarkdown(target) ? openFile(target, intent) : false;
+    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent) : false;
   } catch {
     return false;
   }
@@ -552,6 +555,8 @@ async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: Doc
     show: false,
     webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
   });
+  pw.webContents.on("will-navigate", (event) => event.preventDefault());
+  pw.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   const id = pw.webContents.id;
   let timer: NodeJS.Timeout | undefined;
   try {
@@ -600,13 +605,19 @@ async function exportHtml(text: string): Promise<void> {
 
 async function makeHtml(text: string): Promise<string> {
   const { title, html } = await withPrintWindow(text, async (pw, doc) => {
-    const sources: unknown = await pw.webContents.executeJavaScript(`Array.from(document.querySelectorAll('#doc img'), image => image.src)`);
+    const sources: unknown = await pw.webContents.executeJavaScript(`Array.from(document.querySelectorAll('#doc img'), image => image.currentSrc || image.getAttribute('src') || '')`);
     if (!Array.isArray(sources) || !sources.every((source): source is string => typeof source === "string")) throw new Error("Invalid export images.");
-    const embedded = await embedLocalImages(sources, (file) => fs.promises.readFile(file));
+    const embedded = await embedLocalImages(sources, current.path ? urlContext(path.dirname(current.path)) : {});
     const html: unknown = await pw.webContents.executeJavaScript(`(() => {
       const clone = document.querySelector('#doc').cloneNode(true);
       const sources = ${JSON.stringify(embedded)};
       clone.querySelectorAll('img').forEach((image, index) => { image.src = sources[index]; image.removeAttribute('loading'); });
+      // Static exports drop local links and failed image candidates to avoid leaking paths.
+      clone.querySelectorAll('*').forEach(element => {
+        for (const attribute of [...element.attributes]) {
+          if (/^file:/i.test(attribute.value) || (attribute.name === 'srcset' && /(?:^|[,\\s])file:/i.test(attribute.value))) element.removeAttribute(attribute.name);
+        }
+      });
       return clone.innerHTML;
     })()`);
     if (typeof html !== "string") throw new Error("Invalid export document.");
@@ -696,7 +707,8 @@ async function prewarm(paths: string[]): Promise<void> {
     try {
       const stat = await fs.promises.stat(p);
       if (stat.size > 8 * 1024 * 1024) continue;
-      const text = await fs.promises.readFile(p, "utf8");
+      const { text, readOnlyReason } = await readDocument(p);
+      if (readOnlyReason) continue;
       if (getCachedRender(p, stat.mtimeMs, stat.size, text)) continue;
       const rendered = await prefetchBlocks(text, p);
       if (!rendered) continue;
@@ -910,6 +922,13 @@ function registerIpc(): void {
     trace("render-done");
     return out;
   });
+  handle("smd:mdx-ranges", async (value, id) => {
+    const text = ipcText(value);
+    ipcDocument(id);
+    const out = await mdxRanges(text);
+    trace("mdx-ranges-done");
+    return out;
+  });
   handle("smd:render-fragment", (value, id) => {
     const text = ipcText(value);
     ipcDocument(id);
@@ -993,7 +1012,6 @@ async function prepareQuit(): Promise<void> {
   tray = undefined;
   watcher?.close();
   helper?.stop();
-  stopMetadataHelper();
   flushSettings();
   trace("quit-resources-closed");
   await disposeRenderer();
@@ -1030,7 +1048,6 @@ if (!app.requestSingleInstanceLock()) {
   app.on("will-quit", () => {
     globalShortcut.unregisterAll();
     helper?.stop();
-    stopMetadataHelper();
     watcher?.close();
     flushSettings();
     disposeRenderer();

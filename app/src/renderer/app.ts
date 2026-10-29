@@ -180,10 +180,16 @@ function renderPreview(): Promise<void> {
         const fraction = scrollFraction(previewScroll);
         try {
           const source = editor.getText();
-          const result = await simplemd.renderBlocks(source, id);
-          if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
-          const blocks = acceptRender(result, source);
-          if (settings.mode === "split") mountBlocks(previewEl, blocks);
+          if (settings.mode !== "split") {
+            const result = await simplemd.mdxRanges(source, id);
+            if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
+            mdx = result;
+            editor.setMdx(source, result);
+          } else {
+            const result = await simplemd.renderBlocks(source, id);
+            if (seq !== previewRenderSeq || id !== documentId || view !== "edit" || editor?.getText() !== source) continue;
+            mountBlocks(previewEl, acceptRender(result, source));
+          }
           setScrollFraction(previewScroll, fraction);
         } catch {
           if (seq === previewRenderSeq && id === documentId) toast("Couldn't render this preview.");
@@ -391,7 +397,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
   documentId = id;
   readOnlyReason = payload.readOnlyReason;
   mdx = payload.mdx;
-  lastGoodBlocks = payload.mdx?.error ? null : payload.blocks;
+  lastGoodBlocks = payload.mdx?.error || !payload.blocks.length ? null : payload.blocks;
   meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
@@ -869,11 +875,22 @@ async function boot(): Promise<void> {
         .then(() => document.fonts.ready)
         .then(() => Promise.all([...docEl.querySelectorAll("img")].filter((image) => image.hasAttribute("src") || image.currentSrc || image.closest("picture")?.querySelector("source[srcset]")).map(async (image) => {
           image.loading = "eager";
-          if (!image.complete) await new Promise<void>((resolve, reject) => {
-            image.addEventListener("load", () => resolve(), { once: true });
-            image.addEventListener("error", () => reject(new Error("An image could not be loaded for printing.")), { once: true });
-          });
-          await image.decode();
+          try {
+            if (!image.complete) await new Promise<void>((resolve, reject) => {
+              const finish = (error?: Error) => {
+                clearTimeout(timer);
+                image.removeEventListener("load", loaded);
+                image.removeEventListener("error", failed);
+                error ? reject(error) : resolve();
+              };
+              const loaded = () => finish();
+              const failed = () => finish(new Error("An image could not be loaded for printing."));
+              const timer = setTimeout(() => finish(new Error("An image timed out while loading for printing.")), 5000);
+              image.addEventListener("load", loaded, { once: true });
+              image.addEventListener("error", failed, { once: true });
+            });
+            await image.decode();
+          } catch (error) { console.warn("simplemd: skipped print image", error); }
         })))
         .then(() => simplemd.printReady())
         .catch((error: unknown) => simplemd.printReady(error instanceof Error ? error.message : "Print rendering failed."));

@@ -16,7 +16,13 @@ Autosave is a setting. Check it before editing a file you want to keep unchanged
 
 Saves preserve UTF-8 bytes, the BOM, existing line endings and the final newline. New line breaks use the original file's dominant ending, or LF on a tie. Invalid UTF-8 and files containing NUL bytes, including UTF-16, open read-only. Table navigation leaves spacing intact, and task toggles change only the checkbox marker.
 
-A save atomically replaces the file. Other hard links keep the old content. Saving through a symbolic link replaces its target and keeps the link. On macOS, the existing Rust helper copies extended attributes, Finder tags, permissions and ACLs to the temporary file before replacement. It runs in a separate metadata mode without file-manager hooks, starts once when needed and stays alive until quit. A metadata-copy failure cancels the save. Build the helper with `bun run build:native` before saving existing files during development.
+A save atomically replaces the file. Other hard links keep the old content. Saving through a symbolic link replaces its target and keeps the link. On macOS, the Rust helper copies extended attributes, Finder tags and ACLs to the temporary file before replacement. The app restores permissions separately and does not copy BSD flags. The helper runs as one short-lived process per save, without file-manager hooks, with a five-second timeout. A metadata-copy failure logs an error and the save proceeds. Build the helper with `bun run build:native` to preserve metadata during development.
+
+Locked or unwritable files open read-only. Document reads use a nonblocking file handle, require a regular file and stop at 64 MB. This leaves room above the 20 MB rendering gate while rejecting FIFOs, devices and directories.
+
+Local resources and links stay within the detected Git or Astro public root, or the document folder when no root exists. A leading slash without a root resolves inside the document folder. HTML export embeds supported local images up to 25 MB each, after checking their real paths and file types. A missing, unsupported or refused image logs a warning and does not cancel export. Static exports drop local links and local srcset attributes to avoid exposing absolute paths or creating links that break when the export moves. Failed local image URLs are also removed from the exported HTML.
+
+MDX edits in Live and Source modes parse ranges in the worker without rendering a preview. Side by side and Read render the document. Beyond 128 nested JSX elements, the preview shows escaped source with a "Nested MDX shown as source" marker. The source remains editable.
 
 Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 
@@ -57,9 +63,9 @@ bun run check:rust
 bun run test:rust
 ```
 
-`start` builds the JavaScript app and opens Electron. It does not build Rust. If your shell sets `ELECTRON_RUN_AS_NODE`, unset it before starting Electron. The helper is optional for opening files. On macOS, saving an existing file requires it to preserve metadata. Development helper lookup uses `native/target/release/`; `build:native` copies the matching host binary there after building it under `native/target/<rust-host>/release/`.
+`start` builds the JavaScript app and opens Electron. It does not build Rust. If your shell sets `ELECTRON_RUN_AS_NODE`, unset it before starting Electron. The helper is optional for opening files. On macOS, saving an existing file uses it to preserve metadata when available. Development helper lookup uses `native/target/release/`; `build:native` copies the matching host binary there after building it under `native/target/<rust-host>/release/`.
 
-The build emits `dist/main.mjs`, a compile-cache bootstrap that imports `main-app.mjs`. A persistent Node worker handles Markdown rendering. `dist/render-worker.mjs` and shared chunks ship with the app through the `dist/**/*` package glob. Bun bundles runtime dependencies, so they are development dependencies in `package.json`.
+The build emits `dist/main.mjs`, a compile-cache bootstrap that imports `main-app.mjs`. A persistent Node worker handles Markdown rendering. `dist/render-worker.mjs` and shared chunks ship with the app through the `dist/**/*` package glob. The browser render-core bundle is built only by its Node-free core test and is excluded from packaging. Bun bundles runtime dependencies, so they are development dependencies in `package.json`.
 
 The source is divided into `src/main/`, `src/renderer/`, `src/shared/`, and `native/`. Main and renderer changes share a document-ID protocol for rendering, saves, disk-change acknowledgement, and document readiness. Keep that protocol aligned across the preload bridge.
 

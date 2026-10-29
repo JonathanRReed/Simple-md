@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld("simplemd", {
   acceptDisk: (text: string, documentId: number) => ipcRenderer.invoke("smd:accept-disk", text, documentId),
   printReady: (error?: string) => ipcRenderer.send("smd:print-ready", error),
 
+  mdxRanges: (text: string, documentId: number) => ipcRenderer.invoke("smd:mdx-ranges", text, documentId),
   renderBlocks: (text: string, documentId: number) => ipcRenderer.invoke("smd:render-blocks", text, documentId),
   renderFragment: (text: string, documentId: number) => ipcRenderer.invoke("smd:render-fragment", text, documentId),
   save: (text: string, forceDialog: boolean, documentId: number) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),

@@ -31,14 +31,42 @@ export function decodeDocument(bytes: Uint8Array): { text: string; readOnlyReaso
   }
 }
 
+// The 20 MB rendering gate fits below this hard read limit.
+export const MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
+export const READ_ONLY_NOTICE = "This file is locked or not writable. Read only.";
+
+export async function readRegularFile(file: string, maxBytes = MAX_DOCUMENT_BYTES): Promise<Buffer> {
+  const handle = await fs.promises.open(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile()) throw new Error("Only regular files can be opened.");
+    if (stat.size > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
+    const chunks: Buffer[] = [];
+    let total = 0;
+    while (true) {
+      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, maxBytes - total + 1));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+      if (!bytesRead) break;
+      total += bytesRead;
+      if (total > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+    return Buffer.concat(chunks, total);
+  } finally { await handle.close(); }
+}
+
 export async function readDocument(file: string) {
-  return decodeDocument(await fs.promises.readFile(file));
+  const doc = decodeDocument(await readRegularFile(file));
+  if (doc.readOnlyReason) return doc;
+  // macOS access(W_OK) rejects UF_IMMUTABLE and SF_IMMUTABLE, as well as permissions.
+  const writable = await fs.promises.access(file, fs.constants.W_OK).then(() => true, () => false);
+  return writable ? doc : { ...doc, readOnlyReason: READ_ONLY_NOTICE };
 }
 
 export async function readDiskText(file: string): Promise<string | null> {
   try {
     const doc = await readDocument(file);
-    if (doc.readOnlyReason) throw new FileEncodingError();
+    if (doc.readOnlyReason) throw new Error(doc.readOnlyReason);
     return doc.text;
   } catch (err) {
     if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
@@ -81,7 +109,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
     }
     await fs.promises.rename(tmp, target);
   } catch (err) {
-    await fs.promises.rm(tmp, { force: true });
+    await fs.promises.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
 }

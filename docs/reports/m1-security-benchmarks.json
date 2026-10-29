@@ -1,0 +1,281 @@
+{
+  "baselineRevision": "a38994f4acb792907ea5a0a1870ec03946b69aac",
+  "runtimeRevision": "80f728eafd45d8c19fad369a967bbd60968807ad",
+  "measurement": "Node RenderClient request after worker warmup, through response validation",
+  "order": "before then after, five alternating pairs, a fresh worker per fixture",
+  "host": "macOS arm64, 14 logical CPUs, Node 26.12.1, Bun 1.4.4-canary.1",
+  "hostLoad": "Other workloads remained active. Initial load average 16.85; later 8.30. This is not a release performance gate.",
+  "results": {
+    "before": {
+      "runs": [
+        {
+          "run": 1,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 772.0114580000001,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 10184.011084,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 2525.220458,
+              "correct": false,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 2,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 815.3667919999999,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 10696.444583,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 2769.550000000001,
+              "correct": false,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 3,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 874.188208,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 11424.344666,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 2622.680292000001,
+              "correct": false,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 4,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 888.47725,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 11873.312458,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 3076.0550000000003,
+              "correct": false,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 5,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 873.304167,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 11060.261875,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 2684.702833000001,
+              "correct": false,
+              "blocks": 1
+            }
+          ]
+        }
+      ],
+      "workerSha256": "0e3b05f0410f19bec6019c88728899628aead79e51a20e751e767c293298ae6a"
+    },
+    "after": {
+      "runs": [
+        {
+          "run": 1,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 521.650875,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 914.2024170000001,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 103.27037500000006,
+              "correct": true,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 2,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 262.978541,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 976.051417,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 118.40291700000012,
+              "correct": true,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 3,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 255.14608299999998,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 890.6905830000001,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 104.10108300000002,
+              "correct": true,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 4,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 260.704958,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 952.3399169999999,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 113.07779199999982,
+              "correct": true,
+              "blocks": 1
+            }
+          ]
+        },
+        {
+          "run": 5,
+          "results": [
+            {
+              "name": "5000-paragraphs",
+              "bytes": 168888,
+              "ms": 229.90737499999997,
+              "correct": true,
+              "blocks": 5000
+            },
+            {
+              "name": "20000-paragraphs",
+              "bytes": 688888,
+              "ms": 829.916792,
+              "correct": true,
+              "blocks": 20000
+            },
+            {
+              "name": "5000-nested-b",
+              "bytes": 35017,
+              "ms": 94.48112500000002,
+              "correct": true,
+              "blocks": 1
+            }
+          ]
+        }
+      ],
+      "workerSha256": "1a798bc6bddd989daca9e61c51c98c47f8ea9851a8261db8714f2a726cd080ea"
+    }
+  },
+  "workerBinding": "Rebuilt after final main/renderer changes. Both render-client.mjs and render-worker.mjs match the measured bundles byte for byte."
+}

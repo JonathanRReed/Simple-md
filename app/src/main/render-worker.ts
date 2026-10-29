@@ -1,4 +1,6 @@
 import { type RenderedHtml } from "../shared/render-tree.js";
+import { findMdxRanges } from "../shared/mdx-ranges.js";
+import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { parentPort } from "node:worker_threads";
 import { renderBlocks, renderFragment, type RenderedBlocks } from "./markdown.js";
@@ -6,6 +8,7 @@ import { renderBlocks, renderFragment, type RenderedBlocks } from "./markdown.js
 export type RenderCommand =
   | { kind: "blocks"; text: string; filePath: string | null }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
+  | { kind: "mdx-ranges"; text: string }
   | { kind: "warmup" };
 
 export type RenderRequest = RenderCommand & { id: number };
@@ -13,6 +16,7 @@ export type RenderRequest = RenderCommand & { id: number };
 export type RenderResponse =
   | { id: number; kind: "blocks"; value: RenderedBlocks }
   | { id: number; kind: "fragment"; value: RenderedHtml }
+  | { id: number; kind: "mdx-ranges"; value: MdxResult }
   | { id: number; kind: "warmup" }
   | { id: number; kind: "error"; message: string };
 
@@ -30,6 +34,11 @@ port.on("message", async (request: RenderRequest) => {
       case "fragment":
         response = { id: request.id, kind: "fragment", value: await renderFragment(request.text, request.baseDir) };
         break;
+      case "mdx-ranges": {
+        const ranges = findMdxRanges(request.text);
+        response = { id: request.id, kind: "mdx-ranges", value: { ranges: [...ranges], error: ranges.error } };
+        break;
+      }
       case "warmup":
         response = { id: request.id, kind: "warmup" };
         break;

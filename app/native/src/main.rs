@@ -16,8 +16,12 @@ use protocol::{Command, Event};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|a| a == "--copy-metadata") {
-        if let Err(error) = file_metadata::run() {
+    if args.first().is_some_and(|a| a == "--copy-metadata") {
+        if args.len() != 3 {
+            eprintln!("Usage: simplemd-peek --copy-metadata <src> <dst>");
+            process::exit(1);
+        }
+        if let Err(error) = file_metadata::run(&args[1], &args[2]) {
             eprintln!("metadata copy: {error}");
             process::exit(1);
         }
