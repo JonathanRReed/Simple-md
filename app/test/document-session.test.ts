@@ -154,8 +154,8 @@ test("Save As clears the baseline associated with the previous file", async () =
   await fs.writeFile(file, "Current");
   const doc = registry().create(file, "Current");
   doc.setHeadBaseline("Committed");
-  doc.gitStatusChecked = true;
+  doc.gitStatus = { available: true, active: true };
   expect(await doc.save(path.join(dir, "new.md"), doc.revisionId)).not.toBeNull();
   expect(doc.baseline).toBeNull();
-  expect(doc.gitStatusChecked).toBe(false);
+  expect(doc.gitStatus).toEqual({ available: true, active: false });
 });

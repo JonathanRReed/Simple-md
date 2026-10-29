@@ -19,6 +19,8 @@ describe("host-only packaging", () => {
     test(`${platform}/${arch} packages the exact helper`, () => {
       const plan = nativePlan(host, platform, arch);
       expect(plan.args).toContain("--locked");
+      expect(plan.args).not.toContain("--features");
+      expect(plan.cliBinary).not.toContain("cli-tests");
       expect(plan.args[plan.args.indexOf("--target") + 1]).toBe(host);
       expect(plan.args[plan.args.indexOf("--target-dir") + 1]).toBe(path.join(appDir, "native", "target"));
       expect(plan.binary).toContain(path.join(host, "release", plan.executable));

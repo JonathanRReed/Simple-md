@@ -24,7 +24,7 @@ export async function prepareCliRuntime(binary: string, profile?: string): Promi
   let directory: string;
   let endpoint: string;
   if (process.platform === "win32") {
-    const info: unknown = JSON.parse(execFileSync(binary, ["--runtime-info"], { encoding: "utf8", windowsHide: true, timeout: 5000, maxBuffer: 4096 }));
+    const info: unknown = JSON.parse(execFileSync(binary, ["--runtime-info"], { encoding: "utf8", windowsHide: true, timeout: 5000, maxBuffer: 4096, env: profile ? { ...process.env, SMD_CLI_RUNTIME: cliRuntime(profile) } : process.env }));
     if (!info || typeof info !== "object" || !("directory" in info) || typeof info.directory !== "string" || !("endpoint" in info) || typeof info.endpoint !== "string") throw new Error("Invalid private pipe runtime.");
     directory = info.directory; endpoint = info.endpoint;
   } else {

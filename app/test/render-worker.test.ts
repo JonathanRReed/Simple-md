@@ -41,6 +41,19 @@ function worker(name: string, code: string): string {
 }
 
 describe("persistent Node render worker", () => {
+  test("stdin MDX mode crosses the worker without a file path", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const text = '<Widget />\\n\\n![local](./secret.png)';
+        const mdx = await client.renderBlocks(text, null, true);
+        assert.ok(mdx.mdx.ranges.length > 0);
+        assert.ok(mdx.blocks.every(block => !block.urls.baseUrl && !block.html.includes('file:')));
+        const markdown = await client.renderBlocks(text, null, false);
+        assert.equal(markdown.mdx, undefined);
+      } finally { await client.dispose(); }
+    `);
+  });
   test("change parsing stays in the worker and preserves the ordinary render pipeline", async () => {
     await nodeCheck(`
       const client = new RenderClient();

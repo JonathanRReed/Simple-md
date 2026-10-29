@@ -1267,7 +1267,8 @@ if (!app.requestSingleInstanceLock()) {
     if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
-    cliServer = await startOptionalCliServer({ binary: bundledCli(), profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
+    const cliBinary = testProfile && process.platform === "win32" ? path.join(app.getAppPath(), "native/target/cli-tests/release/simplemd.exe") : bundledCli();
+    cliServer = await startOptionalCliServer({ binary: cliBinary, profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
     trace(cliServer ? "cli-ready" : "cli-unavailable");
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {

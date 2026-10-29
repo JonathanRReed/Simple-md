@@ -86,7 +86,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let navigatingLink = false;
   let pendingDisk: DormantDocument["disk"];
   let highlights: HighlightState = { kind: null, generation: 0, changes: { changed: [], deleted: [] } };
-  let gitStatus: GitChangesStatus = { available: false, reason: "Checking Git HEAD..." };
+  let gitStatus: GitChangesStatus = { available: false, reason: "Save the file in a Git repository first." };
   let changeTimer: number | undefined;
   let changeSequence = 0;
   let changeIndex = -1;

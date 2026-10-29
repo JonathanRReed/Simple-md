@@ -151,7 +151,11 @@ try {
       wrong.write(frame(Buffer.from(JSON.stringify({ version: 1, id: "wrong", secret: "0".repeat(64), command: "open", path: file, wait: false })))); await closed;
     },
     url: async env => { const app = run(electron, [appRoot, "--", `simplemd://open?path=${encodeURIComponent(file)}&line=7`], env); assert.equal(await app.done, 0, app.errors()); },
-    "invalid-url": async env => { const app = run(electron, [appRoot, "--", `simplemd://export?path=${encodeURIComponent(first)}`], env); assert.equal(await app.done, 0, app.errors()); },
+    "invalid-url": async env => {
+      const urls = [`simplemd://export?path=${encodeURIComponent(first)}`, `simplemd://open?path=${encodeURIComponent(path.join(root, "secret.txt"))}`];
+      if (process.platform === "win32") for (const file of [String.raw`\\attacker\share\note.md`, "//attacker/share/note.md", String.raw`\\?\C:\note.md`, String.raw`\\.\C:\note.md`]) urls.push(`simplemd://open?path=${encodeURIComponent(file)}`);
+      for (const url of urls) { const app = run(electron, [appRoot, "--", url], env); assert.equal(await app.done, 0, app.errors()); }
+    },
   });
   const repo = path.join(root, "git"); fs.mkdirSync(repo);
   for (const args of [["init"], ["config", "user.name", "CLI Smoke"], ["config", "user.email", "cli@example.test"]]) assert.equal(spawnSync("git", args, { cwd: repo }).status, 0);

@@ -467,6 +467,23 @@ mod tests {
             }
         ));
     }
+    #[cfg(windows)]
+    #[test]
+    fn unc_paths_are_rejected_before_any_filesystem_probe() {
+        for file in [
+            r"\\host\share\note.md",
+            "//host/share/note.md",
+            r"\\?\C:\note.md",
+            r"\\.\pipe\note.md",
+        ] {
+            assert!(
+                parse(&args(&[file]), Path::new(r"C:\work"), |_| panic!(
+                    "UNC path reached the filesystem"
+                ))
+                .is_err()
+            );
+        }
+    }
     #[test]
     fn framing_and_caps() {
         let mut bytes = vec![];
