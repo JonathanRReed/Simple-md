@@ -7,6 +7,8 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+#[cfg(any(windows, test))]
+mod deadline;
 #[cfg(unix)]
 mod unix;
 #[cfg(windows)]

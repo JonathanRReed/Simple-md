@@ -1,3 +1,4 @@
+use super::deadline::AcceptanceDeadline;
 use super::{FRAME_CAP, STDIN_CAP, read_frame, secret_matches, write_frame};
 use serde_json::{Value, json};
 use std::{
@@ -22,7 +23,7 @@ use windows_sys::Win32::{
     Foundation::*,
     Security::{Authorization::*, *},
     Storage::FileSystem::*,
-    System::{Console::*, IO::CancelIoEx, Pipes::*, Threading::*},
+    System::{Console::*, IO::{CancelIoEx, CancelSynchronousIo}, Pipes::*, Threading::*},
 };
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
@@ -174,8 +175,37 @@ pub fn runtime_info() -> Result<(), String> {
     );
     Ok(())
 }
-pub fn connect(_: &Path) -> Result<File, String> {
+pub struct Connection {
+    file: File,
+    deadline: AcceptanceDeadline,
+}
+impl Read for Connection {
+    fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+        if self.deadline.expired() { return Err(io::Error::new(io::ErrorKind::TimedOut, "CLI acceptance timed out")); }
+        self.file.read(bytes)
+    }
+}
+impl Write for Connection {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if self.deadline.expired() { return Err(io::Error::new(io::ErrorKind::TimedOut, "CLI acceptance timed out")); }
+        self.file.write(bytes)
+    }
+    fn flush(&mut self) -> io::Result<()> { self.file.flush() }
+}
+pub fn connect(_: &Path) -> Result<Connection, String> {
     let name = wide(&format!(r"\\.\pipe\simplemd-{}", sid()?));
+    connect_pipe(&name, Duration::from_secs(30))
+}
+fn connect_pipe(name: &[u16], timeout: Duration) -> Result<Connection, String> {
+    let mut thread_handle = null_mut();
+    if unsafe { DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &mut thread_handle, 0, 0, DUPLICATE_SAME_ACCESS) } == 0 { return Err(error()); }
+    let thread = unsafe { File::from_raw_handle(thread_handle) };
+    let pending: Arc<Mutex<Option<File>>> = Arc::new(Mutex::new(None));
+    let pipe = pending.clone();
+    let deadline = AcceptanceDeadline::new(timeout, move || unsafe {
+        CancelSynchronousIo(thread.as_raw_handle());
+        if let Some(file) = &*pipe.lock().unwrap() { CancelIoEx(file.as_raw_handle(), null()); }
+    });
     let handle = unsafe {
         CreateFileW(
             name.as_ptr(),
@@ -211,9 +241,13 @@ pub fn connect(_: &Path) -> Result<File, String> {
         let _sd = Descriptor(sd);
         verify_acl(owner, dacl)?;
     }
-    Ok(file)
+    *pending.lock().unwrap() = Some(file.try_clone().map_err(|e| e.to_string())?);
+    if deadline.expired() { return Err("CLI connection timed out".into()); }
+    Ok(Connection { file, deadline })
 }
-pub fn wait_forever(_: &File) -> Result<(), String> {
+pub fn wait_forever(stream: &Connection) -> Result<(), String> {
+    stream.deadline.cancel();
+    if stream.deadline.expired() { return Err("CLI acceptance timed out".into()); }
     Ok(())
 }
 pub fn interrupt_handler() {
@@ -377,5 +411,30 @@ pub fn broker() -> Result<(), String> {
             emit(json!({"connection":id,"disconnected":true,"failed":result.is_err()}));
             if authorized { authenticated.fetch_sub(1, Ordering::SeqCst); } else { active.fetch_sub(1, Ordering::SeqCst); }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn stalled_first_frame_is_cancelled() {
+        let name = wide(&format!(r"\\.\pipe\simplemd-watchdog-{}", std::process::id()));
+        let sd = descriptor().unwrap();
+        let attributes = SECURITY_ATTRIBUTES { nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32, lpSecurityDescriptor: sd.0, bInheritHandle: 0 };
+        let handle = unsafe { CreateNamedPipeW(name.as_ptr(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE, PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 4096, 4096, 1000, &attributes) };
+        assert_ne!(handle, INVALID_HANDLE_VALUE);
+        let mut server = unsafe { File::from_raw_handle(handle) };
+        let peer = thread::spawn(move || {
+            assert!(unsafe { ConnectNamedPipe(server.as_raw_handle(), null_mut()) } != 0 || unsafe { GetLastError() } == ERROR_PIPE_CONNECTED);
+            server.write_all(&[0, 0]).unwrap();
+            let _ = server.read(&mut [0]);
+        });
+        let started = Instant::now();
+        let mut client = connect_pipe(&name, Duration::from_millis(50)).unwrap();
+        assert!(read_frame(&mut client, FRAME_CAP).is_err());
+        assert!(started.elapsed() < Duration::from_secs(2));
+        drop(client);
+        peer.join().unwrap();
     }
 }
