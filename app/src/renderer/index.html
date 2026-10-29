@@ -14,19 +14,8 @@
   <body>
     <header class="titlebar">
       <div class="tb-side"></div>
-      <div class="tb-title">
-        <span id="name"></span><span id="dirty" title="Unsaved changes" hidden>●</span>
-        <span id="hint"></span>
-      </div>
-      <div class="tb-side tb-right">
-        <div id="modes" class="seg" role="radiogroup" aria-label="Editing mode" hidden>
-          <button type="button" role="radio" data-mode="live" aria-checked="true">Live</button>
-          <button type="button" role="radio" data-mode="split" aria-checked="false">Side by side</button>
-          <button type="button" role="radio" data-mode="source" aria-checked="false">Source</button>
-        </div>
-        <button id="preferences-btn" type="button" class="text-button">Preferences</button>
-        <button id="edit-btn" type="button" class="pill" hidden>Edit</button>
-      </div>
+      <div class="tb-title">SimpleMD</div>
+      <div class="tb-side tb-right"><button id="preferences-btn" type="button" class="text-button">Preferences</button></div>
     </header>
 
     <div id="banner" role="status" hidden></div>
@@ -34,7 +23,23 @@
       <input id="find-input" type="search" placeholder="Find in note" aria-label="Find in note" spellcheck="false" />
     </div>
 
-    <main id="stage">
+    <div id="tabs" role="tablist" aria-label="Documents" hidden></div>
+    <main id="stage" data-panes="0">
+      <div id="welcome" class="empty-actions"><button id="welcome-open" type="button" class="pill">Open file</button><button id="welcome-new" type="button" class="pill">New tab</button></div>
+    </main>
+    <template id="pane-template">
+      <div class="document-pane">
+        <div class="pane-toolbar">
+          <div class="pane-name"><span id="name"></span><span id="dirty" title="Unsaved changes" hidden>●</span></div>
+          <span id="hint" hidden></span>
+          <div id="modes" class="seg" role="radiogroup" aria-label="Editing mode" hidden>
+            <button type="button" role="radio" data-mode="live" aria-checked="true">Live</button>
+            <button type="button" role="radio" data-mode="split" aria-checked="false">Side by side</button>
+            <button type="button" role="radio" data-mode="source" aria-checked="false">Source</button>
+          </div>
+          <button id="edit-btn" type="button" class="pill" hidden>Edit</button>
+        </div>
+        <div class="pane-content">
       <section id="read" class="pane">
         <div id="read-scroll" class="scroller">
           <article id="doc" class="prose" hidden></article>
@@ -56,7 +61,9 @@
           <div id="preview-scroll" class="scroller"><article id="preview" class="prose"></article></div>
         </div>
       </section>
-    </main>
+        </div>
+      </div>
+    </template>
 
     <dialog id="preferences" aria-labelledby="preferences-title">
       <div class="preferences-header">

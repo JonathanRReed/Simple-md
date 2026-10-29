@@ -58,6 +58,7 @@ export function buildMenu(a: MenuActions): void {
       label: "File",
       submenu: [
         cmd("New", "new", "CommandOrControl+N"),
+        cmd("New Tab", "new", "CommandOrControl+T"),
         { label: "Open…", accelerator: "CommandOrControl+O", click: a.openDialog },
         { label: "Open Recent", submenu: recents },
         { type: "separator" },
@@ -69,7 +70,8 @@ export function buildMenu(a: MenuActions): void {
         cmd("Print…", "print", "CommandOrControl+P"),
         cmd(mac ? "Reveal in Finder" : "Show in File Manager", "reveal"),
         { type: "separator" },
-        { role: "close" },
+        cmd("Close Tab", "close-tab", "CommandOrControl+W"),
+        cmd("Move Tab to New Window", "move-tab-window"),
         ...(mac ? [] : [cmd("Preferences…", "preferences", "Control+,"), { type: "separator" } satisfies MenuItemConstructorOptions]),
         ...(mac ? [] : [{ label: "Quit", accelerator: "Ctrl+Q", click: a.quit } satisfies MenuItemConstructorOptions]),
       ],
@@ -110,6 +112,11 @@ export function buildMenu(a: MenuActions): void {
     {
       label: "View",
       submenu: [
+        cmd("Split Side by Side", "split-panes", "CommandOrControl+\\"),
+        cmd("Split Stacked", "stack-panes", "CommandOrControl+Shift+\\"),
+        cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+ArrowRight"),
+        cmd("Next Tab", "next-tab", "CommandOrControl+Shift+]"),
+        cmd("Previous Tab", "previous-tab", "CommandOrControl+Shift+["),
         cmd("Read / Edit", "toggle-edit", "CommandOrControl+Return"),
         cmd("Back", "nav-back", mac ? "Cmd+[" : "Alt+Left"),
         cmd("Forward", "nav-forward", mac ? "Cmd+]" : "Alt+Right"),
@@ -121,7 +128,7 @@ export function buildMenu(a: MenuActions): void {
               { live: "Live Preview", split: "Side by side", source: "Source" }[m],
               s.mode,
               m,
-              (v) => a.patch({ mode: v }),
+              (v) => a.command(v === "live" ? "mode-live" : v === "source" ? "mode-source" : "mode-split"),
               `CommandOrControl+Alt+${i + 1}`,
             ),
           ),

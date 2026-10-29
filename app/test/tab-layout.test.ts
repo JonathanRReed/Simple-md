@@ -35,3 +35,10 @@ test("closing uses a dormant tab, then collapses the pane, then empties the wind
   expect(tabs.active?.documentId).toBe(a);
   tabs.remove(a); expect(tabs.state.tabs).toEqual([]); expect(tabs.state.panes).toEqual([]);
 });
+test("in-place navigation preserves the pane identity and tab position", () => {
+  const tabs = new TabLayout(); tabs.add(a); tabs.add(b);
+  const pane = tabs.active?.paneId;
+  tabs.replace(b, c);
+  expect(tabs.state.tabs).toEqual([a, c]);
+  expect(tabs.active).toEqual({ paneId: pane, documentId: c });
+});

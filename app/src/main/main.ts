@@ -18,6 +18,7 @@ import {
   screen,
   session,
   shell,
+  systemPreferences,
 } from "electron";
 import { isDocumentId, isPaneId, isRevisionId, isRequestId, makePaneId, makeRequestId, type DocumentId, type RequestId, type RevisionId } from "../shared/types.js";
 import { DocumentRegistry } from "./document-registry.js";
@@ -237,7 +238,7 @@ async function hideCurrentWindow(): Promise<void> {
 
 async function closeTab(id = currentSession().documentId): Promise<boolean> {
   const doc = registry.get(id);
-  if (!doc || !(await transition(() => settle(doc)))) return false;
+  if (!doc || !(await transition(() => settle(doc, true)))) return false;
   context().layout.remove(id);
   registry.remove(id);
   send("smd:closed", id);
@@ -287,11 +288,11 @@ async function transition<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
-async function settle(current = currentSession()): Promise<boolean> {
+async function settle(current = currentSession(), prompt = false): Promise<boolean> {
   await context().loaded;
   return settleDocument({
     documentId: current.documentId,
-    autosave: settings.autosave,
+    autosave: !prompt && settings.autosave,
     hasPath: current.path !== null,
     flush: () => requestFlush(current),
     save: async (text) => (await saveText(text, false, current.documentId)) !== null,
@@ -422,7 +423,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     return true;
   }
   if (!isMarkdown(file)) return false;
-  const abs = path.resolve(file);
+  const abs = await fs.promises.realpath(path.resolve(file)).catch(() => path.resolve(file));
   for (const host of windows.values()) {
     const existing = host.layout.state.tabs.find(id => registry.get(id)?.path === abs);
     if (existing !== undefined) return windowScope.run(host, async () => {
@@ -461,7 +462,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       present: async (payload) => {
         reveal();
         if (replaced !== undefined) {
-          context().layout.remove(replaced);
+          context().layout.replace(replaced, payload.documentId);
           registry.remove(replaced);
           send("smd:closed", replaced);
         }
@@ -872,7 +873,7 @@ function registerIpc(): void {
     trace("renderer-ready");
     context().rendererReady = true;
     context().markLoaded();
-    return { settings, platform: process.platform, performanceTracing: testProfile && process.env.SMD_PERF === "1" };
+    return { settings, platform: process.platform, accent: process.platform === "darwin" || process.platform === "win32" ? `#${systemPreferences.getAccentColor().slice(0, 6)}` : "Highlight", performanceTracing: testProfile && process.env.SMD_PERF === "1" };
   });
   on("smd:editing", (e, id: unknown) => {
     if (!mainSender(e) || id !== currentSession().documentId) return;
@@ -971,7 +972,7 @@ function registerIpc(): void {
     const documentId = ipcDocument(id);
     return documents.run(() => { ipcDocument(documentId); return printDoc(text); });
   });
-  on("smd:print-ready", (e, error: unknown) => {
+  ipcMain.on("smd:print-ready", (e, error: unknown) => {
     if (e.senderFrame === e.sender.mainFrame) printWaiters.get(e.sender.id)?.(typeof error === "string" ? error : undefined);
   });
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });

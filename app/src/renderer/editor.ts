@@ -242,7 +242,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       // Language state, decorations, DOM widgets and callbacks belong to the view.
       const savedHistory = view.state.field(historyField);
       const savedBytes = view.state.field(byteText);
-      const withinBudget = JSON.stringify(view.state.toJSON({ history: historyField })).length <= 2_000_000;
+      const withinBudget = JSON.stringify(view.state.toJSON({ history: historyField }).history).length <= 2_000_000;
       return EditorState.create({
         doc: view.state.doc, selection: view.state.selection,
         extensions: [history({ minDepth: 100 }), byteText.init(() => savedBytes),

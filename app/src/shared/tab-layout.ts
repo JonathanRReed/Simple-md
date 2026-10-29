@@ -29,6 +29,13 @@ export class TabLayout {
       this.state.activePane = slot.paneId;
     }
   }
+  replace(previous: DocumentId, next: DocumentId): void {
+    const index = this.state.tabs.indexOf(previous);
+    if (index < 0 || this.has(next)) return;
+    this.state.tabs[index] = next;
+    const pane = this.state.panes.find(p => p.documentId === previous);
+    if (pane) pane.documentId = next;
+  }
   cycle(delta: number): void {
     const index = this.state.tabs.indexOf(this.active?.documentId!);
     const id = this.state.tabs[(index + delta + this.state.tabs.length) % this.state.tabs.length];
