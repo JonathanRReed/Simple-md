@@ -1,0 +1,616 @@
+[
+  {
+    "id": "01-facebook-react-readme",
+    "fetchedAt": "2026-10-29T00:44:03.514Z",
+    "rawUrl": "https://raw.githubusercontent.com/facebook/react/16a1d5d780b9cbbe2e1ac5f3dc6db8df6e7983ec/README.md",
+    "pageUrl": "https://github.com/facebook/react/blob/16a1d5d780b9cbbe2e1ac5f3dc6db8df6e7983ec/README.md",
+    "pageStatus": 200,
+    "pageSha256": "7277d762a8332fd21a1c41653c92c6f167453e4def670b5ed96374d476f3691f",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "9b6ac13cb03c06ae5643376cebd8d0e6cbae7ec0dd30a5cdc443a93160c348eb",
+    "referenceSha256": "044e44f7c0edbbb236f9695192c905f7dffb6a9f415d997ecd265608efb504df",
+    "licenseFiles": [
+      "facebook-react-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "02-microsoft-vscode-readme",
+    "fetchedAt": "2026-10-29T00:44:07.347Z",
+    "rawUrl": "https://raw.githubusercontent.com/microsoft/vscode/76e5c7e5e1eb0a68099cdd8ef9538bcd9b4a1afd/README.md",
+    "pageUrl": "https://github.com/microsoft/vscode/blob/76e5c7e5e1eb0a68099cdd8ef9538bcd9b4a1afd/README.md",
+    "pageStatus": 200,
+    "pageSha256": "9ce4025958ed155dbf36e19995443fcfdcf30dab99928dd03bf3fe1987b41454",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "45a411a3b8d49556fbaa73601befc458ab10ad873fca9088136888c89abb8935",
+    "referenceSha256": "6cbf54dc53bc1cdbc913cef68f806a7a94bc1b570b06160cda7c9b72a4823ea1",
+    "licenseFiles": [
+      "microsoft-vscode-LICENSE.txt.txt"
+    ]
+  },
+  {
+    "id": "03-microsoft-TypeScript-readme",
+    "fetchedAt": "2026-10-29T00:44:11.151Z",
+    "rawUrl": "https://raw.githubusercontent.com/microsoft/TypeScript/25f823dc198a00744b458a7bc6984359f0dd7cac/README.md",
+    "pageUrl": "https://github.com/microsoft/TypeScript/blob/25f823dc198a00744b458a7bc6984359f0dd7cac/README.md",
+    "pageStatus": 200,
+    "pageSha256": "450fd44ab33e6f3801ae35c4125a894d43dcd29507325a0fff6e97595db06268",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "b43867a1a978a0a3d881b91e50e9807f1f56e3f1dd54d65cad43f471c84e0036",
+    "referenceSha256": "e33cb853ac9d66e008e9991c8339483c2991f3cfd97d012c6762f3654453bad3",
+    "licenseFiles": [
+      "microsoft-TypeScript-LICENSE.txt.txt"
+    ]
+  },
+  {
+    "id": "04-rust-lang-rust-readme",
+    "fetchedAt": "2026-10-29T00:44:16.189Z",
+    "rawUrl": "https://raw.githubusercontent.com/rust-lang/rust/92ffebeceaa0a071066f233873c2438e73d70fe7/README.md",
+    "pageUrl": "https://github.com/rust-lang/rust/blob/92ffebeceaa0a071066f233873c2438e73d70fe7/README.md",
+    "pageStatus": 200,
+    "pageSha256": "461bad2f62b8f44fdc8c5f4bdec75d6b86f0341d0243170ee0550e30c7775d49",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "b3f6ef2fef88b98cb9ec013a5c86213095e53e40eb228679574e4d06517f33c8",
+    "referenceSha256": "007900268491f416ca7035092f94bc180d33f566645e188240ffc57294f54398",
+    "licenseFiles": [
+      "rust-lang-rust-LICENSE-MIT.txt",
+      "rust-lang-rust-LICENSE-APACHE.txt"
+    ]
+  },
+  {
+    "id": "05-sbarex-qlmarkdown-test1",
+    "fetchedAt": "2026-10-29T00:44:19.982Z",
+    "rawUrl": "https://raw.githubusercontent.com/sbarex/QLMarkdown/3a0cdcd40c5f53584a2fd9cf9dde6007276b31ce/examples/test1.md",
+    "pageUrl": "https://github.com/sbarex/QLMarkdown/blob/3a0cdcd40c5f53584a2fd9cf9dde6007276b31ce/examples/test1.md",
+    "pageStatus": 200,
+    "pageSha256": "34ebfe734dabfb13b0d79c73efb061edb0b5af80b8a4378a93c9459d11e824a6",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "a27b8eb25a4c3465a7a150b88c6143f8a7155a9196a0a04005c7d64e31f8e350",
+    "referenceSha256": "a01c18d9f6c6b03bdeac4d932e351a64646e2b8d6fd0ea3c2dfe42d266386970",
+    "licenseFiles": [
+      "sbarex-QLMarkdown-LICENSE.txt.txt"
+    ]
+  },
+  {
+    "id": "06-nodejs-node-readme",
+    "fetchedAt": "2026-10-29T00:44:23.895Z",
+    "rawUrl": "https://raw.githubusercontent.com/nodejs/node/4b9caf05df4011131f56cb0f74d7510d26b85d6d/README.md",
+    "pageUrl": "https://github.com/nodejs/node/blob/4b9caf05df4011131f56cb0f74d7510d26b85d6d/README.md",
+    "pageStatus": 200,
+    "pageSha256": "700725c0b9b20202f9bbb28a222455aad7a867b4f072b073e53e10bb903b8d9d",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "82c4b8ac5dc20ed616402695123295da74854956de6b9768c26699d610dadf45",
+    "referenceSha256": "5e20d5f4fcde8f2604f5ded2c7196f8c86385e9884bca83a032b20cb4b8bb762",
+    "licenseFiles": [
+      "nodejs-node-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "07-denoland-deno-readme",
+    "fetchedAt": "2026-10-29T00:44:27.646Z",
+    "rawUrl": "https://raw.githubusercontent.com/denoland/deno/e7b39ebd55c85aaf6a29290c1f5a99e2e21e09dd/README.md",
+    "pageUrl": "https://github.com/denoland/deno/blob/e7b39ebd55c85aaf6a29290c1f5a99e2e21e09dd/README.md",
+    "pageStatus": 200,
+    "pageSha256": "3005164a41f4d9c48f57b5c85249143d6202beefdf0eb0d8da606eb15084a597",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "83a959d62dea940f94ce1b50024928e34afb447de35197b7ea1d944fd6dbbcf7",
+    "referenceSha256": "dfc3a66a03ee63a4e5e667a28af556db7d1ad3c38c260295dfef7260da7eeed1",
+    "licenseFiles": [
+      "denoland-deno-LICENSE.md.txt"
+    ]
+  },
+  {
+    "id": "08-oven-sh-bun-readme",
+    "fetchedAt": "2026-10-29T00:44:31.469Z",
+    "rawUrl": "https://raw.githubusercontent.com/oven-sh/bun/37a5e3a71c7a9c470f63f65387cdfa1eb39e76b2/README.md",
+    "pageUrl": "https://github.com/oven-sh/bun/blob/37a5e3a71c7a9c470f63f65387cdfa1eb39e76b2/README.md",
+    "pageStatus": 200,
+    "pageSha256": "adb77322ff2370dd457cc42e8be496567f95627954779af181db2fe1aec9b148",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "d92061a62c132844b11565ef0f96d1c178863832ea4670e96b22ac2a7cb1225c",
+    "referenceSha256": "a2517ec91683583ce13c3d2643878d58b58ce186bc6bc647ca12995e54567c10",
+    "licenseFiles": [
+      "oven-sh-bun-LICENSE.md.txt"
+    ]
+  },
+  {
+    "id": "09-sveltejs-svelte-readme",
+    "fetchedAt": "2026-10-29T00:44:35.351Z",
+    "rawUrl": "https://raw.githubusercontent.com/sveltejs/svelte/23f166ba29ac71ad9ef94cbbdcc45a4c5c73ecaf/README.md",
+    "pageUrl": "https://github.com/sveltejs/svelte/blob/23f166ba29ac71ad9ef94cbbdcc45a4c5c73ecaf/README.md",
+    "pageStatus": 200,
+    "pageSha256": "bbed9ede3a2d9ad79b288a0a923f76e5704f7c405be03c27e6417bbf01b7b16d",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "f58cdd71cf9dfac9397cc683e5116cd100e685c329db534cca6781ff16894b73",
+    "referenceSha256": "65e4de78d83731c02216dd9ca220d270274de6b6605f8dc360671d7d122685c5",
+    "licenseFiles": [
+      "sveltejs-svelte-LICENSE.md.txt"
+    ]
+  },
+  {
+    "id": "10-vuejs-core-readme",
+    "fetchedAt": "2026-10-29T00:44:39.148Z",
+    "rawUrl": "https://raw.githubusercontent.com/vuejs/core/ca034820b8288ab6da3a033626a7857401ee64a5/README.md",
+    "pageUrl": "https://github.com/vuejs/core/blob/ca034820b8288ab6da3a033626a7857401ee64a5/README.md",
+    "pageStatus": 200,
+    "pageSha256": "f4203e072ec138e569a29a9a98e456ba5f443048064e0a9d8ba766090764d6e8",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "ee86575a4126eb9e9e40f94679f85b9b2f090230924cf984153e1a15563e7ffd",
+    "referenceSha256": "17fe3327d295ddd770862d010792ea77bfc326f670e91d2b5d7a4c4e22f66792",
+    "licenseFiles": [
+      "vuejs-core-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "11-vitejs-vite-readme",
+    "fetchedAt": "2026-10-29T00:44:42.940Z",
+    "rawUrl": "https://raw.githubusercontent.com/vitejs/vite/cce559ab158cc6b177d0911a0bea73436b48faff/README.md",
+    "pageUrl": "https://github.com/vitejs/vite/blob/cce559ab158cc6b177d0911a0bea73436b48faff/README.md",
+    "pageStatus": 200,
+    "pageSha256": "228030c4e71a2f953aabe373b5d55a40fe4f92ee0b3a820d4a89e02a5767e265",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "588718673f32a3691b8e75b93fb4c2f8e8bc9a6dc0bf61794ba7b6c006594111",
+    "referenceSha256": "eb4f0ef6f891acff89e18a4ab417cfd4a5badacc455764c4d10e7725f1875f0d",
+    "licenseFiles": [
+      "vitejs-vite-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "12-withastro-astro-readme",
+    "fetchedAt": "2026-10-29T00:44:46.722Z",
+    "rawUrl": "https://raw.githubusercontent.com/withastro/astro/883e672fd0beb575b14776bc842bdee84433e6af/README.md",
+    "pageUrl": "https://github.com/withastro/astro/blob/883e672fd0beb575b14776bc842bdee84433e6af/README.md",
+    "pageStatus": 200,
+    "pageSha256": "45269d702c0d98ddfcb063c27546ddc61eff8926ab369ea4e8207e1b69a5e296",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "52efb8696eccd76499b6524c939e313c7128dd537d790e5e9cf2a7d424e5b3c2",
+    "referenceSha256": "200efd01e497c28dc9b99a43b8c1d40ee94c0fdc14494d9df9bfa39c9181c5a7",
+    "licenseFiles": [
+      "withastro-astro-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "13-d2l-ai-d2l-en-linear-algebra",
+    "fetchedAt": "2026-10-29T00:44:50.717Z",
+    "rawUrl": "https://raw.githubusercontent.com/d2l-ai/d2l-en/23d7a5aecceee57d1292c56e90cce307f183bb0a/chapter_preliminaries/linear-algebra.md",
+    "pageUrl": "https://github.com/d2l-ai/d2l-en/blob/23d7a5aecceee57d1292c56e90cce307f183bb0a/chapter_preliminaries/linear-algebra.md",
+    "pageStatus": 200,
+    "pageSha256": "b867c7713e3c75cb2fe4eed67bec2d25eb130e5fc64abdb00da944a542de9919",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "9da729424d50142267f032edee3d0ba0c117597be3692c366a78b58f1acf9a98",
+    "referenceSha256": "d25a38d398fe0c8878673c658bc88daf9a4063b15cd6e3aed31b3408520cf172",
+    "licenseFiles": [
+      "d2l-ai-d2l-en-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "14-tailwindlabs-tailwindcss-readme",
+    "fetchedAt": "2026-10-29T00:44:54.494Z",
+    "rawUrl": "https://raw.githubusercontent.com/tailwindlabs/tailwindcss/8cc0551b1217d36dc565840b90920964d37cb46c/README.md",
+    "pageUrl": "https://github.com/tailwindlabs/tailwindcss/blob/8cc0551b1217d36dc565840b90920964d37cb46c/README.md",
+    "pageStatus": 200,
+    "pageSha256": "e60fd49ecebc023c81d40519557a366fef1271a2d4fa441839e7607182e9afa4",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "a7db79d5cd483c6f6d1a51f4042e32598ec39e2391a5dd5be62a71d59299cda8",
+    "referenceSha256": "d091f99447d3de940d61291c1abd737ee9f8618e0fd1be3ef7d5006dfecdd15d",
+    "licenseFiles": [
+      "tailwindlabs-tailwindcss-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "15-shadcn-ui-ui-readme",
+    "fetchedAt": "2026-10-29T00:44:58.257Z",
+    "rawUrl": "https://raw.githubusercontent.com/shadcn-ui/ui/96da9cc7f1aa10580a3741664e2a77c721206c00/README.md",
+    "pageUrl": "https://github.com/shadcn-ui/ui/blob/96da9cc7f1aa10580a3741664e2a77c721206c00/README.md",
+    "pageStatus": 200,
+    "pageSha256": "b2dbe3247b4b93ae3d9214eacb4ee2ddd07ea1f71900e456be2ca0c693ee0efe",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "bb0869848a2063e405b141aa6fae8b10f132ac45036f613459e2d778b7609619",
+    "referenceSha256": "d3072d959d16d54f4d33d6b1eb1bef777d550293d03dc28efc8ab710b8511a13",
+    "licenseFiles": [
+      "shadcn-ui-ui-LICENSE.md.txt"
+    ]
+  },
+  {
+    "id": "16-fastify-fastify-readme",
+    "fetchedAt": "2026-10-29T00:45:02.087Z",
+    "rawUrl": "https://raw.githubusercontent.com/fastify/fastify/5df959f3af698823dd582f1c3661f3e80df0b5da/README.md",
+    "pageUrl": "https://github.com/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/README.md",
+    "pageStatus": 200,
+    "pageSha256": "7626dc2145a7b2fa40fdc6f5d266d436706735a8f83767f8e4ba2eb917086174",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "18a8e0e8a62fb80431d0a6495770d9e195c3afb06b17fa6464e62712ed7d256e",
+    "referenceSha256": "d9d831332701556bad0a25ccbb9cb62625f89a8ec465a0d552c61eb4af758459",
+    "licenseFiles": [
+      "fastify-fastify-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "17-expressjs-express-readme",
+    "fetchedAt": "2026-10-29T00:45:05.971Z",
+    "rawUrl": "https://raw.githubusercontent.com/expressjs/express/1c6f1b0fe4000977b9a7b4f34097e4d527dd9824/Readme.md",
+    "pageUrl": "https://github.com/expressjs/express/blob/1c6f1b0fe4000977b9a7b4f34097e4d527dd9824/Readme.md",
+    "pageStatus": 200,
+    "pageSha256": "e78313e43b678c8d49e0c63d8e708e318f6dde486356a85a5246252b35c396ad",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "3cf5f3e224dbb9b5e2bc0ac255871de453762ae7a277f868da5f4a69d6ff2509",
+    "referenceSha256": "ae6d02fc0e0f5f095a8ba10556282b064f02919b78379862d127bdf2a79f6579",
+    "licenseFiles": [
+      "expressjs-express-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "18-axios-axios-readme",
+    "fetchedAt": "2026-10-29T00:45:10.203Z",
+    "rawUrl": "https://raw.githubusercontent.com/axios/axios/9d11464a75ee5c644c0308d742f58755c0482594/README.md",
+    "pageUrl": "https://github.com/axios/axios/blob/9d11464a75ee5c644c0308d742f58755c0482594/README.md",
+    "pageStatus": 200,
+    "pageSha256": "ec96dd8769538130b1180f5330de45e02547584d982d8394c42dbc9fde484b06",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "9f687ba279c608dd75340eaac9a5c59f8c3c0a89606b9d101f719d461d65b85f",
+    "referenceSha256": "d2b697cb9a5558d0221fe24736ebe8db7bbdcb8ab9dafff054391f14ac4d44f5",
+    "licenseFiles": [
+      "axios-axios-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "19-lodash-lodash-readme",
+    "fetchedAt": "2026-10-29T00:45:14.232Z",
+    "rawUrl": "https://raw.githubusercontent.com/lodash/lodash/2b5e6f7399a7b48005140b5d5c6bc6c0e62919a8/README.md",
+    "pageUrl": "https://github.com/lodash/lodash/blob/2b5e6f7399a7b48005140b5d5c6bc6c0e62919a8/README.md",
+    "pageStatus": 200,
+    "pageSha256": "65d05481e76e5f52a8c4a63c56b985a510c041c64282d3b893919097bde68029",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "882ff84de79568af63234100cfc6497f091195c358cb27b91dc2c4b27692be03",
+    "referenceSha256": "7be410c9b7c3916263f2d3eee161d435b118c901a48d988e2b57fd95181c2983",
+    "licenseFiles": [
+      "lodash-lodash-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "20-webpack-webpack-readme",
+    "fetchedAt": "2026-10-29T00:45:18.078Z",
+    "rawUrl": "https://raw.githubusercontent.com/webpack/webpack/ef640cfb7b0de2d7c1ab5632d71fa698eece5ba0/README.md",
+    "pageUrl": "https://github.com/webpack/webpack/blob/ef640cfb7b0de2d7c1ab5632d71fa698eece5ba0/README.md",
+    "pageStatus": 200,
+    "pageSha256": "9d56c4e552d4e19d934d6e377391560b65ab0c2a359187435896c300009648a6",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "0b959a147e8b875e42f77fa5804c8d4e70f86b3399d4baba9d90d2f756dd2e0f",
+    "referenceSha256": "946ed49f121aece63ac38dd296cc592bb0bd7842b899a3c3d4d30a74023faa8e",
+    "licenseFiles": [
+      "webpack-webpack-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "21-rollup-rollup-readme",
+    "fetchedAt": "2026-10-29T00:45:21.866Z",
+    "rawUrl": "https://raw.githubusercontent.com/rollup/rollup/4de8104f55fe5c0df06aab54c1f9f2967dbe66ac/README.md",
+    "pageUrl": "https://github.com/rollup/rollup/blob/4de8104f55fe5c0df06aab54c1f9f2967dbe66ac/README.md",
+    "pageStatus": 200,
+    "pageSha256": "472660060230998a8bfc679a3f3c897e93b0beff3ed3901833eda64902ddf24c",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "509a34b064a1698f3f1ac659b9630ed9663059ddb6c4d5d033449b0fb2540da9",
+    "referenceSha256": "58d2a5926f3e0010bc0ddd78354dd218914baac5d7a7e529a0915513d09fe836",
+    "licenseFiles": [
+      "rollup-rollup-LICENSE.md.txt"
+    ]
+  },
+  {
+    "id": "22-prettier-prettier-readme",
+    "fetchedAt": "2026-10-29T00:45:25.694Z",
+    "rawUrl": "https://raw.githubusercontent.com/prettier/prettier/5ef89cf57297eca96fc07040e8d4bfce2e48d1dc/README.md",
+    "pageUrl": "https://github.com/prettier/prettier/blob/5ef89cf57297eca96fc07040e8d4bfce2e48d1dc/README.md",
+    "pageStatus": 200,
+    "pageSha256": "cd6c722762b06f1efc99eea03205352e5b3cb294166cd2050086912308228719",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "f1f5a86cd0fd0f6a288882527830a9bbbd5851e3238c4d7426b7bbb496165cd1",
+    "referenceSha256": "b33ae292bff98b9a0f945ab74566faa67ac2e95ee684ba5d5ad1fe18a1630e51",
+    "licenseFiles": [
+      "prettier-prettier-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "23-eslint-eslint-readme",
+    "fetchedAt": "2026-10-29T00:45:29.633Z",
+    "rawUrl": "https://raw.githubusercontent.com/eslint/eslint/161558ae1391a8649a8d69a8b2c2e555b40121b9/README.md",
+    "pageUrl": "https://github.com/eslint/eslint/blob/161558ae1391a8649a8d69a8b2c2e555b40121b9/README.md",
+    "pageStatus": 200,
+    "pageSha256": "b6c6fe1febe536121b58fc8134d564347f143678dffafc722e24746f351a0fb2",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "0e2516d948464f92071bcda3cf3d58a0458a85cdb752a7f1b483edcb8fd4f6df",
+    "referenceSha256": "b2618a61771fdc7d6a96c377e7e83ef647eb6a8f76738c3001c423510f50c70f",
+    "licenseFiles": [
+      "eslint-eslint-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "24-pnpm-pnpm-readme",
+    "fetchedAt": "2026-10-29T00:45:33.458Z",
+    "rawUrl": "https://raw.githubusercontent.com/pnpm/pnpm/e7b88a6a62aa042ac2c8bc9fbce3832226c4db4d/README.md",
+    "pageUrl": "https://github.com/pnpm/pnpm/blob/e7b88a6a62aa042ac2c8bc9fbce3832226c4db4d/README.md",
+    "pageStatus": 200,
+    "pageSha256": "98f59b7ce4383d9081128ea283b40a092ae153c6e1212559a3bdbf796be45682",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "d933be9081a9854e5d3a1743cddafe6385e25007caa1f2c3b5d118e1c5302d26",
+    "referenceSha256": "9c6e9addad71c9380d9407e87c6f45f86114189bde15c192f32ff95e2ae86155",
+    "licenseFiles": [
+      "pnpm-pnpm-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "25-yarnpkg-berry-readme",
+    "fetchedAt": "2026-10-29T00:45:37.337Z",
+    "rawUrl": "https://raw.githubusercontent.com/yarnpkg/berry/8f638c0806ec8f3758adb13d93567fc782f9c903/README.md",
+    "pageUrl": "https://github.com/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/README.md",
+    "pageStatus": 200,
+    "pageSha256": "a29e37f406e4e31bd62896bb130ae17cb2c4f3bf8d6b6ca088a002e288484a2d",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "67c93fc2af0b3248e537a222f5c8633b3b3382e36f778207bfa646d4b1915ec0",
+    "referenceSha256": "30dc671ba9eb3de5b6826b5a5d5764c222eaee952e570bd5567226afbe82e90b",
+    "licenseFiles": [
+      "yarnpkg-berry-LICENSE.md.txt"
+    ]
+  },
+  {
+    "id": "26-supabase-supabase-readme",
+    "fetchedAt": "2026-10-29T00:45:41.144Z",
+    "rawUrl": "https://raw.githubusercontent.com/supabase/supabase/9eaae4cd2cf8e67f9aeadab044e9a14429331c13/README.md",
+    "pageUrl": "https://github.com/supabase/supabase/blob/9eaae4cd2cf8e67f9aeadab044e9a14429331c13/README.md",
+    "pageStatus": 200,
+    "pageSha256": "c0841755aa038120cf08b974b0a8bee53a55a786d6f7f964677b135f3116b926",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "c1a23ddcd6f67625de1bdad0be99dccf59e80c9e772e52a5c855072e783c15d4",
+    "referenceSha256": "4139a4c7d151773b76fe349d6f2b2d11882b67ddf2ae147d897492807a830430",
+    "licenseFiles": [
+      "supabase-supabase-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "27-appwrite-appwrite-readme",
+    "fetchedAt": "2026-10-29T00:45:44.956Z",
+    "rawUrl": "https://raw.githubusercontent.com/appwrite/appwrite/7df604e64d37e51694ae6b945ac9c6ab75602b26/README.md",
+    "pageUrl": "https://github.com/appwrite/appwrite/blob/7df604e64d37e51694ae6b945ac9c6ab75602b26/README.md",
+    "pageStatus": 200,
+    "pageSha256": "da8f972dd51c23c19b1e1526251fbd7bcf6edfe2496e4b32dad813b0e7f6bad1",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "2e7848f9892152d2066cd3ec7909b141ee751614d64705a8f92b545ff4160f6b",
+    "referenceSha256": "bc42630d7c41a8d7779969eb83a552adb9982b4702311df405843de5ead3502f",
+    "licenseFiles": [
+      "appwrite-appwrite-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "28-prisma-prisma-readme",
+    "fetchedAt": "2026-10-29T00:45:48.986Z",
+    "rawUrl": "https://raw.githubusercontent.com/prisma/prisma/1143e9310013a10c8d7f8a100491e844545320c2/README.md",
+    "pageUrl": "https://github.com/prisma/prisma/blob/1143e9310013a10c8d7f8a100491e844545320c2/README.md",
+    "pageStatus": 200,
+    "pageSha256": "1142279e753295be2769c5f4745363ec0ba7c1ba71cc6720c9efd225495b099c",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "6aae026d66fe009226fdda372f1e6a411ce5017dce2a5a6b05b2d943cdb2d006",
+    "referenceSha256": "fd0a3bbff27dc9c9117d77b3008e8bd0a89d0696d24185acc87a35db36205e1a",
+    "licenseFiles": [
+      "prisma-prisma-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "29-mermaid-js-mermaid-readme",
+    "fetchedAt": "2026-10-29T00:45:52.774Z",
+    "rawUrl": "https://raw.githubusercontent.com/mermaid-js/mermaid/1395ea06ec2f0329db1dcbc9bfb5690474dd9821/README.md",
+    "pageUrl": "https://github.com/mermaid-js/mermaid/blob/1395ea06ec2f0329db1dcbc9bfb5690474dd9821/README.md",
+    "pageStatus": 200,
+    "pageSha256": "86c6c142ecdfcf7e8b3349bd822c90e5265da0259595ee6316e6370206ff1269",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "eae450a8a65100cb0f5a4b29b8ebfe9a1b7c57e771887e1471d6726c02cc3dd5",
+    "referenceSha256": "5574b595355fe1215fd5d4523eaf744b10502f3ffb513ea740b5c803bf8911e4",
+    "licenseFiles": [
+      "mermaid-js-mermaid-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "30-KaTeX-KaTeX-readme",
+    "fetchedAt": "2026-10-29T00:45:56.575Z",
+    "rawUrl": "https://raw.githubusercontent.com/KaTeX/KaTeX/65d1e725206dbbd278704df641491cf877413b6b/README.md",
+    "pageUrl": "https://github.com/KaTeX/KaTeX/blob/65d1e725206dbbd278704df641491cf877413b6b/README.md",
+    "pageStatus": 200,
+    "pageSha256": "43ffa9a72614d699945ee3794d384b4652f8b446adb246f91897eca79bd3c80b",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "ef41f42d7256023faf98b789fd3d56bac3f04de84b945437b38798ea1eafd6e9",
+    "referenceSha256": "e4eb10c50657c34b552e33a5420ac72b06e13f65eeed08db83f6b4d7632578e3",
+    "licenseFiles": [
+      "KaTeX-KaTeX-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "31-remarkjs-remark-readme",
+    "fetchedAt": "2026-10-29T00:46:00.557Z",
+    "rawUrl": "https://raw.githubusercontent.com/remarkjs/remark/1146b3a274fc1f4607111e5d6607a3a769a0e89a/readme.md",
+    "pageUrl": "https://github.com/remarkjs/remark/blob/1146b3a274fc1f4607111e5d6607a3a769a0e89a/readme.md",
+    "pageStatus": 200,
+    "pageSha256": "c98bcdd50002a8bebef957fe932e1ead30e9953bc9b13a175aabce80c96bf85b",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "ae0195c8b845ad871c9d0429f9ca8d72b6ae959116242fe433d1e0a9cfde1be2",
+    "referenceSha256": "cf20270a8a5005909d4beeb78c1c4c909b5347948207e91cd3138ca89424c093",
+    "licenseFiles": [
+      "remarkjs-remark-license.txt"
+    ]
+  },
+  {
+    "id": "32-mdx-js-mdx-readme",
+    "fetchedAt": "2026-10-29T00:46:04.340Z",
+    "rawUrl": "https://raw.githubusercontent.com/mdx-js/mdx/52285a6758fa078ec57f3d4bd8803d9cbfb12065/readme.md",
+    "pageUrl": "https://github.com/mdx-js/mdx/blob/52285a6758fa078ec57f3d4bd8803d9cbfb12065/readme.md",
+    "pageStatus": 200,
+    "pageSha256": "29a3b17a0f7320ceeeacc282f739d543f926b17b587ad31967717500b4b81507",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "793bb668f929c2a92085f15d3bb5305610bf0d79633b19e2d24a41af1ed3ed88",
+    "referenceSha256": "02ccfe9959d2e09ed7822b1b20921787dc7d0ca040ad1a9eed0c5a2287875fb8",
+    "licenseFiles": [
+      "mdx-js-mdx-license.txt"
+    ]
+  },
+  {
+    "id": "33-syntax-tree-mdast-readme",
+    "fetchedAt": "2026-10-29T00:46:07.050Z",
+    "rawUrl": "https://raw.githubusercontent.com/syntax-tree/mdast/c034ec9ddb8ca2ab16de90d668433624bdd92179/readme.md",
+    "pageUrl": "https://github.com/syntax-tree/mdast/blob/c034ec9ddb8ca2ab16de90d668433624bdd92179/readme.md",
+    "pageStatus": 200,
+    "pageSha256": "68b35aa3aa095ec7bfae4079de60aacddab85f0f2e1315879508f42056a0173b",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "d50ff6fe76c86adfba87fd2aafc0d538f6e9fcb12819507c36b0df2b8ee9bda8",
+    "referenceSha256": "0a65ead6e83418d24efa37e75271364bcf2c0d2e0f3d9d1a5a58965e6ce5e342",
+    "licenseFiles": []
+  },
+  {
+    "id": "34-electron-electron-readme",
+    "fetchedAt": "2026-10-29T00:46:10.892Z",
+    "rawUrl": "https://raw.githubusercontent.com/electron/electron/646f02cda805f8d444b2b0a714f8d4cdf7f8a71b/README.md",
+    "pageUrl": "https://github.com/electron/electron/blob/646f02cda805f8d444b2b0a714f8d4cdf7f8a71b/README.md",
+    "pageStatus": 200,
+    "pageSha256": "b71192273119e2731bdd43fa50b6238910ad044cdd3a1ff1b0b62b39cf40b9c2",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "cb788749d3f0d3991e9c17b0cbcd9fd15a8c9bd73e45874d0a936fdbd9d3745b",
+    "referenceSha256": "c689bd10d8945e21a8219c4f9804eb33315bec2f9320bec3242568a324375d32",
+    "licenseFiles": [
+      "electron-electron-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "35-typst-typst-readme",
+    "fetchedAt": "2026-10-29T00:46:14.731Z",
+    "rawUrl": "https://raw.githubusercontent.com/typst/typst/84cca406aafe7f830ed3f37f1cc6f0c8b6b65a03/README.md",
+    "pageUrl": "https://github.com/typst/typst/blob/84cca406aafe7f830ed3f37f1cc6f0c8b6b65a03/README.md",
+    "pageStatus": 200,
+    "pageSha256": "1fd912f4e380b8f1b700dbe0bf4979b03d45101057df1b0e1b83e75bae9dd66e",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "ddaf0de156f6a442c7f831202cd55583614df4cc3cfb4b16e95162c7eb11e653",
+    "referenceSha256": "179deb8b932b4c91736ca6b84384e70cd975cd26afd2d3e6cdeb9aeb2a73f6b2",
+    "licenseFiles": [
+      "typst-typst-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "36-jqlang-jq-readme",
+    "fetchedAt": "2026-10-29T00:46:18.554Z",
+    "rawUrl": "https://raw.githubusercontent.com/jqlang/jq/ac35c7dcbb991fa0f3c3196dd00ca479211e9847/README.md",
+    "pageUrl": "https://github.com/jqlang/jq/blob/ac35c7dcbb991fa0f3c3196dd00ca479211e9847/README.md",
+    "pageStatus": 200,
+    "pageSha256": "514177331888ca91fe57e2c8aa6fe733d4364c398274d75fb19109fe3e7ea9f7",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "2050b0eb357e6b0aa376ba2399acaae5e4938c9e78908a0e6853705e194be281",
+    "referenceSha256": "cf347038c467b6726018d38206720f43b46f9d0d6d9b952f19b660e1d92be2e9",
+    "licenseFiles": [
+      "jqlang-jq-COPYING.txt"
+    ]
+  },
+  {
+    "id": "37-cli-cli-readme",
+    "fetchedAt": "2026-10-29T00:46:22.364Z",
+    "rawUrl": "https://raw.githubusercontent.com/cli/cli/f7a06a18a91eef5c0b218b549dab64b86f36f8b9/README.md",
+    "pageUrl": "https://github.com/cli/cli/blob/f7a06a18a91eef5c0b218b549dab64b86f36f8b9/README.md",
+    "pageStatus": 200,
+    "pageSha256": "de25b2ed992e234ebf1609d8c8a7ad8ecf3e053889dc9f2e6941066740af7b06",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "5816da6f27253e6e5544e9c8d7b0f652e03200a0345fae1693e50d72fabb8cc4",
+    "referenceSha256": "ade0623d1932d4cda444382d405f5d1cab89ddc58405c6487bc9108b2bbf4d24",
+    "licenseFiles": [
+      "cli-cli-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "38-github-docs-writing-mathematical-expressions",
+    "fetchedAt": "2026-10-29T00:46:26.226Z",
+    "rawUrl": "https://raw.githubusercontent.com/github/docs/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions.md",
+    "pageUrl": "https://github.com/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions.md",
+    "pageStatus": 200,
+    "pageSha256": "589c3d0adc8a60a0769a73614dac52ba7a1eb09570497610cf277479d6dcc5fd",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "e0440dca59c2f45a6489e065c891416a82cd9ace595d70a91816ca73e23fb684",
+    "referenceSha256": "c944e81a32be8459d295d48f86ab4c9857315bb02c6cc7d2e4a4e51ebdae1f20",
+    "licenseFiles": [
+      "github-docs-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "39-github-docs-creating-diagrams",
+    "fetchedAt": "2026-10-29T00:46:28.869Z",
+    "rawUrl": "https://raw.githubusercontent.com/github/docs/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams.md",
+    "pageUrl": "https://github.com/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams.md",
+    "pageStatus": 200,
+    "pageSha256": "9a562458fca38efd9b6f3a1e91e3fcc7e60caf49948205ab2bc30cbc3b2670aa",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "4c471c6f718f032bce6e2ccf2b878ee68623de225c670f9d16118defc7e88929",
+    "referenceSha256": "4964a9b8d6526a8c3e4b5509b3d856d6f6753178f38faf3cc8c7a3a3bc99c91b",
+    "licenseFiles": [
+      "github-docs-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "40-github-docs-organizing-information-with-collapsed-sections",
+    "fetchedAt": "2026-10-29T00:46:31.534Z",
+    "rawUrl": "https://raw.githubusercontent.com/github/docs/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections.md",
+    "pageUrl": "https://github.com/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections.md",
+    "pageStatus": 200,
+    "pageSha256": "983c6ce5d5ccad949ff984916a67ccb88dadcb4efd53f835abf7f137d836e2bf",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "d22a8c7b5c09ca5e52bf291c192426cba90dd0ca1418b46a3abdd4fdb9d76873",
+    "referenceSha256": "c6a31f2d618ca1e2ff3a337a0b8acf093d46973fd57b1ec77589197435ba1c42",
+    "licenseFiles": [
+      "github-docs-LICENSE.txt"
+    ]
+  },
+  {
+    "id": "41-github-docs-basic-writing-and-formatting-syntax",
+    "fetchedAt": "2026-10-29T00:46:34.163Z",
+    "rawUrl": "https://raw.githubusercontent.com/github/docs/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax.md",
+    "pageUrl": "https://github.com/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/content/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax.md",
+    "pageStatus": 200,
+    "pageSha256": "6c5bb1772e5589a780d01f65cbc1fb019dc4e3cd2a05b0a58b7bf09959df17cf",
+    "method": "file-page",
+    "fallbackReason": null,
+    "sourceSha256": "fe4c6aaeffac8eafbc493c49aaa24f8f2fbb24ba03fb36851df33a1c66c6f143",
+    "referenceSha256": "954ad95946d6ec8d2411559962efa2c082ad18a724fcb46aa040a2b05f7c9ff8",
+    "licenseFiles": [
+      "github-docs-LICENSE.txt"
+    ]
+  }
+]

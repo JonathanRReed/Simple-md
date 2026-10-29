@@ -1,0 +1,214 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><a href="https://expressjs.com/" rel="nofollow">
+  <themed-picture data-catalyst-inline="true"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/dc791beec5623a675f6d2f1a31d883224b3fdd2054e71ff702928f6ea3338271/68747470733a2f2f657870726573736a732e636f6d2f696d616765732f6c6f676f732f6c6f676f2d657870726573732d77686974652e737667" data-canonical-src="https://expressjs.com/images/logos/logo-express-white.svg">
+    <img alt="Express Logo" src="https://camo.githubusercontent.com/1a8b50bedb0a66582d3798fc3036bbfb1c2eae37ec5cd809e5f9901aca00db81/68747470733a2f2f657870726573736a732e636f6d2f696d616765732f6c6f676f732f6c6f676f2d657870726573732d626c61636b2e737667" width="280" data-canonical-src="https://expressjs.com/images/logos/logo-express-black.svg">
+  </picture></themed-picture>
+</a>
+<p dir="auto"><strong>Fast, unopinionated, minimalist web framework for <a href="https://nodejs.org" rel="nofollow">Node.js</a>.</strong></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Table of contents</h2><a id="user-content-table-of-contents" class="anchor" aria-label="Permalink: Table of contents" href="#table-of-contents"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="#installation">Installation</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#docs--community">Docs &amp; Community</a></li>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#philosophy">Philosophy</a></li>
+<li><a href="#examples">Examples</a></li>
+<li><a href="#contributing">Contributing</a>
+<ul dir="auto">
+<li><a href="#security-issues">Security Issues</a></li>
+<li><a href="#running-tests">Running Tests</a></li>
+</ul>
+</li>
+<li><a href="#current-project-team-members">Current project team members</a>
+<ul dir="auto">
+<li><a href="#tc-technical-committee">TC (Technical Committee)</a>
+<ul dir="auto">
+<li><a href="#tc-emeriti-members">TC emeriti members</a></li>
+</ul>
+</li>
+<li><a href="#triagers">Triagers</a>
+<ul dir="auto">
+<li><a href="#emeritus-triagers">Emeritus Triagers</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#license">License</a></li>
+</ul>
+<p dir="auto"><a href="https://npmjs.org/package/express" rel="nofollow"><img src="https://camo.githubusercontent.com/cff0750d5a57178394a91e77b47a535242532f2160dbaac3a46bfe6158e33383/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f762f65787072657373" alt="NPM Version" data-canonical-src="https://img.shields.io/npm/v/express" style="max-width: 100%;"></a>
+<a href="https://npmcharts.com/compare/express?minimal=true" rel="nofollow"><img src="https://camo.githubusercontent.com/ac1d8353a8f43677d6454766a4f4be3a1a973d9057481cb65c7b8f53a99f7bb0/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f646d2f65787072657373" alt="NPM Downloads" data-canonical-src="https://img.shields.io/npm/dm/express" style="max-width: 100%;"></a>
+<a href="https://github.com/expressjs/express/actions/workflows/ci.yml"><img src="https://camo.githubusercontent.com/07b660508a9e207a646d761f0aac062e5d7e83db51e48ce881ecfba790522ade/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f616374696f6e732f776f726b666c6f772f7374617475732f657870726573736a732f657870726573732f63692e796d6c3f6272616e63683d6d6173746572266c6162656c3d6369" alt="Linux Build" data-canonical-src="https://img.shields.io/github/actions/workflow/status/expressjs/express/ci.yml?branch=master&amp;label=ci" style="max-width: 100%;"></a>
+<a href="https://coveralls.io/r/expressjs/express?branch=master" rel="nofollow"><img src="https://camo.githubusercontent.com/c699bf90483c5a96f0a316d4f80e14fe196cd2043d4cecab5b253cb3fe1d622d/68747470733a2f2f696d672e736869656c64732e696f2f636f766572616c6c73436f7665726167652f6769746875622f657870726573736a732f657870726573733f6272616e63683d6d6173746572" alt="Test Coverage" data-canonical-src="https://img.shields.io/coverallsCoverage/github/expressjs/express?branch=master" style="max-width: 100%;"></a>
+<a href="https://ossf.github.io/scorecard-visualizer/#/projects/github.com/expressjs/express" rel="nofollow"><img src="https://camo.githubusercontent.com/4b0fc341c3e7a818c1d65476a6904bea2593fd6f9f65dd7f32cc3c1a8b0c4288/68747470733a2f2f6170692e73636f7265636172642e6465762f70726f6a656374732f6769746875622e636f6d2f657870726573736a732f657870726573732f6261646765" alt="OpenSSF Scorecard Badge" data-canonical-src="https://api.scorecard.dev/projects/github.com/expressjs/express/badge" style="max-width: 100%;"></a></p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="import express from 'express'
+
+const app = express()
+
+app.get('/', (req, res) =&gt; {
+  res.send('Hello World')
+})
+
+app.listen(3000, () =&gt; {
+  console.log('Server is running on http://localhost:3000')
+})"><pre><span class="pl-k">import</span> <span class="pl-s1">express</span> <span class="pl-k">from</span> <span class="pl-s">'express'</span>
+
+<span class="pl-k">const</span> <span class="pl-s1">app</span> <span class="pl-c1">=</span> <span class="pl-en">express</span><span class="pl-kos">(</span><span class="pl-kos">)</span>
+
+<span class="pl-s1">app</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'/'</span><span class="pl-kos">,</span> <span class="pl-kos">(</span><span class="pl-s1">req</span><span class="pl-kos">,</span> <span class="pl-s1">res</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span>
+  <span class="pl-s1">res</span><span class="pl-kos">.</span><span class="pl-en">send</span><span class="pl-kos">(</span><span class="pl-s">'Hello World'</span><span class="pl-kos">)</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+
+<span class="pl-s1">app</span><span class="pl-kos">.</span><span class="pl-en">listen</span><span class="pl-kos">(</span><span class="pl-c1">3000</span><span class="pl-kos">,</span> <span class="pl-kos">(</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span>
+  <span class="pl-smi">console</span><span class="pl-kos">.</span><span class="pl-en">log</span><span class="pl-kos">(</span><span class="pl-s">'Server is running on http://localhost:3000'</span><span class="pl-kos">)</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span></pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Installation</h2><a id="user-content-installation" class="anchor" aria-label="Permalink: Installation" href="#installation"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">This is a <a href="https://nodejs.org/en/" rel="nofollow">Node.js</a> module available through the
+<a href="https://www.npmjs.com/" rel="nofollow">npm registry</a>.</p>
+<p dir="auto">Before installing, <a href="https://nodejs.org/en/download/" rel="nofollow">download and install Node.js</a>.
+Node.js 18 or higher is required.</p>
+<p dir="auto">If this is a brand new project, make sure to create a <code>package.json</code> first with
+the <a href="https://docs.npmjs.com/creating-a-package-json-file" rel="nofollow"><code>npm init</code> command</a>.</p>
+<p dir="auto">Installation is done using the
+<a href="https://docs.npmjs.com/downloading-and-installing-packages-locally" rel="nofollow"><code>npm install</code> command</a>:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm install express"><pre>npm install express</pre></div>
+<p dir="auto">Follow <a href="https://expressjs.com/en/starter/installing.html" rel="nofollow">our installing guide</a>
+for more information.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Features</h2><a id="user-content-features" class="anchor" aria-label="Permalink: Features" href="#features"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li>Robust routing</li>
+<li>Focus on high performance</li>
+<li>Super-high test coverage</li>
+<li>HTTP helpers (redirection, caching, etc)</li>
+<li>View system supporting 14+ template engines</li>
+<li>Content negotiation</li>
+<li>Executable for generating applications quickly</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Docs &amp; Community</h2><a id="user-content-docs--community" class="anchor" aria-label="Permalink: Docs &amp; Community" href="#docs--community"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://expressjs.com/" rel="nofollow">Website and Documentation</a> - [<a href="https://github.com/expressjs/expressjs.com">website repo</a>]</li>
+<li><a href="https://github.com/expressjs">GitHub Organization</a> for Official Middleware &amp; Modules</li>
+<li><a href="https://github.com/expressjs/discussions">GitHub Discussions</a> for discussion on the development and usage of Express</li>
+</ul>
+<p dir="auto"><strong>PROTIP</strong> Be sure to read the <a href="https://expressjs.com/en/guide/migrating-5" rel="nofollow">migration guide to v5</a></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Quick Start</h2><a id="user-content-quick-start" class="anchor" aria-label="Permalink: Quick Start" href="#quick-start"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The quickest way to get started with express is to utilize the executable <a href="https://github.com/expressjs/generator"><code>express(1)</code></a> to generate an application as shown below:</p>
+<p dir="auto">Install the executable. The executable's major version will match Express's:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm install -g express-generator@4"><pre>npm install -g express-generator@4</pre></div>
+<p dir="auto">Create the app:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="express /tmp/foo &amp;&amp; cd /tmp/foo"><pre>express /tmp/foo <span class="pl-k">&amp;&amp;</span> <span class="pl-c1">cd</span> /tmp/foo</pre></div>
+<p dir="auto">Install dependencies:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm install"><pre>npm install</pre></div>
+<p dir="auto">Start the server:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm start"><pre>npm start</pre></div>
+<p dir="auto">View the website at: <a href="http://localhost:3000" rel="nofollow">http://localhost:3000</a></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Philosophy</h2><a id="user-content-philosophy" class="anchor" aria-label="Permalink: Philosophy" href="#philosophy"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The Express philosophy is to provide small, robust tooling for HTTP servers, making
+it a great solution for single page applications, websites, hybrids, or public
+HTTP APIs.</p>
+<p dir="auto">Express does not force you to use any specific ORM or template engine. With support for over
+14 template engines via <a href="https://github.com/ladjs/consolidate">@ladjs/consolidate</a>,
+you can quickly craft your perfect framework.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Examples</h2><a id="user-content-examples" class="anchor" aria-label="Permalink: Examples" href="#examples"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To view the examples, clone the Express repository:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="git clone https://github.com/expressjs/express.git --depth 1 &amp;&amp; cd express"><pre>git clone https://github.com/expressjs/express.git --depth 1 <span class="pl-k">&amp;&amp;</span> <span class="pl-c1">cd</span> express</pre></div>
+<p dir="auto">Then install the dependencies:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm install"><pre>npm install</pre></div>
+<p dir="auto">Then run whichever example you want:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="node examples/content-negotiation"><pre>node examples/content-negotiation</pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Contributing</h2><a id="user-content-contributing" class="anchor" aria-label="Permalink: Contributing" href="#contributing"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The Express.js project welcomes all constructive contributions. Contributions take many forms,
+from code for bug fixes and enhancements, to additions and fixes to documentation, additional
+tests, triaging incoming pull requests and issues, and more!</p>
+<p dir="auto">See the <a href="https://github.com/expressjs/.github/blob/HEAD/CONTRIBUTING.md">Contributing Guide</a> for more technical details on contributing.</p>
+<p dir="auto">This project has a <a href="https://github.com/expressjs/.github/blob/HEAD/CODE_OF_CONDUCT.md">Code of Conduct</a>. By participating, you are expected to uphold this code.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Security Issues</h3><a id="user-content-security-issues" class="anchor" aria-label="Permalink: Security Issues" href="#security-issues"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">If you discover a security vulnerability in Express, please see <a href="https://github.com/expressjs/express/security/policy">Security Policies and Procedures</a>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Running Tests</h3><a id="user-content-running-tests" class="anchor" aria-label="Permalink: Running Tests" href="#running-tests"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To run the test suite, first install the dependencies:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm install"><pre>npm install</pre></div>
+<p dir="auto">Then run <code>npm test</code>:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm test"><pre>npm <span class="pl-c1">test</span></pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Current project team members</h2><a id="user-content-current-project-team-members" class="anchor" aria-label="Permalink: Current project team members" href="#current-project-team-members"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">For information about the governance of the express.js project, see <a href="https://github.com/expressjs/discussions/blob/HEAD/docs/GOVERNANCE.md">GOVERNANCE.md</a>.</p>
+<p dir="auto">The original author of Express is <a href="https://github.com/tj">TJ Holowaychuk</a></p>
+<p dir="auto"><a href="https://github.com/expressjs/express/graphs/contributors">List of all contributors</a></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">TC (Technical Committee)</h3><a id="user-content-tc-technical-committee" class="anchor" aria-label="Permalink: TC (Technical Committee)" href="#tc-technical-committee"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/UlisesGascon">UlisesGascon</a> - <strong>Ulises Gascón</strong> (he/him)</li>
+<li><a href="https://github.com/jonchurch">jonchurch</a> - <strong>Jon Church</strong></li>
+<li><a href="https://github.com/wesleytodd">wesleytodd</a> - <strong>Wes Todd</strong></li>
+<li><a href="https://github.com/LinusU">LinusU</a> - <strong>Linus Unnebäck</strong></li>
+<li><a href="https://github.com/blakeembrey">blakeembrey</a> - <strong>Blake Embrey</strong></li>
+<li><a href="https://github.com/sheplu">sheplu</a> - <strong>Jean Burellier</strong></li>
+<li><a href="https://github.com/crandmck">crandmck</a> - <strong>Rand McKinney</strong></li>
+<li><a href="https://github.com/ctcpip">ctcpip</a> - <strong>Chris de Almeida</strong></li>
+</ul>
+<details>
+<summary>TC emeriti members</summary>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto">TC emeriti members</h4><a id="user-content-tc-emeriti-members" class="anchor" aria-label="Permalink: TC emeriti members" href="#tc-emeriti-members"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/dougwilson">dougwilson</a> - <strong>Douglas Wilson</strong></li>
+<li><a href="https://github.com/hacksparrow">hacksparrow</a> - <strong>Hage Yaapa</strong></li>
+<li><a href="https://github.com/jonathanong">jonathanong</a> - <strong>jongleberry</strong></li>
+<li><a href="https://github.com/niftylettuce">niftylettuce</a> - <strong>niftylettuce</strong></li>
+<li><a href="https://github.com/troygoode">troygoode</a> - <strong>Troy Goode</strong></li>
+</ul>
+</details>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Triagers</h3><a id="user-content-triagers" class="anchor" aria-label="Permalink: Triagers" href="#triagers"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/aravindvnair99">aravindvnair99</a> - <strong>Aravind Nair</strong></li>
+<li><a href="https://github.com/bjohansebas">bjohansebas</a> - <strong>Sebastian Beltran</strong></li>
+<li><a href="https://github.com/carpasse">carpasse</a> - <strong>Carlos Serrano</strong></li>
+<li><a href="https://github.com/CBID2">CBID2</a> - <strong>Christine Belzie</strong></li>
+<li><a href="https://github.com/UlisesGascon">UlisesGascon</a> - <strong>Ulises Gascón</strong> (he/him)</li>
+<li><a href="https://github.com/IamLizu">IamLizu</a> - <strong>S M Mahmudul Hasan</strong> (he/him)</li>
+<li><a href="https://github.com/Phillip9587">Phillip9587</a> - <strong>Phillip Barta</strong></li>
+<li><a href="https://github.com/efekrskl">efekrskl</a> - <strong>Efe Karasakal</strong></li>
+<li><a href="https://github.com/rxmarbles">rxmarbles</a> - <strong>Rick Markins</strong> (he/him)</li>
+<li><a href="https://github.com/krzysdz">krzysdz</a></li>
+<li><a href="https://github.com/GroophyLifefor">GroophyLifefor</a> - <strong>Murat Kirazkaya</strong></li>
+</ul>
+<details>
+<summary>Triagers emeriti members</summary>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto">Emeritus Triagers</h4><a id="user-content-emeritus-triagers" class="anchor" aria-label="Permalink: Emeritus Triagers" href="#emeritus-triagers"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/AuggieH">AuggieH</a> - <strong>Auggie Hudak</strong></li>
+<li><a href="https://github.com/G-Rath">G-Rath</a> - <strong>Gareth Jones</strong></li>
+<li><a href="https://github.com/MohammadXroid">MohammadXroid</a> - <strong>Mohammad Ayashi</strong></li>
+<li><a href="https://github.com/NawafSwe">NawafSwe</a> - <strong>Nawaf Alsharqi</strong></li>
+<li><a href="https://github.com/NotMoni">NotMoni</a> - <strong>Moni</strong></li>
+<li><a href="https://github.com/VigneshMurugan">VigneshMurugan</a> - <strong>Vignesh Murugan</strong></li>
+<li><a href="https://github.com/davidmashe">davidmashe</a> - <strong>David Ashe</strong></li>
+<li><a href="https://github.com/digitaIfabric">digitaIfabric</a> - <strong>David</strong></li>
+<li><a href="https://github.com/e-l-i-s-e">e-l-i-s-e</a> - <strong>Elise Bonner</strong></li>
+<li><a href="https://github.com/fed135">fed135</a> - <strong>Frederic Charette</strong></li>
+<li><a href="https://github.com/firmanJS">firmanJS</a> - <strong>Firman Abdul Hakim</strong></li>
+<li><a href="https://github.com/getspooky">getspooky</a> - <strong>Yasser Ameur</strong></li>
+<li><a href="https://github.com/ghinks">ghinks</a> - <strong>Glenn</strong></li>
+<li><a href="https://github.com/ghousemohamed">ghousemohamed</a> - <strong>Ghouse Mohamed</strong></li>
+<li><a href="https://github.com/gireeshpunathil">gireeshpunathil</a> - <strong>Gireesh Punathil</strong></li>
+<li><a href="https://github.com/jake32321">jake32321</a> - <strong>Jake Reed</strong></li>
+<li><a href="https://github.com/jonchurch">jonchurch</a> - <strong>Jon Church</strong></li>
+<li><a href="https://github.com/lekanikotun">lekanikotun</a> - <strong>Lekan Ikotun</strong></li>
+<li><a href="https://github.com/marsonya">marsonya</a> - <strong>akhil marsonya</strong></li>
+<li><a href="https://github.com/mastermatt">mastermatt</a> - <strong>Matt R. Wilson</strong></li>
+<li><a href="https://github.com/maxakuru">maxakuru</a> - <strong>Max Edell</strong></li>
+<li><a href="https://github.com/mlrawlings">mlrawlings</a> - <strong>Michael Rawlings</strong></li>
+<li><a href="https://github.com/rodion-arr">rodion-arr</a> - <strong>Rodion Abdurakhimov</strong></li>
+<li><a href="https://github.com/sheplu">sheplu</a> - <strong>Jean Burellier</strong></li>
+<li><a href="https://github.com/tarunyadav1">tarunyadav1</a> - <strong>Tarun yadav</strong></li>
+<li><a href="https://github.com/tunniclm">tunniclm</a> - <strong>Mike Tunnicliffe</strong></li>
+<li><a href="https://github.com/enyoghasim">enyoghasim</a> - <strong>David Enyoghasim</strong></li>
+<li><a href="https://github.com/0ss">0ss</a> - <strong>Salah</strong></li>
+<li><a href="https://github.com/ejcheng">ejcheng</a>- <strong>Eric Cheng</strong> (he/him)</li>
+<li><a href="https://github.com/dakshkhetan">dakshkhetan</a> - <strong>Daksh Khetan</strong> (he/him)</li>
+<li><a href="https://github.com/lucasraziel">lucasraziel</a> - <strong>Lucas Soares Do Rego</strong></li>
+<li><a href="https://github.com/mertcanaltin">mertcanaltin</a> - <strong>Mert Can Altin</strong></li>
+<li><a href="https://github.com/dpopp07">dpopp07</a> - <strong>Dustin Popp</strong></li>
+<li><a href="https://github.com/Sushmeet">Sushmeet</a> - <strong>Sushmeet Sunger</strong></li>
+<li><a href="https://github.com/3imed-jaberi">3imed-jaberi</a> - <strong>Imed Jaberi</strong></li>
+</ul>
+</details>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#license"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="/expressjs/express/blob/1c6f1b0fe4000977b9a7b4f34097e4d527dd9824/LICENSE">MIT</a></p>
+</article>

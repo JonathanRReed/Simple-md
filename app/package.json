@@ -11,6 +11,7 @@
     "start": "bun run build.ts && electron .",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "test": "bun test",
+    "test:corpus": "SIMPLEMD_CORPUS_GATE=1 bun test test/corpus.test.ts",
     "build:native": "bun run build/native.mjs",
     "pack": "bun run build/local-pack.mjs --dir",
     "pack:plan": "bun run build/local-pack.mjs --dir --dry-run",

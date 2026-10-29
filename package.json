@@ -9,6 +9,7 @@
     "build:native": "bun run --cwd app build:native",
     "typecheck": "bun run --cwd app typecheck",
     "test": "bun run --cwd app test",
+    "test:corpus": "bun run --cwd app test:corpus",
     "test:packaging": "bun run --cwd app test:packaging",
     "test:asar": "bun run --cwd app test:asar",
     "check:rust": "bun run --cwd app check:rust",
