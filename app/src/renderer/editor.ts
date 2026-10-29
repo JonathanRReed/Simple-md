@@ -8,7 +8,7 @@ import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, iso
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
+import { SearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
@@ -56,7 +56,8 @@ export interface EditorHandle {
   setVim(on: boolean): void;
   focus(): void;
   format(kind: FormatKind): void;
-  find(): void;
+  selection(): string;
+  find(text?: string): void;
   undo(): void;
   redo(): void;
   headings(): Heading[];
@@ -337,7 +338,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       if (kind === "link") insertLink(view);
       else toggleWrap(view, MARKS[kind]);
     },
-    find() {
+    selection() { const range = view.state.selection.main; return view.state.sliceDoc(range.from, range.to); },
+    find(text) {
+      if (text) view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: text })) });
       view.focus();
       openSearchPanel(view);
     },

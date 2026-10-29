@@ -110,6 +110,7 @@ export type Command =
   | "undo"
   | "redo"
   | "find"
+  | "use-selection-find"
   | "palette"
   | "outline"
   | "zoom-in"

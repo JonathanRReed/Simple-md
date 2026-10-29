@@ -195,7 +195,8 @@ export function closeOverlays(): void {
   closeFind?.();
 }
 
-export function openReadFind(onClose: () => void): void {
+export function openReadFind(onClose: () => void, text = ""): void {
+  if (text) $<HTMLInputElement>("find-input").value = text;
   if (findOpen) {
     $<HTMLInputElement>("find-input").select();
     $<HTMLInputElement>("find-input").focus();

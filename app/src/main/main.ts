@@ -1,3 +1,4 @@
+import { readFindText, writeFindText } from "./find-pasteboard.js";
 import { recentFiles, isolatedRecents, jumpList } from "./recents.js";
 import { shareDocument } from "./share.js";
 import { contextTemplate, validateContext } from "./context-menu.js";
@@ -1033,6 +1034,8 @@ function registerIpc(): void {
   handle("smd:open-dialog", openDialog);
   handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true); });
   handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id)));
+  handle("smd:find-read", readFindText);
+  handle("smd:find-write", text => writeFindText(ipcText(text)));
   handle("smd:context-menu", async (input, id) => {
     const host = context();
     const doc = ipcSession(id);

@@ -92,11 +92,12 @@ export function buildMenu(a: MenuActions): void {
         { role: "selectAll" },
         { type: "separator" },
         cmd("Find…", "find", "CommandOrControl+F"),
+        ...(mac ? [cmd("Use Selection for Find", "use-selection-find", "Command+E")] : []),
         { type: "separator" },
         cmd("Bold", "format-bold", "CommandOrControl+B"),
         cmd("Italic", "format-italic", "CommandOrControl+I"),
         cmd("Strikethrough", "format-strike", "CommandOrControl+Shift+X"),
-        cmd("Code", "format-code", "CommandOrControl+E"),
+        cmd("Code", "format-code", mac ? undefined : "Control+E"),
         cmd("Link", "format-link", "CommandOrControl+K"),
         { type: "separator" },
         {

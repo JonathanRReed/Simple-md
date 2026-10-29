@@ -761,9 +761,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (pane.view === "edit" && !transitioning) pane.editor?.format(kind);
   }
 
-  function findInView(): void {
-    if (pane.view === "edit") pane.editor?.find();
-    else openReadFind(() => undefined);
+  async function findInView(): Promise<void> {
+    const id = pane.documentId;
+    const text = await simplemd.readFindText();
+    if (disposed || pane.documentId !== id) return;
+    if (pane.view === "edit") pane.editor?.find(text);
+    else openReadFind(() => undefined, text);
   }
 
   function openOutline(): void {
@@ -837,6 +840,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       case "mode-source":
         setMode(cmd === "mode-live" ? "live" : cmd === "mode-split" ? "split" : "source");
         if (pane.view === "read") void showEdit();
+        break;
+      case "use-selection-find":
+        void simplemd.writeFindText(pane.view === "edit" ? pane.editor?.selection() ?? "" : window.getSelection()?.toString() ?? "");
         break;
       case "find":
         findInView();

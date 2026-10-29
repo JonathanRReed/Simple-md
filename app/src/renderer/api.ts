@@ -3,6 +3,8 @@ import { type RenderedHtml } from "../shared/render-tree.js";
 import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
+  readFindText(): Promise<string>;
+  writeFindText(text: string): Promise<void>;
   onContextMenu(cb: (context: import("../shared/native-context.js").NativeContext) => void): void;
   contextMenu(context: import("../shared/native-context.js").NativeContext, id: DocumentId): Promise<string | null>;
   onLayout(cb: (layout: TabLayoutState) => void): void;

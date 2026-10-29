@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld("simplemd", {
     return ready;
   },
 
+  readFindText: () => ipcRenderer.invoke("smd:find-read"),
+  writeFindText: (text: string) => ipcRenderer.invoke("smd:find-write", text),
   onContextMenu: (cb: (context: import("./shared/native-context.js").NativeContext) => void) => on("smd:context-request", cb),
   contextMenu: (context: import("./shared/native-context.js").NativeContext, id: DocumentId) => ipcRenderer.invoke("smd:context-menu", context, id),
   onLayout: (cb: (state: import("./shared/tab-layout.js").TabLayoutState) => void) => on("smd:layout", (state: import("./shared/tab-layout.js").TabLayoutState) => {
