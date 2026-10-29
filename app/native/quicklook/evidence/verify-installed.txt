@@ -1,0 +1,4 @@
+--prepared:/Users/jonathanreed/Applications/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--validated:/Users/jonathanreed/Applications/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+/Users/jonathanreed/Applications/SimpleMDQLSpike.app: valid on disk
+/Users/jonathanreed/Applications/SimpleMDQLSpike.app: satisfies its Designated Requirement
