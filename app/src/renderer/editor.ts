@@ -2,7 +2,7 @@ import type { MdxResult } from "../shared/render-core.js";
 import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
 import { editorMdxRanges } from "./mdx-positions.js";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
@@ -18,8 +18,14 @@ import { byteText, parseByteText, restoreByteText } from "./byte-text.js";
 
 export type FormatKind = "bold" | "italic" | "code" | "strike" | "link";
 
+export interface EditorSnapshot {
+  state: EditorState;
+  scroll: ReturnType<EditorView["scrollSnapshot"]>;
+}
+
 export interface EditorOptions {
   text: string;
+  snapshot?: EditorSnapshot;
   mdx?: MdxResult;
   mode: EditMode;
   host: LiveHost;
@@ -38,6 +44,7 @@ export interface Heading {
 
 export interface EditorHandle {
   getText(): string;
+  snapshot(): EditorSnapshot;
   setMdx(source: string, result: MdxResult): void;
   /** Replaces the document while keeping the cursor and scroll position near where they were. */
   setText(text: string, addToHistory?: boolean): void;
@@ -126,11 +133,13 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
 
   const view = new EditorView({
     parent,
+    scrollTo: opts.snapshot?.scroll,
     state: EditorState.create({
-      doc: initial.text,
+      doc: opts.snapshot?.state.doc ?? initial.text,
+      selection: opts.snapshot?.state.selection,
       extensions: [
-        historySlot.of(history()),
-        byteText.init(() => initial.format),
+        historySlot.of([history({ minDepth: 100 }), ...(opts.snapshot ? [historyField.init(() => opts.snapshot!.state.field(historyField))] : [])]),
+        byteText.init(() => opts.snapshot?.state.field(byteText) ?? initial.format),
         editorText,
         drawSelection(),
         dropCursor(),
@@ -234,6 +243,18 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
 
   return {
     scroller: view.scrollDOM,
+    snapshot() {
+      // Retain persistent text, selection, exact byte metadata and bounded history.
+      // Language state, decorations, DOM widgets and callbacks belong to the view.
+      const savedHistory = view.state.field(historyField);
+      const savedBytes = view.state.field(byteText);
+      const withinBudget = JSON.stringify(view.state.toJSON({ history: historyField }).history).length <= 2_000_000;
+      return { scroll: view.scrollSnapshot(), state: EditorState.create({
+        doc: view.state.doc, selection: view.state.selection,
+        extensions: [history({ minDepth: 100 }), byteText.init(() => savedBytes),
+          ...(withinBudget ? [historyField.init(() => savedHistory)] : [])],
+      }) };
+    },
     getText: () => view.state.field(editorText).text,
     setText(text, addToHistory = false) {
       if (view.state.field(editorText).text === text) return;

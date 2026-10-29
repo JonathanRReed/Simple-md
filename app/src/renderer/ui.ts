@@ -15,8 +15,8 @@ export interface BannerAction {
   run(): void | boolean | Promise<void | boolean>;
 }
 
-export function showBanner(message: string, actions: BannerAction[]): void {
-  const el = $("banner");
+export function showBanner(message: string, actions: BannerAction[], scope: ParentNode = document): void {
+  const el = scope.querySelector<HTMLElement>("[data-element=banner], #banner")!;
   el.replaceChildren();
   const text = document.createElement("span");
   text.textContent = message;
@@ -29,7 +29,7 @@ export function showBanner(message: string, actions: BannerAction[]): void {
       for (const button of el.querySelectorAll("button")) button.disabled = true;
       try {
         const accepted = await a.run();
-        if (accepted !== false && el.contains(text)) hideBanner();
+        if (accepted !== false && el.contains(text)) hideBanner(scope);
       } catch {
         toast("Couldn't apply this change.");
       } finally {
@@ -41,8 +41,8 @@ export function showBanner(message: string, actions: BannerAction[]): void {
   el.hidden = false;
 }
 
-export function hideBanner(): void {
-  $("banner").hidden = true;
+export function hideBanner(scope: ParentNode = document): void {
+  scope.querySelector<HTMLElement>("[data-element=banner], #banner")!.hidden = true;
 }
 
 // ───────── picker (command palette and outline) ─────────

@@ -1,8 +1,16 @@
+import type { TabLayoutState } from "../shared/tab-layout.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
-import type { DocumentId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
+import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
-  ready(): Promise<{ settings: Settings; platform: string }>;
+  onLayout(cb: (layout: TabLayoutState) => void): void;
+  onClosed(cb: (id: DocumentId) => void): void;
+  releaseView(id: DocumentId): void;
+  activateTab(id: DocumentId): Promise<void>;
+  paneMode(id: PaneId, mode: import("../shared/types.js").EditMode): void;
+  focusPane(id: PaneId): Promise<void>;
+  closeTab(id: DocumentId): Promise<boolean>;
+  ready(): Promise<{ settings: Settings; platform: string; accent: string }>;
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;
   onTransition(cb: (busy: boolean) => void): void;
@@ -12,7 +20,7 @@ export interface Bridge {
   editing(documentId: DocumentId): void;
   acceptDisk(text: string, documentId: DocumentId): Promise<boolean>;
   onSettings(cb: (s: Settings) => void): void;
-  onCommand(cb: (cmd: Command) => void): void;
+  onCommand(cb: (cmd: Command, documentId?: DocumentId) => void): void;
   onDiskChanged(cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void): void;
   onFlushRequest(cb: (id: RequestId, documentId: DocumentId) => void): void;
   onPrintDoc(cb: (doc: DocPayload, settings: Settings) => void): void;
@@ -29,10 +37,10 @@ export interface Bridge {
   exportHtml(text: string, documentId: DocumentId): Promise<void>;
   print(text: string, documentId: DocumentId): Promise<void>;
   openDialog(): Promise<void>;
-  openPath(p: string, intent?: "read" | "edit"): Promise<boolean>;
-  openLink(href: string, intent?: "read" | "edit"): Promise<boolean>;
+  openPath(p: string, intent?: "read" | "edit", inPlace?: boolean, documentId?: DocumentId): Promise<boolean>;
+  openLink(href: string, intent?: "read" | "edit", newTab?: boolean, documentId?: DocumentId): Promise<boolean>;
   setSettings(patch: Partial<Settings>): Promise<void>;
-  command(cmd: Command): void;
+  command(cmd: Command, documentId?: DocumentId): void;
   hide(): void;
   pathForFile(f: File): string;
 }

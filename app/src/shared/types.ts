@@ -56,6 +56,8 @@ export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
+  savedText?: string;
+  dirty?: boolean;
   revisionId: RevisionId;
   paneId: PaneId;
   stream?: number;
@@ -90,6 +92,13 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "close-tab"
+  | "move-tab-window"
+  | "next-tab"
+  | "previous-tab"
+  | "split-panes"
+  | "stack-panes"
+  | "focus-pane"
   | "preferences"
   | "new"
   | "save"

@@ -1099,3 +1099,61 @@ code,
 @media print {
   #stage { --bg: white; --fg: #111; --muted: #454545; --rule: #ddd; --code-bg: #f5f5f5; --link: #174a8b; background: white; }
 }
+
+/* M5a tab strip and pane layout. Keep document theme rules above independent. */
+#tabs {
+  display: flex;
+  flex: none;
+  height: 30px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in srgb, Canvas 92%, transparent);
+  border-block: 1px solid var(--rule);
+  color: CanvasText;
+  font: 12px / 1 system-ui, sans-serif;
+  -webkit-app-region: no-drag;
+}
+body:not([data-platform="darwin"]) #tabs { height: 34px; font-size: 13px; }
+.tab {
+  display: flex;
+  flex: 1 1 180px;
+  min-width: 100px;
+  max-width: 260px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 9px 0 14px;
+  border-inline-end: 1px solid var(--rule);
+  position: relative;
+  user-select: none;
+}
+.tab[aria-selected="true"] { background: Canvas; }
+.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--tab-accent, Highlight);
+}
+.tab:focus-visible { outline: 2px solid var(--tab-accent, Highlight); outline-offset: -3px; }
+.tab-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tab-close { border: 0; padding: 0; width: 18px; height: 18px; border-radius: 4px; background: transparent; color: inherit; font: 14px / 18px system-ui; }
+.tab-close:hover { background: color-mix(in srgb, CanvasText 12%, transparent); }
+#stage { display: flex; gap: 1px; }
+#stage[data-axis="vertical"] { flex-direction: column; }
+.document-pane { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; background: var(--bg); overflow: hidden; }
+.pane-toolbar { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--rule); font: 12px system-ui; }
+.pane-name { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pane-content { flex: 1; min-height: 0; position: relative; }
+#stage[data-panes="2"] .document-pane[data-active="true"] .pane-toolbar { box-shadow: inset 0 -2px var(--tab-accent, Highlight); }
+.document-pane [data-element="editor-host"] { display: flex; flex: 1 1 0; min-width: 0; height: 100%; }
+.document-pane [data-element="preview-pane"] { flex: 1 1 0; min-width: 0; border-left: 1px solid var(--rule); display: flex; }
+.document-pane [data-element="empty"] { height: 100%; display: flex; align-items: center; justify-content: center; }
+#welcome { display: flex; align-items: center; justify-content: center; flex: 1; background: var(--bg); margin: 0; }
+#stage:not([data-panes="0"]) #welcome { display: none; }
+body.print .pane-toolbar, body.print #tabs { display: none !important; }
+body.print .document-pane, body.print .pane-content { display: block; position: static; overflow: visible; }
+.pane-toolbar .seg { flex: none; }
+.pane-toolbar .seg button { padding-inline: 6px; }
+.pane-name { min-width: 0; flex: 1; }
+.document-pane [data-element="banner"] { display: flex; flex: none; align-items: center; justify-content: center; gap: 12px; padding: 6px 12px; font-size: 13px; background: color-mix(in srgb, var(--tab-accent, Highlight) 10%, transparent); }
+.document-pane [data-element="banner"] button { border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: inherit; font-size: 12px; }
