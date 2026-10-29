@@ -40,6 +40,22 @@ function worker(name: string, code: string): string {
   return pathToFileURL(file).href;
 }
 
+function lazyWorkerChunks(): string[] {
+  const seen = new Set<string>();
+  const chunks = new Set<string>();
+  const visit = (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const source = fs.readFileSync(file, "utf8");
+    for (const match of source.matchAll(/(?:^|\n)import\s+(?:[^;]*?\s+from\s+)?["'](\.[^"']+)["']/g)) {
+      visit(path.resolve(path.dirname(file), match[1]!));
+    }
+    for (const match of source.matchAll(/import\(["'](\.[^"']+)["']\)/g)) chunks.add(path.resolve(path.dirname(file), match[1]!));
+  };
+  visit(path.join(dir, "render-worker.mjs"));
+  return [...chunks];
+}
+
 describe("persistent Node render worker", () => {
   test("stdin MDX mode crosses the worker without a file path", async () => {
     await nodeCheck(`
@@ -72,10 +88,7 @@ describe("persistent Node render worker", () => {
   });
 
   test("ordinary Markdown renders without initializing YAML or KaTeX", async () => {
-    const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
-    const chunks = [...bundle.matchAll(/import\("(\.\/chunks\/[^\"]+)"\)/g)]
-      .map(match => path.join(dir, match[1]!))
-      .filter(file => /node_modules\/(?:yaml|katex)\//.test(fs.readFileSync(file, "utf8")));
+    const chunks = lazyWorkerChunks().filter(file => /node_modules\/(?:yaml|katex)\//.test(fs.readFileSync(file, "utf8")));
     expect(chunks.length).toBe(2);
     for (const file of chunks) fs.renameSync(file, `${file}.disabled`);
     try {
@@ -188,11 +201,10 @@ describe("persistent Node render worker", () => {
   });
 
   test("plain Markdown and Mermaid do not load Shiki", async () => {
-    const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
-    const chunk = /import\("(\.\/chunks\/core-[^"]+)"\)/.exec(bundle)?.[1];
+    const chunk = lazyWorkerChunks().find(file => path.basename(file).startsWith("core-"));
     expect(chunk).toBeDefined();
     if (!chunk) throw new Error("Missing lazy Shiki chunk");
-    const target = path.join(dir, chunk);
+    const target = chunk;
     fs.renameSync(target, `${target}.disabled`);
     try {
       await nodeCheck(`

@@ -754,7 +754,7 @@ let exportModule: typeof import("./export-job.js") | undefined;
 let exportJobs: ReturnType<typeof import("./export-job.js")["createExportJobs"]> | undefined;
 async function getExportJobs() {
   exportModule ??= await import("./export-job.js");
-  return exportJobs ??= exportModule.createExportJobs(here, () => settings);
+  return exportJobs ??= exportModule.createExportJobs(here, () => settings, renderBlocks);
 }
 const exportSource = (text: string, current = currentSession()) => ({ path: current.path, name: current.name, text });
 async function makePdf(text: string, current = currentSession()) {

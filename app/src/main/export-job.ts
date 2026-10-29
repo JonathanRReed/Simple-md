@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { BrowserWindow } from "electron";
 import { makeDocumentId, makePaneId, makeRevisionId, type DocPayload, type Settings } from "../shared/types.js";
-import { renderBlocks } from "./render-client.js";
 import { urlContext } from "./document-urls.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
 
@@ -12,7 +11,7 @@ perfMark("export-module-loaded");
 export interface ExportSource { path: string | null; name: string; text: string }
 export const printWaiters = new Map<number, (error?: string) => void>();
 
-export function createExportJobs(here: string, getSettings: () => Settings) {
+export function createExportJobs(here: string, getSettings: () => Settings, renderBlocks: typeof import("./render-client.js")["renderBlocks"]) {
   const INDEX = path.join(here, "renderer", "index.html");
   async function withPrintWindow<T>(source: ExportSource, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>): Promise<T> {
     const rendered = await renderBlocks(source.text, source.path, /\.mdx$/i.test(source.name));
