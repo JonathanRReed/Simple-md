@@ -1,3 +1,5 @@
+import { type RenderedHtml } from "../shared/render-tree.js";
+import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { type EditorState, type Extension, type Range, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
@@ -7,7 +9,8 @@ import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 
 /** Live Preview hides markdown syntax away from the cursor and renders heavy blocks in place. */
 export interface LiveHost {
-  renderFragment(text: string): Promise<string>;
+  renderFragment(text: string): Promise<RenderedHtml>;
+  remoteImages?(): boolean;
   baseUrl(): string | null;
   openLink(href: string): void;
 }
@@ -15,24 +18,12 @@ export interface LiveHost {
 
 const disposed = new WeakSet<HTMLElement>();
 
-const blockCache = new Map<string, { html: string; height: number }>();
+const blockCache = new Map<string, { html: RenderedHtml; height: number }>();
 const BLOCK_CACHE_LIMIT = 200;
 
 export const clearLiveCache = () => blockCache.clear();
 
 const mathOptions = { throwOnError: false, trust: false, strict: "ignore", maxSize: 20, maxExpand: 1000 } as const;
-
-function safeImageSrc(src: string, baseUrl: string | null): string | null {
-  try {
-    const destination = src.startsWith("<") && src.endsWith(">") ? src.slice(1, -1) : src;
-    const url = new URL(destination, baseUrl ?? undefined);
-    if (url.protocol === "https:" || url.protocol === "http:" || url.protocol === "file:") return url.href;
-    if (url.protocol === "data:" && /^data:image\//i.test(destination)) return url.href;
-  } catch {
-    // Unresolvable relative path in an unsaved note.
-  }
-  return null;
-}
 
 class RenderedBlock extends WidgetType {
   constructor(
@@ -56,13 +47,31 @@ class RenderedBlock extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const el = document.createElement("div");
-    el.className = `cm-rendered cm-rendered-${this.kind} prose`;
+    const el = document.createElement(this.kind === "image" ? "span" : "div");
+    el.className = this.kind === "image" ? "cm-image" : `cm-rendered cm-rendered-${this.kind} prose`;
     const key = this.key();
-    const show = (html: string) => {
+    const show = (html: RenderedHtml) => {
       if (disposed.has(el)) return;
       destroyDiagrams(el);
-      el.innerHTML = html;
+      mountRenderedHtml(el, html, this.host.remoteImages?.() ?? true);
+      updateFragments(el);
+      if (this.kind === "image") {
+        const image = el.querySelector("img");
+        if (image?.getAttribute("src")) {
+          image.className = "cm-image";
+          image.loading = "lazy";
+          image.addEventListener("load", () => view.requestMeasure());
+          image.addEventListener("error", () => {
+            el.textContent = image.alt || "Image not found";
+            el.className = "cm-image-missing";
+            view.requestMeasure();
+          }, { once: true });
+          el.replaceChildren(image);
+        } else {
+          el.textContent = image?.alt || "Image";
+          el.className = "cm-image-missing";
+        }
+      }
       el.style.minHeight = "";
       void renderDiagrams(el).then(() => {
         if (disposed.has(el)) return;
@@ -98,48 +107,6 @@ class RenderedBlock extends WidgetType {
   destroy(dom: HTMLElement): void {
     disposed.add(dom);
     destroyDiagrams(dom);
-  }
-
-  ignoreEvent(): boolean {
-    return true;
-  }
-}
-
-class ImageWidget extends WidgetType {
-  constructor(
-    readonly src: string | null,
-    readonly alt: string,
-  ) {
-    super();
-  }
-
-  eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.alt === this.alt;
-  }
-
-  toDOM(view: EditorView): HTMLElement {
-    if (!this.src) {
-      const span = document.createElement("span");
-      span.className = "cm-image-missing";
-      span.textContent = this.alt || "Image";
-      return span;
-    }
-    const img = document.createElement("img");
-    img.className = "cm-image";
-    img.src = this.src;
-    img.alt = this.alt;
-    img.loading = "lazy";
-    img.addEventListener("load", () => view.requestMeasure());
-    img.addEventListener("error", () => {
-      img.replaceWith(Object.assign(document.createElement("span"), { className: "cm-image-missing", textContent: this.alt || "Image not found" }));
-      view.requestMeasure();
-    });
-    img.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      view.dispatch({ selection: { anchor: view.posAtDOM(img) } });
-      view.focus();
-    });
-    return img;
   }
 
   ignoreEvent(): boolean {
@@ -328,11 +295,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
         }
         case "Image": {
           if (touches(from, to)) return;
-          const url = node.getChild("URL");
-          const marks = node.getChildren("LinkMark");
-          const alt = marks.length >= 2 ? doc.sliceString(marks[0]!.to, marks[1]!.from) : "";
-          const src = url ? safeImageSrc(doc.sliceString(url.from, url.to), baseUrl) : null;
-          out.push(Decoration.replace({ widget: new ImageWidget(src, alt) }).range(from, to));
+          out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "image", host) }).range(from, to));
           return false;
         }
         case "Blockquote": {

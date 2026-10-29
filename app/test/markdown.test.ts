@@ -96,11 +96,10 @@ describe("extensions", () => {
 });
 
 describe("security", () => {
-  test("raw HTML is escaped", async () => {
-    const out = await html('<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>');
-    expect(out).not.toContain("<script");
-    expect(out).not.toContain("<img");
-    expect(out).toContain("&lt;script&gt;");
+  test("raw HTML is carried as author content for DOM sanitization", async () => {
+    const out = await renderMarkdown('<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>', "/tmp/note.md");
+    expect(out.content).toBeDefined();
+    expect(JSON.stringify(out.content)).toContain('"kind":"author"');
   });
 
   test("javascript: links are not linked", async () => {
@@ -162,7 +161,7 @@ describe("mdx", () => {
 
 describe("fragments", () => {
   test("render a lone block", async () => {
-    expect(await renderFragment("| a |\n|---|\n| 1 |", undefined)).toContain("<table");
+    expect((await renderFragment("| a |\n|---|\n| 1 |", undefined)).html).toContain("<table");
   });
 });
 

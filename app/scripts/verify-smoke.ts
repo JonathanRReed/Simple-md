@@ -206,6 +206,77 @@ await test("render-links-pdf", async () => {
   assert(!/<script\b/i.test(exported), "Static HTML export contains an active script.");
 });
 
+await test("author-html", async () => {
+  fixture("author/site/astro.config.mjs", "");
+  const publicImage = path.join(root, "author/site/public/images/pixel.png");
+  fs.mkdirSync(path.dirname(publicImage), { recursive: true });
+  fs.writeFileSync(publicImage, png);
+  const file = fixture("author/site/docs/note.md", `# Author HTML
+
+<details id="more" open class="mermaid" style="display:none" data-evil="yes">
+<summary>More</summary>
+
+**Inside**
+
+- [x] Safe task
+
+~~~ts
+const safe = 1
+~~~
+
+$x^2$
+
+</details>
+
+[More](#more)
+
+![Local](/images/pixel.png)
+
+<img alt="raw" src="/images/pixel.png" onerror="window.authorExecuted=true">
+<img alt="blocked" src="file:///tmp/secret.png">
+<img alt="remote" src="https://example.invalid/remote.png">
+<pre class="mermaid" data-evil="yes">fake</pre>
+<script>window.authorExecuted = true</script>
+`);
+  const pdf = path.join(root, "author-html/output.pdf");
+  const html = path.join(root, "author-html/output.html");
+  await launch("author-html", file, [
+    evaluate(`await waitFor(() => document.querySelector('#doc details:not(.frontmatter) strong')?.textContent === 'Inside', 'Raw wrapper lost its Markdown children.');
+      const doc = document.querySelector('#doc');
+      assert(doc.querySelector('details .shiki') && doc.querySelector('details .katex') && doc.querySelector('details input[type="checkbox"][disabled]'), 'Author policy removed generated nodes.');
+      assert(!doc.querySelector('script, style, [data-evil], [onerror], .mermaid') && !window.authorExecuted, 'Author content gained generated privileges.');
+      assert(doc.querySelector('details').id === 'user-content-more' && doc.querySelector('a[href="#user-content-more"]'), 'Author IDs and fragments disagree.');
+      assert(!doc.querySelector('img[alt="blocked"]').hasAttribute('src'), 'Author file URL survived.');
+      await waitFor(() => [...doc.querySelectorAll('img[alt="Local"], img[alt="raw"]')].every(image => image.naturalWidth > 0), 'Astro root images did not load.');
+      assert(doc.querySelector('img[alt="Local"]').src.includes('/site/public/images/'), 'Root image used the wrong ancestor.');
+      assert(doc.querySelector('img[alt="remote"]').getAttribute('src') === 'https://example.invalid/remote.png', 'Remote images are not enabled by default.');
+      window.simplemd.command('preferences');
+      await waitFor(() => document.querySelector('#preferences').open, 'Preferences did not open.');
+      const toggle = document.querySelector('#pref-remoteImages');
+      assert(toggle.checked, 'Remote images toggle is not on by default.');
+      toggle.checked = false;
+      toggle.dispatchEvent(new Event('change', {bubbles:true}));
+      await waitFor(() => !toggle.disabled, 'Remote image preference did not save.');
+      assert(!(await window.simplemd.ready()).settings.remoteImages, 'Remote image preference did not persist.');
+      document.querySelector('#pref-done').click();
+      window.simplemd.command('toggle-edit');
+      await waitFor(() => !document.querySelector('#read').hidden && document.querySelector('#doc img[alt="remote"]'), 'Read view did not remount.');
+      assert(!document.querySelector('#doc img[alt="remote"]').hasAttribute('src'), 'Remote image remains enabled.');`),
+    { pdf },
+    { html },
+  ]);
+  assert.equal(fs.readFileSync(pdf).subarray(0, 5).toString(), "%PDF-");
+  const exported = fs.readFileSync(html, "utf8");
+  assert(/<details\b(?=[^>]*\bid="user-content-more")(?=[^>]*\bopen="")/.test(exported) && exported.includes("<strong>Inside</strong>"), "HTML export lost the sanitized author wrapper.");
+  assert(exported.includes('href="#user-content-more"') && exported.includes('type="checkbox"') && exported.includes('class="shiki') && exported.includes('class="katex"'), "HTML export lost fragments or generated markup.");
+  assert(!/<script\b|\bonerror=|data-evil=|src=["'](?:file:|https?:)/i.test(exported), "HTML export retained blocked author markup or resource URLs.");
+  const pdftotext = Bun.which("pdftotext");
+  assert(pdftotext, "pdftotext is required to verify the sanitized PDF content.");
+  const extracted = Bun.spawnSync([pdftotext, pdf, "-"]);
+  assert.equal(extracted.exitCode, 0);
+  assert(extracted.stdout.toString().includes("Inside") && extracted.stdout.toString().includes("Safe task"), "PDF export lost the sanitized author wrapper content.");
+});
+
 await test("edit-modes-undo-save", async () => {
   const file = fixture("edit/note.md", note);
   await launch("edit-modes-undo-save", file, [

@@ -52,13 +52,15 @@ describe("persistent Node render worker", () => {
         const out = await client.renderBlocks(source, '/tmp/worker.md');
         clearInterval(timer);
         assert.equal(out.blocks.length, 3000);
+        assert.deepEqual(out.blocks[0].sourceRange, [0, 1]);
+        assert.deepEqual(out.blocks[1].sourceRange, [2, 3]);
         assert.ok(ticks > 0, 'parent event loop ran while the worker parsed');
         const [duplicate, fragment] = await Promise.all([
           client.renderBlocks('# Same\\n\\n# Same', '/tmp/worker.md'),
           client.renderFragment('~~~ts\\nconst n: number = 1\\n~~~', undefined),
         ]);
         assert.match(duplicate.blocks[1].html, /user-content-same-1/);
-        assert.match(fragment, /shiki/);
+        assert.match(fragment.html, /shiki/);
         const reference = (host) => client.renderBlocks('[x][r]\\n\\n[r]: https://' + host, '/tmp/worker.md');
         await reference('before.example');
         assert.match((await reference('after.example')).blocks[0].html, /after.example/);
@@ -79,7 +81,7 @@ describe("persistent Node render worker", () => {
         try {
           await client.warmUp();
           assert.match((await client.renderBlocks('# Plain', null)).blocks[0].html, /Plain/);
-          assert.match(await client.renderFragment('~~~mermaid\\ngraph LR\\nA-->B\\n~~~', undefined), /class="mermaid"/);
+          assert.match((await client.renderFragment('~~~mermaid\\ngraph LR\\nA-->B\\n~~~', undefined)).html, /class="mermaid"/);
           await assert.rejects(client.renderFragment('~~~ts\\nconst n = 1\\n~~~', undefined), /Cannot find module/);
           assert.match((await client.renderBlocks('# Recovered', null)).blocks[0].html, /Recovered/);
         } finally { await client.dispose(); }
@@ -169,7 +171,7 @@ describe("persistent Node render worker", () => {
       import { parentPort } from 'node:worker_threads';
       let order = 0;
       parentPort.on('message', (request) => setTimeout(() => parentPort.postMessage({
-        id: request.id, kind: 'blocks', value: { title: request.text, blocks: [{ key: String(++order), html: request.text }] }
+        id: request.id, kind: 'blocks', value: { title: request.text, blocks: [{ key: String(++order), html: request.text, urls: {}, sourceRange: [0, 1] }] }
       }), 10));
     `);
     await nodeCheck(`

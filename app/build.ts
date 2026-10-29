@@ -46,6 +46,15 @@ await bundle({
   minify: true,
 });
 
+await bundle({
+  entrypoints: ["src/shared/render-browser.ts"],
+  outdir: out,
+  target: "browser",
+  format: "iife",
+  naming: "render-core.js",
+  minify: true,
+});
+
 await cp("src/renderer/index.html", `${out}/renderer/index.html`);
 await cp("src/renderer/style.css", `${out}/renderer/style.css`);
 await cp("src/renderer/motion.css", `${out}/renderer/motion.css`);

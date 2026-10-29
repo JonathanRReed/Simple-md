@@ -1,3 +1,4 @@
+import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
 import { perfMark } from "./perf.js";
 import { Worker } from "node:worker_threads";
 import type { RenderedBlocks } from "./markdown.js";
@@ -17,12 +18,11 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
-  if (value.kind === "fragment") return typeof value.value === "string";
+  if (value.kind === "fragment") return isRenderedHtml(value.value);
   if (value.kind !== "blocks" || typeof value.value !== "object" || value.value === null) return false;
   const result = value.value;
   return "title" in result && typeof result.title === "string" && "blocks" in result && Array.isArray(result.blocks) &&
-    result.blocks.every((block: unknown) => typeof block === "object" && block !== null &&
-      "key" in block && typeof block.key === "string" && "html" in block && typeof block.html === "string");
+    result.blocks.every(isRenderedBlock);
 }
 
 export class RenderClient {
@@ -46,7 +46,7 @@ export class RenderClient {
     return response.value;
   }
 
-  async renderFragment(text: string, baseDir: string | undefined): Promise<string> {
+  async renderFragment(text: string, baseDir: string | undefined): Promise<RenderedHtml> {
     const response = await this.request({ kind: "fragment", text, baseDir });
     if (response?.kind !== "fragment") throw new Error("Invalid fragment render response");
     return response.value;

@@ -15,6 +15,7 @@ export interface Settings {
   /** Modal editing in the source modes. */
   vim: boolean;
   spellcheck: boolean;
+  remoteImages: boolean;
   /** The one-time permission explainer has been shown. */
   peekPrompted: boolean;
   zoom: number;
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   launchAtLogin: false,
   vim: false,
   spellcheck: true,
+  remoteImages: true,
   zoom: 1,
   width: "normal",
   typeface: "sans",
@@ -47,11 +49,8 @@ export const ZOOM_MAX = 1.8;
 /** "peek" opens read-only like Quick Look; "edit" goes straight into the editor. */
 export type OpenIntent = "peek" | "edit";
 
-export interface RenderedBlock {
-  /** Stable content hash; unchanged blocks keep their key across edits and re-renders. */
-  key: string;
-  html: string;
-}
+export type { RenderedBlock } from "./render-core.js";
+import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
   readOnlyReason?: string;

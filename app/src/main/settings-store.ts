@@ -17,7 +17,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (r.shortcut !== undefined) {
     try { s.shortcut = normalizeShortcut(r.shortcut); } catch { s.shortcut = DEFAULT_SETTINGS.shortcut; }
   }
-  for (const key of ["autosave", "spacePreview", "launchAtLogin", "vim", "spellcheck", "peekPrompted"] as const) {
+  for (const key of ["autosave", "spacePreview", "launchAtLogin", "vim", "spellcheck", "peekPrompted", "remoteImages"] as const) {
     if (typeof r[key] === "boolean") s[key] = r[key];
   }
   if (Array.isArray(r.recents)) s.recents = r.recents.filter((p): p is string => typeof p === "string").slice(0, 12);

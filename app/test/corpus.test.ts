@@ -89,7 +89,7 @@ test("GitHub corpus reports semantic gaps without refreshing references", async 
     expect(receipt?.rawUrl).toContain(`/${doc.commit}/${doc.path}`);
     expect(receipt?.pageUrl).toContain(`/blob/${doc.commit}/${doc.path}`);
     const rendered = await renderMarkdown(source, `/__corpus__/${doc.repo}/${doc.path}`);
-    inputs.push({ id: doc.id, expected: reference, actual: rendered.html, context: doc });
+    inputs.push({ id: doc.id, expected: reference, actual: rendered.html, rendered, context: doc });
   }
   const results = await compareInDom([...equivalent, ...different, ...inputs]);
   for (const input of equivalent) expect(results.find((result) => result.id === input.id)?.mismatches, input.id).toEqual([]);
