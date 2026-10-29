@@ -1,0 +1,1 @@
+check/Tests.swift:65: Precondition failed: Paper does not fill the requested canvas: app/native/quicklook/evidence/thumbnail/run-2/retina/retina.md.png

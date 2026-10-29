@@ -1,0 +1,32 @@
+qlmanage: call reset on cache
+pluginkit -m -A -D -vv -i com.jonathanreed.simplemd.qlspike.preview   (no matches)
+ 
+pluginkit -m -A -D -vv -i com.jonathanreed.simplemd.qlspike.thumbnail   (no matches)
+ 
+No spike identifiers in LaunchServices
+No spike host or extension processes
+ABSENT /Users/jonathanreed/Applications/SimpleMDQLThumbnailSpike.app
+ABSENT /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike
+ABSENT /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.preview
+ABSENT /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.thumbnail
+ABSENT /tmp/simplemd-ql-thumbnail-9cad2633-view
+ABSENT /tmp/simplemd-ql-thumbnail-9cad2633-final
+ABSENT /tmp/simplemd-ql-thumbnail-9cad2633-scale
+Scratch matches simplemd-thumbnail-check.* []
+Scratch matches simplemd-thumbnail-recheck.* []
+Scratch matches simplemd-thumbnail-red.* []
+All three FluxMarkdown and provider snapshots match
+     com.xykong.Markdown.QuickLook(1.36.582)
+	            Path = /Applications/FluxMarkdown.app/Contents/PlugIns/MarkdownPreview.appex
+	            UUID = A4414778-FAA0-4A32-935F-347B0BB02628
+	       Timestamp = 2026-10-20 04:33:51 +0000
+	             SDK = com.apple.quicklook.preview
+	   Parent Bundle = /Applications/FluxMarkdown.app
+	    Display Name = FluxMarkdown
+	      Short Name = FluxMarkdown
+	     Parent Name = FluxMarkdown
+	        Platform = macOS
+
+ (1 plug-in)
+
+PASS: cleanup and FluxMarkdown default election verified

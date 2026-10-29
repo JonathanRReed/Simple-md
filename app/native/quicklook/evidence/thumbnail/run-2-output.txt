@@ -1,0 +1,53 @@
+swift-driver version: 1.168.6 [
+  {
+    "fixture": "README.md",
+    "milliseconds": 331.278,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "no-heading.md",
+    "milliseconds": 55.785,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "frontmatter.mdx",
+    "milliseconds": 62.201,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "long-line.md",
+    "milliseconds": 104.45,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "empty.md",
+    "milliseconds": 139.204,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "non-utf8.md",
+    "milliseconds": 126.192,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  }
+]
+2026-10-28 21:04:46.232 Df SimpleMDQLThumbnail[18124:bc6962] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=README.md elapsed_ms=21.526042
+2026-10-28 21:04:46.292 Df SimpleMDQLThumbnail[18124:bc6962] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=no-heading.md elapsed_ms=3.445875
+2026-10-28 21:04:46.353 Df SimpleMDQLThumbnail[18124:bc6968] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=frontmatter.mdx elapsed_ms=3.270917
+2026-10-28 21:04:46.457 Df SimpleMDQLThumbnail[18124:bc6969] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=long-line.md elapsed_ms=11.671417
+2026-10-28 21:04:46.591 Df SimpleMDQLThumbnail[18124:bc6971] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=empty.md elapsed_ms=1.722417
+2026-10-28 21:04:46.713 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=non-utf8.md elapsed_ms=9.326083
+2026-10-28 21:04:47.652 Df SimpleMDQLPreview[18184:bc6ae5] [com.jonathanreed.simplemd.qlspike:data] Data ready bytes=896
+small (128, 128)
+retina (512, 512)

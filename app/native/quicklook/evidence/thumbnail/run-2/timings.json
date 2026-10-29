@@ -1,0 +1,44 @@
+[
+  {
+    "fixture": "README.md",
+    "milliseconds": 331.278,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "no-heading.md",
+    "milliseconds": 55.785,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "frontmatter.mdx",
+    "milliseconds": 62.201,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "long-line.md",
+    "milliseconds": 104.45,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "empty.md",
+    "milliseconds": 139.204,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  },
+  {
+    "fixture": "non-utf8.md",
+    "milliseconds": 126.192,
+    "width": 512,
+    "height": 512,
+    "exit_code": 0
+  }
+]

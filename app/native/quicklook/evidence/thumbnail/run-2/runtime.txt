@@ -1,0 +1,26 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-28 21:04:46.032 I  secinitd[90404:bc5e83] SimpleMDQLThumbnail[18124]: AppSandbox request
+2026-10-28 21:04:46.033 Df secinitd[90404:bc5e83] SimpleMDQLThumbnail[18124]: root path for bundle "<private>" of main executable "<private>"
+2026-10-28 21:04:46.176 Df secinitd[90404:bc5e83] SimpleMDQLThumbnail[18124]: AppSandbox request successful
+2026-10-28 21:04:46.214 Df SimpleMDQLThumbnail[18124:bc6961] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=README.md bytes=12622 size=512.000000x512.000000 scale=1.000000
+2026-10-28 21:04:46.232 Df SimpleMDQLThumbnail[18124:bc6962] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=README.md elapsed_ms=21.526042
+2026-10-28 21:04:46.289 Df SimpleMDQLThumbnail[18124:bc6962] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=no-heading.md bytes=119 size=512.000000x512.000000 scale=1.000000
+2026-10-28 21:04:46.292 Df SimpleMDQLThumbnail[18124:bc6962] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=no-heading.md elapsed_ms=3.445875
+2026-10-28 21:04:46.351 Df SimpleMDQLThumbnail[18124:bc6968] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=frontmatter.mdx bytes=213 size=512.000000x512.000000 scale=1.000000
+2026-10-28 21:04:46.353 Df SimpleMDQLThumbnail[18124:bc6968] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=frontmatter.mdx elapsed_ms=3.270917
+2026-10-28 21:04:46.454 Df SimpleMDQLThumbnail[18124:bc6968] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=long-line.md bytes=65536 size=512.000000x512.000000 scale=1.000000
+2026-10-28 21:04:46.457 Df SimpleMDQLThumbnail[18124:bc6969] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=long-line.md elapsed_ms=11.671417
+2026-10-28 21:04:46.590 Df SimpleMDQLThumbnail[18124:bc6971] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=empty.md bytes=0 size=512.000000x512.000000 scale=1.000000
+2026-10-28 21:04:46.591 Df SimpleMDQLThumbnail[18124:bc6971] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=empty.md elapsed_ms=1.722417
+2026-10-28 21:04:46.656 Df secinitd[90404:bc6227] SimpleMDQLHost[18052]: AppSandbox request successful
+2026-10-28 21:04:46.704 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=non-utf8.md bytes=66 size=512.000000x512.000000 scale=1.000000
+2026-10-28 21:04:46.713 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=non-utf8.md elapsed_ms=9.326083
+2026-10-28 21:04:46.841 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=small.md bytes=119 size=128.000000x128.000000 scale=1.000000
+2026-10-28 21:04:46.843 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=small.md elapsed_ms=2.766500
+2026-10-28 21:04:46.906 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail preparing file=retina.md bytes=119 size=256.000000x256.000000 scale=2.000000
+2026-10-28 21:04:46.908 Df SimpleMDQLThumbnail[18124:bc6967] [com.jonathanreed.simplemd.qlspike:thumbnail] Thumbnail drawn file=retina.md elapsed_ms=1.981875
+2026-10-28 21:04:47.408 I  secinitd[90404:bc6227] SimpleMDQLPreview[18184]: AppSandbox request
+2026-10-28 21:04:47.408 Df secinitd[90404:bc6227] SimpleMDQLPreview[18184]: root path for bundle "<private>" of main executable "<private>"
+2026-10-28 21:04:47.471 Df secinitd[90404:bc6227] SimpleMDQLPreview[18184]: AppSandbox request successful
+2026-10-28 21:04:47.650 Df SimpleMDQLPreview[18184:bc6ae5] [com.jonathanreed.simplemd.qlspike:data] Data preparing no-heading.md pid=18184
+2026-10-28 21:04:47.652 Df SimpleMDQLPreview[18184:bc6ae5] [com.jonathanreed.simplemd.qlspike:data] Data ready bytes=896
