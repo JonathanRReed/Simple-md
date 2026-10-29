@@ -1,9 +1,10 @@
 import { getMdxRanges, isInMdxRange, setMdxRanges } from "./mdx-syntax.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
-import { ensureSyntaxTree } from "@codemirror/language";
-import { type EditorState, type Extension, type Range, StateField } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+import { syntaxTree } from "@codemirror/language";
+import { displayMath, expandRegion, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
+import { type EditorState, type Extension, type Range, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { LIVE_MAX_CHARS } from "../shared/types.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
@@ -74,10 +75,19 @@ class RenderedBlock extends WidgetType {
         }
       }
       el.style.minHeight = "";
+      if (blockCache.size >= BLOCK_CACHE_LIMIT && !blockCache.has(key)) blockCache.delete(blockCache.keys().next().value!);
+      blockCache.set(key, { html, height: blockCache.get(key)?.height ?? this.estimatedHeight });
+      view.requestMeasure();
       void renderDiagrams(el).then(() => {
         if (disposed.has(el)) return;
-        blockCache.set(key, { html, height: el.offsetHeight });
-        view.requestMeasure();
+        view.requestMeasure({ key: el,
+          read: () => disposed.has(el) ? null : el.offsetHeight,
+          write: height => {
+            if (height === null || disposed.has(el)) return;
+            if (blockCache.size >= BLOCK_CACHE_LIMIT && !blockCache.has(key)) blockCache.delete(blockCache.keys().next().value!);
+            blockCache.set(key, { html, height });
+          },
+        });
       });
     };
     const cached = blockCache.get(key);
@@ -145,12 +155,11 @@ class BulletWidget extends WidgetType {
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly checked: boolean,
-    readonly at: number,
   ) {
     super();
   }
   eq(other: CheckboxWidget): boolean {
-    return other.checked === this.checked && other.at === this.at;
+    return other.checked === this.checked;
   }
   toDOM(view: EditorView): HTMLElement {
     const box = document.createElement("input");
@@ -161,7 +170,8 @@ class CheckboxWidget extends WidgetType {
     box.addEventListener("mousedown", (e) => e.preventDefault());
     box.addEventListener("click", (e) => {
       e.preventDefault();
-      view.dispatch({ changes: { from: this.at + 1, to: this.at + 2, insert: this.checked ? " " : "x" } });
+      const at = view.posAtDOM(box);
+      view.dispatch({ changes: { from: at + 1, to: at + 2, insert: this.checked ? " " : "x" } });
     });
     return box;
   }
@@ -209,12 +219,13 @@ function frontmatterEnd(doc: string): number {
   return m ? m[0].length : 0;
 }
 
-function build(state: EditorState, host: LiveHost): DecorationSet {
+export function buildLiveDecorations(state: EditorState, host: LiveHost, region?: Region, math?: readonly Region[]): DecorationSet {
   const doc = state.doc;
   if (doc.length > LIVE_MAX_CHARS) return Decoration.none;
-  const tree = ensureSyntaxTree(state, doc.length, 80);
+  const tree = liveTree(state);
   if (!tree) return Decoration.none;
 
+  const scope = region ?? { from: 0, to: doc.length };
   const out: Range<Decoration>[] = [];
   const sel = state.selection.ranges;
   const touches = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
@@ -236,9 +247,11 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
   };
 
   tree.iterate({
+    from: scope.from, to: scope.to,
     enter(ref) {
       const { name, from, to } = ref;
       if (name === "Document") return;
+      if (to <= scope.from || from > scope.to) return false;
       if (from < fmEnd || isInMdxRange(state, from)) return false;
       // A parent Markdown node may span JSX. Never replace any part of that node.
       if (blocked.some(([a, b]) => a < to && b > from)) return;
@@ -340,7 +353,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
         case "TaskMarker": {
           if (lineTouches(from, to)) return;
           const checked = /x/i.test(doc.sliceString(from, to));
-          out.push(Decoration.replace({ widget: new CheckboxWidget(checked, from) }).range(from, to));
+          out.push(Decoration.replace({ widget: new CheckboxWidget(checked) }).range(from, to));
           return;
         }
         case "HorizontalRule": {
@@ -381,30 +394,16 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
     },
   });
 
-  // `$$ … $$` display math is not part of the markdown grammar, so find it by line.
   const inBlocked = (pos: number) => blocked.some(([a, b]) => pos >= a && pos < b);
-  for (let n = 1; n <= doc.lines; n++) {
-    const line = doc.line(n);
-    if (inBlocked(line.from) || !line.text.trimStart().startsWith("$$")) continue;
-    const trimmed = line.text.trim();
-    let endLine = line;
-    if (!(trimmed.length > 3 && trimmed.endsWith("$$"))) {
-      let m = n + 1;
-      while (m <= doc.lines && !doc.line(m).text.trimEnd().endsWith("$$")) m++;
-      if (m > doc.lines) continue;
-      endLine = doc.line(m);
-      n = m;
-    }
-    if (blocked.some(([a, b]) => a < endLine.to && b > line.from)) continue;
-    if (touches(line.from, endLine.to)) {
-      linesOf(line.from, endLine.to, (lf) => out.push(lineDeco("cm-math-source").range(lf)));
-      blocked.push([line.from, endLine.to]);
-    } else {
-      block(line.from, endLine.to, "math", doc.sliceString(line.from, endLine.to));
-    }
+  for (const range of math ?? displayMath(state, tree, mathLines(state), fmEnd)) {
+    if (range.to < scope.from || range.from > scope.to) continue;
+    if (touches(range.from, range.to)) {
+      linesOf(range.from, range.to, (lf) => out.push(lineDeco("cm-math-source").range(lf)));
+      blocked.push([range.from, range.to]);
+    } else block(range.from, range.to, "math", doc.sliceString(range.from, range.to));
   }
 
-  for (let n = 1; n <= doc.lines; n++) {
+  for (let n = doc.lineAt(scope.from).number; n <= doc.lineAt(scope.to).number; n++) {
     const line = doc.line(n);
     if (!line.text.includes("$") || inBlocked(line.from)) continue;
     INLINE_MATH.lastIndex = 0;
@@ -437,16 +436,121 @@ function frontmatterDecorations(state: EditorState): DecorationSet {
   return Decoration.set(lines);
 }
 
-export function liveExtension(host: LiveHost): Extension {
-  const field = StateField.define<DecorationSet>({
-    create: (state) => build(state, host),
-    update(deco, tr) {
-      if (tr.docChanged || tr.selection || tr.effects.some((effect) => effect.is(setMdxRanges)) || tr.state.facet(EditorView.editable) !== tr.startState.facet(EditorView.editable)) {
-        return build(tr.state, host);
-      }
-      return deco;
+export const setLiveViewport = StateEffect.define<Region>();
+
+export function liveDecorationField(host: LiveHost) {
+  return StateField.define({
+    create(state) {
+      const tree = liveTree(state);
+      const markers = mathLines(state);
+      const math = tree ? displayMath(state, tree, markers, frontmatterEnd(state.doc.sliceString(0, 4000))) : [];
+      const viewport = { from: 0, to: state.doc.length };
+      return { decorations: buildLiveDecorations(state, host, undefined, math), tree, markers, math, viewport };
     },
-    provide: (f) => EditorView.decorations.from(f),
+    update(value, tr) {
+      const viewportEffect = tr.effects.find(e => e.is(setLiveViewport));
+      const viewport = viewportEffect?.value ?? mapRegion(value.viewport, tr.changes);
+      const mdxChanged = tr.effects.some(e => e.is(setMdxRanges));
+      const tree = tr.docChanged || viewportEffect || syntaxTree(tr.state) !== syntaxTree(tr.startState) ? liveTree(tr.state) : value.tree;
+      if (!tree || tr.state.doc.length > LIVE_MAX_CHARS) return { ...value, decorations: Decoration.none, tree, viewport };
+      const markers = tr.docChanged ? mathLines(tr.state, value.markers, tr) : value.markers;
+      const fmEnd = frontmatterEnd(tr.state.doc.sliceString(0, 4000));
+      const math = tr.docChanged || mdxChanged || tree !== value.tree ? displayMath(tr.state, tree, markers, fmEnd) : value.math;
+      const scope = expandRegion(tr.state, tree, viewport, math);
+      const full = viewportEffect || mdxChanged || !value.tree || (!tr.docChanged && tree !== value.tree);
+      const dirty: Region[] = [];
+      const add = (region: Region) => {
+        const expanded = expandRegion(tr.state, tree, region, math);
+        if (expanded.to >= scope.from && expanded.from <= scope.to) dirty.push(expanded);
+      };
+      if (full) add(viewport);
+      else {
+        tr.changes.iterChangedRanges((a, b, c, d) => {
+          // Include adjacent lines for setext headings and joining/splitting blocks.
+          const oldDoc = tr.startState.doc, doc = tr.state.doc;
+          const oldRange = expandRegion(tr.startState, value.tree!, {
+            from: oldDoc.line(Math.max(1, oldDoc.lineAt(a).number - 1)).from,
+            to: oldDoc.line(Math.min(oldDoc.lines, oldDoc.lineAt(b).number + 1)).to,
+          }, value.math);
+          let region = { from: Math.min(tr.changes.mapPos(oldRange.from, -1), doc.line(Math.max(1, doc.lineAt(c).number - 1)).from),
+            to: Math.max(tr.changes.mapPos(oldRange.to, 1), doc.line(Math.min(doc.lines, doc.lineAt(d).number + 1)).to) };
+          const inverse = tr.changes.invertedDesc;
+          for (;;) {
+            const next = expandRegion(tr.state, tree, region, math);
+            const old = expandRegion(tr.startState, value.tree!, mapRegion(next, inverse), value.math);
+            const mapped = mapRegion(old, tr.changes);
+            const expanded = { from: Math.min(next.from, mapped.from), to: Math.max(next.to, mapped.to) };
+            if (expanded.from === region.from && expanded.to === region.to) break;
+            region = expanded;
+          }
+          add(region);
+        });
+        if (tr.docChanged && fmEnd !== tr.changes.mapPos(frontmatterEnd(tr.startState.doc.sliceString(0, 4000)), 1)) {
+          add({ from: 0, to: Math.max(fmEnd, tr.changes.mapPos(frontmatterEnd(tr.startState.doc.sliceString(0, 4000)), 1)) });
+        }
+        if (tr.docChanged) {
+          const oldMath = value.math.map(r => mapRegion(r, tr.changes));
+          for (const r of oldMath) if (!math.some(m => m.from === r.from && m.to === r.to)) add(r);
+          for (const r of math) if (!oldMath.some(m => m.from === r.from && m.to === r.to)) add(r);
+        }
+        if (tr.selection || tr.docChanged) {
+          for (const r of tr.startState.selection.ranges) add(mapRegion(r, tr.changes));
+          for (const r of tr.state.selection.ranges) add(r);
+        }
+      }
+      const previousScope = value.tree ? mapRegion(expandRegion(tr.startState, value.tree, value.viewport, value.math), tr.changes) : scope;
+      if (scope.from < previousScope.from) add({ from: scope.from, to: previousScope.from });
+      if (scope.to > previousScope.to) add({ from: previousScope.to, to: scope.to });
+      let decorations = full ? Decoration.none : value.decorations.map(tr.changes);
+      // A changed fence can split a previous replacement. Invalidate that entire
+      // replacement before filtering it, then expand against the new syntax tree.
+      for (let i = 0; i < dirty.length; i++) {
+        let region = dirty[i]!;
+        for (;;) {
+          let from = region.from, to = region.to;
+          decorations.between(from, to, (a, b) => { from = Math.min(from, a); to = Math.max(to, b); });
+          const expanded = expandRegion(tr.state, tree, { from, to }, math);
+          if (expanded.from === region.from && expanded.to === region.to) break;
+          region = expanded;
+        }
+        dirty[i] = region;
+      }
+      for (const region of mergeRegions(dirty)) {
+        const replacement = buildLiveDecorations(tr.state, host, region, math);
+        const add: Range<Decoration>[] = [];
+        for (let cursor = replacement.iter(); cursor.value; cursor.next()) add.push(cursor.value.range(cursor.from, cursor.to));
+        decorations = decorations.update({ filterFrom: region.from, filterTo: region.to,
+          filter: (from, to) => to < region.from || from > region.to, add, sort: true });
+      }
+      decorations = decorations.update({ filter: (from, to) => from >= scope.from && to <= scope.to });
+      return { decorations, tree, markers, math, viewport };
+    },
+    provide: f => EditorView.decorations.from(f, value => value.decorations),
+  });
+}
+
+export function liveExtension(host: LiveHost): Extension {
+  const field = liveDecorationField(host);
+  // Block replacements must come from a state field. Publish the measured viewport
+  // after CodeMirror's update, never dispatch recursively from a view update.
+  const viewport = ViewPlugin.fromClass(class {
+    frame = 0;
+    constructor(readonly view: EditorView) { this.schedule(); }
+    update(update: import("@codemirror/view").ViewUpdate) {
+      if (update.viewportChanged || syntaxTree(update.state) !== syntaxTree(update.startState)) this.schedule();
+    }
+    schedule() {
+      if (this.frame) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = 0;
+        const { from, to } = this.view.viewport;
+        const current = this.view.state.field(field).viewport;
+        if (from !== current.from || to !== current.to || syntaxTree(this.view.state) !== this.view.state.field(field).tree) {
+          this.view.dispatch({ effects: setLiveViewport.of({ from, to }) });
+        }
+      });
+    }
+    destroy() { cancelAnimationFrame(this.frame); }
   });
 
   const linkClicks = EditorView.domEventHandlers({
@@ -462,7 +566,7 @@ export function liveExtension(host: LiveHost): Extension {
     },
   });
 
-  return [field, linkClicks];
+  return [field, viewport, linkClicks];
 }
 
 export type { SyntaxNode };
