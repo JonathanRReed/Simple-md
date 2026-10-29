@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -13,8 +14,9 @@ export function cliRuntime(profile?: string): string {
 }
 async function refused(endpoint: string): Promise<boolean> {
   return new Promise(resolve => {
+    perfMark("cli-probe-start");
     const socket = net.createConnection(endpoint);
-    const done = (stale: boolean) => { socket.destroy(); resolve(stale); };
+    const done = (stale: boolean) => { perfMark("cli-probe-end", { stale }); socket.destroy(); resolve(stale); };
     socket.once("connect", () => done(false));
     socket.once("error", error => done("code" in error && (error.code === "ECONNREFUSED" || error.code === "ENOENT")));
     socket.setTimeout(400, () => done(false));

@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import fs from "node:fs";
 import net from "node:net";
 import { spawn } from "node:child_process";
@@ -7,7 +8,9 @@ import { prepareCliRuntime } from "./cli-runtime.js";
 
 export type CliDispatch = (request: CliRequest, stdin: string, closed: () => void, signal: AbortSignal) => Promise<(() => void) | undefined>;
 export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }): Promise<{ close(): void }> {
+  perfMark("cli-runtime-start");
   const runtime = await prepareCliRuntime(options.binary, options.profile);
+  perfMark("cli-runtime-ready");
   let stopTransport = () => {};
   try {
     const active = new Set<() => void>();
@@ -108,6 +111,7 @@ export async function startCliServer(options: { binary: string; profile?: string
     stopTransport = () => { server.close(() => runtime.cleanup()); };
     await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(runtime.endpoint, () => resolve()); });
     fs.chmodSync(runtime.endpoint, 0o600);
+    perfMark("cli-listening");
     let closed = false;
     return { close() { if (closed) return; closed = true; for (const cleanup of active) cleanup(); for (const socket of sockets) socket.destroy(); stopTransport(); runtime.cleanup(); } };
   } catch (error) { stopTransport(); runtime.cleanup(); throw error; }

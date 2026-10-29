@@ -61,6 +61,7 @@ import { configStore, flushSettings, loadSettings, patchSettings, saveSettings }
 const T0 = performance.now();
 const tracing = !!process.env.SMD_TRACE;
 const trace = (mark: string) => {
+  perfMark(mark);
   if (tracing) console.error(`trace ${mark}: ${(performance.now() - T0).toFixed(0)}ms`);
 };
 trace("main-bundle-loaded");
@@ -1270,6 +1271,7 @@ if (!app.requestSingleInstanceLock()) {
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
     const cliBinary = testProfile && process.platform === "win32" ? path.join(app.getAppPath(), "native/target/cli-tests/release/simplemd.exe") : bundledCli();
+    trace("cli-start");
     cliServer = await startOptionalCliServer({ binary: cliBinary, profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
     trace(cliServer ? "cli-ready" : "cli-unavailable");
     const drive = process.env.SMD_DRIVE;
