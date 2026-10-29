@@ -895,7 +895,7 @@ fn configure(
                                 let _keep_loaded = &lease;
                                 if let Some(state) =
                                     weak.upgrade().filter(|s| s.current(generation))
-                                    && let Err(error) = hr.ok()
+                                    && let Err(error) = hr
                                 {
                                     state
                                         .fallback(generation, &format!("Renderer script: {error}"));
