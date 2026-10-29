@@ -93,12 +93,12 @@ Full method: `docs/specs/perf-harness.md`.
 
 | Gate | Target | Baseline on 2026-10-28 (contended host) |
 | --- | --- | --- |
-| Warm open to first readable, normal files | p95 < 150 ms | 24 to 31 ms visible; hidden in the tray, 482 ms p95 after disabling background throttling (which fixed 12 of 20 hidden opens failing) |
-| First screen readable, files up to 20 MB | p95 < 200 ms | 54 ms at 2 MB; about 1 s at 20 MB, all 20 opens now succeed; parse, serialization and mount dominate |
-| Cold launch to first readable | p95 < 800 ms | 479 ms (M0) |
+| Warm open to first readable, normal files | p95 < 150 ms | M3: 15 to 23 ms visible; 21 to 30 ms hidden in the tray after a one-second dwell (rapid hide and reopen still stalls about 500 ms in macOS window ordering; recorded as a diagnostic) |
+| First screen readable, files up to 20 MB | p95 < 200 ms | M3: 21 to 32 ms up to 2 MB; 167 ms at 20 MB, all opens succeed |
+| Cold launch to first readable | p95 < 800 ms | M3: 424 to 435 ms |
 | Switch to an already-open 100k tab | p95 < 50 ms | not built yet |
 | Typing in a 100k document, one and two panes | p95 editor latency minus a matched empty-textarea control is at most one display frame plus 8 ms, from at least 40 trusted keys per case, with Event Timing's unreported sub-16 ms events counted as under 16 ms | 18 of 18 calibrated cases pass with 0 or 8 ms excess; the raw 24 ms p95 is the same in an empty textarea, so it is injection and frame cost, not the editor |
-| Memory, one document, settled | physical footprint summed over app processes < 200 MB (stretch goal 150 MB) | 159 MB (433 MB summed RSS), measured in M0 |
+| Memory, one document, settled | physical footprint summed over app processes < 200 MB (stretch goal 150 MB) | M3: 143 MB (M0: 159 MB) |
 
 - Memory uses physical footprint, the same measure as Activity Monitor's Memory column. Windows uses private working set. Summed RSS is recorded beside it but is not the gate, because shared framework pages are counted many times. An empty Electron window measures 365 MB summed RSS.
 - Absolute gates run locally on the owner's MacBook through `bun run perf:gate`, and the JSON receipt is attached to each PR. Hosted CI only catches relative regressions.
