@@ -112,28 +112,30 @@ export function residentTiming(events: DriverEvent[], start: number, file: strin
   const deliveryMs = arrival.elapsedMs - start;
   return { ms: externalMs, externalMs, deliveryMs, afterArrivalMs: externalMs - deliveryMs };
 }
-function assertDocument(file: string, text: string): DriverStep {
+export function assertDocument(file: string, text: string): DriverStep {
   const heading = /^# (.+)$/m.exec(text.replace(/^\uFEFF/, ""))?.[1];
   return evaluate(`${waitFor}
     const file = ${quote(file)};
     await waitFor(() => document.documentElement.dataset.firstReadable === file && document.documentElement.dataset.documentPainted === file && (document.documentElement.dataset.renderComplete === undefined || document.documentElement.dataset.renderComplete === file));
     if (document.documentElement.dataset.documentPath !== file) throw new Error('Wrong perf file');
-    if (document.querySelector('#doc h1')?.textContent !== ${quote(heading)}) throw new Error('Failed perf heading render');
+    const pane = document.querySelector('.document-pane[data-active="true"]');
+    const doc = pane?.querySelector('[data-element="doc"]');
+    if (doc?.querySelector('h1')?.textContent !== ${quote(heading)}) throw new Error('Failed perf heading render');
     // First-readable has already been recorded. Exercise lazy diagrams through
     // real scrolling, keeping diagram correctness outside the timed region.
-    const scroller = document.querySelector('#read-scroll');
+    const scroller = pane.querySelector('[data-element="read-scroll"]');
     const top = scroller.scrollTop;
-    const diagramCount = document.querySelectorAll('#doc pre.mermaid, #doc .diagram').length;
+    const diagramCount = doc.querySelectorAll('pre.mermaid, .diagram').length;
     try {
-      for (const node of document.querySelectorAll('#doc pre.mermaid')) {
+      for (const node of doc.querySelectorAll('pre.mermaid')) {
         node.scrollIntoView({ block: 'center' });
         await waitFor(() => !node.isConnected);
       }
     } finally { scroller.scrollTop = top; }
-    if ([...document.querySelectorAll('#doc .diagram-error')].some(el => !el.hidden)) throw new Error('Failed perf diagram render');
-    if (document.querySelectorAll('#doc .diagram-canvas svg').length !== diagramCount) throw new Error('Missing perf diagram SVG');
-    if (${quote(file.endsWith("math.md"))} && !document.querySelector('#doc .katex')) throw new Error('Failed perf math render');
-    if (${quote(file.endsWith("fences.md") || file.endsWith("small.md"))} && !document.querySelector('#doc .shiki')) throw new Error('Failed perf highlight render');
+    if ([...doc.querySelectorAll('.diagram-error')].some(el => !el.hidden)) throw new Error('Failed perf diagram render');
+    if (doc.querySelectorAll('.diagram-canvas svg').length !== diagramCount) throw new Error('Missing perf diagram SVG');
+    if (${quote(file.endsWith("math.md"))} && !doc.querySelector('.katex')) throw new Error('Failed perf math render');
+    if (${quote(file.endsWith("fences.md") || file.endsWith("small.md"))} && !doc.querySelector('.shiki')) throw new Error('Failed perf highlight render');
   `);
 }
 function keys(keyCode: string, modifiers: KeyboardInputEvent["modifiers"] = []): DriverStep[] {

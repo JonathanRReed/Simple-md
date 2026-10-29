@@ -1,3 +1,4 @@
+import { assertDocument as assertPerfDocument } from "./perf-gate";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -1161,6 +1162,16 @@ await test("tabs-scroll-selection-shortcuts", async () => {
     { windowCount: 1 },
   ], "edit");
   assert.deepEqual(fs.readFileSync(a), Buffer.from(source));
+});
+
+await test("tabs-resident-closed-read-checker", async () => {
+  const text = "# Resident reopen\n\nReadable text.\n";
+  const file = fixture("tabs-resident-checker/note.md", text);
+  await launch("tabs-resident-closed-read-checker", file, [
+    evaluate(`window.simplemd.command('close-tab');`), { wait: 200 }, { visibility: false },
+    evaluate(`await window.simplemd.openPath(${quote(file)}, 'read');`),
+    assertPerfDocument(file, text),
+  ], "read");
 });
 
 for (const native of [false, true]) await test(`tabs-last-close-${native ? "native" : "command"}`, async () => {
