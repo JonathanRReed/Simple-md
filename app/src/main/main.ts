@@ -411,9 +411,11 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
 function updateTitle(): void {
   const current = currentSession();
   if (context().win.isDestroyed()) return;
-  context().win.setTitle(`${current.name}${current.dirty ? " (Edited)" : ""} | SimpleMD`);
-  context().win.setDocumentEdited(current.dirty);
-  if (current.path) context().win.setRepresentedFilename(current.path);
+  context().win.setTitle(process.platform === "darwin" ? current.name : `${current.name}${current.dirty ? " (Edited)" : ""} | SimpleMD`);
+  if (process.platform === "darwin") {
+    context().win.setDocumentEdited(current.dirty);
+    context().win.setRepresentedFilename(current.path ?? "");
+  }
 }
 
 function watch(doc: DocumentSession): void {
