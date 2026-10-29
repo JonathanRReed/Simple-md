@@ -5,7 +5,7 @@ edition = "2024"
 description = "Native helper that turns Space in the OS file manager into a SimpleMD preview request"
 license = "MIT"
 publish = false
-default-run = "simple-md-peek"
+default-run = "simplemd-peek"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
