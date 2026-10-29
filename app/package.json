@@ -53,6 +53,7 @@
     "markdown-it": "^15.0.3",
     "micromark": "^4.0.3",
     "micromark-extension-mdxjs": "^3.0.0",
+    "parse5": "8.0.1",
     "pele": "^1.8.0",
     "shiki": "^4.5.0",
     "yaml": "2.8.1"
@@ -62,7 +63,7 @@
   "build": {
     "appId": "com.jonathanreed.simplemd",
     "productName": "SimpleMD",
-    "copyright": "\u00a9 Jonathan Ray Reed. MIT License.",
+    "copyright": "© Jonathan Ray Reed. MIT License.",
     "directories": {
       "output": "release",
       "buildResources": "build"
