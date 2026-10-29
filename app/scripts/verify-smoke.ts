@@ -1017,7 +1017,7 @@ await test("tabs-autosave-close", async () => {
     { noSavePrompt: true }, evaluate(`await window.simplemd.setSettings({ autosave: true });`),
     ...appendCharacter("!"),
     evaluate(`assert(await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId)), 'Autosave close refused');`),
-    { visibility: false }, { quit: true },
+    { visibility: false },
   ], "edit");
   assert.equal(fs.readFileSync(a, "utf8"), note + "!");
 });
