@@ -122,6 +122,7 @@ export async function perfGate(): Promise<void> {
   if (electronSwitch && !["disable-backgrounding-occluded-windows", "disable-renderer-backgrounding", "disable-background-timer-throttling"].includes(electronSwitch)) throw new Error("Unknown Electron performance switch");
   const hiddenDwellMs = Number(process.argv.find(arg => arg.startsWith("--hidden-dwell-ms="))?.split("=")[1] ?? 1000);
   if (!Number.isSafeInteger(hiddenDwellMs) || hiddenDwellMs < 0 || hiddenDwellMs > 60_000) throw new Error("Invalid hidden dwell");
+  const hiddenDwell = (sample: number) => process.argv.includes("--compare-hidden-dwell") && sample % 2 === 0 ? 30 : hiddenDwellMs;
   const fixtureFilter = process.argv.find(arg => arg.startsWith("--fixtures="))?.split("=")[1]?.split(",");
   fs.mkdirSync(path.join(repo, ".audit"), { recursive: true });
   const root = fs.mkdtempSync(path.join(repo, ".audit/perf-"));
@@ -231,7 +232,7 @@ export async function perfGate(): Promise<void> {
     const start = barrier ? result.barriers[barrier] : 0;
     if (start === undefined) throw new Error(`Missing barrier ${barrier}`);
     const timing = state.startsWith("process-cold") ? { ms: readableSample(result.events, start, file), externalMs: readableSample(result.events, start, file), deliveryMs: 0, afterArrivalMs: null } : residentTiming(result.events, start, file);
-    samples.push({ state, fixture, sample, ...timing, run, loadAverage: barrier ? loadAtBarrier.get(barrier) ?? os.loadavg() : os.loadavg(), cache: { backgroundThrottling: ["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling") ? sample % 2 === 0 : "app default", profile: state.includes("fresh") ? "fresh" : "reused", compile: state.includes("fresh") ? "empty at spawn" : "seeded", diskRender: state === "resident-new-file-miss" ? "miss" : "see read-and-hash-end markers", shiki: state.startsWith("process-cold") ? "new worker; warmup may race foreground" : "resident, languages reused", retainedDOM: state === "resident-visible" || state === "resident-hidden" ? "same-file mount may reuse blocks" : "document replaced" } });
+    samples.push({ state, fixture, sample, ...timing, run, loadAverage: barrier ? loadAtBarrier.get(barrier) ?? os.loadavg() : os.loadavg(), cache: { hiddenDwellMs: state === "resident-hidden" ? hiddenDwell(sample) : null, backgroundThrottling: ["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling") ? sample % 2 === 0 : "app default", profile: state.includes("fresh") ? "fresh" : "reused", compile: state.includes("fresh") ? "empty at spawn" : "seeded", diskRender: state === "resident-new-file-miss" ? "miss" : "see read-and-hash-end markers", shiki: state.startsWith("process-cold") ? "new worker; warmup may race foreground" : "resident, languages reused", retainedDOM: state === "resident-visible" || state === "resident-hidden" ? "same-file mount may reuse blocks" : "document replaced" } });
   }
   async function attempt(name: string, operation: () => Promise<void>) {
     console.log(`perf: ${name}`);
@@ -273,7 +274,7 @@ export async function perfGate(): Promise<void> {
           }
           const barrier = `${state}-${sample}-${fixture}`;
           if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
-          if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: hiddenDwellMs }, { visibility: false });
+          if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: hiddenDwell(sample) }, { visibility: false });
           const assertion = assertDocument(file, fixtureText[fixture]!);
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
           steps.push({ barrier }, { record: { name: barrier, eval: `(async () => {
@@ -425,6 +426,12 @@ export async function perfGate(): Promise<void> {
       delete receipt.gates[`${state}/${fixture}`];
       if (state === "resident-new-file-miss") delete receipt.gates[`first-screen/${fixture}`];
       for (const throttled of [true, false]) receipt.gates[`${state}/${fixture}/throttling-${throttled}`] = summarizeGate(samples.filter(sample => sample.state === state && sample.fixture === fixture && "backgroundThrottling" in sample.cache && sample.cache.backgroundThrottling === throttled).map(sample => sample.ms), state === "resident-hidden" ? 150 : 200, smoke ? 2 : 20);
+    }
+  }
+  if (process.argv.includes("--compare-hidden-dwell")) {
+    for (const fixture of normalFixtures.filter(name => !fixtureFilter || fixtureFilter.includes(name))) {
+      delete receipt.gates[`resident-hidden/${fixture}`];
+      for (const dwell of new Set([30, hiddenDwellMs])) receipt.gates[`resident-hidden/${fixture}/dwell-${dwell}`] = summarizeGate(samples.filter(sample => sample.state === "resident-hidden" && sample.fixture === fixture && "hiddenDwellMs" in sample.cache && sample.cache.hiddenDwellMs === dwell).map(sample => sample.ms), 150, smoke ? 2 : 20);
     }
   }
   if (only) for (const name of Object.keys(receipt.gates)) {
