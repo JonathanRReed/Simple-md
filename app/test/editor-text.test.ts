@@ -15,7 +15,10 @@ for (const source of ["one\ntwo\nthree", "\uFEFFone\r\ntwo\r\nthree\r\n", "one\r
     const inserts = ["x", "\n", "😀", "a\nb\nc", ""];
     for (let i = 0; i < 600; i++) {
       const from = rand(state.doc.length + 1);
-      state = state.update({ changes: { from, to: Math.min(state.doc.length, from + rand(5)), insert: inserts[rand(inserts.length)]! } }).state;
+      const to = Math.min(state.doc.length, from + rand(5));
+      const changes = [{ from, to, insert: inserts[rand(inserts.length)]! }];
+      if (i % 5 === 0 && to < state.doc.length) changes.push({ from: to + 1, to: to + 1, insert: "next\nline" });
+      state = state.update({ changes }).state;
       check();
       if (i % 13 === 0) { undo(target); check(); redo(target); check(); }
     }

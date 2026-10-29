@@ -86,8 +86,17 @@ function cloneSvg(template: Node): Node {
 
 async function render(job: Job): Promise<void> {
   if (!current(job)) return;
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(job.source));
-  const key = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  // File windows have Web Crypto. The isolated blank-page corpus runner does
+  // not; cache lookup still checks the complete source before reusing a hash.
+  let key: string;
+  if (crypto.subtle) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(job.source));
+    key = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  } else {
+    let hash = 2166136261;
+    for (let i = 0; i < job.source.length; i++) hash = Math.imul(hash ^ job.source.charCodeAt(i), 16777619);
+    key = String(hash >>> 0);
+  }
   let cached = svgCache.get(key);
   if (cached?.source !== job.source) cached = undefined;
   if (!cached) {
@@ -151,14 +160,14 @@ export function destroyDiagrams(root: Element): void {
 
 /** Readiness means every diagram completed. Off-screen work waits for scrolling.
  * Print windows render all blocks before reporting readiness to the exporter. */
-export function renderDiagrams(root: HTMLElement): Promise<void> {
+export function renderDiagrams(root: HTMLElement, options: { eager?: boolean } = {}): Promise<void> {
   const existing = mountedByRoot.get(root);
   if (existing) return existing.ready;
   const nodes = [...root.querySelectorAll<HTMLElement>("pre.mermaid")];
   const owner: DiagramRoot = { jobs: new Set(), ready: Promise.resolve(), disposed: false };
   mountedByRoot.set(root, owner);
   const byNode = new Map<Element, Job>();
-  if (typeof IntersectionObserver !== "undefined" && !document.body.classList.contains("print")) {
+  if (!options.eager && typeof IntersectionObserver !== "undefined" && !document.body.classList.contains("print")) {
     owner.observer = new IntersectionObserver(entries => {
       for (const entry of entries) if (entry.isIntersecting) {
         const job = byNode.get(entry.target);

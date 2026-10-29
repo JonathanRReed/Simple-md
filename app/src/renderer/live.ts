@@ -235,8 +235,9 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
   const blocked: Array<[number, number]> = getMdxRanges(state).map((range) => [range.start, range.end]); // ranges where inline scanning must not run
 
   const linesOf = (from: number, to: number, cb: (lineFrom: number, index: number) => void) => {
-    const last = doc.lineAt(to).number;
-    for (let n = doc.lineAt(from).number, i = 0; n <= last; n++, i++) cb(doc.line(n).from, i);
+    const first = doc.lineAt(from).number;
+    const last = Math.min(doc.lineAt(to).number, doc.lineAt(scope.to).number);
+    for (let n = Math.max(first, doc.lineAt(scope.from).number); n <= last; n++) cb(doc.line(n).from, n - first);
   };
 
   if (fmEnd) blocked.push([0, fmEnd]);
@@ -321,7 +322,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
           if (alert) {
             const line = doc.lineAt(from);
             const at = line.text.search(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i);
-            if (at >= 0 && !touches(line.from, line.to)) {
+            if (at >= 0 && line.from >= scope.from && line.from <= scope.to && !touches(line.from, line.to)) {
               out.push(Decoration.replace({ widget: new AlertTitleWidget(alert) }).range(line.from + at, line.from + at + alert.length + 3));
             }
           }
@@ -444,8 +445,9 @@ export function liveDecorationField(host: LiveHost) {
       const tree = liveTree(state);
       const markers = mathLines(state);
       const math = tree ? displayMath(state, tree, markers, frontmatterEnd(state.doc.sliceString(0, 4000))) : [];
-      const viewport = { from: 0, to: state.doc.length };
-      return { decorations: buildLiveDecorations(state, host, undefined, math), tree, markers, math, viewport };
+      const viewport = { from: 0, to: Math.min(state.doc.length, 12_000) };
+      const scope = tree ? expandRegion(state, tree, viewport, math) : viewport;
+      return { decorations: buildLiveDecorations(state, host, scope, math), tree, markers, math, viewport };
     },
     update(value, tr) {
       const viewportEffect = tr.effects.find(e => e.is(setLiveViewport));
@@ -463,7 +465,7 @@ export function liveDecorationField(host: LiveHost) {
         const expanded = expandRegion(tr.state, tree, region, math);
         if (expanded.to >= scope.from && expanded.from <= scope.to) dirty.push(expanded);
       };
-      if (full) add(viewport);
+      if (full) dirty.push(scope);
       else {
         tr.changes.iterChangedRanges((a, b, c, d) => {
           // Include adjacent lines for setext headings and joining/splitting blocks.
@@ -516,7 +518,8 @@ export function liveDecorationField(host: LiveHost) {
         dirty[i] = region;
       }
       for (const region of mergeRegions(dirty)) {
-        const replacement = buildLiveDecorations(tr.state, host, region, math);
+        const visible = { from: Math.max(scope.from, region.from), to: Math.min(scope.to, region.to) };
+        const replacement = buildLiveDecorations(tr.state, host, visible, math);
         const add: Range<Decoration>[] = [];
         for (let cursor = replacement.iter(); cursor.value; cursor.next()) add.push(cursor.value.range(cursor.from, cursor.to));
         decorations = decorations.update({ filterFrom: region.from, filterTo: region.to,

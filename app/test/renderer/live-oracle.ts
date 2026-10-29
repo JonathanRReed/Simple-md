@@ -26,7 +26,8 @@ async function runBatch(fixtures: string[]) {
     let state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage }), mdxSyntax(findMdxRanges(doc)), field, EditorState.allowMultipleSelections.of(true)] });
     for (let step = 0; step < 450; step++) {
       const from = rand(state.doc.length + 1), to = Math.min(state.doc.length, from + rand(6));
-      if (step % 3 === 0) state = state.update({ selection: EditorSelection.create([EditorSelection.range(from, to)]) }).state;
+      if (step % 31 === 0) state = state.update({ selection: EditorSelection.create([EditorSelection.cursor(0), EditorSelection.range(from, to)]) }).state;
+      else if (step % 3 === 0) state = state.update({ selection: EditorSelection.create([EditorSelection.range(from, to)]) }).state;
       else if (step % 17 === 0) state = state.update({ effects: setMdxRanges.of(findMdxRanges(state.doc.toString())) }).state;
       else if (step % 19 === 0) state = state.update({ effects: setLiveViewport.of({ from, to: Math.min(state.doc.length, from + 300) }) }).state;
       else state = state.update({ changes: { from, to, insert: inserts[rand(inserts.length)]! } }).state;

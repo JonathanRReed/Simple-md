@@ -32,8 +32,8 @@ export function expandRegion(state: EditorState, tree: Tree, range: Region, math
   for (;;) {
     const before = from, after = to;
     for (const [position, side] of [[from, 1], [to, -1]] as const) {
-      let node = tree.resolveInner(position, side);
-      while (node.parent && node.parent.name !== "Document") node = node.parent;
+      let node = tree.resolve(position, side);
+      while (node.parent && node.parent.name !== "Document" && !["Paragraph", "ListItem", "FencedCode", "Table", "HTMLBlock", "CommentBlock"].includes(node.name)) node = node.parent;
       if (node.name !== "Document") {
         from = Math.min(from, doc.lineAt(node.from).from);
         to = Math.max(to, doc.lineAt(node.to).to);
