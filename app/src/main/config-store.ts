@@ -19,7 +19,7 @@ export function migrateUserSettings(raw: unknown, legacy: Settings): UserSetting
 }
 export class ConfigStore {
   document: ConfigDocument;
-  private watcher?: fs.FSWatcher;
+  private stopWatching?: () => void;
   private timer?: NodeJS.Timeout;
   constructor(readonly file: string, initial: UserSettings, private report: (issues: ConfigIssue[]) => void = issues => {
     for (const issue of issues) console.error(`simplemd config:${issue.line}: ${issue.message}`);
@@ -52,23 +52,24 @@ export class ConfigStore {
     return this.document.settings;
   }
   watch(onChange: (settings: UserSettings) => void): void {
-    this.watcher = fs.watch(path.dirname(this.file), { persistent: false }, (_event, name) => {
-      if (name && name.toString() !== path.basename(this.file)) return;
+    const reload = () => {
+      const next = this.read();
+      if (next.source === this.document.source && JSON.stringify(next.issues) === JSON.stringify(this.document.issues)) return;
+      this.document = next;
+      this.report(next.issues);
+      onChange(next.settings);
+    };
+    const changed = () => {
       clearTimeout(this.timer);
-      this.timer = setTimeout(() => {
-        const next = this.read();
-        if (next.source === this.document.source && JSON.stringify(next.issues) === JSON.stringify(this.document.issues)) return;
-        this.document = next;
-        this.report(next.issues);
-        onChange(next.settings);
-      }, 70);
+      this.timer = setTimeout(reload, 70);
       this.timer.unref();
-    });
-    this.watcher.on("error", error => {
-      this.document.issues = [{ line: 0, key: "", message: `Config watcher failed: ${error.message}` }];
-      this.report(this.document.issues);
-      onChange(this.document.settings);
-    });
+    };
+    // Stat watching survives atomic replacement and missing files on every platform.
+    fs.watchFile(this.file, { persistent: false, interval: 500 }, changed);
+    this.stopWatching = () => fs.unwatchFile(this.file, changed);
+    // Cover an edit made while the watcher is taking its initial stat snapshot.
+    changed();
   }
-  close(): void { clearTimeout(this.timer); this.watcher?.close(); }
+
+  close(): void { clearTimeout(this.timer); this.stopWatching?.(); }
 }
