@@ -21,6 +21,7 @@ export function nativePlan(host, platform = process.platform, arch = process.arc
   const targetDir = path.join(appDir, "native", "target");
   return {
     host,
+    platform,
     executable,
     cliExecutable: platform === "win32" ? "simplemd.exe" : "simplemd",
     cliBinary: path.join(targetDir, host, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
@@ -47,6 +48,10 @@ export function currentNativePlan() {
 
 export function buildNative(plan) {
   run("cargo", plan.args);
+  if (plan.platform === "win32") {
+    run(process.execPath, ["run", "build/windows-preview.mjs"]);
+    run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(appDir, "native/windows-preview/Cargo.toml"), "--target", plan.host]);
+  }
   mkdirSync(path.dirname(plan.developmentBinary), { recursive: true });
   copyFileSync(plan.binary, plan.developmentBinary);
   copyFileSync(plan.cliBinary, plan.cliDevelopmentBinary);

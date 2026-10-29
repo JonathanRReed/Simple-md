@@ -527,7 +527,10 @@ impl IPreviewHandler_Impl for Preview_Impl {
                     SetWindowTextW(child, &HSTRING::from(text))
                 })?;
                 self.state.resources.borrow_mut().started = true;
-                log("Native source visible while WebView2 starts");
+                log(&format!(
+                    "Native source visible while WebView2 starts; mode=0x{:08X}",
+                    self.state.resources.borrow().mode
+                ));
                 // A timer bounds startup and rendering without waiting on the host STA.
                 let timer = unsafe { SetTimer(None, 0, 10_000, Some(preview_timeout)) };
                 if timer == 0 {
@@ -852,7 +855,7 @@ fn configure(
                 let Some(state) = weak.upgrade().filter(|s| s.current(generation)) else {
                     return Ok(());
                 };
-                let result = (|| {
+                let result: Result<()> = (|| {
                     let args = args.ok_or_else(|| Error::from(E_POINTER))?;
                     let view = view.ok_or_else(|| Error::from(E_POINTER))?;
                     let mut success = BOOL(0);
@@ -917,7 +920,7 @@ fn configure(
                 if state.resources.borrow().rendered {
                     return Ok(());
                 }
-                let result = (|| {
+                let result: Result<()> = (|| {
                     let args = args.ok_or_else(|| Error::from(E_POINTER))?;
                     let view = view.ok_or_else(|| Error::from(E_POINTER))?;
                     let mut source = PWSTR::null();
