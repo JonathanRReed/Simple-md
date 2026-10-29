@@ -1268,3 +1268,5 @@ body.print .document-pane, body.print .pane-content { display: block; position: 
 .pane-toolbar .seg { flex: none; }
 .pane-toolbar .seg button { padding-inline: 6px; }
 .pane-name { min-width: 0; flex: 1; }
+.document-pane [data-element="banner"] { display: flex; flex: none; align-items: center; justify-content: center; gap: 12px; padding: 6px 12px; font-size: 13px; background: color-mix(in srgb, var(--tab-accent, Highlight) 10%, transparent); }
+.document-pane [data-element="banner"] button { border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: inherit; font-size: 12px; }

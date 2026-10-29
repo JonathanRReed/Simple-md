@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-export type DriverStep = { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -20,8 +20,35 @@ export async function runDriver(
   let restoreSend: (() => void) | undefined;
   let removeDiagnostics: (() => void) | undefined;
   const flushStarted = new Map<number, number>();
+  let restoreDialogs: (() => void) | undefined;
+  let pendingDialog: { response: 0 | 1 | 2; savePath?: string } | undefined;
   try {
     for (const step of steps) {
+      if ("windowCount" in step) {
+        const { BrowserWindow } = await import("electron");
+        if (BrowserWindow.getAllWindows().length !== step.windowCount) throw new Error("Unexpected document window count.");
+        continue;
+      }
+      if ("dialog" in step) {
+        const { dialog } = await import("electron");
+        const messageBox = dialog.showMessageBox, saveDialog = dialog.showSaveDialog;
+        restoreDialogs = () => { dialog.showMessageBox = messageBox; dialog.showSaveDialog = saveDialog; };
+        if (pendingDialog) throw new Error("Previous dialog choice was not used.");
+        pendingDialog = step.dialog;
+        dialog.showMessageBox = async (...args: [Electron.MessageBoxOptions] | [Electron.BaseWindow, Electron.MessageBoxOptions]) => {
+          const options = args.at(-1);
+          if (!options || typeof options !== "object" || !("message" in options) || !String(options.message).startsWith("Save changes to")) throw new Error("Unexpected driver dialog.");
+          if (!pendingDialog) throw new Error("Missing driver dialog choice.");
+          const choice = pendingDialog; pendingDialog = undefined;
+          dialog.showMessageBox = messageBox;
+          if (choice.savePath) dialog.showSaveDialog = async () => {
+            dialog.showSaveDialog = saveDialog;
+            return { canceled: false, filePath: choice.savePath! };
+          };
+          return { response: choice.response, checkboxChecked: false };
+        };
+        continue;
+      }
       if ("quit" in step) return "complete";
       if ("menuQuit" in step) {
         if (!requestQuit) throw new Error("Menu quit is unavailable.");
@@ -117,6 +144,7 @@ export async function runDriver(
         throw new TypeError("Unknown driver step.");
       }
     }
+    if (pendingDialog) throw new Error("Expected close dialog did not appear.");
     return "complete";
-  } finally { removeDiagnostics?.(); restoreSend?.(); lines?.close(); }
+  } finally { restoreDialogs?.(); removeDiagnostics?.(); restoreSend?.(); lines?.close(); }
 }

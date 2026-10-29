@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
-import { documentDelta } from "./document-delta.js";
+import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
@@ -65,6 +65,7 @@ const documents = new DocumentQueue();
 interface WindowContext {
   win: BrowserWindow;
   layout: TabLayout;
+  paneModes: Map<ReturnType<typeof makePaneId>, Settings["mode"]>;
   mainPane: { paneId: ReturnType<typeof makePaneId>; documentId: DocumentId };
   rendererReady: boolean;
   loaded: Promise<void>;
@@ -80,13 +81,14 @@ function syncLayout(): void {
   if (active) Object.assign(context().mainPane, active);
   send("smd:layout", context().layout.state);
   if (active) updateTitle();
+  refreshMenus();
 }
 function createDocumentWindow(): WindowContext {
   let markLoaded!: () => void;
   const loaded = new Promise<void>(resolve => { markLoaded = resolve; });
   const empty = registry.create(null, "");
   const host: WindowContext = {
-    win: undefined!, layout: new TabLayout(),
+    win: undefined!, layout: new TabLayout(), paneModes: new Map(),
     mainPane: { paneId: makePaneId(0), documentId: empty.documentId },
     rendererReady: false, loaded, markLoaded,
   };
@@ -117,7 +119,7 @@ function applySettings(patch: unknown): void {
 
 function refreshMenus(): void {
   buildMenu({
-    settings: () => settings,
+    settings: () => ({ ...settings, mode: context().paneModes.get(context().mainPane.paneId) ?? settings.mode }),
     command: (cmd) => runCommand(cmd),
     openDialog: () => void openDialog(),
     openPath: (p) => void openFile(p, "edit"),
@@ -241,6 +243,7 @@ async function closeTab(id = currentSession().documentId): Promise<boolean> {
   if (!doc || !(await transition(() => settle(doc, true)))) return false;
   context().layout.remove(id);
   registry.remove(id);
+  releaseDocumentDelta(id);
   send("smd:closed", id);
   syncLayout();
   if (!context().layout.state.tabs.length) {
@@ -261,7 +264,7 @@ let flushSeq = 0;
 
 function requestFlush(doc = currentSession()): Promise<FlushResult | null> {
   return new Promise((resolve) => {
-    if (!context().rendererReady || context().win.isDestroyed()) return resolve(null);
+    if (!doc || !context().rendererReady || context().win.isDestroyed()) return resolve(null);
     const id = makeRequestId(++flushSeq);
     const timer = setTimeout(() => {
       flushWaiters.delete(id);
@@ -290,6 +293,7 @@ async function transition<T>(operation: () => Promise<T>): Promise<T> {
 
 async function settle(current = currentSession(), prompt = false): Promise<boolean> {
   await context().loaded;
+  if (!current) return true;
   return settleDocument({
     documentId: current.documentId,
     autosave: !prompt && settings.autosave,
@@ -413,7 +417,7 @@ function reveal(): void {
 
 function openFile(file: string | undefined, intent: OpenIntent, inPlace = false): Promise<boolean> {
   if (!context() || context().win.isDestroyed()) createDocumentWindow();
-  const host = context();
+  const host = inPlace ? context() : frontmost;
   return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace)));
 }
 
@@ -423,9 +427,14 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     return true;
   }
   if (!isMarkdown(file)) return false;
-  const abs = await fs.promises.realpath(path.resolve(file)).catch(() => path.resolve(file));
+  const abs = path.resolve(file);
+  const canonical = await fs.promises.realpath(abs).catch(() => abs);
   for (const host of windows.values()) {
-    const existing = host.layout.state.tabs.find(id => registry.get(id)?.path === abs);
+    let existing: DocumentId | undefined;
+    for (const id of host.layout.state.tabs) {
+      const file = registry.get(id)?.path;
+      if (file && (file === abs || await fs.promises.realpath(file).catch(() => file) === canonical)) { existing = id; break; }
+    }
     if (existing !== undefined) return windowScope.run(host, async () => {
       host.layout.activate(existing);
       syncLayout(); reveal();
@@ -492,11 +501,13 @@ function openDialog(): Promise<boolean> {
   return documents.run(async () => {
     reveal();
     const res = await dialog.showOpenDialog(context().win, {
-      properties: ["openFile"],
+      properties: ["openFile", "multiSelections"],
       filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd", "mdx", "txt"] }],
     });
     if (res.canceled || !res.filePaths[0]) return false;
-    return openCurrentFile(res.filePaths[0], "edit");
+    let opened = true;
+    for (const file of res.filePaths) opened = await openCurrentFile(file, "edit") && opened;
+    return opened;
   });
 }
 
@@ -566,6 +577,10 @@ async function togglePanes(axis: "horizontal" | "vertical"): Promise<void> {
   syncLayout();
 }
 async function moveTabToWindow(): Promise<void> {
+  if (!context().layout.active) return;
+  await transition(moveTabWindow);
+}
+async function moveTabWindow(): Promise<void> {
   const origin = context();
   const doc = currentSession();
   if (!(await requestFlush(doc))) return;
@@ -589,10 +604,10 @@ async function settleAllWindows(): Promise<boolean> {
   return true;
 }
 
-function runCommand(cmd: Command): void {
-  const current = currentSession();
+function runCommand(cmd: Command, target = context().layout.active?.documentId): void {
+  const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
-    case "close-tab": void documents.run(() => closeTab()); return;
+    case "close-tab": if (target !== undefined) void documents.run(() => closeTab(target)); return;
     case "move-tab-window": void documents.run(moveTabToWindow); return;
     case "next-tab": context().layout.cycle(1); syncLayout(); return;
     case "previous-tab": context().layout.cycle(-1); syncLayout(); return;
@@ -607,13 +622,13 @@ function runCommand(cmd: Command): void {
       void newDoc();
       return;
     case "reveal":
-      if (current.path) shell.showItemInFolder(current.path);
+      if (current?.path) shell.showItemInFolder(current.path);
       return;
     case "mode-live":
     case "mode-split":
     case "mode-source":
       reveal();
-      send("smd:cmd", cmd);
+      send("smd:cmd", cmd, target);
       return;
     case "zoom-in":
     case "zoom-out":
@@ -622,7 +637,7 @@ function runCommand(cmd: Command): void {
       return;
     default:
       reveal();
-      send("smd:cmd", cmd);
+      send("smd:cmd", cmd, target);
   }
 }
 
@@ -867,6 +882,7 @@ function registerIpc(): void {
   handle("smd:focus-pane", id => {
     if (!isPaneId(id)) throw new TypeError("Invalid pane.");
     context().layout.focus(id); syncLayout();
+    return context().layout.active?.documentId;
   });
   handle("smd:close-tab", id => { const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId)); });
   handle("smd:ready", () => {
@@ -875,6 +891,12 @@ function registerIpc(): void {
     context().markLoaded();
     return { settings, platform: process.platform, accent: process.platform === "darwin" || process.platform === "win32" ? `#${systemPreferences.getAccentColor().slice(0, 6)}` : "Highlight", performanceTracing: testProfile && process.env.SMD_PERF === "1" };
   });
+  on("smd:pane-mode", (_e, id, mode) => {
+    if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "live" && mode !== "source" && mode !== "split")) return;
+    if (context().paneModes.get(id) === mode) return;
+    context().paneModes.set(id, mode); refreshMenus();
+  });
+  on("smd:release-view", (_e, id) => { if (isDocumentId(id) && context().layout.has(id)) releaseDocumentDelta(id); });
   on("smd:editing", (e, id: unknown) => {
     if (!mainSender(e) || id !== currentSession().documentId) return;
     currentSession().intent = "edit";
@@ -911,14 +933,14 @@ function registerIpc(): void {
     if (typeof stream !== "number" || !Number.isSafeInteger(stream) || stream < 1) throw new TypeError("Expected render stream.");
     return nextBlocks(stream);
   });
-  handle("smd:render-blocks", async (value, id, revision) => {
+  handle("smd:render-blocks", async (value, id, revision, known) => {
     const text = ipcText(value);
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (doc.text !== text) throw new Error("Render source does not match the document revision.");
     const out = await doc.render(revisionId, () => renderBlocks(text, doc.path));
     trace("render-done");
-    return documentDelta(doc.documentId, out);
+    return documentDelta(doc.documentId, out, known !== true);
   });
   handle("smd:mdx-ranges", async (value, id, revision) => {
     const text = ipcText(value);
@@ -954,7 +976,7 @@ function registerIpc(): void {
     });
   });
   handle("smd:open-dialog", openDialog);
-  handle("smd:open-path", (p, intent, id, inPlace) => { ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true); });
+  handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true); });
   handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id)));
   handle("smd:set-settings", applySettings);
   handle("smd:export-pdf", (value, id) => {
@@ -977,9 +999,9 @@ function registerIpc(): void {
   });
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
-    if (!mainSender(e) || id !== context().mainPane.documentId || typeof cmd !== "string") return;
+    if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
     const commands: readonly string[] = ["close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
-    if (commands.includes(cmd)) runCommand(cmd as Command);
+    if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }
 

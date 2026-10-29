@@ -68,7 +68,10 @@ function syncChrome(): void {
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {
   const tab = documents.get(entry.controller.documentId);
   const snapshot = entry.controller.suspend();
-  if (tab) tab.retained = snapshot;
+  if (tab) {
+    tab.retained = snapshot;
+    tab.payload = { ...tab.payload, text: snapshot.state.readText, revisionId: snapshot.state.revisionId, blocks: [], stream: undefined };
+  }
 }
 function mountLayout(next: TabLayoutState): void {
   closeOverlays();
@@ -181,7 +184,10 @@ async function boot(): Promise<void> {
     else { const tab = documents.get(id); if (tab) { tab.disk = { text, reason }; if (tab.retained) tab.retained.state.diskConflict = true; } }
   });
   api.onTransition(busy => { for (const pane of panes.values()) pane.controller.transition(busy); });
-  api.onCommand(command => active()?.command(command));
+  api.onCommand((command, id) => {
+    const target = id === undefined ? active() : [...panes.values()].find(pane => pane.controller.documentId === id)?.controller;
+    target?.command(command);
+  });
   api.onSettings(next => {
     const modeChanged = settings.mode !== next.mode;
     settings = next; preferences?.sync(next);

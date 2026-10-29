@@ -5,7 +5,9 @@ import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, Fl
 export interface Bridge {
   onLayout(cb: (layout: TabLayoutState) => void): void;
   onClosed(cb: (id: DocumentId) => void): void;
+  releaseView(id: DocumentId): void;
   activateTab(id: DocumentId): Promise<void>;
+  paneMode(id: PaneId, mode: import("../shared/types.js").EditMode): void;
   focusPane(id: PaneId): Promise<void>;
   closeTab(id: DocumentId): Promise<boolean>;
   ready(): Promise<{ settings: Settings; platform: string; accent: string }>;
@@ -18,7 +20,7 @@ export interface Bridge {
   editing(documentId: DocumentId): void;
   acceptDisk(text: string, documentId: DocumentId): Promise<boolean>;
   onSettings(cb: (s: Settings) => void): void;
-  onCommand(cb: (cmd: Command) => void): void;
+  onCommand(cb: (cmd: Command, documentId?: DocumentId) => void): void;
   onDiskChanged(cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void): void;
   onFlushRequest(cb: (id: RequestId, documentId: DocumentId) => void): void;
   onPrintDoc(cb: (doc: DocPayload, settings: Settings) => void): void;

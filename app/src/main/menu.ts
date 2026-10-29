@@ -114,7 +114,7 @@ export function buildMenu(a: MenuActions): void {
       submenu: [
         cmd("Split Side by Side", "split-panes", "CommandOrControl+\\"),
         cmd("Split Stacked", "stack-panes", "CommandOrControl+Shift+\\"),
-        cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+ArrowRight"),
+        cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+Right"),
         cmd("Next Tab", "next-tab", "CommandOrControl+Shift+]"),
         cmd("Previous Tab", "previous-tab", "CommandOrControl+Shift+["),
         cmd("Read / Edit", "toggle-edit", "CommandOrControl+Return"),

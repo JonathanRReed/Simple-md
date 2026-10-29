@@ -128,10 +128,10 @@ export async function perfGate(): Promise<void> {
   if (!Number.isSafeInteger(count) || count < 2) throw new Error("At least two samples are required");
   const only = process.argv.find(arg => arg.startsWith("--only="))?.split("=")[1];
   const includes = (name: string) => !only || only.split(",").includes(name);
-  if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing"].includes(name))) throw new Error("Unknown performance subset");
+  if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing", "tab-switch-100k"].includes(name))) throw new Error("Unknown performance subset");
   const typingCases = process.argv.find(arg => arg.startsWith("--typing-cases="))?.slice("--typing-cases=".length).split(",");
   if (typingCases?.some(value => !/^(live|source|split)\/(top|middle|end)\/(native|cdp)$/.test(value))) throw new Error("Unknown typing case");
-  const typingPanes = process.argv.includes("--two-panes") ? 2 : 1;
+  const typingPaneCounts = process.argv.includes("--two-panes") ? [2] : [1, 2];
   const electronSwitch = process.argv.find(arg => arg.startsWith("--electron-switch="))?.split("=")[1];
   if (electronSwitch && !["disable-backgrounding-occluded-windows", "disable-renderer-backgrounding", "disable-background-timer-throttling"].includes(electronSwitch)) throw new Error("Unknown Electron performance switch");
   const hiddenDwellMs = Number(process.argv.find(arg => arg.startsWith("--hidden-dwell-ms="))?.split("=")[1] ?? 1000);
@@ -148,14 +148,15 @@ export async function perfGate(): Promise<void> {
   const sourceDirtyHash = dirtyHash();
   const samples: { state: State; fixture: string; sample: number; ms: number; externalMs: number; deliveryMs: number; afterArrivalMs: number | null; cache: object; loadAverage: number[]; run: string }[] = [];
   const memory: { run: string; at: number; processes: { metrics: unknown; measured: ProcessMemory[] }; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
-  const typing: { method: InputMethod; controls: { kind: string; eventTiming: ReturnType<typeof summarizeEventTiming>; raw: unknown }[]; frameMs: number; displayFrameMs: number; mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
+  const typing: { panes: number; method: InputMethod; controls: { kind: string; eventTiming: ReturnType<typeof summarizeEventTiming>; raw: unknown }[]; frameMs: number; displayFrameMs: number; mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
+  const tabSwitch: number[] = [];
   const runs: object[] = [];
   const failures: string[] = [];
   const failedSamples: { state: State; fixture: string; sample: number; run: string; error: string }[] = [];
   const runResults = new Map<string, Awaited<ReturnType<typeof measureDriverRun>>>();
   const loadAtBarrier = new Map<string, number[]>();
   const receipt = {
-    schemaVersion: 2, subset: only ?? null, typingCases: typingCases ?? null, typingPanes, sampleCount: count, hiddenDwellMs, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
+    schemaVersion: 2, subset: only ?? null, typingCases: typingCases ?? null, typingPaneCounts, sampleCount: count, hiddenDwellMs, createdAt: new Date().toISOString(), command: process.argv, reducedSmoke: smoke,
     revision: command("git", ["rev-parse", "HEAD"]), branch: command("git", ["branch", "--show-current"]), dirtyPatchHash: sourceDirtyHash,
     memoryHelper: { sha256: null as string | null, sourceSha256: sha256(fs.readFileSync(path.join(appRoot, "native/src/bin/perf-memory.rs"))) },
     lockfileHash: sha256(fs.readFileSync(path.join(appRoot, "bun.lock"))), dist: treeHash(path.join(appRoot, "dist")),
@@ -172,7 +173,7 @@ export async function perfGate(): Promise<void> {
       memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 20 samples. Gate the final five only if every process spans at most 2 MB with unchanged PIDs. All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
     },
     limits: ["Parent stdout receipt timestamps include IPC and pipe scheduling. Double rAF marks a paint opportunity, not physical display scanout.", "First-readable does not await diagrams, fonts, deferred highlighting or streamed remainder blocks. Final assertions wait for the complete stream.", "Typing Event Timing has a 16 ms reporting floor and 8 ms quantization. Sub-threshold events are censored, never treated as zero. beforeinput support and trusted counts are recorded separately.", "Editor tokenization has no fully-highlighted completion signal. That marker applies to read and split previews only; CodeMirror background parsing is not timed.", "CDP IME is a composition-path exercise, not a physical keyboard or native input-method qualification.", "ASAR packaging and Windows runtime are not measured by a development macOS run."],
-    runs, samples, failedSamples, typing, memory, failures, gates: {} as Record<string, unknown>, loadAverageEnd: [] as number[],
+    runs, samples, failedSamples, typing, tabSwitch, memory, failures, gates: {} as Record<string, unknown>, loadAverageEnd: [] as number[],
   };
   function profile(name: string, mode = "source") {
     const directory = path.join(root, name);
@@ -323,6 +324,53 @@ export async function perfGate(): Promise<void> {
         { wait: 5000 }, ...Array.from({ length: 20 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
+    if (includes("memory")) await attempt("five-tab-memory", async () => {
+      const file = path.join(fixtureDirectory, "medium.md");
+      const others = Array.from({ length: 4 }, (_, i) => {
+        const target = path.join(fixtureDirectory, `memory-tab-${i}.md`);
+        fs.writeFileSync(target, fixtureText["medium.md"]!);
+        return target;
+      });
+      await launch("five-tab-memory", file, profile("five-tab-profile", "live"), [
+        evaluate(`${waitFor}
+          for (const target of ${quote(others)}) await window.simplemd.openPath(target, 'edit');
+          await waitFor(() => document.querySelectorAll('[role="tab"]').length === 5 && document.querySelectorAll('.cm-editor').length === 1);
+          if (document.querySelectorAll('.document-pane').length !== 1) throw new Error('Five-tab memory requires one visible pane');
+        `),
+        { wait: 5000 }, ...Array.from({ length: 20 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
+      ], "edit");
+    });
+    if (includes("tab-switch-100k")) await attempt("tab-switch-100k", async () => {
+      const text = fixtureText["typing-100k.md"]!;
+      const a = path.join(fixtureDirectory, "tab-a.md"), b = path.join(fixtureDirectory, "tab-b.md");
+      fs.writeFileSync(a, text); fs.writeFileSync(b, text.replace('Typing', 'Tab B '));
+      const steps: DriverStep[] = [{ diagnostics: "environment" }, evaluate(`${waitFor}
+        window.tabA = Number(document.documentElement.dataset.documentId);
+        await window.simplemd.openPath(${quote(b)}, 'edit');
+        await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)});
+        window.tabB = Number(document.documentElement.dataset.documentId);
+      `)];
+      for (let i = 0; i < count; i++) {
+        const file = i % 2 === 0 ? a : b;
+        steps.push({ barrier: `tab-switch-${i}` }, evaluate(`${waitFor}
+          await window.simplemd.activateTab(${i % 2 === 0 ? 'window.tabA' : 'window.tabB'});
+          await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)});
+          if (document.querySelectorAll('.cm-editor').length !== 1 || document.querySelector('.cm-content').cmTile.root.view.state.doc.length !== 100000) throw new Error('Tab mount mismatch');
+          if (document.documentElement.dataset.documentPath !== ${quote(file)}) throw new Error('Wrong tab');
+        `));
+      }
+      const result = await launch("tab-switch-100k", a, profile("tab-switch-profile", "live"), steps, "edit");
+      for (let i = 0; i < count; i++) {
+        const start = result.barriers[`tab-switch-${i}`];
+        if (start === undefined) throw new Error('Missing tab switch barrier');
+        const file = i % 2 === 0 ? a : b;
+        const readable = result.events.find(event => event.elapsedMs >= start && event.data.marker === 'first-readable' && event.data.path === file);
+        if (!readable) throw new Error('Missing matching tab readable marker');
+        tabSwitch.push(readable.elapsedMs - start);
+      }
+      assert.equal(fs.readFileSync(a, 'utf8'), text);
+    });
+    fs.writeFileSync(path.join(fixtureDirectory, "typing-companion.md"), fixtureText["typing-100k.md"]!);
     const calibration = path.join(root, "calibration");
     if (includes("typing")) {
       fs.mkdirSync(calibration);
@@ -336,27 +384,35 @@ export async function perfGate(): Promise<void> {
       if (!build.success) throw new Error(build.logs.join("\n"));
       for (const kind of ["textarea", "codemirror"]) fs.writeFileSync(path.join(calibration, `${kind}.html`), `<!doctype html><html><body data-control="${kind}"><script type="module" src="./control.js"></script></body></html>`);
     }
-    for (const mode of includes("typing") ? smoke ? ["source"] : ["live", "source", "split"] : []) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) for (const method of ["native", "cdp"] as const) {
+    for (const typingPanes of typingPaneCounts) for (const mode of includes("typing") ? smoke ? ["source"] : ["live", "source", "split"] : []) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) for (const method of ["native", "cdp"] as const) {
       if (typingCases && !typingCases.includes(`${mode}/${position}/${method}`)) continue;
-      await attempt(`typing-${method}-${mode}-${position}`, async () => {
+      await attempt(`typing-${typingPanes}-${method}-${mode}-${position}`, async () => {
       const text = fixtureText["typing-100k.md"]!;
-      const file = path.join(fixtureDirectory, `typing-${mode}-${position}.md`);
+      const file = path.join(fixtureDirectory, `typing-${typingPanes}-${mode}-${position}.md`);
       fs.writeFileSync(file, text);
       const at = position === "top" ? 0 : position === "middle" ? 50_000 : text.length;
       const steps: DriverStep[] = [{ diagnostics: "environment" }, evaluate(`${waitFor}
         await waitFor(() => document.querySelector('.cm-content[contenteditable="true"]'));
-        const content = document.querySelector('.cm-content');
-        const view = content.cmTile?.root?.view;
+        let content = document.querySelector('.cm-content');
+        let view = content.cmTile?.root?.view;
         if (!view || view.state.doc.length !== 100000) throw new Error('100k editor driver unavailable');
         if (${typingPanes} === 2) {
-          const companion = document.createElement('div');
-          companion.style.cssText = 'position:fixed;right:0;top:48px;bottom:0;width:48vw;overflow:hidden;background:var(--bg)';
-          document.body.append(companion);
-          window.perfCompanion = new view.constructor({ state: view.state, parent: companion });
-          view.dom.style.width = '48vw';
-          window.perfCompanion.dom.style.height = '100%';
-          window.perfCompanion.dispatch({ selection: { anchor: ${at} }, scrollIntoView: true });
-          if (window.perfCompanion.state.doc.length !== 100000) throw new Error('Second 100k pane missing');
+          const companion = ${quote(path.join(fixtureDirectory, "typing-companion.md"))};
+          const originalId = Number(document.documentElement.dataset.documentId);
+          await window.simplemd.openPath(companion, 'edit');
+          await window.simplemd.activateTab(originalId);
+          await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)});
+          content = document.querySelector('.cm-content'); view = content.cmTile.root.view;
+          window.simplemd.command('split-panes');
+          await waitFor(() => document.querySelectorAll('.cm-editor').length === 2);
+          const views = [...document.querySelectorAll('.cm-content')].map(node => node.cmTile.root.view);
+          const other = views.find(candidate => candidate !== view);
+          if (!other || other.state.doc.length !== 100000) throw new Error('Second real 100k pane missing');
+          other.dispatch({ selection: { anchor: ${at} }, scrollIntoView: true });
+          const target = content.closest('.document-pane');
+          await window.simplemd.focusPane(Number(target.dataset.paneId));
+          const panes = [...document.querySelectorAll('.document-pane')];
+          if (panes.length !== 2 || panes.some(pane => pane.getBoundingClientRect().width < 200)) throw new Error('Two visible panes required');
         }
         view.dispatch({ selection: { anchor: ${at} }, scrollIntoView: true }); view.focus();
         ${typingProbe}
@@ -405,7 +461,7 @@ export async function perfGate(): Promise<void> {
           if (actual !== ${quote(letters)}) throw new Error('Control typing text mismatch');
         `), { record: { name: `control-${kind}`, eval: typingRecord } }, evaluate("window.perfObserver.disconnect();"));
       }
-      const result = await launch(`typing-${method}-${mode}-${position}`, file, profile(`typing-${method}-${mode}-${position}-profile`, mode), steps, "edit");
+      const result = await launch(`typing-${typingPanes}-${method}-${mode}-${position}`, file, profile(`typing-${typingPanes}-${method}-${mode}-${position}-profile`, mode), steps, "edit");
       const record = recordValue(result.events, "typing");
       const paced = recordValue(result.events, "paced-typing");
       if (typeof record !== "object" || record === null || !("events" in record) || !Array.isArray(record.events) || !("lowerBound" in record) || !("finalText" in record) || record.finalText !== expected) throw new Error("Missing or invalid typing evidence");
@@ -424,7 +480,7 @@ export async function perfGate(): Promise<void> {
       const environment = recordValue(result.events, "environment");
       if (typeof environment !== "object" || environment === null || !("display" in environment) || typeof environment.display !== "object" || environment.display === null || !("displayFrequency" in environment.display) || typeof environment.display.displayFrequency !== "number" || !Number.isFinite(environment.display.displayFrequency) || environment.display.displayFrequency <= 0) throw new Error("Missing window display refresh rate");
       const displayFrameMs = 1000 / environment.display.displayFrequency;
-      typing.push({ method, controls, frameMs, displayFrameMs, mode, position, eventTiming, rawEventTiming: paced, lowerBound: "lowerBound" in paced ? paced.lowerBound : null, finalSha256: sha256(fs.readFileSync(file)), expectedSha256: sha256(expected) });
+      typing.push({ panes: typingPanes, method, controls, frameMs, displayFrameMs, mode, position, eventTiming, rawEventTiming: paced, lowerBound: "lowerBound" in paced ? paced.lowerBound : null, finalSha256: sha256(fs.readFileSync(file)), expectedSha256: sha256(expected) });
     });
     }
   } catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
@@ -434,15 +490,17 @@ export async function perfGate(): Promise<void> {
     for (const fixture of normalFixtures) receipt.gates[`${state}/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === state && sample.fixture === fixture).map((sample) => sample.ms), 150, smoke ? 2 : 20);
   }
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);
-  const stableMemory = settledMemory(memory);
-  const settled = stableMemory ? memory.slice(-5) : [];
-  receipt.gates.memory = { ...summarizeGate(settled.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), settled: stableMemory, observations: memory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
-  for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
+  const oneDocumentMemory = memory.filter(sample => sample.run === "settled-memory");
+  const fiveTabMemory = memory.filter(sample => sample.run === "five-tab-memory");
+  const stableMemory = settledMemory(oneDocumentMemory);
+  const settled = stableMemory ? oneDocumentMemory.slice(-5) : [];
+  receipt.gates.memory = { ...summarizeGate(settled.map((sample) => sample.physicalBytes / 1_000_000), 200, 5, "median"), settled: stableMemory, observations: oneDocumentMemory.length, unit: "MB decimal", metric: process.platform === "win32" ? "private working set" : "ri_phys_footprint", rssMB: { median: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.5), p95: percentile(settled.map((sample) => sample.rssBytes / 1_000_000), 0.95) } };
+  for (const panes of typingPaneCounts) for (const method of ["native", "cdp"] as const) for (const mode of smoke ? ["source"] : ["live", "source", "split"]) for (const position of smoke ? ["top"] : ["top", "middle", "end"]) {
     if (typingCases && !typingCases.includes(`${mode}/${position}/${method}`)) continue;
-    const sample = typing.find((value) => value.method === method && value.mode === mode && value.position === position);
+    const sample = typing.find((value) => value.panes === panes && value.method === method && value.mode === mode && value.position === position);
     const keydown = sample?.eventTiming.keydown;
     const p95 = keydown?.p95;
-    receipt.gates[`typing/${method}/${mode}/${position}`] = {
+    receipt.gates[`typing/${panes}/${method}/${mode}/${position}`] = {
       ...calibratedTyping(p95 ?? null, sample?.controls.find(value => value.kind === "textarea")?.eventTiming.keydown.p95 ?? null, sample?.displayFrameMs ?? null, keydown?.total ?? 0, smoke ? 4 : 40),
       median: keydown?.p50 ?? null, p95: p95 ?? null, p99: keydown?.p99 ?? null,
       eventTiming: sample?.eventTiming ?? null, controls: sample?.controls ?? null, observedFrameMs: sample?.frameMs ?? null,
@@ -466,10 +524,18 @@ export async function perfGate(): Promise<void> {
     const group = name.startsWith("process-cold") ? "cold" : name.startsWith("first-screen/") ? "resident-new-file-miss" : name.split("/")[0]!;
     if (!includes(group) || fixtureFilter && name.includes("/") && !name.startsWith("typing/") && !fixtureFilter.includes(name.split("/")[1]!)) delete receipt.gates[name];
   }
-  receipt.gates["tab-switch-100k"] = { status: "n/a", reason: "Not applicable yet. Tabs do not exist.", target: 50 };
-  receipt.gates["typing-two-panes"] = typingPanes === 2 && includes("typing")
-    ? { status: typing.length && Object.entries(receipt.gates).filter(([name]) => name.startsWith("typing/")).every(([, gate]) => (gate as { status: string }).status === "pass") ? "pass" : "fail", reason: "Two visible 100k CodeMirror instances share the real editor configuration. Trusted input targets the first; the second remains mounted at the matching position." }
-    : { status: "n/a", reason: "Run with --two-panes to simulate a second visible CodeMirror instance. Split is the existing source plus preview mode." };
+  if (includes("tab-switch-100k")) receipt.gates["tab-switch-100k"] = summarizeGate(tabSwitch, 50, smoke ? 2 : 20);
+  if (includes("typing")) receipt.gates["typing-two-panes"] = {
+    status: typing.filter(sample => sample.panes === 2).length > 0 && Object.entries(receipt.gates).filter(([name]) => name.startsWith("typing/2/")).every(([, gate]) => (gate as { status: string }).status === "pass") ? "pass" : "fail",
+    cases: typing.filter(sample => sample.panes === 2).length,
+    reason: "Two different 100k documents mounted through the production tab and pane controllers. Every mode, position and input method uses matched controls and verifies saved bytes.",
+  };
+  if (includes("memory")) receipt.gates["five-tab-memory"] = {
+    status: settledMemory(fiveTabMemory) ? "pass" : "fail", documents: 5, visible: 1,
+    physicalMB: percentile(fiveTabMemory.slice(-5).map(sample => sample.physicalBytes / 1_000_000), 0.5),
+    rssMB: percentile(fiveTabMemory.slice(-5).map(sample => sample.rssBytes / 1_000_000), 0.5),
+    observations: fiveTabMemory.length, target: null, reason: "Reported memory with five medium tabs. The 200 MB ceiling applies to one document.",
+  };
   receipt.gates.correctness = { status: failures.length ? "fail" : "pass", failures };
   receipt.loadAverageEnd = os.loadavg();
   const output = path.join(root, "receipt.json");

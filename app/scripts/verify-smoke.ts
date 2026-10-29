@@ -293,7 +293,7 @@ await test("mdx-ranges-only", async () => {
     { wait: 500 },
   ], "edit");
   const logs = fs.readFileSync(path.join(root, 'mdx-ranges-only/electron.log'), 'utf8');
-  assert((logs.match(/doc-sent name=note.mdx blocks=0 intent=edit/g) ?? []).length === 2, 'Source or Live opened MDX with a full render.');
+  assert((logs.match(/doc-sent name=note.mdx blocks=0 intent=edit/g) ?? [] ).length === 1, 'Focusing existing MDX reopened or fully rendered it.');
   assert(logs.split('mdx-ranges-done').length >= 3, 'Source and Live did not request ranges.');
   assert(!logs.includes('render-done'), 'Source or Live requested a full MDX render.');
 });
@@ -838,6 +838,151 @@ await test("bytes-metadata", async () => {
   assert.equal(run("xattr", "-lx", file), attributes, "Save dropped or changed an extended attribute or Finder tag.");
   assert.equal(run("ls", "-le", file).split("\n").slice(1).join("\n"), acl, "Save changed the ACL.");
   assert.equal(fs.statSync(file).mode & 0o777, 0o640, "Save changed permissions.");
+});
+
+await test("tabs-panes", async () => {
+  const aText = "\uFEFF# Tab A\r\n\r\n[Sibling](b.md)\r\nTail";
+  const bText = "# Tab B\n\nSecond document.\n";
+  const a = fixture("tabs-panes/a.md", aText), b = fixture("tabs-panes/b.md", bText);
+  const shots = path.resolve(appRoot, "../.audit/m5a");
+  fs.mkdirSync(shots, { recursive: true });
+  await launch("tabs-panes", a, [
+    ...appendCharacter("!"),
+    evaluate(`window.tabA = Number(document.documentElement.dataset.documentId);
+      await window.simplemd.openPath(${quote(b)}, 'edit');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Second tab did not mount.');
+      window.tabB = Number(document.documentElement.dataset.documentId);
+      assert(document.querySelectorAll('[role="tab"]').length === 2, 'Missing tabs.');
+      assert(document.querySelectorAll('.cm-editor').length === 1, 'Inactive editor stayed mounted.');
+      await window.simplemd.openPath(${quote(a)}, 'edit');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Existing tab did not focus.');
+      assert(document.querySelectorAll('[role="tab"]').length === 2, 'Existing open duplicated a tab.');
+      assert(document.querySelector('.cm-content').cmTile.root.view.state.doc.toString().endsWith('Tail!'), 'Unsaved text lost.');
+      window.simplemd.command('undo');
+      await waitFor(() => !document.querySelector('.cm-content').cmTile.root.view.state.doc.toString().endsWith('!'), 'Undo lost across remount.');
+      window.simplemd.command('redo');
+      await waitFor(() => document.querySelector('.cm-content').cmTile.root.view.state.doc.toString().endsWith('!'), 'Redo lost across remount.');`),
+    { shot: path.join(shots, "one-pane.png") },
+    { save: true },
+    evaluate(`window.simplemd.command('split-panes');
+      await waitFor(() => document.querySelectorAll('.cm-editor').length === 2, 'Two panes did not mount.');
+      const all = [...document.querySelectorAll('.document-pane')];
+      assert(all.every(p => p.getBoundingClientRect().width > 200), 'Pane has no visible width.');
+      window.simplemd.command('mode-live');
+      await window.simplemd.focusPane(Number(all[1].dataset.paneId));
+      window.simplemd.command('mode-split');
+      await waitFor(() => all[1].querySelector('[data-element="edit"]').dataset.mode === 'split', 'Second mode did not change.').catch(error => { throw new Error(error.message + JSON.stringify(all.map(p => ({ active: p.dataset.active, pane: p.dataset.paneId, id: p.dataset.documentId, mode: p.querySelector('[data-element=edit]').dataset.mode })))); });
+      assert(all[0].querySelector('[data-element="edit"]').dataset.mode === 'live', 'Mode leaked between panes.');
+      all[0].querySelector('[data-element="editor-host"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      await waitFor(() => all[0].dataset.active === 'true', 'Click did not focus first pane.');`),
+    { windowCount: 1 },
+    { shot: path.join(shots, "two-panes.png") },
+    evaluate(`window.simplemd.command('stack-panes');
+      await waitFor(() => document.querySelector('#stage').dataset.axis === 'vertical', 'Stack layout did not apply.');
+      const all = [...document.querySelectorAll('.document-pane')];
+      assert(all[1].getBoundingClientRect().top > all[0].getBoundingClientRect().top, 'Panes did not stack.');`),
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(a), Buffer.from(aText + "!"), "Tab remount or undo changed untouched bytes.");
+  assert.deepEqual(fs.readFileSync(b), Buffer.from(bText), "Other pane changed saved bytes.");
+});
+
+for (const response of [0, 1] as const) await test(`tabs-dirty-close-${response === 0 ? "save" : "discard"}`, async () => {
+  const a = fixture(`tabs-close-${response}/a.md`, note), b = fixture(`tabs-close-${response}/b.md`, "# Other\n");
+  await launch(`tabs-close-${response}`, a, [
+    ...appendCharacter("!"),
+    evaluate(`window.closeId = Number(document.documentElement.dataset.documentId); await window.simplemd.openPath(${quote(b)}, 'edit');`),
+    { dialog: { response } },
+    evaluate(`assert(await window.simplemd.closeTab(window.closeId), 'Dirty close failed.');
+      await waitFor(() => document.querySelectorAll('[role="tab"]').length === 1, 'Closed tab remains.');
+      assert(document.querySelector('#tabs').hidden, 'Single tab strip stayed visible.');`),
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(a), Buffer.from(note + (response === 0 ? "!" : "")));
+});
+
+await test("tabs-render-in-flight", async () => {
+  const source = "\uFEFF# Render A\r\n\r\n" + "```ts\r\nconst n = 1;\r\n```\r\n".repeat(200);
+  const a = fixture("tabs-render/a.md", source), b = fixture("tabs-render/b.md", "# Render B\n");
+  await launch("tabs-render", a, [
+    ...appendCharacter("!"),
+    evaluate(`window.renderA = Number(document.documentElement.dataset.documentId);
+      const revision = Number(document.documentElement.dataset.revisionId);
+      window.lateRender = window.simplemd.renderBlocks(${quote(source + "!")}, window.renderA, revision).then(result => result, error => String(error));
+      await window.simplemd.openPath(${quote(b)}, 'edit');
+      await window.lateRender;
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'B did not mount.');
+      assert(document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() === '# Render B\\n', 'Late A render replaced B.');
+      await window.simplemd.activateTab(window.renderA);
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'A did not remount.');`),
+    { save: true },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(a), Buffer.from(source + "!"));
+  assert.deepEqual(fs.readFileSync(b), Buffer.from("# Render B\n"));
+});
+
+await test("tabs-sibling-command-click", async () => {
+  const a = fixture("tabs-links/a.md", "# Link A\n\n[Sibling](b.md)\n"), b = fixture("tabs-links/b.md", "# Link B\n");
+  await launch("tabs-links", a, [
+    evaluate(`document.querySelector('#doc a').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ${process.platform === "darwin" ? "metaKey" : "ctrlKey"}: true }));
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Modified click did not open sibling.');
+      assert(document.querySelectorAll('[role="tab"]').length === 2, 'Modified click replaced current tab.');
+      await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId));
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Link origin did not return.');
+      document.querySelector('#doc a').click();
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Plain click did not navigate.');
+      assert(document.querySelectorAll('[role="tab"]').length === 1, 'Plain click created another tab.');
+      window.simplemd.command('nav-back');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Back did not navigate.');
+      window.simplemd.command('nav-forward');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Forward did not navigate.');`),
+  ]);
+});
+
+await test("tabs-windows", async () => {
+  const a = fixture("tabs-windows/a.md", note), b = fixture("tabs-windows/b.md", "# Separate window\n");
+  await launch("tabs-windows", a, [
+    ...appendCharacter("!"),
+    evaluate(`window.simplemd.command('move-tab-window');`),
+    { visibility: false },
+    { windowCount: 2 },
+    { save: true },
+    evaluate(`await window.simplemd.openPath(${quote(a)}, 'edit');`),
+    { windowCount: 2 },
+    evaluate(`await window.simplemd.setSettings({ openIn: 'window' }); await window.simplemd.openPath(${quote(b)}, 'edit');`),
+    { windowCount: 3 },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(a), Buffer.from(note + "!"), "Moving a dirty tab lost unsaved bytes.");
+});
+
+await test("tabs-scroll-selection-shortcuts", async () => {
+  const source = ("# Scroll\n\nA paragraph with enough text to fill the editor.\n\n").repeat(1800).slice(0, 100000);
+  const a = fixture("tabs-scroll/a.md", source), b = fixture("tabs-scroll/b.md", "# Next\n");
+  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+    { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
+  ];
+  await launch("tabs-scroll", a, [
+    evaluate(`window.scrollId = Number(document.documentElement.dataset.documentId);
+      const view = document.querySelector('.cm-content').cmTile.root.view;
+      view.dispatch({ selection: { anchor: 50000 }, scrollIntoView: true });
+      await waitFor(() => view.scrollDOM.scrollTop > 1000, 'Scroll did not move.');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      window.savedScroll = view.scrollSnapshot().value;
+      await window.simplemd.openPath(${quote(b)}, 'edit');
+      await window.simplemd.activateTab(window.scrollId);
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Scrolled tab did not return.');
+      const restored = document.querySelector('.cm-content').cmTile.root.view;
+      assert(restored.state.selection.main.head === 50000, 'Selection lost across switch.');
+      await waitFor(() => { const scroll = restored.scrollSnapshot().value; return scroll.range.head === window.savedScroll.range.head && Math.abs(scroll.yMargin - window.savedScroll.yMargin) < 3; }, 'Visible source position lost across switch.');`),
+    ...key("Tab", ["control"]),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Control-Tab did not cycle.');`),
+    ...key("1", [mod]),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Tab number did not jump.');`),
+    ...key("T", [mod]),
+    evaluate(`await waitFor(() => document.querySelectorAll('[role="tab"]').length === 3, 'New tab shortcut failed.');`),
+    ...key("W", [mod]),
+    evaluate(`await waitFor(() => document.querySelectorAll('[role="tab"]').length === 2, 'Close tab shortcut failed.');`),
+    { windowCount: 1 },
+  ], "edit");
+  assert.deepEqual(fs.readFileSync(a), Buffer.from(source));
 });
 
 const blog = process.env.SMD_BYTE_BLOG_DIR;
