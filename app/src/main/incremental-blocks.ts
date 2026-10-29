@@ -6,6 +6,8 @@ export class IncrementalBlocks {
   private previous: { text: string; blocks: RenderedBlock[] } | undefined;
   private sequence = 0;
 
+  seed(text: string, result: RenderedBlocks): void { this.previous = { text, blocks: result.blocks }; }
+
   identify(text: string, result: RenderedBlocks): RenderedBlocks {
     const previous = this.previous;
     const before = previous?.text.split(/\r\n|[\r\n]/) ?? [];

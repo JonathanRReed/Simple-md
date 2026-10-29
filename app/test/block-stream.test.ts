@@ -47,3 +47,22 @@ test("a huge document sends a prefix and bounded block batches before the final 
   expect(appends).toBeGreaterThan(1);
   expect(blocks).toEqual((await renderBlocks(text, '/tmp/huge.md')).blocks);
 });
+
+test("nested fences and MDX child fences receive their final highlight patches", async () => {
+  for (const [text, file] of [
+    ['# Nested\n\n> ```ts\n> const x = 1\n> ```', '/tmp/nested.md'],
+    ['# MDX\n\n<Box>\n\n```ts\nconst x = 1\n```\n\n</Box>', '/tmp/child.mdx'],
+  ]) {
+    const streams = new BlockStreams();
+    const first = await streams.start(text!, file!);
+    let blocks = first.blocks;
+    for (;;) {
+      const update = await streams.next(first.stream!);
+      if (update.kind === 'done') break;
+      blocks = applyBlockUpdate(blocks, update);
+    }
+    const oracle = await renderBlocks(text!, file!);
+    expect(blocks.map(block => block.html)).toEqual(oracle.blocks.map(block => block.html));
+    expect(blocks.map(block => block.html).join('')).toContain('class="shiki');
+  }
+});

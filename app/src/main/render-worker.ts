@@ -14,7 +14,7 @@ export type RenderCommand =
   | { kind: "fragment"; text: string; baseDir: string | undefined }
   | { kind: "mdx-ranges"; text: string }
   | { kind: "stream-start"; text: string; filePath: string | null }
-  | { kind: "stream-next"; stream: number }
+  | { kind: "stream-next"; stream: number; text?: string }
   | { kind: "warmup" };
 
 export type RenderRequest = RenderCommand & { id: number };
@@ -31,8 +31,11 @@ export type RenderResponse =
 const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
-const streams = new BlockStreams();
 let incremental: { filePath: string | null; blocks: IncrementalBlocks } | undefined;
+const streams = new BlockStreams((text, filePath, result) => {
+  incremental = { filePath, blocks: new IncrementalBlocks() };
+  incremental.blocks.seed(text, result);
+});
 
 port.on("message", async (request: RenderRequest) => {
   perfMark("worker-receive", { requestId: request.id });
@@ -40,9 +43,11 @@ port.on("message", async (request: RenderRequest) => {
     let response: RenderResponse;
     switch (request.kind) {
       case "stream-start":
+        incremental = undefined;
         response = { id: request.id, kind: "blocks", value: await streams.start(request.text, request.filePath) };
         break;
       case "stream-next":
+        if (request.text !== undefined) streams.resume(request.stream, request.text);
         response = { id: request.id, kind: "stream-next", value: await streams.next(request.stream) };
         break;
       case "blocks": {

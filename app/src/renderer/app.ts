@@ -155,7 +155,7 @@ async function appendStream(payload: DocPayload, id: number): Promise<void> {
       const update = await simplemd.nextBlocks(stream, id);
       if (id !== documentId || seq !== readRenderSeq || view !== "read") return;
       if (update.kind === "done") {
-        lastGoodBlocks = blocks;
+        if (!payload.mdx?.error) lastGoodBlocks = blocks;
         simplemd.perfMarker(id, "fully-highlighted");
         root.dataset.fullyHighlighted = payload.path ?? "";
         root.dataset.renderComplete = payload.path ?? "";

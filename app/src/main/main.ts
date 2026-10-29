@@ -925,10 +925,11 @@ function registerIpc(): void {
   });
   handle("smd:render-blocks", async (value, id) => {
     const text = ipcText(value);
-    ipcDocument(id);
+    const documentId = ipcDocument(id);
     const out = await renderBlocks(text, current.path);
+    ipcDocument(documentId);
     trace("render-done");
-    return documentDelta(current.documentId, out);
+    return documentDelta(documentId, out);
   });
   handle("smd:mdx-ranges", async (value, id) => {
     const text = ipcText(value);

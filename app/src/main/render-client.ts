@@ -1,3 +1,4 @@
+import { applyBlockUpdate } from "../shared/block-update.js";
 import { cacheBudget } from "./cache-budget.js";
 import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
 import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
@@ -35,6 +36,7 @@ function isResponse(value: unknown): value is RenderResponse {
 
 export class RenderClient {
   private worker: Worker | undefined;
+  private deferredSource: { stream: number; text: string } | undefined;
   private retainedBlocks: RenderedBlocks["blocks"] = [];
   private sequence = 0;
   private active: Pending | undefined;
@@ -56,13 +58,17 @@ export class RenderClient {
   }
 
   async startBlocks(text: string, filePath: string | null): Promise<RenderedBlocks> {
-    const response = await this.request({ kind: "stream-start", text, filePath });
+    const deferred = text.length > 256 * 1024 && !/\.mdx$/i.test(filePath ?? "");
+    const response = await this.request({ kind: "stream-start", text: deferred ? text.slice(0, 8192) : text, filePath });
     if (response?.kind !== "blocks") throw new Error("Invalid stream response");
+    this.deferredSource = deferred && response.value.stream !== undefined ? { stream: response.value.stream, text } : undefined;
     return response.value;
   }
 
   async nextBlocks(stream: number): Promise<BlockUpdate> {
-    const response = await this.request({ kind: "stream-next", stream });
+    const text = this.deferredSource?.stream === stream ? this.deferredSource.text : undefined;
+    if (text !== undefined) this.deferredSource = undefined;
+    const response = await this.request({ kind: "stream-next", stream, ...(text !== undefined ? { text } : {}) });
     if (response?.kind !== "stream-next") throw new Error("Invalid stream update");
     return response.value;
   }
@@ -147,6 +153,8 @@ export class RenderClient {
               return;
             }
           }
+          if (this.active.request.kind === "stream-start" && validResponse.kind === "blocks") this.retainedBlocks = validResponse.value.blocks;
+          if (validResponse.kind === "stream-next") this.retainedBlocks = applyBlockUpdate(this.retainedBlocks, validResponse.value);
           clearTimeout(this.timer);
           const active = this.active;
           this.active = undefined;
@@ -175,6 +183,7 @@ export class RenderClient {
     const worker = this.worker;
     this.worker = undefined;
     this.retainedBlocks = [];
+    this.deferredSource = undefined;
     this.active?.reject(error);
     this.active = undefined;
     for (const pending of this.foreground) pending.reject(error);
