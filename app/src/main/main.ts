@@ -295,7 +295,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
   const isMdx = path.extname(file ?? "").toLowerCase() === ".mdx";
-  if (!readOnlyReason && intent === "edit" && settings.mode !== "split" && (settings.mode === "source" || isMdx)) {
+  if (!readOnlyReason && intent === "edit" && settings.mode !== "split") {
     title = file ? path.basename(file) : "Untitled";
     blocks = [];
     if (isMdx) mdx = await mdxRanges(text);
