@@ -1,8 +1,15 @@
-import type { MarkdownIt } from "markdown-it";
-import { renderToString } from "katex";
+import type { MarkdownIt, Token } from "markdown-it";
+
+let renderToString: typeof import("katex").renderToString | undefined;
+
+export async function prepareMath(tokens: Token[]): Promise<void> {
+  const hasMath = (items: Token[]): boolean => items.some(token => token.type === "math_inline" || token.type === "math_block" ||
+    token.type === "fence" && token.info.trim() === "math" || token.children !== null && hasMath(token.children));
+  if (!renderToString && hasMath(tokens)) renderToString = (await import("katex")).renderToString;
+}
 
 export function githubMath(md: MarkdownIt): void {
-  const render = (source: string, displayMode: boolean) => renderToString(source, {
+  const render = (source: string, displayMode: boolean) => renderToString!(source, {
     displayMode, throwOnError: false, trust: false, strict: "ignore", maxSize: 20, maxExpand: 1000,
     // A fresh macro table prevents definitions from leaking into another equation or document.
     macros: {},

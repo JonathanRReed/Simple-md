@@ -3,6 +3,7 @@ import type { MdxRange, MdxParseError, MdxRanges } from "./mdx-ranges.js";
 import { mapMdxPreview, type MdxPreview } from "./mdx-preview.js";
 import type { Token } from "markdown-it";
 import { createMarkdownParser } from "./markdown-parser.js";
+import { prepareMath } from "./github-math.js";
 import { resolveAuthorUrl, type UrlContext } from "./url-resolver.js";
 import { type RenderedHtml, type RenderNode } from "./render-tree.js";
 import GithubSlugger from "github-slugger";
@@ -280,6 +281,7 @@ export function createRenderCore(services: RenderServices = {}) {
       const renderChild = async (preview: MdxPreview, inline: boolean): Promise<RenderNode> => {
         const childEnv = { ...env, mdxNodes: preview.nodes };
         const childTokens = inline ? md.parseInline(preview.text.trim(), childEnv) : md.parse(preview.text, childEnv);
+        await prepareMath(childTokens);
         if (highlighted) await services.prepareHighlighting?.(childTokens);
         return planSequence(childTokens, childEnv, false);
       };
@@ -292,6 +294,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const tokens = md.parse(text, env);
     services.mark?.("parse-end");
     services.mark?.("highlight-prepare-start");
+    await prepareMath(tokens);
     if (highlighted) await services.prepareHighlighting?.(tokens);
     services.mark?.("highlight-prepare-end");
 
@@ -314,7 +317,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const result = (): RenderedBlocks => ({ ...(mdx ? { mdx } : {}), title: title ?? (filePath ? filePath.split(/[/\\]/).pop()!.replace(/\.[^.]*$/, "") : "Untitled"), blocks });
     const seenKeys = new Map<string, number>();
     if (raw !== undefined) {
-      const html = renderFrontmatter(raw);
+      const html = await renderFrontmatter(raw);
       blocks.push({ key: "fm" + hash(raw), fingerprint: hash(html + JSON.stringify(env.urls)), html, urls: env.urls, sourceRange: [0, offset] });
     }
     for (const group of balancedGroups) {
@@ -363,6 +366,7 @@ export function createRenderCore(services: RenderServices = {}) {
     highlighting = true;
     const env: RenderEnv = { baseDir, urls: services.urls?.(baseDir, false) ?? {} };
     const tokens = md.parse(text, env);
+    await prepareMath(tokens);
     await services.prepareHighlighting?.(tokens);
     return { html: md.renderer.render(tokens, md.options, env), urls: env.urls,
       ...(hasAuthor(tokens) ? { content: planSequence(tokens, env, false) } : {}) };
