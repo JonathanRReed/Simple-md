@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { perfMark } from "./perf.js";
 import { urlContext } from "./document-urls.js";
 import type { Token } from "markdown-it";
@@ -77,6 +78,7 @@ function highlight(code: string, lang: string): string {
 
 const core = createRenderCore({
   prepareHighlighting,
+  hash: (text) => createHash("sha256").update(text).digest("hex"),
   highlight: (code, lang) => highlighter?.getLoadedLanguages().includes(lang) ? highlight(code, lang) : "",
   urls: urlContext,
   mark: perfMark,
