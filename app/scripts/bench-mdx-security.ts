@@ -7,7 +7,7 @@ const result = await Bun.build({ entrypoints: [path.resolve(import.meta.dir, "..
 if (!result.success) throw new Error(result.logs.join("\n"));
 await fs.writeFile(path.join(out, "bench.mjs"), `
 import { RenderClient } from './render-client.mjs';
-const fixtures = [5000, 20000].map(n => ({name: n + '-paragraphs', source: Array.from({length:n}, (_, i) => 'Paragraph ' + i + ' with {value} here.').join('\\n\\n'), count:n}));
+const fixtures = [5000, 20000].map(n => ({name: n + '-paragraphs', source: Array.from({length:n}, (_, i) => 'Paragraph ' + i + ' with {value} here').join('\\n\\n'), count:n}));
 fixtures.push({name:'5000-nested-b', source:'<b>'.repeat(5000) + 'KEEP_DEEP_CONTENT' + '</b>'.repeat(5000), count:5000});
 for (const fixture of fixtures) {
   const client = new RenderClient();
