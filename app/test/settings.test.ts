@@ -20,10 +20,9 @@ test("login is opt-in for missing, corrupt and non-boolean settings", () => {
   expect(loadSettings(settingsFile()).launchAtLogin).toBe(false);
 });
 
-test("untrusted settings cannot inject invalid bounds or crash shortcut setup", () => {
+test("untrusted settings cannot inject invalid bounds", () => {
   const s = sanitizeSettings({ bounds: { x: 0, y: 0, width: -1, height: 600 }, shortcut: 42, zoom: Infinity, mode: "unknown", recents: [3, "note.md"] });
   expect(s.bounds).toBeUndefined();
-  expect(s.shortcut).toBe("CommandOrControl+Shift+Space");
   expect(s.zoom).toBe(1);
   expect(s.mode).toBe("live");
   expect(s.recents).toEqual(["note.md"]);
@@ -137,4 +136,19 @@ test("remote images default on and persist an explicit boolean preference", () =
   flushSettings();
   expect(loadSettings(file).remoteImages).toBe(false);
   expect(patchSettings(loadSettings(file), { remoteImages: true }).remoteImages).toBe(true);
+});
+
+test("obsolete preview settings load, patch and save without retaining their keys", () => {
+  const file = settingsFile();
+  fs.writeFileSync(file, JSON.stringify({ theme: "dark", recents: ["note.md"], shortcut: { invalid: true }, spacePreview: true, peekPrompted: true }));
+  const settings = loadSettings(file);
+  expect(settings.theme).toBe("dark");
+  expect(settings.recents).toEqual(["note.md"]);
+  const next = patchSettings(settings, { shortcut: null, spacePreview: false, peekPrompted: false, mode: "source" });
+  expect(next.mode).toBe("source");
+  saveSettings(next, file);
+  flushSettings();
+  for (const value of [settings, next, JSON.parse(fs.readFileSync(file, "utf8"))]) {
+    for (const key of ["shortcut", "spacePreview", "peekPrompted"]) expect(value).not.toHaveProperty(key);
+  }
 });

@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { normalizeShortcut } from "./shortcuts.js";
 import { DEFAULT_SETTINGS, ZOOM_MAX, ZOOM_MIN, type Settings } from "../shared/types.js";
 
 const record = (raw: unknown): raw is Record<string, unknown> => raw !== null && typeof raw === "object" && !Array.isArray(raw);
@@ -14,10 +13,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;
   if (r.typeface === "sans" || r.typeface === "serif") s.typeface = r.typeface;
   if (typeof r.zoom === "number" && Number.isFinite(r.zoom)) s.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, r.zoom));
-  if (r.shortcut !== undefined) {
-    try { s.shortcut = normalizeShortcut(r.shortcut); } catch { s.shortcut = DEFAULT_SETTINGS.shortcut; }
-  }
-  for (const key of ["autosave", "spacePreview", "launchAtLogin", "vim", "spellcheck", "peekPrompted", "remoteImages"] as const) {
+  for (const key of ["autosave", "launchAtLogin", "vim", "spellcheck", "remoteImages"] as const) {
     if (typeof r[key] === "boolean") s[key] = r[key];
   }
   if (Array.isArray(r.recents)) s.recents = r.recents.filter((p): p is string => typeof p === "string").slice(0, 12);
@@ -79,8 +75,5 @@ export function saveSettings(s: Settings, settingsFile: string): void {
 }
 
 export function patchSettings(current: Settings, patch: unknown): Settings {
-  if (record(patch) && "shortcut" in patch) {
-    return sanitizeSettings({ ...current, ...patch, shortcut: normalizeShortcut(patch.shortcut) });
-  }
   return sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
 }

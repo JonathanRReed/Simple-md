@@ -56,8 +56,8 @@ contextBridge.exposeInMainWorld("simplemd", {
   print: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:print", text, documentId),
 
   openDialog: () => ipcRenderer.invoke("smd:open-dialog"),
-  openPath: (p: string, intent?: "peek" | "edit") => ipcRenderer.invoke("smd:open-path", p, intent, activeDocumentId),
-  openLink: (href: string, intent?: "peek" | "edit") => ipcRenderer.invoke("smd:open-link", href, intent, activeDocumentId),
+  openPath: (p: string, intent?: "read" | "edit") => ipcRenderer.invoke("smd:open-path", p, intent, activeDocumentId),
+  openLink: (href: string, intent?: "read" | "edit") => ipcRenderer.invoke("smd:open-link", href, intent, activeDocumentId),
   setSettings: (patch: unknown) => ipcRenderer.invoke("smd:set-settings", patch),
   command: (cmd: string) => ipcRenderer.send("smd:command", cmd, activeDocumentId),
   hide: () => ipcRenderer.send("smd:hide", activeDocumentId),

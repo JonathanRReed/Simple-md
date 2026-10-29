@@ -162,7 +162,7 @@ async function startupBench(): Promise<void> {
       const profile = path.join(root, `profile-${sample}`);
       fs.mkdirSync(profile);
       fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({
-        mode: "split", autosave: false, spacePreview: false, launchAtLogin: false, recents: [],
+        mode: "split", autosave: false, launchAtLogin: false, recents: [],
       }));
       const env: NodeJS.ProcessEnv = { ...process.env, SMD_TRACE: "1", SMD_DRIVE: drive, SMD_USER_DATA: profile, SMD_INTENT: "edit" };
       delete env.ELECTRON_RUN_AS_NODE;

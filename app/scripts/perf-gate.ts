@@ -177,12 +177,12 @@ export async function perfGate(): Promise<void> {
   function profile(name: string, mode = "source") {
     const directory = path.join(root, name);
     fs.mkdirSync(directory, { recursive: true });
-    fs.writeFileSync(path.join(directory, "settings.json"), JSON.stringify({ mode, autosave: false, spacePreview: false, launchAtLogin: false, peekPrompted: true, spellcheck: false, recents: [] }));
+    fs.writeFileSync(path.join(directory, "settings.json"), JSON.stringify({ mode, autosave: false, launchAtLogin: false, spellcheck: false, recents: [] }));
     return directory;
   }
   const targetDirectory = path.join(root, "native");
   const helper = path.join(targetDirectory, "release", `perf-memory${process.platform === "win32" ? ".exe" : ""}`);
-  async function launch(name: string, file: string, userData: string, steps: DriverStep[], intent = "peek") {
+  async function launch(name: string, file: string, userData: string, steps: DriverStep[], intent = "read") {
     const directory = path.join(root, name);
     fs.mkdirSync(directory, { recursive: true });
     const drive = path.join(directory, "drive.json");
@@ -260,7 +260,7 @@ export async function perfGate(): Promise<void> {
     const smallFile = path.join(fixtureDirectory, "small.md");
     const coldFiles = ["small.md", "medium.md"];
     const reused = profile("cold-reused");
-    if (includes("cold")) await launch("seed-reused", smallFile, reused, [assertDocument(smallFile, fixtureText["small.md"]!), evaluate(`await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "medium.md"))}, 'peek');`), assertDocument(path.join(fixtureDirectory, "medium.md"), fixtureText["medium.md"]!), { wait: 500 }]);
+    if (includes("cold")) await launch("seed-reused", smallFile, reused, [assertDocument(smallFile, fixtureText["small.md"]!), evaluate(`await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "medium.md"))}, 'read');`), assertDocument(path.join(fixtureDirectory, "medium.md"), fixtureText["medium.md"]!), { wait: 500 }]);
     for (let i = 0; includes("cold") && i < count; i++) {
       for (const state of ["process-cold-fresh-profile", "process-cold-reused-profile"] as const) await attempt(`${state}-${i}`, async () => {
         const fixture = coldFiles[i % coldFiles.length]!;
@@ -279,12 +279,12 @@ export async function perfGate(): Promise<void> {
         const scheduled: { file: string; sample: number; barrier: string }[] = [];
         const steps: DriverStep[] = [{ diagnostics: "environment" }, assertDocument(smallFile, fixtureText["small.md"]!)];
         const original = path.join(fixtureDirectory, fixture);
-        if (state !== "resident-new-file-miss") steps.push(evaluate(`if (!(await window.simplemd.openPath(${quote(original)}, 'peek'))) throw new Error('Warm seed failed');`), assertDocument(original, fixtureText[fixture]!));
+        if (state !== "resident-new-file-miss") steps.push(evaluate(`if (!(await window.simplemd.openPath(${quote(original)}, 'read'))) throw new Error('Warm seed failed');`), assertDocument(original, fixtureText[fixture]!));
         for (let sample = 0; sample < count; sample++) {
           let file = original;
           if (state === "resident-new-file-miss") { file = path.join(fixtureDirectory, `miss-${sample}-${fixture}`); fs.copyFileSync(original, file); }
           if (state === "A-to-B-to-A") {
-            steps.push(evaluate(`if (!(await window.simplemd.openPath(${quote(file)}, 'peek'))) throw new Error('A seed open failed');`), assertDocument(file, fixtureText[fixture]!), evaluate(`if (!(await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "typing-100k.md"))}, 'peek'))) throw new Error('B seed open failed');`));
+            steps.push(evaluate(`if (!(await window.simplemd.openPath(${quote(file)}, 'read'))) throw new Error('A seed open failed');`), assertDocument(file, fixtureText[fixture]!), evaluate(`if (!(await window.simplemd.openPath(${quote(path.join(fixtureDirectory, "typing-100k.md"))}, 'read'))) throw new Error('B seed open failed');`));
           }
           const barrier = `${state}-${sample}-${fixture}`;
           if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
@@ -293,7 +293,7 @@ export async function perfGate(): Promise<void> {
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
           steps.push({ barrier }, { record: { name: barrier, eval: `(async () => {
             try {
-              if (!(await window.simplemd.openPath(${quote(file)}, 'peek'))) throw new Error('Measured open failed');
+              if (!(await window.simplemd.openPath(${quote(file)}, 'read'))) throw new Error('Measured open failed');
               await ${assertion.eval};
               return true;
             } catch (error) { return String(error); }

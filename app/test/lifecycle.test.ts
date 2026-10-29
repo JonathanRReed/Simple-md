@@ -120,3 +120,21 @@ test("the delayed disk acknowledgement conflict preserves real B bytes and local
     }
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });
+
+test("normal opens settle before refresh and present the refreshed disk payload", async () => {
+  const events: string[] = [];
+  let canSettle = false;
+  const a = {
+    prepare: async () => { events.push("prepare"); return "before"; },
+    transition: async (operation: () => Promise<boolean>) => operation(),
+    settle: async () => { events.push("settle"); return canSettle; },
+    refresh: async (_prepared: string) => { events.push("refresh"); return "after"; },
+    present: async (prepared: string) => { events.push(`present ${prepared}`); },
+  };
+  expect(await openPreparedDocument(a)).toBe(false);
+  expect(events).toEqual(["prepare", "settle"]);
+  events.length = 0;
+  canSettle = true;
+  expect(await openPreparedDocument(a)).toBe(true);
+  expect(events).toEqual(["prepare", "settle", "refresh", "present after"]);
+});

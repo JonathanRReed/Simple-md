@@ -1,10 +1,10 @@
 # SimpleMD
 
-A Markdown viewer and editor for macOS, Windows, and Linux. The current app lives in [`app/`](app/). It uses Electron, TypeScript, Bun, and a Rust helper for file-manager previews.
+A Markdown viewer and editor for macOS, Windows, and Linux. The current app lives in [`app/`](app/). It uses Electron, TypeScript, Bun, and a Rust helper for macOS save metadata.
 
 Choose Live, Source, or Side by side editing for Markdown and MDX. Read with syntax highlighting, math, diagrams, and local images. MDX imports stay hidden in read view. Components and expressions appear as inert placeholders.
 
-Open **Preferences** from the app menu, toolbar, or Command/Control+, to change the theme, editing defaults, text size, autosave, Vim, spelling, and preview settings. Changes save automatically.
+Open **Preferences** from the app menu, toolbar, or Command/Control+, to change the theme, editing defaults, text size, autosave, Vim, spelling, and launch behavior. Changes save automatically.
 
 Settings and recent documents migrate automatically from the old profile, without caches. You can remove an old Simple-md.app or Windows install by hand.
 
@@ -40,7 +40,9 @@ See the [app guide](app/README.md) for controls, platform limits, packaging, and
 
 ## File-manager previews
 
-On macOS, the Rust helper supports Space previews in Finder with Accessibility permission. It reads the current selection through Accessibility and resolves file URLs outside the key callback. The separate Command-Shift-Space fallback may request Automation access to Finder and System Events. On Windows, use Open With or the global shortcut. On Linux, open a note through the app or the file manager's Open With menu. Linux has no portable bare-Space hook or selected-file lookup. See [Linux integration](app/integrations/linux/README.md).
+macOS previews use the Quick Look preview and thumbnail extensions described in [the integration spec](docs/specs/quick-look.md). The app has no Finder keyboard hook and requests no Accessibility or Automation permission. Quick Look packaging and fixture qualification are separate from the app cleanup.
+
+On Windows and Linux, open notes through File > Open, Open With, file associations, or an explicit command-line file path. The old preview-only global shortcut is removed. The app stays resident in the tray for warm opens; Launch at Login is optional. See [Linux integration](app/integrations/linux/README.md).
 
 ## License
 

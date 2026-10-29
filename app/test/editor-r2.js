@@ -1,7 +1,7 @@
 const taskBlocks = text => [{key:text,html:'<ul>'+text.split('\n').map(line=>'<li class="task-list-item"><input class="task-list-item-checkbox" disabled type="checkbox">'+line.slice(6)+'</li>').join('')+'</ul>'}];
 const initial = '- [ ] original';
 const inserted = '- [ ] inserted\n- [ ] original';
-await doc(initial, 'task-revision.md', 30, 'peek', taskBlocks(initial));
+await doc(initial, 'task-revision.md', 30, 'read', taskBlocks(initial));
 let finishRender;
 window.simplemd.renderBlocks = text => new Promise(resolve => finishRender = () => resolve({title:'tasks',blocks:taskBlocks(text)}));
 listeners.disk(inserted, 30);
@@ -13,7 +13,7 @@ assert(flushed.text === inserted && !flushed.dirty, 'stale displayed checkbox ca
 finishRender();
 await wait(80);
 
-await doc(initial, 'task-lazy-race.md', 31, 'peek', taskBlocks(initial));
+await doc(initial, 'task-lazy-race.md', 31, 'read', taskBlocks(initial));
 finishRender = null;
 document.querySelector('#doc .task-list-item').click();
 listeners.disk(inserted, 31);
@@ -56,4 +56,4 @@ await wait(1050);
 assert(pending.length === savesBeforeConflict, 'renderer submits no autosave while delayed acceptance leaves an unresolved conflict');
 listeners.transition(false);
 await window.simplemd.setSettings({autosave:false});
-await doc('R2 checks complete', 'r2-complete.md', 33, 'peek', [{key:'complete',html:'<h1>R2 checks complete</h1>'}]);
+await doc('R2 checks complete', 'r2-complete.md', 33, 'read', [{key:'complete',html:'<h1>R2 checks complete</h1>'}]);

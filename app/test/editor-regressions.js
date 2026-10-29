@@ -35,7 +35,7 @@ document.querySelector('#find-input').dispatchEvent(new Event('input'));
 assert(finds === 2, 'closing find removes input handlers');
 
 ui.closeOverlays();
-await doc('retained', 'retained.md', 5, 'peek', [
+await doc('retained', 'retained.md', 5, 'read', [
  {key:'one',html:'<h1>Retained heading</h1>'},
  {key:'two',html:'<p>Retained text</p>'},
  {key:'three',html:'<p>Tail</p>'}
@@ -44,7 +44,7 @@ const retained = [...document.querySelector('#doc').children];
 const changes = [];
 const observer = new MutationObserver(records => changes.push(...records));
 observer.observe(document.querySelector('#doc'), {childList:true});
-await doc('retained update', 'retained.md', 6, 'peek', [
+await doc('retained update', 'retained.md', 6, 'read', [
  {key:'one',html:'<h1>Retained heading</h1>'},
  {key:'two',html:'<p>Retained text</p>'},
  {key:'three',html:'<p>Tail</p>'}
@@ -255,7 +255,7 @@ assert(pending.at(-1).id === 22 && pending.at(-1).text === 'local text after acc
 pending.at(-1).resolve({documentId:22,text:'local text after acceptance',path:'/tmp/accept-race.md',name:'accept-race.md',baseUrl:'file:///tmp/'});
 await wait(30);
 
-await doc('polished screenshot', 'Field notes.md', 21, 'peek', [
+await doc('polished screenshot', 'Field notes.md', 21, 'read', [
  {key:'title',html:'<h1>Field notes</h1>'},
  {key:'intro',html:'<p>A small place to read, edit, and keep Markdown files.</p>'},
  {key:'heading',html:'<h2>Keep the useful parts</h2>'},

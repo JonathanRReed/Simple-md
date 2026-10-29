@@ -29,8 +29,8 @@ export interface Bridge {
   exportHtml(text: string, documentId: DocumentId): Promise<void>;
   print(text: string, documentId: DocumentId): Promise<void>;
   openDialog(): Promise<void>;
-  openPath(p: string, intent?: "peek" | "edit"): Promise<boolean>;
-  openLink(href: string, intent?: "peek" | "edit"): Promise<boolean>;
+  openPath(p: string, intent?: "read" | "edit"): Promise<boolean>;
+  openLink(href: string, intent?: "read" | "edit"): Promise<boolean>;
   setSettings(patch: Partial<Settings>): Promise<void>;
   command(cmd: Command): void;
   hide(): void;

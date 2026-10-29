@@ -107,7 +107,7 @@ function changedText(text: string): void {
 }
 
 let transitioning = false;
-// In-place navigation history for peek-through link clicks. `navigating` marks the next doc as
+// In-place navigation history for sibling link clicks. `navigating` marks the next doc as
 // history-driven so onDoc doesn't push it as a fresh entry.
 const navBack: string[] = [];
 const navForward: string[] = [];
@@ -529,7 +529,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
     if (payload.stream !== undefined) void appendStream(payload, id);
     else {
       root.dataset.renderComplete = payload.path ?? "";
-      if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
+      if (payload.intent === "read" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
     }
   }));
   const sourceOnly = payload.intent === "edit" && !isReadOnly() && settings.mode === "source";
@@ -667,7 +667,7 @@ async function insertImages(files: File[]): Promise<string | null> {
 
 // ───────── commands & palette ─────────
 
-// Click-to-check in the read/peek view. The checkbox inputs are disabled (and pointer-events:
+// Click-to-check in the reading view. The checkbox inputs are disabled (and pointer-events:
 // none), so clicks land on the <li>; we map the click back to the source by ordinal. The
 // The parser maps rendered checkbox order, including relocated footnotes.
 async function toggleTask(item: HTMLElement): Promise<void> {
@@ -705,7 +705,7 @@ async function toggleTask(item: HTMLElement): Promise<void> {
   if (id === pane.documentId) scheduleAutosave();
 }
 
-// Back/forward through notes opened by peek-through links, staying in the current view.
+// Back/forward through notes opened by sibling links, staying in the current view.
 async function navigate(direction: "back" | "forward"): Promise<void> {
   const from = direction === "back" ? navBack : navForward;
   if (!doc.meta.path || !from.length) {
@@ -717,7 +717,7 @@ async function navigate(direction: "back" | "forward"): Promise<void> {
   const navigation = { target, direction };
   navigating = navigation;
   try {
-    await simplemd.openPath(target, pane.view === "read" ? "peek" : "edit");
+    await simplemd.openPath(target, pane.view === "read" ? "read" : "edit");
   } finally {
     if (navigating === navigation) navigating = null;
   }
@@ -886,7 +886,7 @@ function scrollToFragment(href: string): void {
 async function navigateLink(href: string): Promise<void> {
   if (href.startsWith("#")) { scrollToFragment(href); return; }
   const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
-  if (await simplemd.openLink(href, pane.view === "read" ? "peek" : "edit") && fragment) scrollToFragment(fragment);
+  if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit") && fragment) scrollToFragment(fragment);
 }
 
 document.addEventListener("click", (e) => {
@@ -923,10 +923,7 @@ document.addEventListener("keydown", (e) => {
   if (preferences?.isOpen() || isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
   const mod = e.metaKey || e.ctrlKey;
   if (pane.view === "read") {
-    if (e.key === "Escape" || (e.key === " " && !mod && !e.shiftKey)) {
-      e.preventDefault();
-      simplemd.hide();
-    } else if (!mod && !e.altKey && (e.key === "Enter" || e.key === "e")) {
+    if (!mod && !e.altKey && (e.key === "Enter" || e.key === "e")) {
       e.preventDefault();
       void showEdit();
     } else if (!mod && !e.altKey && e.key === "t") {
@@ -1024,14 +1021,10 @@ async function boot(): Promise<void> {
 
   const ready = await simplemd.ready();
   document.body.dataset.platform = ready.platform;
-  preferences = createPreferences({ platform: ready.platform, settings: () => settings, change: (patch) => simplemd.setSettings(patch) });
+  preferences = createPreferences({ settings: () => settings, change: (patch) => simplemd.setSettings(patch) });
   for (const id of ["preferences-btn", "empty-preferences"]) $(id).addEventListener("click", () => handleCommand("preferences"));
   $("open-file").addEventListener("click", () => void simplemd.openDialog());
   $("new-note").addEventListener("click", () => simplemd.command("new"));
-  const hint = $("open-hint");
-  if (ready.platform === "darwin") hint.innerHTML = 'Or select a Markdown file in Finder and press <kbd>⌘⇧Space</kbd>';
-  else if (ready.platform === "win32") hint.innerHTML = 'Or select a Markdown file in Explorer and press <kbd>Ctrl+Shift+Space</kbd>';
-  else hint.innerHTML = 'Press <kbd>Ctrl+Shift+Space</kbd> to choose a file';
   applySettings(ready.settings);
 
   // Load the editor while the window is idle so the first edit starts instantly.

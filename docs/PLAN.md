@@ -81,8 +81,8 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 | --- | --- |
 | macOS preview | `docs/specs/quick-look.md`. A data-based Quick Look preview: the extension renders HTML with the shared render core in JavaScriptCore and Quick Look displays it. No WKWebView, no scripts, no network entitlement. Diagrams show as code blocks in Quick Look; pressing Enter opens the file in SimpleMD with full diagrams. Plus a thumbnail (Core Text) extension. Built with Command Line Tools only. Chosen after the M0 spike: about 39 ms to ready versus about 615 ms for WKWebView, with App Sandbox as the only entitlement. |
 | Windows preview | `docs/specs/windows-preview.md`. Rust Explorer preview pane handler using WebView2, with a fallback if the spike fails. |
-| Peek removal | The experimental Windows Space hook is deleted in milestone 0. The macOS Accessibility hook is deleted once Quick Look passes its fixture set. After both are gone, delete `peek.ts`, `peek-request.ts`, the `peek` intent and peek hide-on-close. The Rust side then ships only the CLI and the Windows handler. |
-| Tray | The app stays resident by default on macOS so warm opens stay fast. |
+| Peek removal | The experimental Windows Space hook was deleted in milestone 0. M4 removes the macOS Accessibility hook, Automation fallback, `peek.ts`, `peek-request.ts`, the `peek` intent, peek window behavior, and preview-only global shortcut. Normal reading uses the `read` intent. The shipped Rust binary is now `simplemd-helper`, which preserves macOS save metadata. The CLI arrives in M6 and the Windows handler in M7. Quick Look must still pass its fixture set before M4 integration is accepted. |
+| Tray | The app stays resident by default on macOS so warm opens stay fast. Closing any document window hides it after settling edits. Tray actions and Launch at Login remain independent of Quick Look. |
 | Rename | SimpleMD. Linux binary `simplemd`. Bundle ID stays `com.jonathanreed.simplemd`. On first launch, migrate only settings and recents from the old `Simple-md` folder; drop old caches. Document that the old `Simple-md.app` or old Windows install can be removed by hand. |
 | Distribution | Free, open source, MIT. macOS: Developer ID signing and notarization with the `simplemd-notary` keychain profile. Windows: SignPath Foundation signing in GitHub Actions plus winget. GitHub Releases, then auto-update, then a personal Homebrew tap. |
 | AI | None. Not in the app. |
@@ -157,7 +157,7 @@ Each milestone is one branch and one PR to `main`, except where it is split belo
    - 5b: Settings window, context menus, share, accent, recents and find pasteboard.
    - 5c: themes, reading toggle, typography and config file.
 6. **Developer workflow.** Rust CLI and URL scheme, change highlights (watch mode and git HEAD), Raycast and Alfred scripts, drag-out export. Security review required.
-7. **Windows.** Preview pane handler (or the fallback), Jump List, and removal of the remaining peek code. The owner verifies on Windows hardware.
+7. **Windows.** Preview pane handler (or the fallback), Jump List, with no file-manager keyboard hook. The owner verifies on Windows hardware.
 8. **Release.**
    - macOS notarization.
    - The Windows release built in GitHub Actions with SignPath.

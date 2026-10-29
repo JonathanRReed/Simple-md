@@ -3,9 +3,9 @@ const topbar = document.querySelector('#preferences-btn');
 topbar.focus();
 topbar.click();
 assert(prefs.open && prefs.getAttribute('aria-labelledby') === 'preferences-title', 'topbar opens the labelled native Preferences dialog');
-assert(document.querySelector('#pref-shortcut').value === 'Ctrl+Shift+Space', 'global shortcut displays human-readable Ctrl instead of storage terms');
+assert(!document.querySelector('#pref-shortcut'), 'global preview shortcut control is removed');
 assert(document.activeElement.id === 'pref-theme', 'Preferences starts with its theme control focused');
-assert(document.querySelector('#pref-spacePreview').disabled && document.querySelector('#pref-space-note').textContent.includes('unavailable on Linux'), 'unsupported Space preview is disabled and explained');
+assert(!document.querySelector('#pref-spacePreview'), 'Space preview control is removed');
 const choose = async (id, value) => {
  const input = document.getElementById(id);
  input.value = value;
@@ -32,22 +32,6 @@ for (const key of ['autosave','vim','spellcheck','launchAtLogin']) {
 }
 const saved = {...settings};
 await fixture.screenshot('preferences-light');
-const existingShortcut = settings.shortcut;
-const existingDisplay = document.querySelector('#pref-shortcut').value;
-const saveSettings = window.simplemd.setSettings;
-window.simplemd.setSettings = async patch => {
- if (patch.shortcut === 'Taken') throw new Error('This shortcut is already in use.');
- return saveSettings(patch);
-};
-document.querySelector('#pref-shortcut').value = 'Taken';
-document.querySelector('#pref-shortcut-apply').click();
-await wait(50);
-assert(settings.shortcut === existingShortcut && document.querySelector('#pref-shortcut').value === existingDisplay && document.querySelector('#pref-status').textContent.includes('already in use'), 'rejected shortcuts display the error and retain the confirmed binding');
-document.querySelector('#pref-shortcut').value = 'Control+Alt+M';
-document.querySelector('#pref-shortcut-apply').click();
-await wait(50);
-assert(settings.shortcut === 'Control+Alt+M' && !document.querySelector('#pref-shortcut').hasAttribute('aria-invalid'), 'valid shortcut is applied through the existing settings API');
-
 listeners.settings({...settings,theme:'dark',mode:'source',autosave:false});
 assert(document.querySelector('#pref-theme').value === 'dark' && document.querySelector('#pref-mode').value === 'source' && !document.querySelector('#pref-autosave').checked, 'open Preferences synchronizes changes received from menus or restored settings');
 document.querySelector('#pref-done').focus();

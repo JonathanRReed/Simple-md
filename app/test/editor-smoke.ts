@@ -19,7 +19,7 @@ const fixture = `
 const {ipcRenderer} = require("electron");
 const listeners = {};
 const pending = [];
-const settings = { theme: 'light', shortcut: 'CommandOrControl+Shift+Space', mode: 'source', autosave: false, spacePreview: false, launchAtLogin: false, vim: false, spellcheck: true, peekPrompted: true, zoom: 1, width: 'normal', typeface: 'sans', recents: [] };
+const settings = { theme: 'light', mode: 'source', autosave: false, launchAtLogin: false, vim: false, spellcheck: true, zoom: 1, width: 'normal', typeface: 'sans', recents: [] };
 const calls = { dirty: [], saved: [], opened: [], images: [] };
 const blocks = text => [{ key: text, html: '<p>' + text.replaceAll('&', '&amp;').replaceAll('<', '&lt;') + '</p>' }];
 window.simplemd = {
@@ -67,7 +67,7 @@ const assert = (value, name) => { if (!value) throw new Error(name); receipts.pu
 const wait = ms => new Promise(resolve => setTimeout(resolve,ms));
 const until = async predicate => { for(let n=0;n<150;n++){if(predicate())return;await wait(20)}throw new Error('Timed out waiting for UI'); };
 const command = async name => {listeners.command(name);await wait(40)};
-const doc = async (text, name='a.md', id=1, intent='peek', html=null) => {listeners.doc({documentId:id,path:'/tmp/'+name,name,text,title:name,intent,baseUrl:'file:///tmp/',blocks:html ?? blocks(text)});await wait(60)};
+const doc = async (text, name='a.md', id=1, intent='read', html=null) => {listeners.doc({documentId:id,path:'/tmp/'+name,name,text,title:name,intent,baseUrl:'file:///tmp/',blocks:html ?? blocks(text)});await wait(60)};
 await until(() => listeners.command);
 document.querySelector('#open-file').click();
 document.querySelector('#new-note').click();

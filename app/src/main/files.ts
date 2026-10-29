@@ -4,9 +4,6 @@ import { randomUUID } from "node:crypto";
 import { copyMetadata } from "./file-metadata.js";
 
 export const MARKDOWN_EXT = new Set([".md", ".markdown", ".mdown", ".mkd", ".mdx", ".txt"]);
-// Space in the file manager only claims real Markdown; .txt stays with Quick Look.
-const PEEK_EXT = new Set([".md", ".markdown", ".mdown", ".mkd", ".mdx"]);
-export const isPeekable = (p: string) => PEEK_EXT.has(path.extname(p).toLowerCase());
 export const isMarkdown = (p: string) => MARKDOWN_EXT.has(path.extname(p).toLowerCase());
 
 export class FileConflictError extends Error {

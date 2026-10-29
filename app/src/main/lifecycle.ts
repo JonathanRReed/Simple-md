@@ -11,19 +11,16 @@ export class DocumentQueue {
 }
 
 export async function openPreparedDocument<T>(a: {
-  valid(): Promise<boolean>;
   prepare(): Promise<T>;
   transition(operation: () => Promise<boolean>): Promise<boolean>;
   settle(): Promise<boolean>;
   refresh(prepared: T): Promise<T>;
   present(prepared: T): Promise<void>;
 }): Promise<boolean> {
-  if (!(await a.valid())) return false;
   const prepared = await a.prepare();
   return a.transition(async () => {
-    if (!(await a.valid()) || !(await a.settle())) return false;
+    if (!(await a.settle())) return false;
     const refreshed = await a.refresh(prepared);
-    if (!(await a.valid())) return false;
     await a.present(refreshed);
     return true;
   });

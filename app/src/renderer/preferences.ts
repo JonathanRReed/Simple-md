@@ -7,19 +7,9 @@ export interface PreferencesHandle {
 }
 
 export function createPreferences(options: {
-  platform: string;
   settings(): Settings;
   change(patch: Partial<Settings>): Promise<void>;
 }): PreferencesHandle {
-  const displayShortcut = (value: string) => value.split("+").map((key) => {
-    switch (key.toLowerCase()) {
-      case "commandorcontrol":
-      case "cmdorctrl": return options.platform === "darwin" ? "Cmd" : "Ctrl";
-      case "command": return "Cmd";
-      case "control": return "Ctrl";
-      default: return key;
-    }
-  }).join("+");
   const dialog = document.querySelector<HTMLDialogElement>("#preferences");
   if (!dialog) throw new Error("Preferences dialog is missing.");
   const control = <T extends HTMLElement>(id: string) => {
@@ -33,10 +23,8 @@ export function createPreferences(options: {
   const zoom = control<HTMLInputElement>("pref-zoom");
   const zoomValue = control<HTMLOutputElement>("pref-zoom-value");
   const mode = control<HTMLSelectElement>("pref-mode");
-  const shortcut = control<HTMLInputElement>("pref-shortcut");
-  const applyShortcut = control<HTMLButtonElement>("pref-shortcut-apply");
   const status = control<HTMLElement>("pref-status");
-  const toggles = ["autosave", "vim", "spellcheck", "spacePreview", "launchAtLogin", "remoteImages"] as const;
+  const toggles = ["autosave", "vim", "spellcheck", "launchAtLogin", "remoteImages"] as const;
   let returnFocus: HTMLElement | null = null;
 
   function sync(settings: Settings): void {
@@ -47,7 +35,6 @@ export function createPreferences(options: {
     zoom.value = String(Math.round(settings.zoom * 100));
     zoomValue.value = `${Math.round(settings.zoom * 100)}%`;
     for (const key of toggles) control<HTMLInputElement>(`pref-${key}`).checked = settings[key];
-    if (document.activeElement !== shortcut) shortcut.value = displayShortcut(settings.shortcut);
   }
 
   async function change(patch: Partial<Settings>, input: HTMLInputElement | HTMLSelectElement | HTMLButtonElement): Promise<void> {
@@ -57,14 +44,9 @@ export function createPreferences(options: {
     try {
       await options.change(patch);
       sync(options.settings());
-      shortcut.removeAttribute("aria-invalid");
       status.textContent = "Changes save automatically.";
     } catch (error) {
       sync(options.settings());
-      if (input === applyShortcut) {
-        shortcut.value = displayShortcut(options.settings().shortcut);
-        shortcut.setAttribute("aria-invalid", "true");
-      }
       status.dataset.error = "true";
       status.textContent = error instanceof Error
         ? error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "")
@@ -94,32 +76,6 @@ export function createPreferences(options: {
     const input = control<HTMLInputElement>(`pref-${key}`);
     input.addEventListener("change", () => void change({ [key]: input.checked }, input));
   }
-  applyShortcut.addEventListener("click", () => {
-    const value = shortcut.value.trim();
-    if (value) void change({ shortcut: value }, applyShortcut);
-    else {
-      shortcut.setAttribute("aria-invalid", "true");
-      status.dataset.error = "true";
-      status.textContent = "Enter a shortcut before applying it.";
-      shortcut.focus();
-    }
-  });
-  shortcut.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      applyShortcut.click();
-    }
-  });
-  const space = control<HTMLInputElement>("pref-spacePreview");
-  space.disabled = options.platform !== "darwin";
-  control<HTMLElement>("pref-space-note").textContent = options.platform === "darwin"
-    ? "Preview selected Markdown files with Space in Finder. Requires Accessibility access."
-    : options.platform === "win32"
-      ? "Bare Space preview is unavailable on Windows. Use the global shortcut or Open with."
-      : "Bare Space preview is unavailable on Linux. Use Open file or the global shortcut.";
-  control<HTMLElement>("pref-shortcut-help").textContent = options.platform === "darwin"
-    ? "Use Cmd, Ctrl, Option or Shift and a key. For example, Cmd+Shift+Space."
-    : "Use Ctrl, Alt or Shift and a key. For example, Ctrl+Shift+Space.";
   dialog.addEventListener("keydown", (event) => {
     if (event.key !== "Tab") return;
     const controls = [...dialog.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex='0']")]
@@ -145,8 +101,6 @@ export function createPreferences(options: {
       if (dialog.open) return;
       returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       sync(options.settings());
-      shortcut.value = displayShortcut(options.settings().shortcut);
-      shortcut.removeAttribute("aria-invalid");
       status.dataset.error = "false";
       status.textContent = "Changes save automatically.";
       dialog.showModal();

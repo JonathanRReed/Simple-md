@@ -1142,21 +1142,6 @@ code,
   font-size: 12px;
   color: var(--muted);
 }
-.pref-shortcut {
-  margin-top: 14px;
-}
-.pref-shortcut-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.pref-shortcut-input input {
-  flex: 1;
-}
-.pref-shortcut .pref-detail {
-  max-width: none;
-}
 .preferences-footer {
   display: flex;
   align-items: center;

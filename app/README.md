@@ -1,6 +1,6 @@
 # SimpleMD app
 
-This directory contains the Electron app. Bun bundles the TypeScript code; Rust provides the native file-manager helper.
+This directory contains the Electron app. Bun bundles the TypeScript code; Rust provides `simplemd-helper` for macOS save metadata.
 
 ## Read and edit
 
@@ -8,7 +8,7 @@ Open a Markdown file through File > Open, a file association, or the command lin
 
 The renderer supports Shiki code highlighting, KaTeX math, Mermaid-compatible diagrams through Pele, task lists, footnotes, GitHub alerts, and frontmatter. Author HTML is sanitized. Markdown and MDX are editable. JSX components and expressions never execute.
 
-Preferences opens from the toolbar, app menu, or Command/Control+,. It controls appearance, editing defaults, text size, autosave, Vim, spellcheck, preview integration, login behavior, and the global shortcut. Changes apply immediately and persist. Invalid shortcut changes leave the previous binding in place.
+Preferences opens from the toolbar, app menu, or Command/Control+,. It controls appearance, editing defaults, text size, autosave, Vim, spellcheck, and login behavior. Changes apply immediately and persist. Old preview and shortcut settings are ignored on load and removed on the next save.
 
 The app includes find, outline navigation, Vim mode, spellcheck, table editing, theme and reading-width settings, PDF export, HTML export, and printing. Saved notes can keep pasted images in an adjacent `assets/` directory. Local Markdown links open in the app, with back and forward navigation.
 
@@ -36,15 +36,13 @@ Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 
 ## File-manager integration
 
-The app must be running for helper-driven previews. Launch at Login is optional and off by default. Closing the window can leave the app in the tray; Quit exits it.
+The app stays resident in the tray for warm file opens. Launch at Login is optional and off by default. Closing a normal document window hides it after settling edits; Quit exits the app. Clicking the tray icon shows or hides the current window.
 
-On macOS, the Rust helper checks Finder's foreground state, text focus, and current Accessibility selection before claiming Space for Markdown. It resolves file URLs outside the key callback. This Space path needs Accessibility permission only. `.txt` stays outside the Markdown Space association. The tray menu controls Space previews and exposes permission guidance. Command+Shift+Space is a separate fallback that may request Automation access to Finder and System Events. Declining permissions still allows File > Open.
+macOS file previews belong to the Quick Look preview and thumbnail extensions described in [the spec](../docs/specs/quick-look.md). Quick Look works independently of the running app. The Accessibility hook, Automation fallback, preview permission guidance, and preview-only global shortcut have been removed. Extension packaging and fixture qualification remain separate checks.
 
-In the reading view, Space or Escape dismisses the window. Enter or `e` switches a Markdown or MDX note to editing. The helper's `--probe` reports foreground app, text focus, Accessibility state, and selected paths for a separate native check.
+The reading view uses normal app activation and Dock visibility. Space and Escape do not dismiss it. Enter or `e` switches to editing.
 
-On Windows, use File > Open, Open With, or the global shortcut. Bare-Space interception is unavailable.
-
-Linux has no portable bare-Space backend or selected-file lookup. A registered global shortcut cannot discover the selected note there. Use File > Open, Open With, or pass an absolute file path. See the [Linux integration guide](integrations/linux/README.md) for desktop entries and AppImage setup. Tray and shortcut availability also depend on the desktop and session, including Wayland.
+On Windows and Linux, use File > Open, Open With, drag and drop, file associations, or an explicit command-line file path. The global shortcut was only for the removed selection preview, so it is removed on every platform. See the [Linux integration guide](integrations/linux/README.md) for desktop entries and AppImage setup. Tray availability depends on the desktop and session, including Wayland.
 
 ## Develop and check
 
@@ -76,7 +74,7 @@ bun run build
 bun scripts/verify-smoke.ts
 ```
 
-The script uses temporary fixtures and an isolated `SMD_USER_DATA` profile. That development-only mode disables native hooks, global shortcuts, login changes, and OS recent-document writes. It requires a build containing the isolation contract. It retains results, logs, screenshots, and PDFs in the temporary directory reported by the script. PDF text assertions require `pdftotext`. It does not test installed file associations, permissions, or file-manager hooks. The `bytes-` cases exercise exact editor and saved bytes, read-only encodings, paste, undo/redo, tables, tasks and macOS metadata. They require the native helper on macOS. To check local blog files without changing them, set `SMD_BYTE_BLOG_DIR` to their directory and run `bun scripts/verify-smoke.ts bytes-blog-`. The script saves temporary copies and compares both copies and originals with the original bytes.
+The script uses temporary fixtures and an isolated `SMD_USER_DATA` profile. That development-only mode disables login changes and OS recent-document writes. It requires a build containing the isolation contract. It retains results, logs, screenshots, and PDFs in the temporary directory reported by the script. PDF text assertions require `pdftotext`. It does not test installed file associations or Quick Look extensions. The `bytes-` cases exercise exact editor and saved bytes, read-only encodings, paste, undo/redo, tables, tasks and macOS metadata. They require the native helper on macOS. To check local blog files without changing them, set `SMD_BYTE_BLOG_DIR` to their directory and run `bun scripts/verify-smoke.ts bytes-blog-`. The script saves temporary copies and compares both copies and originals with the original bytes.
 
 For local performance investigation, `bun run bench` runs the benchmark script. Record the exact revision, host, cold or warm state, fixture, and measured completion marker before comparing results. A half Dock bounce remains a target to measure after integration. It has not been proved by this packaging work. This guide makes no latency, energy-use, or battery-life guarantee.
 
@@ -86,9 +84,11 @@ Run `bun run perf:gate` from the repository root or this directory. It builds th
 
 The receipt contains every sample, marker, cache state, assertion failure, fixture digest, build hash, and host detail. Gates use the targets in `docs/PLAN.md`. A failed gate exits nonzero; tabs and two document panes report `n/a` until they exist. `bun run bench.ts --perf-gate --smoke` runs a reduced local GUI check without enforcing absolute thresholds. Hosted macOS CI compiles that entrypoint and runs its protocol, fixture, and statistics tests because the runner has no stable logged-in GUI session.
 
-Memory uses five settled samples of every PID from `app.getAppMetrics()`. The separate `perf-memory` binary in the existing Rust package reads macOS `proc_pid_rusage` physical footprint and resident size. On Windows it counts private resident pages with `QueryWorkingSet` and records total resident pages beside them. It does not start native preview hooks, run `footprint` or `vmmap`, or add a dependency. Values use decimal MB. RSS is diagnostic, not the gate.
+Memory uses five settled samples of every PID from `app.getAppMetrics()`. The separate `perf-memory` binary in the existing Rust package reads macOS `proc_pid_rusage` physical footprint and resident size. On Windows it counts private resident pages with `QueryWorkingSet` and records total resident pages beside them. It does not run the save-metadata helper, `footprint`, or `vmmap`. Values use decimal MB. RSS is diagnostic, not the gate.
 
 Typing uses Event Timing for trusted `keydown` and `beforeinput` events in a 100k-character document. The receipt keeps p50, p95, p99, raw entries, trusted event counts, and the separate beforeinput-to-rAF lower bound. The API omits durations below 16 ms and rounds reported durations to 8 ms. Censored quantiles report bounds; missing API support cannot pass a gate. Each case verifies the complete editor text and saved bytes after typing, burst input, selection movement, backspace, undo, paste, and CDP composition. Composition still needs native IME qualification.
+
+The opening benchmarks and read-mode smoke cases now use `read` instead of the removed `peek` intent. They retain the same read rendering, streaming, cache states, and completion markers. The app now shows a normal Dock icon for reads, so cold launch and hidden-window opens include normal app activation. They do not measure Quick Look.
 
 First-readable is a separate double-rAF marker after mount. It does not await diagrams or font readiness. The existing `documentReady` marker keeps its meaning. The current worker highlights before sending its payload, so that cost remains in first-readable measurements. Process-cold tests do not purge the OS file cache. The receipt identifies the development bundle and records ASAR as absent; it does not qualify a packaged installation.
 
@@ -116,7 +116,7 @@ Local scripts set `CSC_IDENTITY_AUTO_DISCOVERY=false`, `mac.identity=null`, `mac
 
 These artifacts have no publisher signing or notarization from this project. Electron's upstream signatures can remain on shipped components. Unsigned macOS bundles, especially on arm64, still need direct launch and trust-policy checks. Windows SmartScreen and Linux sandbox or AppImage dependencies are separate runtime checks. This repository does not bypass those checks or select signing identities automatically.
 
-`build/entitlements.mac.plist` gives the main app JIT support and Apple Events access for the fallback shortcut. `build/entitlements.mac.inherit.plist` gives Electron helpers JIT support without Automation access. Neither file adds unsigned executable memory or library-validation exceptions. These are inputs for a future reviewed signing workflow; the unsigned path does not apply them. Before signed distribution, inspect the main app, Electron helpers, and Rust helper signatures and entitlements in the exact package, then test permissions and preview behavior. Signing, notarization, Gatekeeper checks, and installed-app QA remain separate work.
+`build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist` give the main app and Electron helpers JIT support. Neither grants Apple Events access. Neither file adds unsigned executable memory or library-validation exceptions. These are inputs for a future reviewed signing workflow; the unsigned path does not apply them. Before signed distribution, inspect the main app, Electron helpers, and Rust helper signatures and entitlements in the exact package, then test saves and Quick Look behavior. Signing, notarization, Gatekeeper checks, and installed-app QA remain separate work.
 
 ## CI and remaining gates
 
@@ -126,13 +126,13 @@ After packaging, check the archived render worker under Electron from the reposi
 bun run test:asar /absolute/path/to/app.asar
 ```
 
-This launches a temporary Electron harness with an isolated profile, without starting SimpleMD's native hooks or login integration. It checks that the bootstrap, main bundle, worker, and shared chunks match the current `dist`, remain packed, and render highlighted TypeScript and Python fences through the worker protocol. It retains the archive hash, runtime result, HTML, and logs in the reported temporary directory. This checks Electron's ASAR worker loader. It does not launch the packaged app's normal UI or establish trust, permissions, or installed behavior.
+This launches a temporary Electron harness with an isolated profile, without starting SimpleMD's login integration. It checks that the bootstrap, main bundle, worker, and shared chunks match the current `dist`, remain packed, and render highlighted TypeScript and Python fences through the worker protocol. It retains the archive hash, runtime result, HTML, and logs in the reported temporary directory. This checks Electron's ASAR worker loader. It does not launch the packaged app's normal UI or establish trust, permissions, or installed behavior.
 
 The [desktop workflow](../.github/workflows/desktop.yml) installs locked dependencies, runs TypeScript checks and Bun tests, checks Rust formatting, checks and tests Rust, then builds and packages unsigned artifacts. Its native runner matrix covers macOS arm64, macOS x64, Windows x64, and Linux x64. CI pins [Bun 1.4.3](https://github.com/oven-sh/bun/releases/tag/bun-v1.4.3); macOS runner labels follow the [GitHub runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
 Artifacts remain workflow attachments for seven days. The workflow has read-only repository permissions and no release job. It does not exercise the graphical smoke script, run benchmarks, install packages, or validate permissions and file associations. Windows arm64 and Linux arm64 are accepted by the host-only script but are outside this CI matrix.
 
-No Windows or Linux desktop runtime has been verified from this Mac. Treat window controls, tray behavior, file associations, local image loading, printing, and the Explorer global shortcut as external QA gates until they run on those systems. Packaging configuration and passing unit tests are separate evidence from an installed application.
+No Windows or Linux desktop runtime has been verified from this Mac. Treat window controls, tray behavior, file associations, local image loading, and printing as external QA gates until they run on those systems. Packaging configuration and passing unit tests are separate evidence from an installed application.
 
 ## License
 

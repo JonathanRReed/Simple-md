@@ -44,7 +44,6 @@
               <button id="open-file" type="button" class="pill">Open file</button>
               <button id="new-note" type="button" class="pill">New note</button>
             </div>
-            <p id="open-hint" class="faint"></p>
             <p class="faint">You can also drop a Markdown file here.</p>
             <button id="empty-preferences" type="button" class="text-button">Preferences</button>
           </div>
@@ -80,10 +79,8 @@
           <label class="pref-row" for="pref-spellcheck"><span>Spellcheck</span><input id="pref-spellcheck" type="checkbox" /></label>
         </fieldset>
         <fieldset>
-          <legend>File preview and integration</legend>
-          <label class="pref-row" for="pref-spacePreview"><span>Space preview<span id="pref-space-note" class="pref-detail"></span></span><input id="pref-spacePreview" type="checkbox" aria-describedby="pref-space-note" /></label>
+          <legend>Startup</legend>
           <label class="pref-row" for="pref-launchAtLogin"><span>Launch at login<span class="pref-detail">Keep SimpleMD ready in the menu bar or tray.</span></span><input id="pref-launchAtLogin" type="checkbox" /></label>
-          <div class="pref-shortcut"><label for="pref-shortcut">Global shortcut</label><div class="pref-shortcut-input"><input id="pref-shortcut" type="text" spellcheck="false" autocomplete="off" aria-describedby="pref-shortcut-help" /><button id="pref-shortcut-apply" type="button" class="pill">Apply</button></div><p id="pref-shortcut-help" class="pref-detail"></p></div>
         </fieldset>
       </div>
       <div class="preferences-footer"><p id="pref-status" role="status" aria-live="polite">Changes save automatically.</p><button id="pref-done" type="button" class="pill">Done</button></div>

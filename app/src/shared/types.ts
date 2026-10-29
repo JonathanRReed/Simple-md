@@ -33,19 +33,14 @@ export type Typeface = "sans" | "serif";
 
 export interface Settings {
   theme: ThemeSetting;
-  shortcut: string;
   mode: EditMode;
   autosave: boolean;
-  /** Press Space on a Markdown file in Finder to preview it. Needs the native helper. */
-  spacePreview: boolean;
-  /** Keep SimpleMD resident so Space is instant; the app lives in the tray, not the Dock. */
+  /** Start SimpleMD in the tray so normal file opens stay warm. */
   launchAtLogin: boolean;
   /** Modal editing in the source modes. */
   vim: boolean;
   spellcheck: boolean;
   remoteImages: boolean;
-  /** The one-time permission explainer has been shown. */
-  peekPrompted: boolean;
   zoom: number;
   width: ReadingWidth;
   typeface: Typeface;
@@ -55,12 +50,9 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
-  shortcut: "CommandOrControl+Shift+Space",
   // Live is the default because it asks nothing of the user: write, and it renders in place.
   mode: "live",
   autosave: true,
-  spacePreview: true,
-  peekPrompted: false,
   launchAtLogin: false,
   vim: false,
   spellcheck: true,
@@ -74,8 +66,8 @@ export const DEFAULT_SETTINGS: Settings = {
 export const ZOOM_MIN = 0.7;
 export const ZOOM_MAX = 1.8;
 
-/** "peek" opens read-only like Quick Look; "edit" goes straight into the editor. */
-export type OpenIntent = "peek" | "edit";
+/** "read" opens the reading view; "edit" goes straight into the editor. */
+export type OpenIntent = "read" | "edit";
 
 export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";

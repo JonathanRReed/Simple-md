@@ -10,7 +10,6 @@ import {
   Tray,
   app,
   dialog,
-  globalShortcut,
   ipcMain,
   nativeImage,
   nativeTheme,
@@ -29,17 +28,14 @@ import type {
   Settings,
   SaveResult,
 } from "../shared/types.js";
-import { isMarkdown, isPeekable, readDocument, saveImageNextTo } from "./files.js";
+import { isMarkdown, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
-import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, prefetchBlocks, renderBlocks, renderFragment } from "./render-client.js";
+import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
-import { PeekHelper, type PeekRequest } from "./peek.js";
-import { getFileManagerSelection } from "./selection.js";
 import { flushSettings, loadSettings, patchSettings, saveSettings } from "./settings.js";
 
 // Dev-only launch profiler: SMD_TRACE=1 prints where startup time goes.
@@ -62,7 +58,6 @@ const INDEX = path.join(here, "renderer", "index.html");
 let settings: Settings = { ...loadSettings() };
 let win: BrowserWindow;
 let tray: Tray | undefined;
-let helper: PeekHelper | undefined;
 const registry = new DocumentRegistry();
 const mainPane = { paneId: makePaneId(0), documentId: registry.create(null, "").documentId };
 const currentSession = () => registry.get(mainPane.documentId)!;
@@ -82,12 +77,8 @@ const send = (channel: string, ...args: unknown[]) => {
 function applySettings(patch: unknown): void {
   const prev = settings;
   const next = patchSettings(settings, patch);
-  if (next.shortcut !== prev.shortcut && !testProfile) {
-    replaceShortcut(prev.shortcut, next.shortcut, globalShortcut, () => void togglePeek());
-  }
   settings = next;
   nativeTheme.themeSource = settings.theme;
-  if (settings.spacePreview !== prev.spacePreview) syncPeekHelper();
   if (settings.launchAtLogin !== prev.launchAtLogin) applyLoginItem();
   if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
   saveSettings(settings);
@@ -183,23 +174,14 @@ function createWindow(): BrowserWindow {
       applySettings({ bounds: w.getBounds() });
     }, 400);
   };
-  // Space must pass straight through while our own window is the one being typed in.
-  w.on("focus", () => {
-    trace("win-focus");
-    helper?.setEnabled(false);
-  });
-  w.on("blur", () => {
-    trace("win-blur");
-    helper?.setEnabled(true);
-  });
-  w.on("hide", () => {
-    trace("win-hide");
-    helper?.setEnabled(true);
-  });
+  w.on("focus", () => trace("win-focus"));
+  w.on("blur", () => trace("win-blur"));
+  w.on("hide", () => trace("win-hide"));
   w.on("show", () => trace("win-show"));
   w.on("resize", rememberBounds);
   w.on("move", rememberBounds);
 
+  // Keep the normal document window resident for tray opens after closing it.
   w.on("close", (e) => {
     if (quitting) return;
     e.preventDefault();
@@ -268,7 +250,7 @@ async function settle(): Promise<boolean> {
     flush: requestFlush,
     save: async (text) => (await saveText(text, false, current.documentId)) !== null,
     choose: async () => {
-      reveal("edit");
+      reveal();
       const { response } = await dialog.showMessageBox(win, {
         type: "warning",
         message: `Save changes to “${current.name}”?`,
@@ -307,11 +289,11 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks, mdx, stream } = await (intent === "peek" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
+      ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
       if (stat && stream === undefined) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks, mdx, stream } = await (intent === "peek" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
+    ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
   }
   return {
     documentId: doc.documentId,
@@ -370,27 +352,20 @@ async function present(payload: DocPayload): Promise<void> {
   await usable;
 }
 
-function reveal(intent: OpenIntent = currentSession().intent): void {
-  if (process.platform === "darwin") {
-    if (intent === "edit") void app.dock?.show();
-    else app.dock?.hide();
-  }
-  // An accessory (dock-hidden) app's win.focus() orders the window front but does NOT activate
-  // the app: the window floats over Finder without key focus, keyboard input keeps going to
-  // Finder, and the tap keeps swallowing Space. app.focus({ steal }) is the activation step.
+function reveal(): void {
+  if (process.platform === "darwin") void app.dock?.show();
   if (process.platform === "darwin") app.focus({ steal: true });
   if (!win.isVisible()) win.show();
   win.focus();
 }
 
-function openFile(file: string | undefined, intent: OpenIntent, valid = async () => true): Promise<boolean> {
-  return documents.run(() => openCurrentFile(file, intent, valid));
+function openFile(file: string | undefined, intent: OpenIntent): Promise<boolean> {
+  return documents.run(() => openCurrentFile(file, intent));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, valid = async () => true): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent): Promise<boolean> {
   if (!file) {
-    if (!(await valid())) return false;
-    reveal(intent);
+    reveal();
     return true;
   }
   if (!isMarkdown(file)) return false;
@@ -399,7 +374,6 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
   let prepared: DocumentSession | undefined;
   try {
     return await openPreparedDocument({
-      valid,
       prepare: async () => {
         invalidateUrlContext(path.dirname(abs));
         perfMark("read-start", { path: abs });
@@ -418,13 +392,12 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
         return payloadFor(prepared, true);
       },
       present: async (payload) => {
-        reveal(intent);
+        reveal();
         await present(payload);
         addRecent(abs);
       },
     });
   } catch (err) {
-    if (!(await valid())) return false;
     console.error("simple-md: failed to open", abs, err);
     void dialog.showMessageBox(win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
@@ -436,7 +409,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
 function newDoc(): Promise<void> {
   return documents.run(() => transition(async () => {
     if (!(await settle())) return;
-    reveal("edit");
+    reveal();
     const doc = registry.create(null, "", "edit");
     try { await present(await payloadFor(doc)); }
     finally { if (doc.documentId !== mainPane.documentId) registry.remove(doc.documentId); }
@@ -445,7 +418,7 @@ function newDoc(): Promise<void> {
 
 function openDialog(): Promise<boolean> {
   return documents.run(async () => {
-    reveal("edit");
+    reveal();
     const res = await dialog.showOpenDialog(win, {
       properties: ["openFile"],
       filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd", "mdx", "txt"] }],
@@ -506,7 +479,7 @@ function runCommand(cmd: Command): void {
   const current = currentSession();
   switch (cmd) {
     case "preferences":
-      reveal("edit");
+      reveal();
       void rendererLoaded.then(() => send("smd:cmd", "preferences"));
       return;
     case "new":
@@ -518,7 +491,7 @@ function runCommand(cmd: Command): void {
     case "mode-live":
     case "mode-split":
     case "mode-source":
-      reveal("edit");
+      reveal();
       applySettings({ mode: cmd.slice(5) as Settings["mode"] });
       send("smd:cmd", cmd);
       return;
@@ -528,7 +501,7 @@ function runCommand(cmd: Command): void {
       applySettings({ zoom: cmd === "zoom-reset" ? 1 : settings.zoom + (cmd === "zoom-in" ? 0.1 : -0.1) });
       return;
     default:
-      reveal(cmd === "toggle-edit" ? "edit" : current.intent);
+      reveal();
       send("smd:cmd", cmd);
   }
 }
@@ -538,7 +511,7 @@ function runCommand(cmd: Command): void {
 const printWaiters = new Map<number, (error?: string) => void>();
 
 async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>): Promise<T> {
-  const doc = await payloadFor(currentSession(), false, text, "peek");
+  const doc = await payloadFor(currentSession(), false, text, "read");
   const pw = new BrowserWindow({
     show: false,
     webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
@@ -656,77 +629,7 @@ async function printDoc(text: string): Promise<void> {
   );
 }
 
-// ───────── peek, tray, shortcut ─────────
-
-async function togglePeek(): Promise<void> {
-  if (win.isVisible() && win.isFocused()) {
-    await hideWindow();
-    return;
-  }
-  const picked = (await getFileManagerSelection()).find(isMarkdown);
-  if (picked) await openFile(picked, "peek");
-  else await openDialog();
-}
-
-let automationDenied = false;
-const automationPane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation";
-
-// The helper is holding a Space keypress. Markdown opens in peek; anything else gets the key back so
-// Quick Look and friends behave exactly as if SimpleMD were not installed.
-async function onSpacePressed(request: PeekRequest): Promise<void> {
-  trace(`peek-received paths=${request.paths.length}`);
-  try {
-    const picked = request.paths.find(isPeekable);
-    if (picked && await openFile(picked, "peek", request.validate)) return;
-    trace("peek-replayed");
-    request.replay();
-  } catch {
-    request.replay();
-  } finally {
-    request.complete();
-  }
-}
-
-const accessibilityPane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
-
-// Renders files the file manager has selected, before Space is pressed. Bounded and best-effort.
-const prewarmed = new Set<string>();
-async function prewarm(paths: string[]): Promise<void> {
-  for (const p of paths.filter(isPeekable).slice(0, 3)) {
-    if (prewarmed.has(p) || p === currentSession().path) continue;
-    prewarmed.add(p);
-    try {
-      const stat = await fs.promises.stat(p);
-      if (stat.size > 8 * 1024 * 1024) continue;
-      const { text, readOnlyReason } = await readDocument(p);
-      if (readOnlyReason) continue;
-      if (getCachedRender(p, stat.mtimeMs, stat.size, text)) continue;
-      const rendered = await prefetchBlocks(text, p);
-      if (!rendered) continue;
-      const { title, blocks } = rendered;
-      setCachedRender(p, stat.mtimeMs, stat.size, title, blocks, text);
-      trace("prewarmed");
-    } catch {
-      prewarmed.delete(p);
-    }
-  }
-  if (prewarmed.size > 64) prewarmed.clear();
-}
-
-async function explainPermission(): Promise<void> {
-  if (settings.peekPrompted) return;
-  applySettings({ peekPrompted: true });
-  const { response } = await dialog.showMessageBox({
-    type: "info",
-    message: "Preview Markdown with Space",
-    detail:
-      "Select a Markdown file in Finder and press Space to preview it here. Everything else works as usual.\n\nThis needs Accessibility access to read Finder selection and notice Space. The Command-Shift-Space fallback may separately request Finder Automation access.",
-    buttons: ["Open System Settings", "Not Now"],
-    defaultId: 0,
-    cancelId: 1,
-  });
-  if (response === 0) void shell.openExternal(accessibilityPane);
-}
+// ───────── tray residency ─────────
 
 function applyLoginItem(): void {
   if (!app.isPackaged || testProfile) return;
@@ -751,38 +654,6 @@ function applyLoginItem(): void {
   app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, args: ["--background"] });
 }
 
-function syncPeekHelper(): void {
-  if (testProfile || process.platform !== "darwin" || !settings.spacePreview) {
-    helper?.stop();
-    helper = undefined;
-    refreshMenus();
-    return;
-  }
-  if (helper) return;
-  helper = new PeekHelper({
-    onPeek: (request) => void onSpacePressed(request),
-    onSelection: (paths) => void prewarm(paths),
-    onAutomationDenied: () => {
-      automationDenied = true;
-      refreshMenus();
-    },
-    onPermission: (state) => {
-      if (state === "missing") void explainPermission();
-      refreshMenus();
-    },
-  });
-  helper.start();
-}
-
-function registerShortcut(): void {
-  if (testProfile) return;
-  try {
-    replaceShortcut(null, settings.shortcut, globalShortcut, () => void togglePeek());
-  } catch (err) {
-    console.error("simple-md: could not register shortcut", err);
-  }
-}
-
 function trayMenu(): Electron.Menu {
   const radio = <K extends keyof Settings>(label: string, key: K, value: Settings[K]) => ({
     label,
@@ -804,37 +675,15 @@ function trayMenu(): Electron.Menu {
       label: "Appearance",
       submenu: [radio("System", "theme", "system"), radio("Light", "theme", "light"), radio("Dark", "theme", "dark")],
     },
-    ...peekMenuItems(),
     { type: "separator" },
+    {
+      label: "Launch at Login",
+      type: "checkbox",
+      checked: settings.launchAtLogin,
+      click: (item) => applySettings({ launchAtLogin: item.checked }),
+    },
     { label: "Quit SimpleMD", click: () => app.quit() },
   ]);
-}
-
-function peekMenuItems(): Electron.MenuItemConstructorOptions[] {
-  const items: Electron.MenuItemConstructorOptions[] = process.platform === "linux" ? [] : process.platform === "win32"
-    ? [{ type: "separator" }, { label: "Space preview unavailable on Windows", enabled: false }]
-    : [
-      { type: "separator" },
-      {
-        label: "Preview with Space in Finder",
-        type: "checkbox",
-        checked: settings.spacePreview,
-        click: (item) => applySettings({ spacePreview: item.checked }),
-      },
-    ];
-  if (settings.spacePreview && helper?.permission === "missing") {
-    items.push({ label: "Grant Accessibility Access…", click: () => void shell.openExternal(accessibilityPane) });
-  }
-  items.push({
-    label: "Launch at Login",
-    type: "checkbox",
-    checked: settings.launchAtLogin,
-    click: (item) => applySettings({ launchAtLogin: item.checked }),
-  });
-  if (settings.spacePreview && automationDenied) {
-    items.push({ label: "Allow Finder Access…", click: () => void shell.openExternal(automationPane) });
-  }
-  return items;
 }
 
 function createTray(): void {
@@ -843,7 +692,10 @@ function createTray(): void {
   tray = new Tray(icon);
   tray.setToolTip("SimpleMD");
   tray.setContextMenu(trayMenu());
-  tray.on("click", () => void togglePeek());
+  tray.on("click", () => {
+    if (win.isVisible() && win.isFocused()) void hideWindow();
+    else reveal();
+  });
 }
 
 // ───────── ipc ─────────
@@ -873,7 +725,7 @@ function ipcRevision(doc: DocumentSession, value: unknown): RevisionId {
 
 function ipcIntent(value: unknown): OpenIntent {
   if (value === undefined || value === "edit") return "edit";
-  if (value === "peek") return "peek";
+  if (value === "read") return "read";
   throw new TypeError("Unsupported open intent.");
 }
 
@@ -1014,11 +866,9 @@ function fileArg(argv: string[]): string | undefined {
 async function prepareQuit(): Promise<void> {
   trace("quit-cleanup-start");
   quitting = true;
-  globalShortcut.unregisterAll();
   tray?.destroy();
   tray = undefined;
   registry.dispose();
-  helper?.stop();
   flushSettings();
   trace("quit-resources-closed");
   await disposeRenderer();
@@ -1053,8 +903,6 @@ if (!app.requestSingleInstanceLock()) {
     void quitRequest.catch((err) => console.error("simple-md: could not quit", err));
   });
   app.on("will-quit", () => {
-    globalShortcut.unregisterAll();
-    helper?.stop();
     registry.dispose();
     flushSettings();
     disposeRenderer();
@@ -1072,19 +920,17 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     win = createWindow();
     trace("window-created");
-    // A login launch stays invisible until the first peek; a real launch shows its skeleton
+    // A login launch stays invisible until the first file open; a real launch shows its skeleton
     // immediately (backgroundColor, not a white flash) and the first document swaps in over it.
     const backgroundLaunch =
       process.argv.includes("--background") ||
       (process.platform === "darwin" && app.isPackaged && app.getLoginItemSettings().wasOpenedAtLogin);
     if (backgroundLaunch && !pendingOpen && process.platform === "darwin") app.dock?.hide();
-    if (!backgroundLaunch || pendingOpen) reveal(pendingOpen && process.env.SMD_INTENT === "peek" ? "peek" : "edit");
+    if (!backgroundLaunch || pendingOpen) reveal();
     win.webContents.once("did-finish-load", () => trace("page-loaded"));
     createTray();
     refreshMenus();
-    registerShortcut();
-    syncPeekHelper();
-    if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "peek" ? "peek" : "edit");
+    if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {
       try {

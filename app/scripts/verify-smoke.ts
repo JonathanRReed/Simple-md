@@ -57,12 +57,12 @@ function fixture(name: string, text: string): string {
   return file;
 }
 
-async function launch(name: string, file: string, steps: Step[], intent: "peek" | "edit" = "peek", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source"): Promise<void> {
+async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source"): Promise<void> {
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({
-    mode: initialMode, autosave: false, spacePreview: false, launchAtLogin: false, peekPrompted: true,
+    mode: initialMode, autosave: false, launchAtLogin: false,
   }));
   const done = path.join(output, "done.png");
   const drive = path.join(output, "drive.json");
@@ -142,6 +142,27 @@ async function test(name: string, run: () => Promise<void>): Promise<void> {
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 const note = "# Smoke edit note\n\nOriginal text.\n";
 
+await test("normal-read-window", async () => {
+  const file = fixture("normal-read-window/note.md", note);
+  await launch("normal-read-window", file, [
+    evaluate(`assert(document.querySelector('#edit').hidden, 'Read intent opened the editor.');
+      const settings = (await window.simplemd.ready()).settings;
+      for (const key of ['shortcut', 'spacePreview', 'peekPrompted']) assert(!(key in settings), 'Obsolete setting remains: ' + key);
+      let rejected = false;
+      try { await window.simplemd.openPath(${quote(file)}, 'peek'); } catch { rejected = true; }
+      assert(rejected, 'Removed peek intent was accepted.');`),
+    { input: { type: "keyDown", keyCode: "Space" } },
+    { input: { type: "keyUp", keyCode: "Space" } },
+    { wait: 100 },
+    { visibility: true },
+    { input: { type: "keyDown", keyCode: "Escape" } },
+    { input: { type: "keyUp", keyCode: "Escape" } },
+    { wait: 100 },
+    { visibility: true },
+    evaluate(`assert(document.querySelector('#edit').hidden, 'Dismiss keys changed the reading view.');`),
+  ]);
+});
+
 await test("live-open-defers-read-render", async () => {
   const file = fixture("live-open/note.md", note);
   const previous = process.env.SMD_PERF;
@@ -176,7 +197,7 @@ await test("quit-with-late-renderer-markers", async () => {
   try {
     await launch("quit-with-late-renderer-markers", file, [
       evaluate(`window.simplemd.onDoc(payload => { window.smokeQuitDocumentId = payload.documentId; });
-        assert(await window.simplemd.openPath(${quote(target)}, 'peek'), 'Second document did not open.');
+        assert(await window.simplemd.openPath(${quote(target)}, 'read'), 'Second document did not open.');
         await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(target)}, 'Second document did not paint.');
         window.setInterval(() => window.simplemd.perfMarker(window.smokeQuitDocumentId, 'diagrams-ready'), 1);`),
       { menuQuit: true },
@@ -194,7 +215,7 @@ await test("driver-assertion-failure", async () => {
   const file = fixture("driver-check/note.md", note);
   await launch("driver-assertion-failure", file, [
     { assert: "false /* SMOKE_EXPECTED_DRIVER_FAILURE */" },
-  ], "peek", undefined, 1);
+  ], "read", undefined, 1);
   assert.equal(fs.readFileSync(file, "utf8"), note, "Failed driver changed its source note.");
 });
 
@@ -289,7 +310,7 @@ await test("render-links-pdf", async () => {
   await launch("render-links-pdf", alpha, [
     evaluate(`await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke render alpha', 'Initial note did not render.');
       assert(document.documentElement.dataset.firstReadable === ${quote(alpha)}, 'First-readable marker is missing.');
-      assert(document.querySelector('#edit').hidden, 'Peek opened an editor.');
+      assert(document.querySelector('#edit').hidden, 'Reading view opened an editor.');
       await waitFor(() => document.querySelector('#doc .shiki'), 'Shiki code did not render.');
       assert(document.querySelector('#doc .katex'), 'KaTeX did not render.');
       assert(document.querySelector('#doc #user-content-introduction'), 'Linked heading has no matching fragment target.');
@@ -485,11 +506,7 @@ await test("preferences-menu-quit", async () => {
       await change('#pref-zoom', '110');
       await change('#pref-autosave', true);
       await change('#pref-spellcheck', false);
-      const original = (await window.simplemd.ready()).settings.shortcut;
-      document.querySelector('#pref-shortcut').value = 'not a shortcut';
-      document.querySelector('#pref-shortcut-apply').click();
-      await waitFor(() => document.querySelector('#pref-status').dataset.error === 'true', 'Invalid shortcut was accepted.');
-      assert((await window.simplemd.ready()).settings.shortcut === original, 'Invalid shortcut replaced the confirmed shortcut.');`),
+      assert(!document.querySelector('#pref-shortcut') && !document.querySelector('#pref-spacePreview'), 'Obsolete preview controls remain.');`),
     { shot: path.join(root, name, "preferences.png") },
     { input: { type: "keyDown", keyCode: "Escape" } },
     { input: { type: "keyUp", keyCode: "Escape" } },
@@ -520,13 +537,13 @@ await test("cache-same-stat", async () => {
   const marker = path.join(root, "cache-same-stat", "armed.png");
   await launch("cache-same-stat", alpha, [
     evaluate(`assert(document.querySelector('#doc h1')?.textContent === 'Cache BEFORE', 'Cache fixture did not open.');
-      await window.simplemd.openPath(${quote(beta)}, 'peek');
+      await window.simplemd.openPath(${quote(beta)}, 'read');
       await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Cache other note', 'Second cache fixture did not open.');`),
     { shot: marker },
     evaluate(`await new Promise(resolve => setTimeout(resolve, 250));
-      await window.simplemd.openPath(${quote(alpha)}, 'peek');
+      await window.simplemd.openPath(${quote(alpha)}, 'read');
       await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Cache AFTER!', 'Same-size, same-mtime replacement returned cached content.');`),
-  ], "peek", { marker, file: alpha, text: after, preserveTimes: true });
+  ], "read", { marker, file: alpha, text: after, preserveTimes: true });
   assert.equal(fs.readFileSync(alpha, "utf8"), after);
 });
 
