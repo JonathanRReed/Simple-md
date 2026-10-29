@@ -296,7 +296,7 @@ async function hideCurrentWindow(): Promise<void> {
 
 async function closeTab(id = currentSession().documentId, host = context()): Promise<boolean> {
   const doc = registry.get(id);
-  if (!doc || !(await transition(() => settle(doc, false, host), host))) return false;
+  if (!doc || !(await transition(() => settle(doc, host), host))) return false;
   host.layout.remove(id);
   registry.remove(id);
   releaseDocumentDelta(id);
@@ -359,12 +359,12 @@ async function transition<T>(operation: () => Promise<T>, host = context()): Pro
   }
 }
 
-async function settle(current = currentSession(), prompt = false, host = context()): Promise<boolean> {
+async function settle(current = currentSession(), host = context()): Promise<boolean> {
   await host.loaded;
   if (!current) return true;
   return settleDocument({
     documentId: current.documentId,
-    autosave: !prompt && settings.autosave,
+    autosave: settings.autosave,
     hasPath: current.path !== null,
     flush: () => requestFlush(current, host),
     save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
@@ -536,7 +536,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         return payloadFor(prepared, true, prepared.text, intent, host);
       },
       transition: operation => transition(operation, host),
-      settle: () => replaced !== undefined ? settle(registry.get(replaced), false, host) : Promise.resolve(true),
+      settle: () => replaced !== undefined ? settle(registry.get(replaced), host) : Promise.resolve(true),
       refresh: async (payload) => {
         const latest = await readDocument(abs);
         if (latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason) return payload;
