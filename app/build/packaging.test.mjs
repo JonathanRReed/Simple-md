@@ -24,6 +24,8 @@ describe("host-only packaging", () => {
       expect(plan.binary).toContain(path.join(host, "release", plan.executable));
       expect(plan.executable.endsWith(".exe")).toBe(platform === "win32");
       expect(plan.executable).toBe(platform === "win32" ? "simplemd-helper.exe" : "simplemd-helper");
+      expect(unsignedConfig(plan).extraResources[1]).toEqual({ from: plan.cliBinary, to: `native/${plan.cliExecutable}` });
+      expect(plan.cliExecutable).toBe(platform === "win32" ? "simplemd.exe" : "simplemd");
       expect(unsignedConfig(plan).extraResources[0]).toEqual({ from: plan.binary, to: `native/${plan.executable}` });
     });
   }
@@ -60,7 +62,7 @@ describe("host-only packaging", () => {
     expect(pkg.build.productName).toBe("SimpleMD");
     expect(pkg.build.appId).toBe("com.jonathanreed.simplemd");
     expect(pkg.build.nsis.shortcutName).toBe("SimpleMD");
-    expect(pkg.build.linux.executableName).toBe("simplemd");
+    expect(pkg.build.linux.executableName).toBe("simplemd-app");
     expect(pkg.desktopName).toBe("simplemd.desktop");
   });
   test("keeps JIT support without Apple Events permission", () => {
@@ -207,4 +209,23 @@ test("Quick Look identity comes from the explicit full identity", async () => {
   expect(quickLookIdentity({ SIMPLEMD_SIGN_IDENTITY: 'Developer ID Application: Jonathan Reed (AJ9VWBRNZN)' }))
     .toBe('Developer ID Application: Jonathan Reed (AJ9VWBRNZN)');
   expect(() => quickLookIdentity({ SIMPLEMD_SIGN_IDENTITY: 'Jonathan Reed' })).toThrow('Developer ID');
+});
+
+
+test("Linux CLI hooks retain builder launcher and sandbox setup and clean their temporary scripts", async () => {
+  const { withLinuxCliHooks } = await import("./linux-cli.mjs");
+  let generated;
+  await withLinuxCliHooks({}, async config => {
+    generated = config.deb.afterInstall;
+    const install = readFileSync(config.deb.afterInstall, "utf8");
+    const remove = readFileSync(config.deb.afterRemove, "utf8");
+    expect(install).toContain("update-alternatives --install");
+    expect(install).toContain("chrome-sandbox");
+    expect(install).toContain("apparmor_parser");
+    expect(install).toContain("resources/native/simplemd");
+    expect(remove).toContain("update-alternatives --remove");
+    expect(remove).toContain("resources/native/simplemd");
+  });
+  const { existsSync } = await import("node:fs");
+  expect(existsSync(generated)).toBe(false);
 });

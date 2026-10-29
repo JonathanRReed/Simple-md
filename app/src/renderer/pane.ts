@@ -1259,6 +1259,26 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       else await request();
     },
     activeChanged,
+    async navigate(target: import("../shared/types.js").DocumentLocation) {
+      const id = pane.documentId;
+      if (target.kind === "start") return;
+      if (target.kind === "heading") {
+        if (!doc.lastGoodBlocks) {
+          const rendered = await simplemd.renderBlocks(currentText(), id, doc.revisionId);
+          if (pane.documentId !== id) return;
+          doc.lastGoodBlocks = rendered.blocks;
+        }
+        scrollToFragment("#" + encodeURIComponent(target.heading));
+      } else if (pane.editor && pane.view === "edit") {
+        const text = currentText(); let offset = 0; let line = 1;
+        for (const match of text.matchAll(/\r\n|[\r\n]/g)) { if (line++ >= target.line) break; offset = match.index + match[0].length; }
+        pane.editor.goTo(offset);
+      } else {
+        const scope = pane.view === "read" ? docEl : previewEl;
+        const block = [...scope.querySelectorAll<HTMLElement>("[data-source-start]")].filter(node => Number(node.dataset.sourceStart) < target.line).at(-1);
+        block?.scrollIntoView({ block: "start" });
+      }
+    },
     load: onDoc, suspend, settings: applySettings, command: handleCommand, saved: onSaved, diskChanged: onDiskChanged,
     focus() { if (pane.view === "edit") pane.editor?.focus(); else readScroll.focus(); },
     get documentId() { return pane.documentId; },

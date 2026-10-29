@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
 type NativeStep = { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
-export type DriverStep = NativeStep | { nativeMenuState: { path: string[]; enabled: boolean; checked?: boolean; tooltip?: boolean } } | { dragExport: { format: "html" | "pdf"; target: string; receipt: string } } | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = NativeStep | { nativeMenuState: { path: string[]; enabled: boolean; checked?: boolean; tooltip?: boolean } } | { dragExport: { format: "html" | "pdf"; target: string; receipt: string } } | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true } | { savePath: string };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -175,6 +175,13 @@ export async function runDriver(
         const original = dialog.showMessageBox;
         restoreDialogs = () => { dialog.showMessageBox = original; };
         dialog.showMessageBox = async () => { throw new Error("Unexpected Save changes prompt."); };
+        continue;
+      }
+      if ("savePath" in step) {
+        const { dialog } = await import("electron");
+        const original = dialog.showSaveDialog;
+        restoreDialogs = () => { dialog.showSaveDialog = original; };
+        dialog.showSaveDialog = async () => { dialog.showSaveDialog = original; return { canceled: false, filePath: step.savePath }; };
         continue;
       }
       if ("dialog" in step) {

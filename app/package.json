@@ -21,7 +21,8 @@
     "test:asar": "bun run build/verify-asar-worker.mjs",
     "check:rust": "cargo check --locked --manifest-path native/Cargo.toml",
     "test:rust": "cargo test --locked --manifest-path native/Cargo.toml",
-    "perf:gate": "bun run build && bun run bench.ts --perf-gate"
+    "perf:gate": "bun run build && bun run bench.ts --perf-gate",
+    "test:cli": "bun scripts/verify-cli.ts"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.4",
@@ -182,7 +183,8 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "SimpleMD"
+      "shortcutName": "SimpleMD",
+      "include": "build/cli-installer.nsh"
     },
     "linux": {
       "icon": "../resources/icon2.png",
@@ -195,7 +197,7 @@
         "text/markdown",
         "text/x-markdown"
       ],
-      "executableName": "simplemd",
+      "executableName": "simplemd-app",
       "syncDesktopName": true,
       "executableArgs": [
         "%f"
@@ -211,7 +213,15 @@
     "forceCodeSigning": false,
     "publish": null,
     "afterPack": "build/quicklook.mjs",
-    "afterSign": "build/quicklook-verify.mjs"
+    "afterSign": "build/quicklook-verify.mjs",
+    "protocols": [
+      {
+        "name": "SimpleMD open",
+        "schemes": [
+          "simplemd"
+        ]
+      }
+    ]
   },
   "desktopName": "simplemd.desktop",
   "homepage": "https://github.com/JonathanRReed/Simple-md"

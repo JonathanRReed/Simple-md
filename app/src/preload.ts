@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("simplemd", {
     if (active) activeDocumentId = active.documentId;
     cb(state);
   }),
+  onNavigate: (cb: (id: DocumentId, target: import("./shared/types.js").DocumentLocation) => void) => on("smd:navigate", cb),
   onClosed: (cb: (id: DocumentId) => void) => on("smd:closed", (id: DocumentId) => { renderStates.delete(id); cb(id); }),
   releaseView: (id: DocumentId) => { renderStates.delete(id); viewGenerations.set(id, (viewGenerations.get(id) ?? 0) + 1); ipcRenderer.send("smd:release-view", id); },
   activateTab: async (id: DocumentId) => { await ipcRenderer.invoke("smd:activate-tab", id); activeDocumentId = id; },

@@ -1,3 +1,4 @@
+import { withLinuxCliHooks } from "./linux-cli.mjs";
 import afterPack, { packagedApp, quickLookIdentity } from "./quicklook.mjs";
 import { verifyQuickLook } from "./quicklook-verify.mjs";
 import { appDir, buildNative, currentNativePlan, run } from "./native.mjs";
@@ -10,6 +11,7 @@ export function unsignedConfig(plan) {
     publish: null,
     extraResources: [
       { from: plan.binary, to: `native/${plan.executable}` },
+      { from: plan.cliBinary, to: `native/${plan.cliExecutable}` },
     ],
     mac: { identity: "-", notarize: false },
     dmg: { sign: false },
@@ -78,6 +80,7 @@ if (import.meta.main) {
       publish: "never",
     };
     if (process.platform === "darwin") await buildAndVerify(build, options, () => finalApp);
+    else if (process.platform === "linux") await withLinuxCliHooks(config, combined => build({ ...options, config: combined }));
     else await build(options);
   }
 }

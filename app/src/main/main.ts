@@ -1,5 +1,8 @@
 import { DragExports, type ExportFormat } from "./drag-export.js";
 import { readGitBaseline } from "./git-baseline.js";
+import { startCliServer, type CliDispatch } from "./cli-server.js";
+import { DocumentWaiters, parseOpenUrl } from "./cli-protocol.js";
+import { installCli, bundledCli } from "./install-cli.js";
 import { FlushWaiters } from "./flush-waiters.js";
 import { menuState } from "./menu-state.js";
 import { watchWindowTheme } from "./window-theme.js";
@@ -42,9 +45,9 @@ import type {
   Settings,
   SaveResult,
 } from "../shared/types.js";
-import { isMarkdown, readDocument, saveImageNextTo } from "./files.js";
+import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
-import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
+import { createExportJobs, printWaiters, writeExportAtomic } from "./export-job.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
 import { blockChanges, startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
@@ -75,7 +78,9 @@ const INDEX = path.join(here, "renderer", "index.html");
 
 let settings: Settings = { ...loadSettings() };
 let tray: Tray | undefined;
-const registry = new DocumentRegistry();
+const cliWaiters = new DocumentWaiters();
+let cliServer: Awaited<ReturnType<typeof startCliServer>> | undefined;
+const registry = new DocumentRegistry(id => cliWaiters.closed(id));
 const documents = new DocumentQueue();
 interface WindowContext {
   win: BrowserWindow;
@@ -168,6 +173,7 @@ function refreshMenus(): void {
     },
     share: () => { const doc = currentSession(); if (doc?.path) shareDocument(context().win, doc.path); },
     canShare: () => !!currentSession()?.path,
+    installCli: () => void installCli(),
     quit: () => app.quit(),
   });
   if (next.tray !== lastMenuState?.tray) tray?.setContextMenu(trayMenu());
@@ -367,7 +373,8 @@ async function transition<T>(operation: () => Promise<T>, host = context()): Pro
 async function settle(current = currentSession(), host = context()): Promise<boolean> {
   await host.loaded;
   if (!current) return true;
-  return settleDocument({
+  let discarded = false;
+  const settled = await settleDocument({
     documentId: current.documentId,
     autosave: settings.autosave,
     hasPath: current.path !== null,
@@ -383,9 +390,12 @@ async function settle(current = currentSession(), host = context()): Promise<boo
         defaultId: 0,
         cancelId: 2,
       });
+      discarded = response === 1;
       return response === 0 ? "save" : response === 1 ? "discard" : "cancel";
     },
   });
+  if (settled && discarded) cliWaiters.closed(current.documentId);
+  return settled;
 }
 
 // ───────── documents ─────────
@@ -400,9 +410,9 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   let title: string;
   let blocks: DocPayload["blocks"];
   let mdx: DocPayload["mdx"];
-  const isMdx = path.extname(file ?? "").toLowerCase() === ".mdx";
+  const isMdx = path.extname(file ?? doc.name).toLowerCase() === ".mdx";
   if (!readOnlyReason && intent === "edit" && settings.mode !== "split") {
-    title = file ? path.basename(file) : "Untitled";
+    title = doc.name;
     blocks = [];
     if (isMdx) mdx = await mdxRanges(text);
   } else if (file && fromDisk && path.extname(file).toLowerCase() !== ".mdx") {
@@ -413,11 +423,11 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
+      ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file ?? doc.name)));
       if (stat && stream === undefined) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
+    ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file ?? doc.name)));
   }
   return {
     documentId: doc.documentId,
@@ -427,7 +437,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
     paneId: host.mainPane.paneId,
     stream,
     path: file,
-    name: file ? path.basename(file) : "Untitled",
+    name: doc.name,
     text,
     blocks,
     mdx,
@@ -500,12 +510,12 @@ function openFile(file: string | undefined, intent: OpenIntent, inPlace = false,
   return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context()): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false): Promise<boolean> {
   if (!file) {
     reveal(host);
     return true;
   }
-  if (!isMarkdown(file)) return false;
+  if (!cli && !isMarkdown(file)) return false;
   const abs = path.resolve(file);
   const canonical = await fs.promises.realpath(abs).catch(() => abs);
   for (const host of windows.values()) {
@@ -525,7 +535,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
   }
   if (!inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
-    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host));
+    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli));
   }
   const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
@@ -536,6 +546,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         invalidateUrlContext(path.dirname(abs));
         perfMark("read-start", { path: abs });
         const { text, readOnlyReason } = await readDocument(abs);
+        if (cli && readOnlyReason === ENCODING_NOTICE) throw new Error(ENCODING_NOTICE);
         perfMark("read-end", { path: abs });
         prepared = registry.create(abs, text, intent, readOnlyReason);
         return payloadFor(prepared, true, prepared.text, intent, host);
@@ -544,6 +555,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       settle: () => replaced !== undefined ? settle(registry.get(replaced), host) : Promise.resolve(true),
       refresh: async (payload) => {
         const latest = await readDocument(abs);
+        if (cli && latest.readOnlyReason === ENCODING_NOTICE) throw new Error(ENCODING_NOTICE);
         if (latest.text === payload.text && latest.readOnlyReason === payload.readOnlyReason) return payload;
         if (prepared) registry.remove(prepared.documentId);
         prepared = registry.create(abs, latest.text, intent, latest.readOnlyReason);
@@ -562,7 +574,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     });
   } catch (err) {
     console.error("simple-md: failed to open", abs, err);
-    void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
+    if (!cli) void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
   } finally {
     if (prepared && !host.layout.has(prepared.documentId)) registry.remove(prepared.documentId);
@@ -737,42 +749,13 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
 
 // ───────── export & print ─────────
 
+const exportJobs = createExportJobs(here, () => settings);
+const exportSource = (text: string, current = currentSession()) => ({ path: current.path, name: current.name, text });
+const makePdf = (text: string, current = currentSession()) => exportJobs.makePdf(exportSource(text, current));
+const makeHtml = (text: string, current = currentSession()) => exportJobs.makeHtml(exportSource(text, current));
+const withPrintWindow = <T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()) =>
+  exportJobs.withPrintWindow(exportSource(text, current), use);
 const dragExports = new DragExports();
-const printWaiters = new Map<number, (error?: string) => void>();
-
-async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()): Promise<T> {
-  const doc = await payloadFor(current, false, text, "read");
-  const pw = new BrowserWindow({
-    show: false,
-    webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
-  });
-  pw.webContents.on("will-navigate", (event) => event.preventDefault());
-  pw.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  const id = pw.webContents.id;
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    await pw.loadFile(INDEX, { query: { print: "1" } });
-    const ready = new Promise<void>((resolve, reject) => {
-      timer = setTimeout(() => reject(new Error("The print preview did not finish loading.")), 15_000);
-      pw.webContents.once("render-process-gone", () => reject(new Error("The print renderer stopped.")));
-      pw.once("closed", () => reject(new Error("The print window closed.")));
-      printWaiters.set(id, (error) => error ? reject(new Error(error)) : resolve());
-    });
-    pw.webContents.send("smd:print-doc", doc, settings);
-    await ready;
-    return await use(pw, doc);
-  } finally {
-    clearTimeout(timer);
-    printWaiters.delete(id);
-    if (!pw.isDestroyed()) pw.destroy();
-  }
-}
-
-function makePdf(text: string, current = currentSession()): Promise<Buffer> {
-  return withPrintWindow(text, (pw) =>
-    pw.webContents.printToPDF({ printBackground: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }), current,
-  );
-}
 
 // M6a can unify this adapter with its shared export job without changing drag lifetime.
 async function exportDocumentBytes(doc: DocumentSession, text: string, format: ExportFormat): Promise<Buffer> {
@@ -786,7 +769,7 @@ async function exportPdf(text: string): Promise<void> {
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (res.canceled || !res.filePath) return;
-  await fs.promises.writeFile(res.filePath, await makePdf(text));
+  await writeExportAtomic(res.filePath, await makePdf(text), true);
   shell.showItemInFolder(res.filePath);
 }
 
@@ -797,64 +780,10 @@ async function exportHtml(text: string): Promise<void> {
     filters: [{ name: "HTML", extensions: ["html"] }],
   });
   if (res.canceled || !res.filePath) return;
-  await fs.promises.writeFile(res.filePath, await makeHtml(text));
+  await writeExportAtomic(res.filePath, await makeHtml(text), true);
   shell.showItemInFolder(res.filePath);
 }
 
-async function makeHtml(text: string, current = currentSession()): Promise<string> {
-  const { title, html } = await withPrintWindow(text, async (pw, doc) => {
-    const sources: unknown = await pw.webContents.executeJavaScript(`Array.from(document.querySelectorAll('#doc img'), image => image.currentSrc || image.getAttribute('src') || '')`);
-    if (!Array.isArray(sources) || !sources.every((source): source is string => typeof source === "string")) throw new Error("Invalid export images.");
-    const embedded = await embedLocalImages(sources, current.path ? urlContext(path.dirname(current.path)) : {});
-    const html: unknown = await pw.webContents.executeJavaScript(`(() => {
-      const clone = document.querySelector('#doc').cloneNode(true);
-      const sources = ${JSON.stringify(embedded)};
-      clone.querySelectorAll('img').forEach((image, index) => { image.src = sources[index]; image.removeAttribute('loading'); });
-      // Static exports drop local links and failed image candidates to avoid leaking paths.
-      clone.querySelectorAll('*').forEach(element => {
-        for (const attribute of [...element.attributes]) {
-          if (/^file:/i.test(attribute.value) || (attribute.name === 'srcset' && /(?:^|[,\\s])file:/i.test(attribute.value))) element.removeAttribute(attribute.name);
-        }
-      });
-      return clone.innerHTML;
-    })()`);
-    if (typeof html !== "string") throw new Error("Invalid export document.");
-    return { title: doc.title, html };
-  }, current);
-  const dir = path.join(here, "renderer");
-  const css = await fs.promises.readFile(path.join(dir, "style.css"), "utf8");
-  const katex = await embedKatexFonts(
-    await fs.promises.readFile(path.join(dir, "katex.min.css"), "utf8"),
-    (relativePath) => fs.promises.readFile(path.join(dir, relativePath)),
-  );
-  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="generator" content="SimpleMD" />
-<title>${esc(title)}</title>
-<style>${css}</style>
-<style>${katex}</style>
-<style>
-${EXPORT_LIGHT_THEME}
-/* Static-document overrides: no app chrome, no fixed layout. */
-html, body { height: auto; }
-body { display: block; overflow: visible; background: #fff; color: #242426; }
-.titlebar, #banner, #findbar, #picker, #toast, .copy-code, #edit, #empty, details.frontmatter { display: none !important; }
-#stage, .pane, .scroller { position: static; display: block; height: auto; overflow: visible; padding: 0; }
-.block { content-visibility: visible; }
-</style>
-</head>
-<body>
-<main id="stage"><section id="read" class="pane"><div class="scroller"><article class="prose">
-${html}
-</article></div></section></main>
-</body>
-</html>
-`;
-}
 
 async function printDoc(text: string): Promise<void> {
   await withPrintWindow(
@@ -1037,7 +966,7 @@ function registerIpc(): void {
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (doc.text !== text) throw new Error("Render source does not match the document revision.");
-    const out = await doc.render(revisionId, () => renderBlocks(text, doc.path));
+    const out = await doc.render(revisionId, () => renderBlocks(text, doc.path ?? doc.name));
     trace("render-done");
     return documentDelta(doc.documentId, out, known !== true);
   });
@@ -1203,6 +1132,55 @@ function hardenSession(): void {
   });
 }
 
+const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
+  if (request.command === "export") {
+    const { text, readOnlyReason } = await readDocument(request.path);
+    if (readOnlyReason === ENCODING_NOTICE) throw new Error(ENCODING_NOTICE);
+    const input = await fs.promises.realpath(request.path);
+    const output = await fs.promises.realpath(request.output).catch(() => path.resolve(request.output));
+    if (input === output) throw new Error("Export cannot replace its input.");
+    const source = { path: request.path, name: path.basename(request.path), text };
+    const data = request.format === "html" ? await exportJobs.makeHtml(source) : await exportJobs.makePdf(source);
+    if (signal.aborted) throw new Error("CLI disconnected.");
+    await writeExportAtomic(request.output, data, request.overwrite);
+    return;
+  }
+  return documents.run(async () => {
+    if (signal.aborted) throw new Error("CLI disconnected.");
+    if (!context() || context().win.isDestroyed()) createDocumentWindow();
+    let host = frontmost;
+    let doc: DocumentSession | undefined;
+    if (request.command === "stdin") {
+      if (Buffer.byteLength(stdin) !== request.length || stdin.includes("\0")) throw new Error("Invalid stdin text.");
+      if (settings.openIn === "window" && host.layout.state.tabs.length) host = createDocumentWindow();
+      doc = registry.create(null, stdin, "edit"); doc.displayName = request.name; doc.dirty = stdin.length > 0;
+      const payload = await payloadFor(doc, false, doc.text, "edit", host);
+      reveal(host); await present(payload, host);
+    } else {
+      if (!(await openCurrentFile(request.path, "edit", false, undefined, host, true))) throw new Error("The file could not be opened.");
+      const canonical = await fs.promises.realpath(request.path);
+      for (const candidate of windows.values()) {
+        for (const id of candidate.layout.state.tabs) {
+          const session = registry.get(id);
+          if (session?.path && await fs.promises.realpath(session.path).catch(() => null) === canonical) { host = candidate; doc = session; break; }
+        }
+        if (doc) break;
+      }
+      if (!doc) throw new Error("The document closed before acceptance.");
+      sendTo(host, "smd:navigate", doc.documentId, request.location);
+    }
+    if (request.wait && !signal.aborted) return cliWaiters.add(doc.documentId, closed);
+  });
+};
+async function openUrl(value: string): Promise<void> {
+  try {
+    const target = parseOpenUrl(value);
+    const canonical = await fs.promises.realpath(target.path);
+    if (!isMarkdown(target.path) || !isMarkdown(canonical) || !(await fs.promises.stat(canonical)).isFile()) throw new Error("Unsupported URL file.");
+    await dispatchCli({ id: "url", command: "open", path: target.path, location: target.location, wait: false }, "", () => {}, new AbortController().signal);
+  } catch (error) { console.error("simplemd: rejected open URL", error instanceof Error ? error.message : String(error)); }
+}
+
 function fileArg(argv: string[]): string | undefined {
   return argv.slice(1).find((a) => !a.startsWith("-") && isMarkdown(a) && fs.existsSync(a));
 }
@@ -1212,6 +1190,8 @@ async function prepareQuit(): Promise<void> {
   quitting = true;
   tray?.destroy();
   tray = undefined;
+  cliServer?.close();
+  cliWaiters.clear();
   registry.dispose();
   configStore().close();
   settingsWindow?.close();
@@ -1228,11 +1208,16 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   let pendingOpen = fileArg(process.argv);
+  let pendingUrl = process.argv.find(arg => arg.startsWith("simplemd:"));
+  let cliReady = false;
+  app.on("open-url", (event, value) => { event.preventDefault(); if (cliReady) void openUrl(value); else pendingUrl = value; });
 
   app.setAboutPanelOptions({ applicationName: "SimpleMD", copyright: "© Jonathan Ray Reed. MIT License." });
 
   app.on("second-instance", (_e, argv) => {
-    if (argv.includes("--new-window")) void newDocumentWindow();
+    const url = argv.find(arg => arg.startsWith("simplemd:"));
+    if (url) { if (cliReady) void openUrl(url); else pendingUrl = url; }
+    else if (argv.includes("--new-window")) void newDocumentWindow();
     else void openFile(fileArg(argv), "edit");
   });
   app.on("open-file", (e, file) => {
@@ -1253,6 +1238,7 @@ if (!app.requestSingleInstanceLock()) {
     void quitRequest.catch((err) => console.error("simple-md: could not quit", err));
   });
   app.on("will-quit", () => {
+    cliServer?.close();
     registry.dispose();
     flushSettings();
     disposeRenderer();
@@ -1289,6 +1275,10 @@ if (!app.requestSingleInstanceLock()) {
     createTray();
     refreshMenus();
     if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
+    cliReady = true;
+    if (pendingUrl) await openUrl(pendingUrl);
+    cliServer = await startCliServer({ binary: bundledCli(), profile: testProfile ? app.getPath("userData") : undefined, dispatch: dispatchCli });
+    trace("cli-ready");
     const drive = process.env.SMD_DRIVE;
     if (drive && !app.isPackaged) {
       try {
@@ -1316,5 +1306,5 @@ if (!app.requestSingleInstanceLock()) {
         app.exit(1);
       }
     }
-  });
+  }).catch(error => { console.error("simplemd: startup failed", error); cliServer?.close(); app.exit(1); });
 }

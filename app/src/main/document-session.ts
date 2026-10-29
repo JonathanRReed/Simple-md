@@ -26,9 +26,10 @@ export class DocumentSession {
     public intent: OpenIntent = "edit",
     public readOnlyReason?: string,
     public diskText: string | null = path ? text : null,
+    public displayName = "Untitled",
   ) {}
 
-  get name(): string { return this.path ? path.basename(this.path) : "Untitled"; }
+  get name(): string { return this.path ? path.basename(this.path) : this.displayName; }
   get baseUrl(): string | null { return this.path ? pathToFileURL(path.dirname(this.path)).href.replace(/\/?$/, "/") : null; }
   get encoding(): "utf8" | "unsupported" { return this.readOnlyReason === ENCODING_NOTICE ? "unsupported" : "utf8"; }
   get lineEndings() {

@@ -16,7 +16,7 @@ From the repository root:
 
 ```sh
 bun run setup          # install app dependencies from app/bun.lock
-bun run build:native   # build the helper for this machine
+bun run build:native   # build the helper and CLI for this machine
 bun run start          # build and launch Electron
 ```
 
@@ -37,6 +37,21 @@ bun run dist           # build unsigned artifacts under app/release/
 `pack` and `dist` build only for the current platform and architecture. They disable signing identity discovery, Developer ID signing, Windows signing, notarization, and publishing. They can download Electron and packaging tools. They do not install the app or create a release.
 
 See the [app guide](app/README.md) for controls, platform limits, packaging, and validation. Windows and Linux runtime behavior still needs verification on those operating systems. Cross-platform source code and CI configuration do not establish that the installed app works there.
+
+## Command line
+
+```sh
+simplemd file.md
+simplemd file.md:42
+simplemd 'file.md#heading'
+printf '# Draft\n' | simplemd --stdin-name draft.md -
+simplemd --wait file.md
+simplemd export file.md --format html -o out.html
+simplemd export file.md --format pdf -o out.pdf
+export EDITOR='simplemd --wait'
+```
+
+On macOS, choose SimpleMD > Install Command Line Tool. Windows installation adds the CLI to your user PATH; DEB packages install it on PATH. Saving keeps `--wait` running until the tab closes or a discard completes. Existing export outputs require `--force`. See [the CLI guide](docs/cli.md) for every command, exit codes, URL opens and Git editor setup.
 
 ## File-manager previews
 
