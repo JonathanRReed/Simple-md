@@ -47,11 +47,18 @@ export async function startCliServer(options: { binary: string; profile?: string
           const connection = value.connection;
           if ("disconnected" in value) { clients.get(connection)?.cleanup(); clients.delete(connection); return; }
           if (!("request" in value) || !("stdin" in value) || typeof value.stdin !== "string") throw new Error("Invalid pipe request.");
-          let client: ReturnType<typeof handle>;
-          client = handle(response => broker.stdin.write(JSON.stringify({ connection, response }) + "\n"), () => { clients.delete(connection); });
+          let request: CliRequest;
+          try {
+            request = parseCliRequest(value.request, runtime.secret, Buffer.byteLength(JSON.stringify(value.request)));
+            if (request.command === "stdin" && Buffer.byteLength(value.stdin) !== request.length) throw new Error("Invalid stdin payload.");
+          } catch (error) {
+            const raw = value.request;
+            const id = raw && typeof raw === "object" && "id" in raw && typeof raw.id === "string" && raw.id.length <= 128 ? raw.id : "invalid";
+            broker.stdin.write(JSON.stringify({ connection, response: { version: CLI_VERSION, id, status: "error", message: error instanceof Error ? error.message : "Invalid request." } }) + "\n");
+            return;
+          }
+          const client = handle(response => broker.stdin.write(JSON.stringify({ connection, response }) + "\n"), () => { clients.delete(connection); });
           clients.set(connection, client);
-          const request = parseCliRequest(value.request, runtime.secret, Buffer.byteLength(JSON.stringify(value.request)));
-          if (request.command === "stdin" && Buffer.byteLength(value.stdin) !== request.length) throw new Error("Invalid stdin payload.");
           void client.request(request, value.stdin);
         } catch { broker.kill(); }
       });
@@ -67,7 +74,7 @@ export async function startCliServer(options: { binary: string; profile?: string
     let pending: CliRequest | undefined; let started = false;
     const client = handle(value => socket.write(frame(Buffer.from(JSON.stringify(value)))), () => socket.end());
     const dispatch = (request: CliRequest, text: string) => {
-      started = true; socket.setTimeout(0);
+      started = true; reader.cap = 0; socket.setTimeout(0);
       void client.request(request, text);
     };
     socket.setTimeout(20_000, () => socket.destroy());
