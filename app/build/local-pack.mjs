@@ -10,6 +10,7 @@ export function unsignedConfig(plan) {
     publish: null,
     extraResources: [
       { from: plan.binary, to: `native/${plan.executable}` },
+      { from: plan.cliBinary, to: `native/${plan.cliExecutable}` },
     ],
     mac: { identity: "-", notarize: false },
     dmg: { sign: false },

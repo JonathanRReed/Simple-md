@@ -8,6 +8,7 @@ export interface Bridge {
   onContextMenu(cb: (context: import("../shared/native-context.js").NativeContext) => void): void;
   contextMenu(context: import("../shared/native-context.js").NativeContext, id: DocumentId): Promise<import("../shared/native-context.js").ContextResult>;
   onLayout(cb: (layout: TabLayoutState) => void): void;
+  onNavigate(cb: (id: DocumentId, target: import("../shared/types.js").DocumentLocation) => void): void;
   onClosed(cb: (id: DocumentId) => void): void;
   releaseView(id: DocumentId): void;
   activateTab(id: DocumentId): Promise<void>;

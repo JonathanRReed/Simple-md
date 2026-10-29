@@ -131,3 +131,5 @@ export type Command =
 
 /** Above this many characters the Live Preview is switched off so typing stays instant. */
 export const LIVE_MAX_CHARS = 250_000;
+
+export type DocumentLocation = { kind: "line"; line: number } | { kind: "heading"; heading: string } | { kind: "start" };

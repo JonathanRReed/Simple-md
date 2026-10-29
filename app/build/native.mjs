@@ -22,6 +22,9 @@ export function nativePlan(host, platform = process.platform, arch = process.arc
   return {
     host,
     executable,
+    cliExecutable: platform === "win32" ? "simplemd.exe" : "simplemd",
+    cliBinary: path.join(targetDir, host, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
+    cliDevelopmentBinary: path.join(targetDir, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
     args: ["build", "--locked", "--release", "--manifest-path", path.join(appDir, "native", "Cargo.toml"), "--target", host, "--target-dir", targetDir],
     binary: path.join(targetDir, host, "release", executable),
     developmentBinary: path.join(targetDir, "release", executable),
@@ -46,6 +49,7 @@ export function buildNative(plan) {
   run("cargo", plan.args);
   mkdirSync(path.dirname(plan.developmentBinary), { recursive: true });
   copyFileSync(plan.binary, plan.developmentBinary);
+  copyFileSync(plan.cliBinary, plan.cliDevelopmentBinary);
 }
 
 if (import.meta.main) {

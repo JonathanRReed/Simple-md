@@ -12,6 +12,7 @@ export interface MenuActions {
   share(): void;
   canShare(): boolean;
   quit(): void;
+  installCli(): void;
 }
 
 export function buildMenu(a: MenuActions): void {
@@ -47,6 +48,7 @@ export function buildMenu(a: MenuActions): void {
               { role: "about" },
               { type: "separator" },
               cmd("Settings…", "preferences", "Command+,"),
+              { label: "Install Command Line Tool", click: a.installCli },
               { type: "separator" },
               { role: "hide" },
               { role: "hideOthers" },

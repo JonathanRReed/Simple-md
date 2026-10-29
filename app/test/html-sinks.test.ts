@@ -10,7 +10,7 @@ const approved = [
   // KaTeX has trust:false. Source cannot produce links or arbitrary attributes.
   "renderer/live.ts:el.innerHTML = katex.renderToString(this.tex, { ...mathOptions, displayMode: false });",
   // Serialization of the sanitized print DOM. This is a getter, never insertion.
-  "main/main.ts:return clone.innerHTML;",
+  "main/export-job.ts:return clone.innerHTML;",
 ].sort();
 
 function sinks(directory: string, source?: string): string[] {

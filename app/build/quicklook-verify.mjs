@@ -14,6 +14,12 @@ function signature(bundle) {
 }
 
 export function verifyQuickLook(app) {
+  const cli = path.join(app, "Contents/Resources/native/simplemd");
+  if (!existsSync(cli)) throw new Error("Missing bundled CLI");
+  const help = execFileSync(cli, ["--help"], { encoding: "utf8" });
+  if (!help.includes("Usage: simplemd")) throw new Error("Invalid bundled CLI");
+  const info = readPlist(path.join(app, "Contents/Info.plist"));
+  if (!info.CFBundleURLTypes?.some(type => type.CFBundleURLSchemes?.includes("simplemd"))) throw new Error("Missing open URL protocol");
   execFileSync("/usr/bin/codesign", ["--verify", "--deep", "--strict", "--verbose=2", app], { stdio: "inherit" });
   const outer = signature(app);
   const authority = outer.match(/^Authority=(Developer ID Application: .+)$/m)?.[1];

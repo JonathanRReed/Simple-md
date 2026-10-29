@@ -24,6 +24,8 @@ describe("host-only packaging", () => {
       expect(plan.binary).toContain(path.join(host, "release", plan.executable));
       expect(plan.executable.endsWith(".exe")).toBe(platform === "win32");
       expect(plan.executable).toBe(platform === "win32" ? "simplemd-helper.exe" : "simplemd-helper");
+      expect(unsignedConfig(plan).extraResources[1]).toEqual({ from: plan.cliBinary, to: `native/${plan.cliExecutable}` });
+      expect(plan.cliExecutable).toBe(platform === "win32" ? "simplemd.exe" : "simplemd");
       expect(unsignedConfig(plan).extraResources[0]).toEqual({ from: plan.binary, to: `native/${plan.executable}` });
     });
   }
@@ -60,7 +62,7 @@ describe("host-only packaging", () => {
     expect(pkg.build.productName).toBe("SimpleMD");
     expect(pkg.build.appId).toBe("com.jonathanreed.simplemd");
     expect(pkg.build.nsis.shortcutName).toBe("SimpleMD");
-    expect(pkg.build.linux.executableName).toBe("simplemd");
+    expect(pkg.build.linux.executableName).toBe("simplemd-app");
     expect(pkg.desktopName).toBe("simplemd.desktop");
   });
   test("keeps JIT support without Apple Events permission", () => {

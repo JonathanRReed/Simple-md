@@ -182,7 +182,8 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "SimpleMD"
+      "shortcutName": "SimpleMD",
+      "include": "build/cli-installer.nsh"
     },
     "linux": {
       "icon": "../resources/icon2.png",
@@ -195,7 +196,7 @@
         "text/markdown",
         "text/x-markdown"
       ],
-      "executableName": "simplemd",
+      "executableName": "simplemd-app",
       "syncDesktopName": true,
       "executableArgs": [
         "%f"
@@ -211,7 +212,19 @@
     "forceCodeSigning": false,
     "publish": null,
     "afterPack": "build/quicklook.mjs",
-    "afterSign": "build/quicklook-verify.mjs"
+    "afterSign": "build/quicklook-verify.mjs",
+    "protocols": [
+      {
+        "name": "SimpleMD open",
+        "schemes": [
+          "simplemd"
+        ]
+      }
+    ],
+    "deb": {
+      "afterInstall": "build/linux-after-install.sh",
+      "afterRemove": "build/linux-after-remove.sh"
+    }
   },
   "desktopName": "simplemd.desktop",
   "homepage": "https://github.com/JonathanRReed/Simple-md"
