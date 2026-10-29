@@ -1097,7 +1097,7 @@ code,
   height: 30px;
   overflow-x: auto;
   scrollbar-width: none;
-  background: color-mix(in srgb, Canvas 92%, transparent);
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
   border-block: 1px solid var(--rule);
   color: CanvasText;
   font: 12px / 1 system-ui, sans-serif;
