@@ -65,7 +65,7 @@ describe.skipIf(process.platform === "win32")("private Unix CLI transport", () =
   });
   test("Rust client waits for close, rejects app failure, and disconnect removes its token", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-wire-")); const runtime = cliRuntime(root);
-    const binary = path.resolve(import.meta.dir, "../native/target/release/simplemd"); const callbacks = new Set<() => void>();
+    const binary = path.resolve(import.meta.dir, "../native/target/cli-tests/release/simplemd"); const callbacks = new Set<() => void>();
     let accepted!: () => void; let dispatched = new Promise<void>(resolve => { accepted = resolve; });
     const server = await startCliServer({ binary, profile: root, dispatch: async (_request, _stdin, closed) => { callbacks.add(closed); accepted(); return () => { callbacks.delete(closed); }; } });
     const children: ReturnType<typeof spawn>[] = [];

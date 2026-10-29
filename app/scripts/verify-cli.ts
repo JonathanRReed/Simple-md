@@ -1,3 +1,4 @@
+import { buildTestCli } from "../build/native.mjs";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
@@ -9,7 +10,7 @@ import { cliRuntime } from "../src/main/cli-runtime";
 import { frame } from "../src/main/cli-protocol";
 
 const appRoot = path.resolve(import.meta.dir, "..");
-const cli = path.join(appRoot, "native/target/release", process.platform === "win32" ? "simplemd.exe" : "simplemd");
+const cli = buildTestCli();
 const electron = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "smd-cli-smoke-")));
 const bin = path.join(root, "bin"); fs.mkdirSync(bin); fs.symlinkSync(cli, path.join(bin, process.platform === "win32" ? "simplemd.exe" : "simplemd"));

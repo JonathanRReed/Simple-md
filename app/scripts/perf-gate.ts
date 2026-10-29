@@ -1,3 +1,4 @@
+import { buildTestCli } from "../build/native.mjs";
 import { calibratedTyping, typingInput, typingLetters, typingProbe, typingRecord, type InputMethod } from "./perf-typing";
 import assert from "node:assert/strict";
 import type { KeyboardInputEvent } from "electron";
@@ -144,6 +145,7 @@ function keys(keyCode: string, modifiers: KeyboardInputEvent["modifiers"] = []):
 }
 
 export async function perfGate(): Promise<void> {
+  const testCli = buildTestCli();
   const smoke = process.argv.includes("--smoke");
   const count = Number(process.argv.find(arg => arg.startsWith("--samples="))?.split("=")[1] ?? (smoke ? 2 : 20));
   if (!Number.isSafeInteger(count) || count < 2) throw new Error("At least two samples are required");
@@ -223,7 +225,7 @@ export async function perfGate(): Promise<void> {
         const match = /^resident-cli-(\d+)-(.+)$/.exec(name);
         if (!match) throw new Error("Invalid CLI performance barrier");
         const measuredFile = path.join(fixtureDirectory, match[2]!);
-        const child = spawn(path.join(appRoot, "native/target/release", process.platform === "win32" ? "simplemd.exe" : "simplemd"), [measuredFile], { env: { ...env, SMD_CLI_RUNTIME: cliRuntime(userData) }, stdio: ["ignore", "ignore", "pipe"] });
+        const child = spawn(testCli, [measuredFile], { env: { ...env, SMD_CLI_RUNTIME: cliRuntime(userData) }, stdio: ["ignore", "ignore", "pipe"] });
         let error = ""; child.stderr.on("data", data => { error += String(data); });
         await new Promise<void>((resolve, reject) => { child.once("error", reject); child.once("close", code => code === 0 ? resolve() : reject(new Error(`CLI performance open failed: ${error}`))); });
       },

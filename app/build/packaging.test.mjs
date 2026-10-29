@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync } from "nod
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { appDir, nativePlan } from "./native.mjs";
+import { appDir, nativePlan, currentNativePlan } from "./native.mjs";
 import { localEnvironment, packageMode, unsignedConfig, packagingConfig } from "./local-pack.mjs";
 import { desktopEntry } from "../integrations/linux/desktop-entry.mjs";
 
@@ -228,4 +228,9 @@ test("Linux CLI hooks retain builder launcher and sandbox setup and clean their 
   });
   const { existsSync } = await import("node:fs");
   expect(existsSync(generated)).toBe(false);
+});
+
+test("release CLI contains no test-only environment overrides", () => {
+  const binary = readFileSync(currentNativePlan().cliBinary);
+  for (const name of ["SMD_CLI_RUNTIME", "SMD_CLI_APP", "SMD_CLI_APP_ROOT"]) expect(binary.includes(Buffer.from(name))).toBe(false);
 });

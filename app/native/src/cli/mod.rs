@@ -186,12 +186,14 @@ pub fn secret_matches(expected: &str, value: &str) -> bool {
             == 0
 }
 fn runtime_dir() -> Result<PathBuf, String> {
+    #[cfg(any(debug_assertions, feature = "cli-test-hooks"))]
     if let Some(dir) = env::var_os("SMD_CLI_RUNTIME") {
         return Ok(PathBuf::from(dir));
     }
     platform::runtime_dir()
 }
 fn launch() -> Result<(), String> {
+    #[cfg(any(debug_assertions, feature = "cli-test-hooks"))]
     if let Some(executable) = env::var_os("SMD_CLI_APP") {
         let mut command = Command::new(executable);
         if let Some(root) = env::var_os("SMD_CLI_APP_ROOT") {

@@ -52,8 +52,14 @@ export function buildNative(plan) {
   copyFileSync(plan.cliBinary, plan.cliDevelopmentBinary);
 }
 
+export function buildTestCli() {
+  const target = path.join(appDir, "native", "target", "cli-tests");
+  run("cargo", ["build", "--locked", "--release", "--features", "cli-test-hooks", "--manifest-path", path.join(appDir, "native/Cargo.toml"), "--bin", "simplemd", "--target-dir", target]);
+  return path.join(target, "release", process.platform === "win32" ? "simplemd.exe" : "simplemd");
+}
+
 if (import.meta.main) {
   const plan = currentNativePlan();
   if (process.argv.slice(2).includes("--dry-run")) console.log(JSON.stringify(plan, null, 2));
-  else buildNative(plan);
+  else { buildNative(plan); if (process.argv.includes("--test-cli")) buildTestCli(); }
 }
