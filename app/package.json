@@ -2,7 +2,7 @@
   "name": "simplemd",
   "version": "0.1.0",
   "private": true,
-  "description": "Markdown and read-only MDX viewer and Markdown editor",
+  "description": "Markdown and MDX reader and editor",
   "productName": "SimpleMD",
   "main": "dist/main.mjs",
   "type": "commonjs",

@@ -2,7 +2,7 @@
 
 A Markdown viewer and editor for macOS, Windows, and Linux. The current app lives in [`app/`](app/). It uses Electron, TypeScript, Bun, and a Rust helper for file-manager previews.
 
-Choose live preview, split view, or source editing. Read Markdown with syntax highlighting, math, diagrams, and local images. MDX opens read-only. The app drops import and export statements and shows JSX as code rather than executing it.
+Choose Live, Source, or Side by side editing for Markdown and MDX. Read with syntax highlighting, math, diagrams, and local images. MDX imports stay hidden in read view. Components and expressions appear as inert placeholders.
 
 Open **Preferences** from the app menu, toolbar, or Command/Control+, to change the theme, editing defaults, text size, autosave, Vim, spelling, and preview settings. Changes save automatically.
 
