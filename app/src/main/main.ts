@@ -1,4 +1,4 @@
-import { documentDelta } from "./incremental-blocks.js";
+import { documentDelta } from "./document-delta.js";
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
@@ -311,11 +311,11 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks, mdx, stream } = await (intent === "peek" ? startBlocks(text, file) : renderBlocks(text, file)));
+      ({ title, blocks, mdx, stream } = await (intent === "peek" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
       if (stat && stream === undefined) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks, mdx, stream } = await (intent === "peek" ? startBlocks(text, file) : renderBlocks(text, file)));
+    ({ title, blocks, mdx, stream } = await (intent === "peek" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file)));
   }
   return {
     stream,

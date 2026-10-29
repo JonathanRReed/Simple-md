@@ -166,6 +166,18 @@ await test("security-links", async () => {
   `)]);
 });
 
+await test("streamed-large-export", async () => {
+  const source = '# Full streamed export\n\n' + 'A paragraph with **bold** text. '.repeat(20).concat('\n\n').repeat(600) + '## Final export sentinel\n';
+  const file = fixture('streamed-large-export/note.md', source);
+  const html = path.join(root, 'streamed-large-export/output.html');
+  await launch('streamed-large-export', file, [
+    evaluate(`await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Full streamed export', 'Readable prefix did not arrive.');`),
+    { html },
+  ]);
+  assert(fs.readFileSync(html, 'utf8').includes('Final export sentinel'), 'Export stopped at the readable prefix.');
+  assert.equal(fs.readFileSync(file, 'utf8'), source, 'Streaming export changed the source.');
+});
+
 await test("security-export", async () => {
   const file = fixture("security-export/project/note.md", '# Export containment\n\n[Local](next.md)\n\n<picture><source srcset="pixel.png 1x"><img src="pixel.png"></picture>\n\n![Missing](missing.png)\n\n![Unsupported](image.tiff)\n\n![Escape](escape.png)\n');
   const dir = path.dirname(file);
@@ -219,7 +231,7 @@ await test("render-links-pdf", async () => {
     evaluate(`await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke render alpha', 'Initial note did not render.');
       assert(document.documentElement.dataset.firstReadable === ${quote(alpha)}, 'First-readable marker is missing.');
       assert(document.querySelector('#edit').hidden, 'Peek opened an editor.');
-      assert(document.querySelector('#doc .shiki'), 'Shiki code did not render.');
+      await waitFor(() => document.querySelector('#doc .shiki'), 'Shiki code did not render.');
       assert(document.querySelector('#doc .katex'), 'KaTeX did not render.');
       assert(document.querySelector('#doc #user-content-introduction'), 'Linked heading has no matching fragment target.');
       await waitFor(() => document.querySelector('#doc .diagram svg'), 'Pele diagram did not render.');
@@ -325,6 +337,7 @@ $x^2$
   await launch("author-html", file, [
     evaluate(`await waitFor(() => document.querySelector('#doc details:not(.frontmatter) strong')?.textContent === 'Inside', 'Raw wrapper lost its Markdown children.');
       const doc = document.querySelector('#doc');
+      await waitFor(() => doc.querySelector('details .shiki'), 'Nested Shiki code did not render.');
       assert(doc.querySelector('details .shiki') && doc.querySelector('details .katex') && doc.querySelector('details input[type="checkbox"][disabled]'), 'Author policy removed generated nodes.');
       assert(!doc.querySelector('script, style, [data-evil], [onerror], .mermaid') && !window.authorExecuted, 'Author content gained generated privileges.');
       assert(doc.querySelector('details').id === 'user-content-more' && doc.querySelector('a[href="#user-content-more"]'), 'Author IDs and fragments disagree.');

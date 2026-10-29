@@ -41,10 +41,3 @@ export class IncrementalBlocks {
     return { result, delta: blockDelta(old, result) };
   }
 }
-
-let document: { id: number; blocks: RenderedBlock[] } | undefined;
-export function documentDelta(id: number, result: RenderedBlocks): BlockDelta {
-  const delta = blockDelta(document?.id === id ? document.blocks : [], result);
-  document = { id, blocks: result.blocks };
-  return delta;
-}
