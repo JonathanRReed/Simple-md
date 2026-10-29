@@ -5,11 +5,18 @@ import path from "node:path";
 export type GitBaseline = { available: true; text: string } | { available: false; reason: string };
 const MAX_GIT_BYTES = 25 * 1024 * 1024;
 
+function gitEnvironment(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (["PATH", "HOME", "LANG"].includes(key) || /^LC_[A-Z_]+$/.test(key)) env[key] = value;
+  }
+  return { ...env, GIT_NO_LAZY_FETCH: "1", GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_ATTR_NOSYSTEM: "1" };
+}
 function git(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = execFile("git", ["--no-pager", ...args], {
+    const child = execFile("git", ["--no-pager", "--no-lazy-fetch", "-c", "safe.bareRepository=explicit", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "protocol.allow=never", "-c", "core.attributesFile=/dev/null", ...args], {
       cwd, timeout: 2000, maxBuffer: MAX_GIT_BYTES, encoding: "utf8", shell: false,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
+      env: gitEnvironment(),
     }, (error, stdout) => error ? reject(error) : resolve(stdout));
     child.stdin?.end();
   });
@@ -23,6 +30,7 @@ export async function readGitBaseline(file: string | null): Promise<GitBaseline>
     try { root = (await git(["rev-parse", "--show-toplevel"], path.dirname(canonical))).trimEnd(); }
     catch (error) {
       if (error instanceof Error && "code" in error && error.code === "ENOENT") return { available: false, reason: "Git is unavailable." };
+      if (error instanceof Error && /unknown option.*no-lazy-fetch/.test(error.message)) return { available: false, reason: "This Git version cannot safely read HEAD. Update Git to use change highlights." };
       return { available: false, reason: "This file is outside a Git repository, or Git did not respond." };
     }
     const relative = path.relative(root, canonical);

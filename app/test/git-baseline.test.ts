@@ -46,3 +46,48 @@ test.skipIf(process.platform === "win32")("missing git, timed-out reads, and ove
     expect(performance.now() - start).toBeLessThan(5000);
   } finally { process.env.PATH = previous; }
 });
+
+async function repository() {
+  const dir = await directory();
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" }).toString().trim();
+  git("init"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.invalid");
+  return { dir, git };
+}
+test("partial clone cannot execute core.sshCommand to fetch a missing HEAD blob", async () => {
+  const { dir, git } = await repository();
+  const file = path.join(dir, "note.md"), marker = path.join(dir, "executed");
+  await fs.writeFile(file, "Committed"); git("add", "."); git("commit", "-m", "fixture");
+  const blob = git("rev-parse", "HEAD:note.md");
+  await fs.unlink(path.join(dir, ".git/objects", blob.slice(0, 2), blob.slice(2)));
+  git("config", "extensions.partialClone", "origin"); git("config", "remote.origin.promisor", "true");
+  git("config", "remote.origin.url", "ssh://invalid.example/repo");
+  git("config", "core.sshCommand", `touch '${marker}'; false`);
+  expect((await readGitBaseline(file)).available).toBe(false);
+  expect(await fs.exists(marker)).toBe(false);
+});
+test("a bare repository embedded as ordinary tracked files is refused after clone", async () => {
+  const { dir, git } = await repository();
+  const trap = path.join(dir, "trap"); await fs.mkdir(trap);
+  execFileSync("git", ["init", "--bare", trap], { stdio: "pipe" });
+  const inner = (...args: string[]) => execFileSync("git", ["--git-dir", trap, "--work-tree", trap, ...args], { stdio: "pipe" });
+  inner("config", "core.bare", "false"); inner("config", "core.worktree", ".");
+  inner("config", "user.name", "Test"); inner("config", "user.email", "test@example.invalid");
+  await fs.writeFile(path.join(trap, "note.md"), "Trap"); inner("add", "note.md"); inner("commit", "-m", "trap");
+  git("add", "trap"); git("commit", "-m", "embedded repository");
+  const cloned = path.join(await directory(), "clone"); execFileSync("git", ["clone", dir, cloned], { stdio: "pipe" });
+  expect((await readGitBaseline(path.join(cloned, "trap/note.md"))).available).toBe(false);
+});
+test("Git receives a minimal environment and mandatory no-fetch hardening", async () => {
+  const dir = await directory(), file = path.join(dir, "note.md"), output = path.join(dir, "call.json");
+  await fs.writeFile(file, "Current");
+  await fs.writeFile(path.join(dir, "git"), `#!${process.execPath}\nimport fs from 'node:fs';fs.writeFileSync(${JSON.stringify(output)}, JSON.stringify({argv:process.argv.slice(2),env:process.env}));process.stdout.write(process.argv.includes('rev-parse') ? ${JSON.stringify(await fs.realpath(dir))} : 'HEAD');`, { mode: 0o700 });
+  const saved = { ...process.env };
+  try {
+    Object.assign(process.env, { PATH: dir, GIT_DIR: "/trap", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.sshCommand", GIT_CONFIG_VALUE_0: "trap", GIT_EXEC_PATH: "/trap", GIT_CEILING_DIRECTORIES: "/", GIT_SSH: "/trap", NODE_OPTIONS: "--no-warnings" });
+    expect((await readGitBaseline(file)).available).toBe(true);
+    const call = JSON.parse(await fs.readFile(output, "utf8"));
+    expect(call.argv.slice(0, 12)).toEqual(["--no-pager", "--no-lazy-fetch", "-c", "safe.bareRepository=explicit", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "protocol.allow=never", "-c", "core.attributesFile=/dev/null"]);
+    expect(call.env.GIT_NO_LAZY_FETCH).toBe("1");
+    for (const key of ["GIT_DIR", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_EXEC_PATH", "GIT_CEILING_DIRECTORIES", "GIT_SSH", "NODE_OPTIONS"]) expect(call.env[key]).toBeUndefined();
+  } finally { for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]; Object.assign(process.env, saved); }
+});

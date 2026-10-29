@@ -10,8 +10,7 @@ export class DocumentSession {
   revisionId = makeRevisionId(0);
   baseline: ChangeBaseline | null = null;
   baselineGeneration = 0;
-  gitStatus: GitChangesStatus = { available: false, reason: "Checking Git HEAD..." };
-  gitStatusChecked = false;
+  gitStatus: GitChangesStatus;
   conflict = false;
   dirty = false;
   private watcher: { close(): void } | undefined;
@@ -27,7 +26,7 @@ export class DocumentSession {
     public readOnlyReason?: string,
     public diskText: string | null = path ? text : null,
     public displayName = "Untitled",
-  ) {}
+  ) { this.gitStatus = path ? { available: true, active: false } : { available: false, reason: "Save the file in a Git repository first." }; }
 
   get name(): string { return this.path ? path.basename(this.path) : this.displayName; }
   get baseUrl(): string | null { return this.path ? pathToFileURL(path.dirname(this.path)).href.replace(/\/?$/, "/") : null; }
@@ -113,8 +112,7 @@ export class DocumentSession {
       const moved = target !== this.path;
       if (moved) {
       this.markSeen();
-      this.gitStatusChecked = false;
-      this.gitStatus = { available: false, reason: "Checking Git HEAD..." };
+      this.gitStatus = { available: true, active: false };
     }
     this.path = target;
       this.diskText = text;

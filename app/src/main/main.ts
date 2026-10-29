@@ -1012,17 +1012,7 @@ function registerIpc(): void {
     refreshMenus();
     return true;
   });
-  handle("smd:git-status", async id => {
-    const doc = ipcSession(id);
-    if (doc.gitStatusChecked) return doc.gitStatus;
-    const file = doc.path;
-    const result = await readGitBaseline(file);
-    if (doc.path !== file || registry.get(doc.documentId) !== doc) throw new Error("The document was replaced.");
-    doc.gitStatus = result.available ? { available: true, active: doc.baseline?.kind === "head" } : result;
-    doc.gitStatusChecked = true;
-    refreshMenus();
-    return doc.gitStatus;
-  });
+  handle("smd:git-status", id => ipcSession(id).gitStatus);
   handle("smd:head-changes", async (id, enabled) => {
     if (typeof enabled !== "boolean") throw new TypeError("Expected change view option.");
     const doc = ipcSession(id);
@@ -1031,7 +1021,6 @@ function registerIpc(): void {
     if (enabled) {
       const result = await readGitBaseline(file);
       if (doc.path !== file || registry.get(doc.documentId) !== doc || generation !== doc.baselineGeneration) throw new Error("The document or change baseline was replaced.");
-      doc.gitStatusChecked = true;
       doc.gitStatus = result.available ? { available: true, active: true } : result;
       if (result.available) doc.setHeadBaseline(result.text);
     } else {

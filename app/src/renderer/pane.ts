@@ -719,6 +719,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (doc.readOnlyReason) showBanner(doc.readOnlyReason, []);
     emptyEl.hidden = true;
     docEl.hidden = false;
+    gitStatus = payload.path ? { available: true, active: false } : { available: false, reason: "Save the file in a Git repository first." };
     document.title = payload.title;
     mountBlocks(previewEl, []);
     const sourceEdit = (retained ? retained.view === "edit" : payload.intent === "edit") && !isReadOnly();
@@ -738,7 +739,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (disposed || pane !== owner || id !== pane.documentId) return;
       if (active && seenOnReturn !== undefined) { void markSeen(true, seenOnReturn); seenOnReturn = undefined; }
       else void refreshChanges();
-      void simplemd.gitStatus(id).then(status => { if (!disposed && id === pane.documentId) gitStatus = status; }).catch(console.warn);
     }, 0);
     // This marker does not await fonts, highlighting completion checks or diagram work.
 
@@ -773,7 +773,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (doc.meta.path !== result.path) {
       invalidateExport();
       void refreshChanges();
-      void simplemd.gitStatus(pane.documentId).then(status => { if (!disposed && pane.documentId === result.documentId) gitStatus = status; }).catch(console.warn);
     }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
     if (moved) {
