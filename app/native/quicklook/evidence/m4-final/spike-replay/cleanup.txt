@@ -1,0 +1,6 @@
+REMOVE /Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app existed=True
+REMOVE /tmp/simplemd-m4-spike-replay.zBJNCz existed=True
+REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike existed=True
+REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.thumbnail existed=True
+qlmanage: call reset on cache
+Final status: 0

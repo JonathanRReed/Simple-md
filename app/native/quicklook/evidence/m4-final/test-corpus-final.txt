@@ -1,0 +1,13 @@
+$ SIMPLEMD_CORPUS_GATE=1 bun test test/corpus.test.ts
+bun test v1.4.4 (38afee6c8)
+
+test/corpus.test.ts:
+Corpus: 41 documents, 0 semantic edits. {"grammar":0,"text":0,"sanitization":0,"url-resolution":0,"headings":0,"footnotes":0,"math":0,"mermaid":0,"alerts":0,"tables":0,"accessibility":0,"enrichment":0}
+Report: /Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/.audit/corpus/report.md
+(pass) GitHub corpus reports semantic gaps without refreshing references [3072.89ms]
+(pass) file-page extraction accepts article and embedded richText, rejects missing or truncated content [0.30ms]
+
+ 2 pass
+ 0 fail
+ 230 expect() calls
+Ran 2 tests across 1 file. [3.17s]

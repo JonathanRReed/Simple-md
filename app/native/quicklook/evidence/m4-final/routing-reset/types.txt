@@ -1,0 +1,3 @@
+EXT md net.daringfireball.markdown
+EXT mdx com.fluxmarkdown.mdx
+EXT txt public.plain-text

@@ -1,0 +1,13 @@
+Thu Oct 29 07:39:30 UTC 2026
+f9ab7f79f722a58acd3df8963ed55ab59b93199a
+?? app/native/quicklook/evidence/m4-final/e2e-adhoc.txt
+?? app/native/quicklook/evidence/m4-final/run-adhoc/
+/Library/Developer/CommandLineTools
+Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)
+Target: arm64-apple-macosx27.2.0
+27.0
+ProductName:		macOS
+ProductVersion:		27.2
+BuildVersion:		26B123
+ 2:39  up 1 day, 11:55, 2 users, load averages: 8.13 9.38 11.87
+14

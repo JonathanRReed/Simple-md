@@ -1,0 +1,7 @@
+failed to scan /Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/release/mac-arm64/SimpleMD.app: -10814
+ from spotlightREMOVE /Users/jonathanreed/Applications/SimpleMD-M4-final.app existed=True
+REMOVE /tmp/simplemd-m4-test.wZJFLf existed=True
+REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.preview existed=True
+REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.thumbnail existed=True
+qlmanage: call reset on cache
+Final status: 1

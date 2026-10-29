@@ -1,0 +1,4 @@
+swift-driver version: 1.168.6 Traceback (most recent call last):
+  File "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/native/quicklook/test-packaged.py", line 90, in <module>
+    assert len(candidates) == 1, (filename, candidates)
+AssertionError: ('large.md', [])

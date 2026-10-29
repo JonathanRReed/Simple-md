@@ -1,0 +1,32 @@
+Thu Oct 29 07:46:13 UTC 2026
+f4cabca01e0f143c5b5334b1bf045636d9420c63
+?? native/quicklook/evidence/m4-final/build-final.txt
+?? native/quicklook/evidence/m4-final/bundle-diagnostic.txt
+?? native/quicklook/evidence/m4-final/bundle-test-env.txt
+?? native/quicklook/evidence/m4-final/e2e-adhoc-final.txt
+?? native/quicklook/evidence/m4-final/e2e-adhoc.txt
+?? native/quicklook/evidence/m4-final/mdx-cold-red.txt
+?? native/quicklook/evidence/m4-final/mdx-fix-test-production.txt
+?? native/quicklook/evidence/m4-final/mdx-fix-test.txt
+?? native/quicklook/evidence/m4-final/pack-adhoc-final.txt
+?? native/quicklook/evidence/m4-final/pack-adhoc-resume.txt
+?? native/quicklook/evidence/m4-final/packaging-adhoc-final.txt
+?? native/quicklook/evidence/m4-final/preview-adhoc-final.txt
+?? native/quicklook/evidence/m4-final/run-adhoc-final/
+?? native/quicklook/evidence/m4-final/run-adhoc/
+?? native/quicklook/evidence/m4-final/spike-replay.txt
+?? native/quicklook/evidence/m4-final/spike-replay/
+?? native/quicklook/evidence/m4-final/test-corpus-final.txt
+?? native/quicklook/evidence/m4-final/test-final.txt
+?? native/quicklook/evidence/m4-final/test-packaging-final.txt
+?? native/quicklook/evidence/m4-final/test-resume.txt
+?? native/quicklook/evidence/m4-final/typecheck-resume.txt
+/Library/Developer/CommandLineTools
+Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)
+Target: arm64-apple-macosx27.2.0
+27.0
+ProductName:		macOS
+ProductVersion:		27.2
+BuildVersion:		26B123
+ 2:46  up 1 day, 12:02, 2 users, load averages: 8.70 11.20 12.34
+14

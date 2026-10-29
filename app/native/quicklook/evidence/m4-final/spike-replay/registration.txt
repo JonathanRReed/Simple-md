@@ -1,0 +1,12 @@
++    com.jonathanreed.simplemd.qlspike.thumbnail(0.0.1)
+	            Path = /Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+	            UUID = 793C3C0D-0ECC-46E1-8A49-8B466250302D
+	       Timestamp = 2026-10-29 07:44:39 +0000
+	             SDK = com.apple.quicklook.thumbnail
+	   Parent Bundle = /Users/jonathanreed/Applications/SimpleMD-M4-SpikeReplay.app
+	    Display Name = SimpleMDQLThumbnail
+	      Short Name = SimpleMDQLThumbnail
+	     Parent Name = SimpleMD-M4-SpikeReplay
+	        Platform = macOS
+
+ (1 plug-in)

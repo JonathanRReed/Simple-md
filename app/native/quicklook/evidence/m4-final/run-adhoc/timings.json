@@ -1,0 +1,52 @@
+[
+  {
+    "fixture": "README.md",
+    "preview_launch_epoch": 1793259572.905545,
+    "capture_bound_ms": 4233.068,
+    "thumbnail_wall_ms": 48.151,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "math.md",
+    "preview_launch_epoch": 1793259577.291858,
+    "capture_bound_ms": 4173.421,
+    "thumbnail_wall_ms": 64.414,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "mermaid.md",
+    "preview_launch_epoch": 1793259581.6137788,
+    "capture_bound_ms": 4176.775,
+    "thumbnail_wall_ms": 65.101,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "local-image.md",
+    "preview_launch_epoch": 1793259585.928967,
+    "capture_bound_ms": 4179.215,
+    "thumbnail_wall_ms": 51.32,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "fixture.mdx",
+    "preview_launch_epoch": 1793259590.463187,
+    "capture_bound_ms": 4176.164,
+    "thumbnail_wall_ms": 288.071,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  }
+]

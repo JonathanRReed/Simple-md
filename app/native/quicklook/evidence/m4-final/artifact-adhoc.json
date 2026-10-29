@@ -1,0 +1,33 @@
+{
+  "head": "f4cabca01e0f143c5b5334b1bf045636d9420c63",
+  "files": {
+    "Contents/Info.plist": {
+      "bytes": 7083,
+      "sha256": "3a44b8a8ae961a1afc31beb2890a677924f57c35907993b82537464d70d0abf2"
+    },
+    "Contents/Resources/app.asar": {
+      "bytes": 15031507,
+      "sha256": "b71a22f25a701c07bf0e216aecdf8bf0e19b8c7635a26956670720a6c803571e"
+    },
+    "Contents/PlugIns/SimpleMDQLPreview.appex/Contents/Info.plist": {
+      "bytes": 1216,
+      "sha256": "75172bc40df7dd64d7598ce156dc231f6eaa165bd185d8ec5c9e670360851989"
+    },
+    "Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview": {
+      "bytes": 241888,
+      "sha256": "49041cbb06c0ed1ce77707921aa3357a4e7beb1955bdc11fdc76f30e2004ec91"
+    },
+    "Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/Info.plist": {
+      "bytes": 1195,
+      "sha256": "656102e9c4c06ef801b3823c211e9aeba0ad02cdf88b60dd9bc75bf499e7b0ce"
+    },
+    "Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail": {
+      "bytes": 237984,
+      "sha256": "fb5b973081fa399150f71f6ce727b8258b1284d2e46a549c4289dca9ef138b98"
+    },
+    "Contents/PlugIns/SimpleMDQLPreview.appex/Contents/Resources/render-core.js": {
+      "bytes": 9707887,
+      "sha256": "54c8af5ef251793c0c07f769753d733d200c5c3ea24325e87ee1edbac5bc4f16"
+    }
+  }
+}

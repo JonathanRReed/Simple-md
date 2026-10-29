@@ -1,0 +1,668 @@
+bun test v1.4.4 (38afee6c8)
+
+test/static-html.test.ts:
+(pass) non-math documents omit KaTeX assets and preserve native notices [17.53ms]
+(pass) native image assembly embeds granted raster data and replaces unreadable images [4.17ms]
+(pass) standalone HTML preserves generated content and denies active/remote author content [736.16ms]
+(pass) static output supports MDX, file URLs, escaped paths and granted project roots [29.28ms]
+116 |       const script = path.join(temp, "test.js");
+117 |       await Bun.write(script, `load(${JSON.stringify(bundle)});\nif (typeof document !== "undefined" || typeof window !== "undefined" || typeof process !== "undefined" || typeof Buffer !== "undefined" || typeof fetch !== "undefined") throw Error("Host API leaked");\n${mdxCall}.then(mdxHtml => ${call}.then(html => print(JSON.stringify({ html, mdxHtml })))).catch(error => print(JSON.stringify({ error: String(error), stack: error.stack })));\n`);
+118 |       const child = Bun.spawn(["/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc", script], { stdout: "pipe", stderr: "pipe" });
+119 |       const [status, output, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+120 |       expect(status, stderr).toBe(0);
+121 |       expect(JSON.parse(output)).toEqual({ html, mdxHtml });
+                                       ^
+error: expect(received).toEqual(expected)
+
+  {
+-   "html": 
+- "<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: file:; font-src data:"><meta name="viewport" content="width=device-width,initial-scale=1"><title>note</title><style>:root {
+-   --bg: #fcfcfb;
+-   --fg: #26262a;
+-   --muted: #8a8a92;
+-   --rule: rgba(0, 0, 0, 0.07);
+-   --code-bg: rgba(20, 20, 30, 0.04);
+-   --accent: #3b6df0;
+-   --selection: rgba(59, 109, 240, 0.2);
+-   --tok-keyword: #cf222e;
+-   --tok-string: #0a3069;
+-   --tok-number: #0550ae;
+-   --tok-comment: #6e7781;
+-   --tok-name: #8250df;
+-   --tok-type: #953800;
+-   --sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+-   --serif: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif;
+-   --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+-   --prose-font: var(--sans);
+-   --measure: 44rem;
+-   --zoom: 1;
+-   color-scheme: light dark;
+- }
+- 
+- @media (prefers-color-scheme: dark) {
+-   :root:not([data-theme="light"]) {
+-     --bg: #161617;
+-     --fg: #e6e6ea;
+-     --muted: #7d7d86;
+-     --rule: rgba(255, 255, 255, 0.08);
+-     --code-bg: rgba(255, 255, 255, 0.05);
+-     --accent: #7ea2ff;
+-     --selection: rgba(126, 162, 255, 0.28);
+-     --tok-keyword: #ff7b72;
+-     --tok-string: #a5d6ff;
+-     --tok-number: #79c0ff;
+-     --tok-comment: #8b949e;
+-     --tok-name: #d2a8ff;
+-     --tok-type: #ffa657;
+-   }
+- }
+- 
+- 
+- .prose {
+-   max-width: var(--measure);
+-   margin: 0 auto;
+-   font-family: var(--prose-font);
+- }
+- 
+- .cm-rendered.prose {
+-   max-width: none;
+-   margin: 0;
+- }
+- 
+- .prose h1,
+- .prose h2,
+- .prose h3,
+- .prose h4 {
+-   line-height: 1.25;
+-   letter-spacing: -0.015em;
+-   font-weight: 620;
+-   margin: 2em 0 0.5em;
+-   scroll-margin-top: 8px;
+- }
+- .prose h1 {
+-   font-size: 2rem;
+-   margin-top: 0.4em;
+- }
+- .prose h2 {
+-   font-size: 1.45rem;
+- }
+- .prose h3 {
+-   font-size: 1.15rem;
+- }
+- .prose h4 {
+-   font-size: 1rem;
+- }
+- 
+- .prose p,
+- .prose ul,
+- .prose ol,
+- .prose pre,
+- .prose table,
+- .prose blockquote,
+- .prose details {
+-   margin: 0 0 1.1em;
+- }
+- 
+- .prose ul,
+- .prose ol {
+-   padding-inline-start: 1.5em;
+- }
+- 
+- .prose a {
+-   color: var(--accent);
+-   text-decoration: none;
+-   border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+- }
+- .prose a:hover {
+-   border-bottom-color: var(--accent);
+- }
+- 
+- .prose blockquote {
+-   padding-inline-start: 1em;
+-   border-inline-start: 2px solid var(--rule);
+-   color: var(--muted);
+- }
+- 
+- .prose hr {
+-   border: 0;
+-   border-top: 1px solid var(--rule);
+-   margin: 2.5em 0;
+- }
+- 
+- .prose img {
+-   max-width: 100%;
+-   border-radius: 8px;
+- }
+- 
+- .prose code {
+-   font: 0.86em var(--mono);
+-   padding: 0.15em 0.4em;
+-   border-radius: 5px;
+-   background: var(--code-bg);
+- }
+- 
+- .prose pre {
+-   padding: 14px 16px;
+-   border-radius: 10px;
+-   background: var(--code-bg);
+-   overflow-x: auto;
+-   line-height: 1.55;
+- }
+- .prose pre code {
+-   padding: 0;
+-   background: none;
+-   font-size: 0.84rem;
+- }
+- 
+- .shiki,
+- .shiki span {
+-   color: light-dark(var(--shiki-light), var(--shiki-dark));
+- }
+- .prose pre.shiki {
+-   background: var(--code-bg) !important;
+- }
+- 
+- .code-block {
+-   position: relative;
+- }
+- .code-block pre {
+-   margin: 0 0 1.1em;
+- }
+- .code-block[data-lang]::after {
+-   content: attr(data-lang);
+-   position: absolute;
+-   right: 12px;
+-   top: 8px;
+-   font: 11px var(--mono);
+-   color: var(--muted);
+-   opacity: 0.7;
+-   pointer-events: none;
+-   transition: opacity 0.12s;
+- }
+- .code-block:hover::after {
+-   opacity: 0;
+- }
+- .copy-code {
+-   position: absolute;
+-   top: 8px;
+-   right: 8px;
+-   z-index: 1;
+-   border: 1px solid var(--rule);
+-   background: var(--bg);
+-   border-radius: 6px;
+-   font-size: 11px;
+-   padding: 1px 8px;
+-   opacity: 0;
+-   transition: opacity 0.12s;
+- }
+- .code-block:hover .copy-code,
+- .copy-code:focus-visible {
+-   opacity: 1;
+- }
+- 
+- .prose table {
+-   border-collapse: collapse;
+-   width: 100%;
+-   font-size: 0.95em;
+- }
+- .prose th,
+- .prose td {
+-   padding: 6px 12px;
+-   border-bottom: 1px solid var(--rule);
+-   text-align: start;
+- }
+- .prose th {
+-   font-weight: 600;
+- }
+- 
+- .prose .task-list-item {
+-   list-style: none;
+-   margin-inline-start: -1.4em;
+- }
+- .prose .task-list-item-checkbox {
+-   margin-inline-end: 0.5em;
+-   accent-color: var(--accent);
+-   /* Disabled inputs swallow clicks, so the <li> handles toggling instead. */
+-   pointer-events: none;
+- }
+- 
+- /* Press feedback after a read-view checkbox toggle. */
+- @keyframes task-pulse {
+-   0% {
+-     transform: scale(1);
+-   }
+-   50% {
+-     transform: scale(1.25);
+-   }
+-   100% {
+-     transform: scale(1);
+-   }
+- }
+- .prose .task-pulse {
+-   animation: task-pulse 200ms ease-out;
+- }
+- 
+- .markdown-alert {
+-   --alert: var(--accent);
+-   margin: 0 0 1.1em;
+-   padding: 0.6em 1em;
+-   border-inline-start: 3px solid var(--alert);
+-   border-radius: 0 8px 8px 0;
+-   background: color-mix(in srgb, var(--alert) 8%, transparent);
+- }
+- .markdown-alert > :last-child {
+-   margin-bottom: 0;
+- }
+- .markdown-alert-title {
+-   display: flex;
+-   align-items: center;
+-   gap: 6px;
+-   margin: 0 0 0.25em !important;
+-   font-weight: 600;
+-   color: var(--alert);
+- }
+- .markdown-alert-title svg {
+-   width: 16px;
+-   height: 16px;
+-   fill: currentColor;
+- }
+- .markdown-alert-tip {
+-   --alert: #2da44e;
+- }
+- .markdown-alert-important {
+-   --alert: #8250df;
+- }
+- .markdown-alert-warning {
+-   --alert: #bf8700;
+- }
+- .markdown-alert-caution {
+-   --alert: #cf222e;
+- }
+- 
+- .footnotes {
+-   font-size: 0.9em;
+-   color: var(--muted);
+- }
+- 
+- details.frontmatter {
+-   font-size: 0.85em;
+-   color: var(--muted);
+- }
+- details.frontmatter summary {
+-   cursor: default;
+- }
+- details.frontmatter pre {
+-   margin-top: 0.5em;
+-   font-size: 0.9em;
+- }
+- 
+- .katex-display {
+-   overflow-x: auto;
+-   overflow-y: hidden;
+- }
+- /* KaTeX's own screen-reader rule, duplicated here so the MathML source never flashes
+-    visibly while katex.min.css is still loading. */
+- .katex-mathml {
+-   position: absolute;
+-   clip: rect(1px, 1px, 1px, 1px);
+-   padding: 0;
+-   border: 0;
+-   height: 1px;
+-   width: 1px;
+-   overflow: hidden;
+- }
+- 
+- 
+- 
+- *{box-sizing:border-box}body{margin:0;padding:28px 32px;background:var(--bg);color:var(--fg);font:16px/1.7 var(--sans);-webkit-font-smoothing:antialiased}
+- .prose{overflow-wrap:anywhere}.prose video{max-width:100%}.prose pre{white-space:pre;overflow-wrap:normal}.code-block[data-lang]::after{display:none}
+- .mdx-component{border:1px solid var(--rule);border-radius:8px;padding:12px}.mdx-label,.mdx-expression{color:var(--muted);font-family:var(--mono)}
+- img[src$="#gh-dark-mode-only"]{display:none}@media(prefers-color-scheme:dark){img[src$="#gh-dark-mode-only"]{display:revert}img[src$="#gh-light-mode-only"]{display:none}}
+- @media(max-width:480px){body{padding:16px}}
+- 
+- @font-face{font-display:block;font-family:KaTeX_AMS;font-style:normal;font-weight:400;src:url(data:f... (368693 bytes truncated) ....katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+- 
+- .preview-notice,.image-unavailable{color:var(--muted);font-size:14px}.image-unavailable{display:inline-block;border:1px solid var(--rule);padding:8px 12px;border-radius:4px}</style></head><body><main class="prose"><h1 dir="auto" id="user-content-bare-context">Bare context</h1>
+- <p dir="auto"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></p>
+- <div class="code-block" data-lang="json"><pre class="shiki shiki-themes github-light github-dark" style="--shiki-light:#24292e;--shiki-dark:#e1e4e8;--shiki-light-bg:#fff;--shiki-dark-bg:#24292e" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">"n"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">:</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">1</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+- <span class="line"></span></code></pre>
+- </div><p dir="auto"><img src="file:///project/docs/image.png" alt="local"></p>
+- <pre><code class="language-mermaid">graph LR
+- A--&gt;B
+- </code></pre>
+- <p dir="auto"><img></p></main></body></html>"
+- ,
+-   "mdxHtml": 
+- "<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: file:; font-src data:"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MDX</title><style>:root {
+-   --bg: #fcfcfb;
+-   --fg: #26262a;
+-   --muted: #8a8a92;
+-   --rule: rgba(0, 0, 0, 0.07);
+-   --code-bg: rgba(20, 20, 30, 0.04);
+-   --accent: #3b6df0;
+-   --selection: rgba(59, 109, 240, 0.2);
+-   --tok-keyword: #cf222e;
+-   --tok-string: #0a3069;
+-   --tok-number: #0550ae;
+-   --tok-comment: #6e7781;
+-   --tok-name: #8250df;
+-   --tok-type: #953800;
+-   --sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+-   --serif: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif;
+-   --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+-   --prose-font: var(--sans);
+-   --measure: 44rem;
+-   --zoom: 1;
+-   color-scheme: light dark;
+- }
+- 
+- @media (prefers-color-scheme: dark) {
+-   :root:not([data-theme="light"]) {
+-     --bg: #161617;
+-     --fg: #e6e6ea;
+-     --muted: #7d7d86;
+-     --rule: rgba(255, 255, 255, 0.08);
+-     --code-bg: rgba(255, 255, 255, 0.05);
+-     --accent: #7ea2ff;
+-     --selection: rgba(126, 162, 255, 0.28);
+-     --tok-keyword: #ff7b72;
+-     --tok-string: #a5d6ff;
+-     --tok-number: #79c0ff;
+-     --tok-comment: #8b949e;
+-     --tok-name: #d2a8ff;
+-     --tok-type: #ffa657;
+-   }
+- }
+- 
+- 
+- .prose {
+-   max-width: var(--measure);
+-   margin: 0 auto;
+-   font-family: var(--prose-font);
+- }
+- 
+- .cm-rendered.prose {
+-   max-width: none;
+-   margin: 0;
+- }
+- 
+- .prose h1,
+- .prose h2,
+- .prose h3,
+- .prose h4 {
+-   line-height: 1.25;
+-   letter-spacing: -0.015em;
+-   font-weight: 620;
+-   margin: 2em 0 0.5em;
+-   scroll-margin-top: 8px;
+- }
+- .prose h1 {
+-   font-size: 2rem;
+-   margin-top: 0.4em;
+- }
+- .prose h2 {
+-   font-size: 1.45rem;
+- }
+- .prose h3 {
+-   font-size: 1.15rem;
+- }
+- .prose h4 {
+-   font-size: 1rem;
+- }
+- 
+- .prose p,
+- .prose ul,
+- .prose ol,
+- .prose pre,
+- .prose table,
+- .prose blockquote,
+- .prose details {
+-   margin: 0 0 1.1em;
+- }
+- 
+- .prose ul,
+- .prose ol {
+-   padding-inline-start: 1.5em;
+- }
+- 
+- .prose a {
+-   color: var(--accent);
+-   text-decoration: none;
+-   border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+- }
+- .prose a:hover {
+-   border-bottom-color: var(--accent);
+- }
+- 
+- .prose blockquote {
+-   padding-inline-start: 1em;
+-   border-inline-start: 2px solid var(--rule);
+-   color: var(--muted);
+- }
+- 
+- .prose hr {
+-   border: 0;
+-   border-top: 1px solid var(--rule);
+-   margin: 2.5em 0;
+- }
+- 
+- .prose img {
+-   max-width: 100%;
+-   border-radius: 8px;
+- }
+- 
+- .prose code {
+-   font: 0.86em var(--mono);
+-   padding: 0.15em 0.4em;
+-   border-radius: 5px;
+-   background: var(--code-bg);
+- }
+- 
+- .prose pre {
+-   padding: 14px 16px;
+-   border-radius: 10px;
+-   background: var(--code-bg);
+-   overflow-x: auto;
+-   line-height: 1.55;
+- }
+- .prose pre code {
+-   padding: 0;
+-   background: none;
+-   font-size: 0.84rem;
+- }
+- 
+- .shiki,
+- .shiki span {
+-   color: light-dark(var(--shiki-light), var(--shiki-dark));
+- }
+- .prose pre.shiki {
+-   background: var(--code-bg) !important;
+- }
+- 
+- .code-block {
+-   position: relative;
+- }
+- .code-block pre {
+-   margin: 0 0 1.1em;
+- }
+- .code-block[data-lang]::after {
+-   content: attr(data-lang);
+-   position: absolute;
+-   right: 12px;
+-   top: 8px;
+-   font: 11px var(--mono);
+-   color: var(--muted);
+-   opacity: 0.7;
+-   pointer-events: none;
+-   transition: opacity 0.12s;
+- }
+- .code-block:hover::after {
+-   opacity: 0;
+- }
+- .copy-code {
+-   position: absolute;
+-   top: 8px;
+-   right: 8px;
+-   z-index: 1;
+-   border: 1px solid var(--rule);
+-   background: var(--bg);
+-   border-radius: 6px;
+-   font-size: 11px;
+-   padding: 1px 8px;
+-   opacity: 0;
+-   transition: opacity 0.12s;
+- }
+- .code-block:hover .copy-code,
+- .copy-code:focus-visible {
+-   opacity: 1;
+- }
+- 
+- .prose table {
+-   border-collapse: collapse;
+-   width: 100%;
+-   font-size: 0.95em;
+- }
+- .prose th,
+- .prose td {
+-   padding: 6px 12px;
+-   border-bottom: 1px solid var(--rule);
+-   text-align: start;
+- }
+- .prose th {
+-   font-weight: 600;
+- }
+- 
+- .prose .task-list-item {
+-   list-style: none;
+-   margin-inline-start: -1.4em;
+- }
+- .prose .task-list-item-checkbox {
+-   margin-inline-end: 0.5em;
+-   accent-color: var(--accent);
+-   /* Disabled inputs swallow clicks, so the <li> handles toggling instead. */
+-   pointer-events: none;
+- }
+- 
+- /* Press feedback after a read-view checkbox toggle. */
+- @keyframes task-pulse {
+-   0% {
+-     transform: scale(1);
+-   }
+-   50% {
+-     transform: scale(1.25);
+-   }
+-   100% {
+-     transform: scale(1);
+-   }
+- }
+- .prose .task-pulse {
+-   animation: task-pulse 200ms ease-out;
+- }
+- 
+- .markdown-alert {
+-   --alert: var(--accent);
+-   margin: 0 0 1.1em;
+-   padding: 0.6em 1em;
+-   border-inline-start: 3px solid var(--alert);
+-   border-radius: 0 8px 8px 0;
+-   background: color-mix(in srgb, var(--alert) 8%, transparent);
+- }
+- .markdown-alert > :last-child {
+-   margin-bottom: 0;
+- }
+- .markdown-alert-title {
+-   display: flex;
+-   align-items: center;
+-   gap: 6px;
+-   margin: 0 0 0.25em !important;
+-   font-weight: 600;
+-   color: var(--alert);
+- }
+- .markdown-alert-title svg {
+-   width: 16px;
+-   height: 16px;
+-   fill: currentColor;
+- }
+- .markdown-alert-tip {
+-   --alert: #2da44e;
+- }
+- .markdown-alert-important {
+-   --alert: #8250df;
+- }
+- .markdown-alert-warning {
+-   --alert: #bf8700;
+- }
+- .markdown-alert-caution {
+-   --alert: #cf222e;
+- }
+- 
+- .footnotes {
+-   font-size: 0.9em;
+-   color: var(--muted);
+- }
+- 
+- details.frontmatter {
+-   font-size: 0.85em;
+-   color: var(--muted);
+- }
+- details.frontmatter summary {
+-   cursor: default;
+- }
+- details.frontmatter pre {
+-   margin-top: 0.5em;
+-   font-size: 0.9em;
+- }
+- 
+- .katex-display {
+-   overflow-x: auto;
+-   overflow-y: hidden;
+- }
+- /* KaTeX's own screen-reader rule, duplicated here so the MathML source never flashes
+-    visibly while katex.min.css is still loading. */
+- .katex-mathml {
+-   position: absolute;
+-   clip: rect(1px, 1px, 1px, 1px);
+-   padding: 0;
+-   border: 0;
+-   height: 1px;
+-   width: 1px;
+-   overflow: hidden;
+- }
+- 
+- 
+- 
+- *{box-sizing:border-box}body{margin:0;padding:28px 32px;background:var(--bg);color:var(--fg);font:16px/1.7 var(--sans);-webkit-font-smoothing:antialiased}
+- .prose{overflow-wrap:anywhere}.prose video{max-width:100%}.prose pre{white-space:pre;overflow-wrap:normal}.code-block[data-lang]::after{display:none}
+- .mdx-component{border:1px solid var(--rule);border-radius:8px;padding:12px}.mdx-label,.mdx-expression{color:var(--muted);font-family:var(--mono)}
+- img[src$="#gh-dark-mode-only"]{display:none}@media(prefers-color-scheme:dark){img[src$="#gh-dark-mode-only"]{display:revert}img[src$="#gh-light-mode-only"]{display:none}}
+- @media(max-width:480px){body{padding:16px}}
+- 
+- 
+- .preview-notice,.image-unavailable{color:var(--muted);font-size:14px}.image-unavailable{display:inline-block;border:1px solid var(--rule);padding:8px 12px;border-radius:4px}</style></head><body><main class="prose"><table><tbody><tr><th>title</th><td>MDX</td></tr></tbody></table><h1 dir="auto" id="user-content-inert">Inert</h1>
+- <div class="mdx-component"><span class="mdx-label">Widget</span><span class="mdx-expression"><span class="mdx-label">Expression</span> <code>{() =&gt; alert("never")}</code></span></div></main></body></html>"
++   "error": "TypeError: undefined is not an object (evaluating 'console.debug')",
++   "stack": 
++ "@/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:389:60100
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:1:876
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:389:65631
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:1:1099
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:389:65929
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:1:1099
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:389:66862
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:1:1099
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:408:5165
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:1:1099
++ @/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simplemd-static-jsc-LNnn8C/render-core.js:451:1309"
+  ,
+  }
+
+- Expected  - 625
++ Received  + 13
+
+      at <anonymous> (/Users/jonathanreed/.t3/worktrees/Simple-md/t3-41c64cc3/app/test/static-html.test.ts:121:34)
+(fail) browser bundle runs with only ECMAScript built-ins and in Apple JavaScriptCore [220.20ms]
+
+ 4 pass
+ 1 fail
+ 43 expect() calls
+Ran 5 tests across 1 file. [1185.00ms]
