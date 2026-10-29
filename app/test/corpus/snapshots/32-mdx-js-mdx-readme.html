@@ -1,0 +1,119 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><p dir="auto"><a href="https://mdxjs.com" rel="nofollow"><img src="https://raw.githubusercontent.com/mdx-js/.github/5a63e56/image/cover.svg?sanitize=true" alt="MDX" style="max-width: 100%;"></a></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto">Markdown for the component era</h1><a id="user-content-markdown-for-the-component-era" class="anchor" aria-label="Permalink: Markdown for the component era" href="#markdown-for-the-component-era"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://github.com/mdx-js/mdx/actions"><img src="https://github.com/mdx-js/mdx/workflows/main/badge.svg" alt="Build" style="max-width: 100%;"></a>
+<a href="https://codecov.io/github/mdx-js/mdx" rel="nofollow"><img src="https://camo.githubusercontent.com/d42c1c24bc1829f410d6e87b2f6c43f5db986540a4a0aeec8d9e7226f28dd98c/68747470733a2f2f696d672e736869656c64732e696f2f636f6465636f762f632f6769746875622f6d64782d6a732f6d64782f6d61696e2e737667" alt="Coverage" data-canonical-src="https://img.shields.io/codecov/c/github/mdx-js/mdx/main.svg" style="max-width: 100%;"></a>
+<a href="https://opencollective.com/unified" rel="nofollow"><img src="https://camo.githubusercontent.com/e459a401144dbd319ea80688b4182a4d81b6c75c42a42e0eb54459a78d2969c8/68747470733a2f2f6f70656e636f6c6c6563746976652e636f6d2f756e69666965642f73706f6e736f72732f62616467652e737667" alt="Sponsors" data-canonical-src="https://opencollective.com/unified/sponsors/badge.svg" style="max-width: 100%;"></a>
+<a href="https://opencollective.com/unified" rel="nofollow"><img src="https://camo.githubusercontent.com/fe7e6b8f028193cd735778bac6df793ce64afdb4b158d03227d6e20b03fa5bce/68747470733a2f2f6f70656e636f6c6c6563746976652e636f6d2f756e69666965642f6261636b6572732f62616467652e737667" alt="Backers" data-canonical-src="https://opencollective.com/unified/backers/badge.svg" style="max-width: 100%;"></a>
+<a href="https://github.com/mdx-js/mdx/discussions"><img src="https://camo.githubusercontent.com/3ed048321d1c371044186cbf89fee5b647bc4aa18fe4d79edfe0d5d55a544dda/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f636861742d64697363757373696f6e732d737563636573732e737667" alt="Chat" data-canonical-src="https://img.shields.io/badge/chat-discussions-success.svg" style="max-width: 100%;"></a></p>
+<p dir="auto"><a href="https://mdxjs.com" rel="nofollow">MDX</a> is an authorable format that lets you seamlessly write JSX in
+your markdown documents.
+You can import components, such as interactive charts or alerts, and embed them
+within your content.
+This makes writing long-form content with components a blast.
+🚀</p>
+<div class="highlight highlight-source-mdx notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="import {Chart} from './snowfall.js'
+export const year = 2013
+
+# Last year’s snowfall
+
+In {year}, the snowfall was above average.
+It was followed by a warm spring which caused
+flood conditions in many of the nearby rivers.
+
+&lt;Chart year={year} color=&quot;#fcb32c&quot; /&gt;"><pre><span class="pl-k">import</span> {<span class="pl-smi">Chart</span>} <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">'</span>./snowfall.js<span class="pl-pds">'</span></span>
+<span class="pl-k"><span class="pl-k">export</span></span> <span class="pl-k"><span class="pl-k">const</span></span> year <span class="pl-k">=</span> <span class="pl-c1">2013</span>
+
+<span class="pl-mh"># <span class="pl-en">Last year’s snowfall</span></span>
+
+In <span class="pl-s">{</span><span class="pl-smi">year</span><span class="pl-s">}</span>, the snowfall was above average.
+It was followed by a warm spring which caused
+flood conditions in many of the nearby rivers.
+
+&lt;<span class="pl-c1">Chart</span> <span class="pl-e">year</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">year</span><span class="pl-pse">}</span> <span class="pl-e">color</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>#fcb32c<span class="pl-pds">"</span></span> /&gt;</pre></div>
+<p dir="auto">See <a href="https://mdxjs.com/docs/what-is-mdx/" rel="nofollow">§ What is MDX</a> for more info on the
+format.
+See <a href="https://mdxjs.com/playground/" rel="nofollow">§ Playground</a> to try it out.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">What is this?</h2><a id="user-content-what-is-this" class="anchor" aria-label="Permalink: What is this?" href="#what-is-this"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">This GitHub repository contains several packages for compiling the MDX format to
+JavaScript, integrating with bundlers such as webpack and Rollup, and for using
+it with frameworks such as React, Preact, and Vue.</p>
+<p dir="auto">See <a href="https://mdxjs.com/getting-started/" rel="nofollow">§ Getting started</a> for how to
+integrate MDX into your project.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Security</h2><a id="user-content-security" class="anchor" aria-label="Permalink: Security" href="#security"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See <a href="https://mdxjs.com/getting-started/#security" rel="nofollow">§ Security</a> on our site for information.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Contribute</h2><a id="user-content-contribute" class="anchor" aria-label="Permalink: Contribute" href="#contribute"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See <a href="https://mdxjs.com/community/contribute/" rel="nofollow">§ Contribute</a> on our site for ways to get started.
+See <a href="https://mdxjs.com/community/support/" rel="nofollow">§ Support</a> for ways to get help.</p>
+<p dir="auto">This project has a <a href="https://github.com/mdx-js/.github/blob/main/code-of-conduct.md">code of conduct</a>.
+By interacting with this repository, organization, or community you agree to
+abide by its terms.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Sponsor</h2><a id="user-content-sponsor" class="anchor" aria-label="Permalink: Sponsor" href="#sponsor"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See <a href="https://mdxjs.com/community/sponsor/" rel="nofollow">§ Sponsor</a> on our site for how to help financially.</p>
+<markdown-accessiblity-table><table>
+<tbody><tr valign="middle">
+<td width="20%" align="center" rowspan="2" colspan="2">
+  <a href="https://vercel.com" rel="nofollow">Vercel</a><br><br>
+  <a href="https://vercel.com" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/14985020?s=256&amp;v=4" width="128" style="max-width: 100%;"></a>
+</td>
+<td width="20%" align="center" rowspan="2" colspan="2">
+  <a href="https://motif.land" rel="nofollow">Motif</a><br><br>
+  <a href="https://motif.land" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/74457950?s=256&amp;v=4" width="128" style="max-width: 100%;"></a>
+</td>
+<td width="20%" align="center" rowspan="2" colspan="2">
+  <a href="https://www.hashicorp.com" rel="nofollow">HashiCorp</a><br><br>
+  <a href="https://www.hashicorp.com" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/761456?s=256&amp;v=4" width="128" style="max-width: 100%;"></a>
+</td>
+<td width="20%" align="center" rowspan="2" colspan="2">
+  <a href="https://www.gitbook.com" rel="nofollow">GitBook</a><br><br>
+  <a href="https://www.gitbook.com" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/7111340?s=256&amp;v=4" width="128" style="max-width: 100%;"></a>
+</td>
+<td width="20%" align="center" rowspan="2" colspan="2">
+  <a href="https://www.gatsbyjs.org" rel="nofollow">Gatsby</a><br><br>
+  <a href="https://www.gatsbyjs.org" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/12551863?s=256&amp;v=4" width="128" style="max-width: 100%;"></a>
+</td>
+</tr>
+<tr valign="middle"></tr>
+<tr valign="middle">
+<td width="20%" align="center" rowspan="2" colspan="2">
+  <a href="https://www.netlify.com" rel="nofollow">Netlify</a><br><br>
+  
+  <a href="https://www.netlify.com" rel="nofollow"><img src="https://camo.githubusercontent.com/ebe9782164d37418d58c2628d3f3daad0aea73d666307b668555fc95f95bb83c/68747470733a2f2f696d616765732e6f70656e636f6c6c6563746976652e636f6d2f6e65746c6966792f343038376465322f6c6f676f2f3235362e706e67" width="128" data-canonical-src="https://images.opencollective.com/netlify/4087de2/logo/256.png" style="max-width: 100%;"></a>
+</td>
+<td width="10%" align="center">
+  <a href="https://www.coinbase.com" rel="nofollow">Coinbase</a><br><br>
+  <a href="https://www.coinbase.com" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/1885080?s=256&amp;v=4" width="64" style="max-width: 100%;"></a>
+</td>
+<td width="10%" align="center">
+  <a href="https://themeisle.com" rel="nofollow">ThemeIsle</a><br><br>
+  <a href="https://themeisle.com" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/58979018?s=128&amp;v=4" width="64" style="max-width: 100%;"></a>
+</td>
+<td width="10%" align="center">
+  <a href="https://expo.io" rel="nofollow">Expo</a><br><br>
+  <a href="https://expo.io" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/12504344?s=128&amp;v=4" width="64" style="max-width: 100%;"></a>
+</td>
+<td width="10%" align="center">
+  <a href="https://boostnote.io" rel="nofollow">Boost Note</a><br><br>
+  <a href="https://boostnote.io" rel="nofollow"><img src="https://camo.githubusercontent.com/f404e4c1d91b3e30225241dd34b035d372acaa4e92600a29df2cc9730a35f83b/68747470733a2f2f696d616765732e6f70656e636f6c6c6563746976652e636f6d2f626f6f73746875622f363331383038332f6c6f676f2f3132382e706e67" width="64" data-canonical-src="https://images.opencollective.com/boosthub/6318083/logo/128.png" style="max-width: 100%;"></a>
+</td>
+<td width="10%" align="center">
+  <a href="https://markdown.space" rel="nofollow">Markdown Space</a><br><br>
+  <a href="https://markdown.space" rel="nofollow"><img src="https://camo.githubusercontent.com/8afc02ef0ff42d7d9bf4daeb0eae29679f1ce114ff3bd117cc5f5a12f09cc8bb/68747470733a2f2f696d616765732e6f70656e636f6c6c6563746976652e636f6d2f6d61726b646f776e2d73706163652f653130333865642f6c6f676f2f3132382e706e67" width="64" data-canonical-src="https://images.opencollective.com/markdown-space/e1038ed/logo/128.png" style="max-width: 100%;"></a>
+</td>
+<td width="10%" align="center">
+  <a href="https://www.holloway.com" rel="nofollow">Holloway</a><br><br>
+  <a href="https://www.holloway.com" rel="nofollow"><img src="https://avatars1.githubusercontent.com/u/35904294?s=128&amp;v=4" width="64" style="max-width: 100%;"></a>
+</td>
+<td width="10%"></td>
+<td width="10%"></td>
+</tr>
+<tr valign="middle">
+<td width="100%" align="center" colspan="8">
+  <br>
+  <a href="https://opencollective.com/unified" rel="nofollow"><strong>You?</strong></a>
+  <br><br>
+</td>
+</tr>
+</tbody></table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#license"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="/mdx-js/mdx/blob/52285a6758fa078ec57f3d4bd8803d9cbfb12065/license">MIT</a> © Compositor and <a href="https://vercel.com" rel="nofollow">Vercel</a></p>
+</article>

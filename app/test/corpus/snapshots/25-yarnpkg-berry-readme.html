@@ -1,0 +1,206 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><p align="center" dir="auto">
+  <a href="https://yarnpkg.com/" rel="nofollow">
+    <img alt="Yarn" src="https://github.com/yarnpkg/assets/raw/master/yarn-kitten-full.png?raw=true" width="546" style="max-width: 100%;">
+  </a>
+</p>
+<p align="center" dir="auto">
+  Fast, reliable, and secure dependency management.
+</p>
+<p align="center" dir="auto">
+  <a href="https://github.com/yarnpkg/berry/actions"><img alt="GitHub Actions status" src="https://github.com/yarnpkg/berry/workflows/Integration/badge.svg" style="max-width: 100%;"></a>
+  <a href="https://discord.gg/yarnpkg" rel="nofollow"><img alt="Discord Chat" src="https://camo.githubusercontent.com/8bb23aa759db394b17858858a71f8eb09999faceae81dddf808ecbb5f84e1976/68747470733a2f2f696d672e736869656c64732e696f2f646973636f72642f3232363739313430353538393233333636342e737667" data-canonical-src="https://img.shields.io/discord/226791405589233664.svg" style="max-width: 100%;"></a>
+  <a href="https://github.com/yarnpkg/berry/releases"><img alt="Latest CLI Release" src="https://camo.githubusercontent.com/dc7f834433c2d6bcc609963cbbfe5c48826d1f3ff2897925e4c298290ad85576/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f762f407961726e706b672f636c692f6c61746573743f6c6162656c3d6c6174657374" data-canonical-src="https://img.shields.io/npm/v/@yarnpkg/cli/latest?label=latest" style="max-width: 100%;"></a>
+</p>
+<hr>
+<p dir="auto">Yarn is a modern package manager split into various packages. Its novel architecture allows to do things currently impossible with existing solutions:</p>
+<ul dir="auto">
+<li>Yarn supports <a href="https://yarnpkg.com/features/extensibility" rel="nofollow">plugins</a>; adding a plugin is as simple as adding it into your repository</li>
+<li>Yarn supports Node by default but isn't limited to it - plugins can add support for other languages</li>
+<li>Yarn supports <a href="https://yarnpkg.com/features/workspaces" rel="nofollow">workspaces</a> natively, and its CLI takes advantage of that</li>
+<li>Yarn uses a bash-like <a href="https://github.com/yarnpkg/berry/tree/master/packages/yarnpkg-shell#yarnpkgshell">portable shell</a> to make package scripts portable across Windows, Linux, and macOS</li>
+<li>Yarn is first and foremost a <a href="https://yarnpkg.com/api/" rel="nofollow">Node API</a> that can be used programmatically (via <a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-core">@yarnpkg/core</a>)</li>
+<li>Yarn is written in <a href="https://www.typescriptlang.org/" rel="nofollow">TypeScript</a> and is fully type-checked</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Our supports</h2><a id="user-content-our-supports" class="anchor" aria-label="Permalink: Our supports" href="#our-supports"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><a href="https://opencollective.com/yarnpkg" rel="nofollow">Gold sponsors</a></h3><a id="user-content-gold-sponsors" class="anchor" aria-label="Permalink: Gold sponsors" href="#gold-sponsors"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<markdown-accessiblity-table><table width="100%">
+  <tbody><tr>
+    <td>
+      <a href="https://www.doppler.com/?utm_campaign=github_repo&amp;utm_medium=referral&amp;utm_content=yarn&amp;utm_source=github#gh-light-mode-only" rel="nofollow">
+        <img src="https://camo.githubusercontent.com/074a892f26e7e4fa6592b02f5590df88a9e7ec6b6150dd1c40c92b2f7f79a3d4/68747470733a2f2f6173736574732e776562736974652d66696c65732e636f6d2f3564653939373266343931303363356466333936343030342f3566306331313436393932613565396534666135353365365f6c6f676f2e737667" width="140" data-canonical-src="https://assets.website-files.com/5de9972f49103c5df3964004/5f0c1146992a5e9e4fa553e6_logo.svg" style="max-width: 100%;">
+      </a>
+      <a href="https://www.doppler.com/?utm_campaign=github_repo&amp;utm_medium=referral&amp;utm_content=yarn&amp;utm_source=github#gh-dark-mode-only" rel="nofollow">
+        <img src="https://user-images.githubusercontent.com/1037931/151548177-308f0a41-fb0e-4311-9969-4a2455b08686.svg" width="140" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b>All your environment variables, in one place</b>. Stop struggling with scattered API keys, hacking together home-brewed tools, and avoiding access controls. Keep your team and servers in sync with <b><a href="https://www.doppler.com/?utm_campaign=github_repo&amp;utm_medium=referral&amp;utm_content=yarn&amp;utm_source=github" rel="nofollow">Doppler</a></b>.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://workos.com/?utm_campaign=github_repo&amp;utm_medium=referral&amp;utm_content=berry&amp;utm_source=github#gh-light-mode-only" rel="nofollow">
+        <img src="https://user-images.githubusercontent.com/1037931/151547094-7aa4a5cb-07e4-4b8a-ab8f-0a15fd63ab7d.svg" width="140" style="max-width: 100%;">
+      </a>
+      <a href="https://workos.com/?utm_campaign=github_repo&amp;utm_medium=referral&amp;utm_content=berry&amp;utm_source=github#gh-dark-mode-only" rel="nofollow">
+        <img src="https://user-images.githubusercontent.com/1037931/151547899-3655e0d3-3bdb-4351-bd75-af2bebd3ce92.svg" width="140" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b>Your app, enterprise-ready</b>. Start selling to enterprise customers with just a few lines of code. Add Single Sign-On (and more) in minutes instead of months with <b><a href="https://workos.com/?utm_campaign=github_repo&amp;utm_medium=referral&amp;utm_content=berry&amp;utm_source=github" rel="nofollow">WorkOS</a></b>.
+    </td>
+  </tr>
+</tbody></table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">But also</h3><a id="user-content-but-also" class="anchor" aria-label="Permalink: But also" href="#but-also"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<markdown-accessiblity-table><table width="100%">
+  <tbody><tr>
+    <td>
+      <a href="https://www.datadoghq.com/" rel="nofollow">
+        <img src="https://user-images.githubusercontent.com/1037931/86770706-62299e00-c051-11ea-931a-2831c894ab6a.png" width="140" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b><a href="https://www.datadoghq.com/" rel="nofollow">Datadog</a></b> has been sponsoring the time of our lead maintainer for more than a year now. They also upgraded our account so that we can benefit from long-term telemetry (<a href="https://github.com/yarnpkg/berry/issues/1250" data-hovercard-type="issue" data-hovercard-url="/yarnpkg/berry/issues/1250/hovercard">RFC</a>).
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://sysgears.com/" rel="nofollow">
+        <img src="https://private-user-images.githubusercontent.com/1259926/324460170-c4d46d45-4f45-4b20-811e-d1f9d9e452dd.svg?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3OTMyMzUwMzUsIm5iZiI6MTc5MzIzNDczNSwicGF0aCI6Ii8xMjU5OTI2LzMyNDQ2MDE3MC1jNGQ0NmQ0NS00ZjQ1LTRiMjAtODExZS1kMWY5ZDllNDUyZGQuc3ZnP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQVZDT0RZTFNBNTNQUUs0WkElMkYyMDI2MTAyOSUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNjEwMjlUMDA0NTM1WiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9NjgxNGY4NDgwOGE1NmJiY2ZiOTBiMWU1NjdiZWJjZDNkZmU3ZTI1ZjE0ZjQwMjM0YjJkMDA2OWNjMjU0ZmQ1MiZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmcmVzcG9uc2UtY29udGVudC10eXBlPWltYWdlJTJGc3ZnJTJCeG1sIn0.0oUvssGChMk1YQy4kZIOAlSDccCmHpt1fsGYgrQCVKg" width="140" secured-asset-link="" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b><a href="https://sysgears.com/" rel="nofollow">SysGears</a></b> also sponsored time from very early in the 2.x development. In particular, their strong investment is the reason why Yarn 2 supports node_modules installs even better than it used to.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://www.netlify.com/" rel="nofollow">
+        <img src="https://camo.githubusercontent.com/74dfce8b22111f818f09e8dfd329c0b25160e98f6a5c15dda2e6ac1f1b8560b2/68747470733a2f2f75706c6f61642e77696b696d656469612e6f72672f77696b6970656469612f636f6d6d6f6e732f622f62382f4e65746c6966795f6c6f676f2e737667" width="140" data-canonical-src="https://upload.wikimedia.org/wikipedia/commons/b/b8/Netlify_logo.svg" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b><a href="https://www.netlify.com/" rel="nofollow">Netlify</a></b> has been the historical provider for our website. Each time we got issues, they jumped to our help. Their live previews have been super helpful in our development process.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://www.cloudflare.com/" rel="nofollow">
+       <img src="https://user-images.githubusercontent.com/1037931/86770912-bc2a6380-c051-11ea-9f99-97161b2d7cf2.png" width="140" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b><a href="https://www.cloudflare.com/" rel="nofollow">Cloudflare</a></b> has also been a historical partner. While we don't directly mirror the npm registry anymore, they still power our website to make its delivery as fast as possible.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://www.algolia.com/" rel="nofollow">
+       <img src="https://camo.githubusercontent.com/2a55ca0d8e51a150d26e00803ec10a20708dcd3ce08256fe9e8229a63bda9471/68747470733a2f2f75706c6f61642e77696b696d656469612e6f72672f77696b6970656469612f636f6d6d6f6e732f642f64612f416c676f6c69615f6c6f676f2e737667" width="140" data-canonical-src="https://upload.wikimedia.org/wikipedia/commons/d/da/Algolia_logo.svg" style="max-width: 100%;">
+      </a>
+    </td>
+    <td>
+      <b><a href="https://www.algolia.com/" rel="nofollow">Algolia</a></b> contributed a lot to our documentation over the years. They still power the search engine we use on both versions of the documentation.
+    </td>
+  </tr>
+</tbody></table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Installation</h2><a id="user-content-installation" class="anchor" aria-label="Permalink: Installation" href="#installation"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Consult the <a href="https://yarnpkg.com/getting-started/install" rel="nofollow">Installation Guide</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Migration</h2><a id="user-content-migration" class="anchor" aria-label="Permalink: Migration" href="#migration"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Consult the <a href="https://yarnpkg.com/getting-started/migration" rel="nofollow">Migration Guide</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Documentation</h2><a id="user-content-documentation" class="anchor" aria-label="Permalink: Documentation" href="#documentation"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The documentation can be found at <a href="https://yarnpkg.com/" rel="nofollow">yarnpkg.com</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">API</h2><a id="user-content-api" class="anchor" aria-label="Permalink: API" href="#api"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The API documentation can be found at <a href="https://yarnpkg.com/api" rel="nofollow">yarnpkg.com/api</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Current status</h2><a id="user-content-current-status" class="anchor" aria-label="Permalink: Current status" href="#current-status"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">On top of our classic integration tests, we also run Yarn every day against the latest versions of the toolchains used by our community - just in case. Everything should be green!</p>
+
+
+<ul dir="auto">
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-create-vue-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-create-vue-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-docusaurus-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-docusaurus-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-esbuild-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-esbuild-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-eslint-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-eslint-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-fsevents-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-fsevents-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-gatsby-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-gatsby-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-gulp-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-gulp-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-husky-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-husky-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-jest-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-jest-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-mocha-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-mocha-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-next-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-next-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-nm-angular-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-nm-angular-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-nm-babel-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-nm-babel-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-nm-berry-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-nm-berry-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-nyc-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-nyc-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-parcel-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-parcel-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-pnp-angular-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-pnp-angular-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-prettier-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-prettier-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-rollup-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-rollup-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-storybook-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-storybook-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-svelte-kit-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-svelte-kit-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-typescript-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-typescript-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-vite-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-vite-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-vitest-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-vitest-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+<li><a href="https://github.com/yarnpkg/berry/actions/workflows/e2e-webpack-workflow.yml"><img src="https://github.com/yarnpkg/berry/actions/workflows/e2e-webpack-workflow.yml/badge.svg?event=schedule" alt="" style="max-width: 100%;"></a></li>
+</ul>
+
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Contributing</h2><a id="user-content-contributing" class="anchor" aria-label="Permalink: Contributing" href="#contributing"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Consult the <a href="https://yarnpkg.com/advanced/contributing" rel="nofollow">Contributing Guide</a>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Building your own bundle</h3><a id="user-content-building-your-own-bundle" class="anchor" aria-label="Permalink: Building your own bundle" href="#building-your-own-bundle"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Clone this repository, then run the following commands:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="yarn build:cli"><pre>yarn build:cli</pre></div>
+<p dir="auto"><strong>How it works</strong></p>
+<p dir="auto">After building the CLI your global <code>yarn</code> will immediately start to reflect your local changes. This is because Yarn will pick up the <a href="https://yarnpkg.com/configuration/yarnrc#yarnPath" rel="nofollow"><code>yarnPath</code></a> settings in this repository's <a href="https://yarnpkg.com/configuration/yarnrc" rel="nofollow"><code>.yarnrc.yml</code></a>, which is configured to use the newly built CLI if available.</p>
+<p dir="auto"><strong>Works out of the box!</strong></p>
+<p dir="auto">Note that no other command is needed! Given that our dependencies are checked-in within the repository (within the <a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/.yarn/cache"><code>.yarn/cache</code></a> directory), you don't even need to run <a href="https://yarnpkg.com/cli/install" rel="nofollow"><code>yarn install</code></a>. Everything just works right after cloning the project and is guaranteed to continue to work ten years from now 🙂</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Yarn plugins</h2><a id="user-content-yarn-plugins" class="anchor" aria-label="Permalink: Yarn plugins" href="#yarn-plugins"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Default plugins</h3><a id="user-content-default-plugins" class="anchor" aria-label="Permalink: Default plugins" href="#default-plugins"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Those plugins typically come bundled with Yarn. You don't need to do anything special to use them.</p>
+<ul dir="auto">
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-compat">plugin-compat</a> contains a few built-in patches applied to improve PnP support.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-constraints">plugin-constraints</a> adds support for <a href="https://yarnpkg.com/features/constraints" rel="nofollow">constraints</a> to Yarn.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-dlx">plugin-dlx</a> adds support for the <a href="https://yarnpkg.com/cli/dlx" rel="nofollow"><code>yarn dlx</code></a> command.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-essentials">plugin-essentials</a> adds various commands deemed necessary for a package manager (add, remove, ...).</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-exec">plugin-exec</a> adds support for using the <a href="https://github.com/yarnpkg/berry/tree/master/packages/plugin-exec#documentation"><code>exec:</code></a> protocol within your dependencies.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-file">plugin-file</a> adds support for using the <code>file:</code> protocol within your dependencies.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-git">plugin-git</a> adds support for cloning packages from Git repositories.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-github">plugin-github</a> adds support for using GitHub references as dependencies. <a href="https://stackoverflow.com/a/13636954/880703" rel="nofollow">This plugin doesn't use git.</a></li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-http">plugin-http</a> adds support for using straight URL references as dependencies (tgz archives only).</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-init">plugin-init</a> adds support for the <a href="https://yarnpkg.com/cli/init" rel="nofollow"><code>yarn init</code></a> command.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-interactive-tools">plugin-interactive-tools</a> adds support for various interactive commands (<a href="https://yarnpkg.com/cli/upgrade-interactive" rel="nofollow"><code>yarn upgrade-interactive</code></a>).</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-link">plugin-link</a> adds support for using <a href="https://yarnpkg.com/protocol/link" rel="nofollow"><code>link:</code></a> and <a href="https://yarnpkg.com/protocol/portal" rel="nofollow"><code>portal:</code></a> references as dependencies.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-nm">plugin-nm</a> adds support for installing packages through a <code>node_modules</code> folder.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-npm">plugin-npm</a> adds support for using <a href="https://semver.org" rel="nofollow">semver ranges</a> dependencies, resolving them from an npm-like registry.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-npm-cli">plugin-npm-cli</a> adds support for npm-specific commands (<a href="https://yarnpkg.com/cli/npm/login" rel="nofollow"><code>yarn npm login</code></a>, <a href="https://yarnpkg.com/cli/npm/publish" rel="nofollow"><code>yarn npm publish</code></a>, ...).</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-pack">plugin-pack</a> adds support for the <a href="https://yarnpkg.com/cli/pack" rel="nofollow"><code>yarn pack</code></a> command.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-patch">plugin-patch</a> adds support for the <code>patch:</code> protocol.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-pnp">plugin-pnp</a> adds support for installing JavaScript dependencies through the <a href="https://yarnpkg.com/features/pnp" rel="nofollow">Plug'n'Play</a> specification.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-stage">plugin-stage</a> adds support for the <a href="https://yarnpkg.com/cli/stage" rel="nofollow"><code>yarn stage</code></a> command.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-typescript">plugin-typescript</a> improves the user experience when working with TypeScript.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-version">plugin-version</a> adds support for the new <a href="https://yarnpkg.com/features/release-workflow" rel="nofollow">release workflow</a>.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/plugin-workspace-tools">plugin-workspace-tools</a> adds support for the <a href="https://yarnpkg.com/cli/workspaces/foreach" rel="nofollow"><code>yarn workspaces foreach</code></a> command.</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Third-party plugins</h3><a id="user-content-third-party-plugins" class="anchor" aria-label="Permalink: Third-party plugins" href="#third-party-plugins"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Plugins can be developed by third-party entities. To use them within your applications, just specify the full plugin URL when calling <a href="https://yarnpkg.com/cli/plugin/import" rel="nofollow"><code>yarn plugin import</code></a>. Note that plugins aren't fetched from the npm registry at this time - they must be distributed as a single JavaScript file.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Creating a new plugin</h3><a id="user-content-creating-a-new-plugin" class="anchor" aria-label="Permalink: Creating a new plugin" href="#creating-a-new-plugin"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To create your own plugin, please refer to the <a href="https://yarnpkg.com/advanced/plugin-tutorial" rel="nofollow">documentation</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Generic packages</h2><a id="user-content-generic-packages" class="anchor" aria-label="Permalink: Generic packages" href="#generic-packages"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The following packages are generic and can be used for a variety of purposes (including to implement other package managers, but not only):</p>
+<ul dir="auto">
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-core">@yarnpkg/core</a> allows any application to manipulate a project programmatically.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-fslib">@yarnpkg/fslib</a> is a set of tools to abstract the filesystem through type-safe primitives.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-libzip">@yarnpkg/libzip</a> contains zlib+libzip bindings compiled to WebAssembly.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-nm">@yarnpkg/nm</a> contains the <code>node_modules</code> tree builder and hoister.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-parsers">@yarnpkg/parsers</a> can be used to parse the language used by <a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-shell">@yarnpkg/shell</a>.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-pnp">@yarnpkg/pnp</a> can be used to generate <a href="https://yarnpkg.com/features/pnp" rel="nofollow">Plug'n'Play</a>-compatible hooks.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-pnpify">@yarnpkg/pnpify</a> is a CLI tool to transparently add PnP support to various tools.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-sdks">@yarnpkg/sdks</a> is a CLI tool to generate the <a href="https://yarnpkg.com/getting-started/editor-sdks" rel="nofollow">PnP Editor SDKs</a>.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-shell">@yarnpkg/shell</a> is a portable bash-like shell interpreter.</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Yarn packages</h2><a id="user-content-yarn-packages" class="anchor" aria-label="Permalink: Yarn packages" href="#yarn-packages"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The following packages are meant to be used by Yarn itself, and probably won't be useful to other applications:</p>
+<ul dir="auto">
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-builder">@yarnpkg/builder</a> contains a CLI tool to package berry and its plugins.</li>
+<li><a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-cli">@yarnpkg/cli</a> is a CLI entry point built on top of <a href="/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-core">@yarnpkg/core</a>.</li>
+</ul>
+</article>

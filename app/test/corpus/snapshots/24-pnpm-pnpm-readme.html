@@ -1,0 +1,268 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><p dir="auto"><a href="https://pnpm.io/zh/" rel="nofollow">简体中文</a> |
+<a href="https://pnpm.io/ja/" rel="nofollow">日本語</a> |
+<a href="https://pnpm.io/ko/" rel="nofollow">한국어</a> |
+<a href="https://pnpm.io/it/" rel="nofollow">Italiano</a> |
+<a href="https://pnpm.io/pt/" rel="nofollow">Português Brasileiro</a></p>
+<themed-picture data-catalyst-inline="true"><picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/d9b1ff42e0aaa02d8bf6427568e452b073455de8f78dfb12f55ea8473aeef408/68747470733a2f2f692e696d6775722e636f6d2f716c57316545472e706e67" data-canonical-src="https://i.imgur.com/qlW1eEG.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/d9b1ff42e0aaa02d8bf6427568e452b073455de8f78dfb12f55ea8473aeef408/68747470733a2f2f692e696d6775722e636f6d2f716c57316545472e706e67" data-canonical-src="https://i.imgur.com/qlW1eEG.png">
+  <img src="https://camo.githubusercontent.com/d9b1ff42e0aaa02d8bf6427568e452b073455de8f78dfb12f55ea8473aeef408/68747470733a2f2f692e696d6775722e636f6d2f716c57316545472e706e67" alt="pnpm" data-canonical-src="https://i.imgur.com/qlW1eEG.png">
+</picture></themed-picture>
+<p dir="auto">Fast, disk space efficient package manager:</p>
+<ul dir="auto">
+<li><strong>Fast.</strong> Up to 2x faster than the alternatives (see <a href="#benchmark">benchmark</a>).</li>
+<li><strong>Efficient.</strong> Files inside <code>node_modules</code> are linked from a single content-addressable storage.</li>
+<li><strong><a href="https://pnpm.io/workspaces" rel="nofollow">Great for monorepos</a>.</strong></li>
+<li><strong>Strict.</strong> A package can access only dependencies that are specified in its <code>package.json</code>.</li>
+<li><strong>Deterministic.</strong> Has a lockfile called <code>pnpm-lock.yaml</code>.</li>
+<li><strong>Works as a Node.js version manager.</strong> See <a href="https://pnpm.io/11.x/cli/runtime" rel="nofollow">pnpm runtime</a>.</li>
+<li><strong>Works everywhere.</strong> Supports Windows, Linux, and macOS.</li>
+<li><strong>Battle-tested.</strong> Used in production by teams of <a href="https://pnpm.io/workspaces#usage-examples" rel="nofollow">all sizes</a> since 2016.</li>
+<li><strong>Experimental Rust port.</strong> Includes <a href="/pnpm/pnpm/blob/e7b88a6a62aa042ac2c8bc9fbce3832226c4db4d/pnpm">pacquet</a>, an experimental port of the CLI written in Rust.</li>
+<li><a href="https://pnpm.io/feature-comparison" rel="nofollow">See the full feature comparison with npm and Yarn</a>.</li>
+</ul>
+<p dir="auto">To quote the <a href="https://rushjs.io/" rel="nofollow">Rush</a> team:</p>
+<blockquote>
+<p dir="auto">Microsoft uses pnpm in Rush repos with hundreds of projects and hundreds of PRs per day, and we've found it to be very fast and reliable.</p>
+</blockquote>
+<p dir="auto"><a href="https://github.com/pnpm/pnpm/releases/latest"><img src="https://camo.githubusercontent.com/80542d2e41ca00c67fcd02d3f20146272e082f34dbcbd53addd137f16ef341e2/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f762f706e706d2e7376673f6c6162656c3d6c6174657374" alt="npm version" data-canonical-src="https://img.shields.io/npm/v/pnpm.svg?label=latest" style="max-width: 100%;"></a>
+<a href="https://github.com/pnpm/pnpm/actions/workflows/ecosystem-e2e.yml"><img src="https://github.com/pnpm/pnpm/actions/workflows/ecosystem-e2e.yml/badge.svg?branch=main" alt="Ecosystem E2E" style="max-width: 100%;"></a>
+<a href="https://opencollective.com/pnpm" rel="nofollow"><img src="https://camo.githubusercontent.com/18809a1500ddd7a38814c3767b5113e056608ebcd0f92bb6857009e19e726e0e/68747470733a2f2f6f70656e636f6c6c6563746976652e636f6d2f706e706d2f6261636b6572732f62616467652e737667" alt="OpenCollective" data-canonical-src="https://opencollective.com/pnpm/backers/badge.svg" style="max-width: 100%;"></a>
+<a href="https://opencollective.com/pnpm" rel="nofollow"><img src="https://camo.githubusercontent.com/efd69b0a8faa2b60c0b12b338f225c7100663938099a178406348b1978e721d7/68747470733a2f2f6f70656e636f6c6c6563746976652e636f6d2f706e706d2f73706f6e736f72732f62616467652e737667" alt="OpenCollective" data-canonical-src="https://opencollective.com/pnpm/sponsors/badge.svg" style="max-width: 100%;"></a>
+<a href="https://x.com/intent/follow?screen_name=pnpmjs&amp;region=follow_link" rel="nofollow"><img src="https://camo.githubusercontent.com/ad696c2d2cb5a5ec5fde21518d111ab9b9a75b86a0c9016de5c5be02cf567574/68747470733a2f2f696d672e736869656c64732e696f2f747769747465722f666f6c6c6f772f706e706d6a732e7376673f7374796c653d736f6369616c266c6162656c3d466f6c6c6f77" alt="X Follow" data-canonical-src="https://img.shields.io/twitter/follow/pnpmjs.svg?style=social&amp;label=Follow" style="max-width: 100%;"></a>
+<a href="https://stand-with-ukraine.pp.ua" rel="nofollow"><img src="https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg" alt="Stand With Ukraine" style="max-width: 100%;"></a></p>
+
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Platinum Sponsors</h2><a id="user-content-platinum-sponsors" class="anchor" aria-label="Permalink: Platinum Sponsors" href="#platinum-sponsors"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<markdown-accessiblity-table><table>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://bit.cloud/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/072bc23afbf6ef3a2ed9cb4f5f9649889b6f64f852baa3d4b6590e5f236ed74e/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6269742e737667" width="80" alt="Bit" data-canonical-src="https://pnpm.io/img/users/bit.svg" style="max-width: 100%;"></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://openai.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/0fd41952c916479e29e7ecb4dde5500a220fbe82cc7b23b3a6806270c15f8f3a/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6f70656e61695f6461726b2e737667" data-canonical-src="https://pnpm.io/img/users/openai_dark.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/6e2fe58934ad3a6cfe75c0ca31d7492d9bda5c9e08ddc4031c05d235d95cecef/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6f70656e61695f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/openai_light.svg">
+            <img src="https://camo.githubusercontent.com/0fd41952c916479e29e7ecb4dde5500a220fbe82cc7b23b3a6806270c15f8f3a/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6f70656e61695f6461726b2e737667" width="160" alt="OpenAI" data-canonical-src="https://pnpm.io/img/users/openai_dark.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://notion.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/e488925cf49ff904ed1cd2aaa132057dbe70a03d31b65bcf0f80caf6b0849a23/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6e6f74696f6e2e737667" width="80" alt="Notion" data-canonical-src="https://pnpm.io/img/users/notion.svg" style="max-width: 100%;"></a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://coderabbit.ai/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/2d522bfa28143c996d8fd85d99cce1c7237b5e014052304ada842f998773aa54/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636f64657261626269742e737667" data-canonical-src="https://pnpm.io/img/users/coderabbit.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/6f429b63bc3064518fcf85b2536dbcd7298479b46cb44b7d0ecdf90daba99dc5/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636f64657261626269745f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/coderabbit_light.svg">
+            <img src="https://camo.githubusercontent.com/2d522bfa28143c996d8fd85d99cce1c7237b5e014052304ada842f998773aa54/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636f64657261626269742e737667" width="220" alt="CodeRabbit" data-canonical-src="https://pnpm.io/img/users/coderabbit.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://www.cloudflare.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/948f91ebf0a662b455f121cfb723b942ace1163e98e2cd0047591d6ad103db3e/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636c6f7564666c6172652e737667" data-canonical-src="https://pnpm.io/img/users/cloudflare.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/ddd166292de78783986ff0770caed0ec8ccf596c60dc1e572441f521cc64f52c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636c6f7564666c6172655f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/cloudflare_light.svg">
+            <img src="https://camo.githubusercontent.com/948f91ebf0a662b455f121cfb723b942ace1163e98e2cd0047591d6ad103db3e/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636c6f7564666c6172652e737667" width="160" alt="Cloudflare" data-canonical-src="https://pnpm.io/img/users/cloudflare.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Gold Sponsors</h2><a id="user-content-gold-sponsors" class="anchor" aria-label="Permalink: Gold Sponsors" href="#gold-sponsors"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<markdown-accessiblity-table><table>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://sanity.io/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/9bef226aac7cfa84846bd5d2808f72fd8072092e02c3d0d3ddcfbe4360a0583d/68747470733a2f2f706e706d2e696f2f696d672f75736572732f73616e6974792e737667" data-canonical-src="https://pnpm.io/img/users/sanity.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/46987d8e6a581c84a03a7e46b7080f2a28fcf6f1095099da2dfd5c756e891ba8/68747470733a2f2f706e706d2e696f2f696d672f75736572732f73616e6974795f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/sanity_light.svg">
+            <img src="https://camo.githubusercontent.com/9bef226aac7cfa84846bd5d2808f72fd8072092e02c3d0d3ddcfbe4360a0583d/68747470733a2f2f706e706d2e696f2f696d672f75736572732f73616e6974792e737667" width="120" alt="Sanity" data-canonical-src="https://pnpm.io/img/users/sanity.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://discord.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/d51f7dcc7a3cfdd0c08e4ba8d6930cc431f26db50f2aae05a1092ba2e4d3e8c1/68747470733a2f2f706e706d2e696f2f696d672f75736572732f646973636f72642e737667" data-canonical-src="https://pnpm.io/img/users/discord.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/9d2eeae1cff98a9f98637567f0a3249a72ebfeefce8447b9700143fc0b1c0c3b/68747470733a2f2f706e706d2e696f2f696d672f75736572732f646973636f72645f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/discord_light.svg">
+            <img src="https://camo.githubusercontent.com/d51f7dcc7a3cfdd0c08e4ba8d6930cc431f26db50f2aae05a1092ba2e4d3e8c1/68747470733a2f2f706e706d2e696f2f696d672f75736572732f646973636f72642e737667" width="220" alt="Discord" data-canonical-src="https://pnpm.io/img/users/discord.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://vite.dev/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/cffba5acb3d14c85b65ed731b08c7deec6dbcb87657ee81c8a7bf2b4fb0ccf30/68747470733a2f2f706e706d2e696f2f696d672f75736572732f766974656a732e737667" width="42" alt="Vite" data-canonical-src="https://pnpm.io/img/users/vitejs.svg" style="max-width: 100%;"></a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://serpapi.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/ea9344b74ee418556ad2c3f0134545a934388834389f43cfdf96f6112b69fa97/68747470733a2f2f706e706d2e696f2f696d672f75736572732f736572706170695f6461726b2e737667" data-canonical-src="https://pnpm.io/img/users/serpapi_dark.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/11b2780179190cd0fb35eafd892e9787904329ce5623de812272f9ec4ccc79de/68747470733a2f2f706e706d2e696f2f696d672f75736572732f736572706170695f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/serpapi_light.svg">
+            <img src="https://camo.githubusercontent.com/ea9344b74ee418556ad2c3f0134545a934388834389f43cfdf96f6112b69fa97/68747470733a2f2f706e706d2e696f2f696d672f75736572732f736572706170695f6461726b2e737667" width="160" alt="SerpApi" data-canonical-src="https://pnpm.io/img/users/serpapi_dark.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://stackblitz.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/3f4d6861b173326eaac7517a4f5c1da0eb5b5890785e2eb95142e8aaf53af044/68747470733a2f2f706e706d2e696f2f696d672f75736572732f737461636b626c69747a2e737667" data-canonical-src="https://pnpm.io/img/users/stackblitz.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/428743e215c5ee9452e201ec53b10bb79d965e32975fc0df989ead951a23a2d3/68747470733a2f2f706e706d2e696f2f696d672f75736572732f737461636b626c69747a5f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/stackblitz_light.svg">
+            <img src="https://camo.githubusercontent.com/3f4d6861b173326eaac7517a4f5c1da0eb5b5890785e2eb95142e8aaf53af044/68747470733a2f2f706e706d2e696f2f696d672f75736572732f737461636b626c69747a2e737667" width="190" alt="Stackblitz" data-canonical-src="https://pnpm.io/img/users/stackblitz.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://workleap.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/f3116990f0ade6221abcc5663fe5e911d52eaac20a1c2c39c5449499d53a7725/68747470733a2f2f706e706d2e696f2f696d672f75736572732f776f726b6c6561702e737667" data-canonical-src="https://pnpm.io/img/users/workleap.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/af1d4db86222999e0b4d02d12795d27cb251ef8402ed888b0b2feb0cbabf4a8a/68747470733a2f2f706e706d2e696f2f696d672f75736572732f776f726b6c6561705f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/workleap_light.svg">
+            <img src="https://camo.githubusercontent.com/f3116990f0ade6221abcc5663fe5e911d52eaac20a1c2c39c5449499d53a7725/68747470733a2f2f706e706d2e696f2f696d672f75736572732f776f726b6c6561702e737667" width="190" alt="Workleap" data-canonical-src="https://pnpm.io/img/users/workleap.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://nx.dev/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/8efd60d988e8850180483033dacc6b1e5f78b5a2349f183bca9ecdc7054fdbce/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6e782e737667" data-canonical-src="https://pnpm.io/img/users/nx.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/cf34ab073fc61e5e94b29d44af1cc7f2af908ba78cc300da23a9391fe084bbc4/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6e785f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/nx_light.svg">
+            <img src="https://camo.githubusercontent.com/8efd60d988e8850180483033dacc6b1e5f78b5a2349f183bca9ecdc7054fdbce/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6e782e737667" width="50" alt="Nx" data-canonical-src="https://pnpm.io/img/users/nx.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://latitude.so/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/b70812aeb7771fa12fd8dba7f2e8ebd8c370dc0fa54f5b353e05a861d69c3c7d/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6c617469747564652e737667" width="160" alt="Latitude" data-canonical-src="https://pnpm.io/img/users/latitude.svg" style="max-width: 100%;"></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://syntax.fm/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/d0e39410c7e1bfbe2ada512fd858d6e99fc4b1b78808b432a01f27ff4294afb5/68747470733a2f2f706e706d2e696f2f696d672f75736572732f73796e746178666d2e737667" data-canonical-src="https://pnpm.io/img/users/syntaxfm.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/debf04c4d5af439cd476971f471d14dc7f999ae5925f21d8b0995f33e40b53a1/68747470733a2f2f706e706d2e696f2f696d672f75736572732f73796e746178666d5f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/syntaxfm_light.svg">
+            <img src="https://camo.githubusercontent.com/d0e39410c7e1bfbe2ada512fd858d6e99fc4b1b78808b432a01f27ff4294afb5/68747470733a2f2f706e706d2e696f2f696d672f75736572732f73796e746178666d2e737667" width="90" alt="Syntax" data-canonical-src="https://pnpm.io/img/users/syntaxfm.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Silver Sponsors</h2><a id="user-content-silver-sponsors" class="anchor" aria-label="Permalink: Silver Sponsors" href="#silver-sponsors"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<markdown-accessiblity-table><table>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://replit.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/cd22110e06c3650f93bb48e5ddaf8d1d05ac523cb90702d6ff189474a708ab96/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7265706c69742e706e67" data-canonical-src="https://pnpm.io/img/users/replit.png">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/8d2ae3e16bc8b242a146aa1d01820137239889b63ba270e7f563a006917419e7/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7265706c69745f6c696768742e706e67" data-canonical-src="https://pnpm.io/img/users/replit_light.png">
+            <img src="https://camo.githubusercontent.com/cd22110e06c3650f93bb48e5ddaf8d1d05ac523cb90702d6ff189474a708ab96/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7265706c69742e706e67" width="140" alt="Replit" data-canonical-src="https://pnpm.io/img/users/replit.png">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://cybozu.co.jp/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/d127c95084ee3728a52d67b4c5becc345c49d5a6e740d312c00c8fdcf9016b1b/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6379626f7a752e737667" width="70" alt="Cybozu" data-canonical-src="https://pnpm.io/img/users/cybozu.svg" style="max-width: 100%;"></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://www.bairesdev.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/ff1f5923a4c029a5ed89925a223f10298c60ff98b1cd47686b5f96ac75baa55c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6261697265736465762e737667" data-canonical-src="https://pnpm.io/img/users/bairesdev.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/dbde4a99de9f421f6ab71285528facfd7cfbbe1447a655d625ad7c307543d0a4/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6261697265736465765f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/bairesdev_light.svg">
+            <img src="https://camo.githubusercontent.com/ff1f5923a4c029a5ed89925a223f10298c60ff98b1cd47686b5f96ac75baa55c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6261697265736465762e737667" width="160" alt="BairesDev" data-canonical-src="https://pnpm.io/img/users/bairesdev.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://www.thesys.dev/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/b26ca541010eec21999440c116c5cb3cdf4c1432cdb34f4e6dc7820533309f2c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7468657379732e737667" data-canonical-src="https://pnpm.io/img/users/thesys.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/f204b12e11c8f63311a5c5bf9dccb6422936a6519736a1345e2507aa6caccd59/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7468657379735f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/thesys_light.svg">
+            <img src="https://camo.githubusercontent.com/b26ca541010eec21999440c116c5cb3cdf4c1432cdb34f4e6dc7820533309f2c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7468657379732e737667" width="120" alt="Thesys" data-canonical-src="https://pnpm.io/img/users/thesys.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://devowl.io/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/71af31f72e6fea36ab9db837aca761ad50c2286659f3e269151abf3a62822329/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6465766f776c696f2e737667" width="100" alt="devowl.io" data-canonical-src="https://pnpm.io/img/users/devowlio.svg" style="max-width: 100%;"></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://uscreen.de/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/1cdd083529e17f2efa4fa4418f097179ae2667f301fc313e5a07bc2ae55ded0c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7573637265656e2e737667" data-canonical-src="https://pnpm.io/img/users/uscreen.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/e973b49b5c0173cdfeebc1474dc2a7204a8409da750026585007778f4725ae28/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7573637265656e5f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/uscreen_light.svg">
+            <img src="https://camo.githubusercontent.com/1cdd083529e17f2efa4fa4418f097179ae2667f301fc313e5a07bc2ae55ded0c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f7573637265656e2e737667" width="180" alt="u|screen" data-canonical-src="https://pnpm.io/img/users/uscreen.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://www.leniolabs.com/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow"><img src="https://camo.githubusercontent.com/4a0110e25dc36bb4a88ad675a27dbd6bd6f69df389bc2820e731e88a52d6d611/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6c656e696f6c6162732e6a7067" width="40" alt="Leniolabs_" data-canonical-src="https://pnpm.io/img/users/leniolabs.jpg" style="max-width: 100%;"></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://depot.dev/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/84623ad9eb29cc19ab71e82abed92a4688d1efb42e988055cb98353147fd1887/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6465706f742e737667" data-canonical-src="https://pnpm.io/img/users/depot.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/c7ccc7fc99169492e2eed6b585dc5d89bed174597793071b1ad6e8140c1bbc24/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6465706f745f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/depot_light.svg">
+            <img src="https://camo.githubusercontent.com/84623ad9eb29cc19ab71e82abed92a4688d1efb42e988055cb98353147fd1887/68747470733a2f2f706e706d2e696f2f696d672f75736572732f6465706f742e737667" width="100" alt="Depot" data-canonical-src="https://pnpm.io/img/users/depot.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://cerbos.dev/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">
+          <themed-picture data-catalyst-inline="true"><picture>
+            <source media="(prefers-color-scheme: light)" srcset="https://camo.githubusercontent.com/cba67e3ffc80ee8913e79941ca431c36d0d18d25edbd28ffc45b4cd840255e6c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636572626f732e737667" data-canonical-src="https://pnpm.io/img/users/cerbos.svg">
+            <source media="(prefers-color-scheme: dark)" srcset="https://camo.githubusercontent.com/1bd895f7e762e1cc046471daa4909d1118c56ae695ba6ade4d88454dce04f260/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636572626f735f6c696768742e737667" data-canonical-src="https://pnpm.io/img/users/cerbos_light.svg">
+            <img src="https://camo.githubusercontent.com/cba67e3ffc80ee8913e79941ca431c36d0d18d25edbd28ffc45b4cd840255e6c/68747470733a2f2f706e706d2e696f2f696d672f75736572732f636572626f732e737667" width="90" alt="Cerbos" data-canonical-src="https://pnpm.io/img/users/cerbos.svg">
+          </picture></themed-picture>
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://time.now/?utm_source=pnpm&amp;utm_medium=readme" rel="nofollow">⏱️ Time.now</a>
+      </td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+
+<p dir="auto">Support this project by <a href="https://opencollective.com/pnpm#sponsor" rel="nofollow">becoming a sponsor</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Background</h2><a id="user-content-background" class="anchor" aria-label="Permalink: Background" href="#background"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">pnpm uses a content-addressable filesystem to store all files from all module directories on a disk.
+When using npm, if you have 100 projects using lodash, you will have 100 copies of lodash on disk.
+With pnpm, lodash will be stored in a content-addressable storage, so:</p>
+<ol dir="auto">
+<li>If you depend on different versions of lodash, only the files that differ are added to the store.
+If lodash has 100 files, and a new version has a change only in one of those files,
+<code>pnpm update</code> will only add 1 new file to the storage.</li>
+<li>All the files are saved in a single place on the disk. When packages are installed, their files are linked
+from that single place consuming no additional disk space. Linking is performed using either hard-links or reflinks (copy-on-write).</li>
+</ol>
+<p dir="auto">As a result, you save gigabytes of space on your disk and you have a lot faster installations.
+If you'd like more details about the unique <code>node_modules</code> structure that pnpm creates and
+why it works fine with the Node.js ecosystem, read this small article: <a href="https://pnpm.io/blog/2020/05/27/flat-node-modules-is-not-the-only-way" rel="nofollow">Flat node_modules is not the only way</a>.</p>
+<p dir="auto">💖 Like this project? Let people know with a <a href="https://r.pnpm.io/tweet" rel="nofollow">tweet</a></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Getting Started</h2><a id="user-content-getting-started" class="anchor" aria-label="Permalink: Getting Started" href="#getting-started"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://pnpm.io/installation" rel="nofollow">Installation</a></li>
+<li><a href="https://pnpm.io/pnpm-cli" rel="nofollow">Usage</a></li>
+<li><a href="https://pnpm.io/faq" rel="nofollow">Frequently Asked Questions</a></li>
+<li><a href="https://x.com/pnpmjs" rel="nofollow">X</a></li>
+<li><a href="https://bsky.app/profile/pnpm.io" rel="nofollow">Bluesky</a></li>
+<li><a href="https://r.pnpm.io/chat" rel="nofollow">Discord</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Benchmark</h2><a id="user-content-benchmark" class="anchor" aria-label="Permalink: Benchmark" href="#benchmark"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">pnpm is up to 2x faster than npm and Yarn classic. See <a href="https://r.pnpm.io/benchmarks" rel="nofollow">all benchmarks</a>.</p>
+<p dir="auto">Benchmarks on an app with lots of dependencies:</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer nofollow" href="https://camo.githubusercontent.com/1964083bd49211c8d8508ac7d699cab0646553ad2d7922e3b7a8aa99dcbab189/68747470733a2f2f706e706d2e696f2f696d672f62656e63686d61726b732f616c6f7474612d66696c65732e737667"><img src="https://camo.githubusercontent.com/1964083bd49211c8d8508ac7d699cab0646553ad2d7922e3b7a8aa99dcbab189/68747470733a2f2f706e706d2e696f2f696d672f62656e63686d61726b732f616c6f7474612d66696c65732e737667" alt="" data-canonical-src="https://pnpm.io/img/benchmarks/alotta-files.svg" style="max-width: 100%;"></a></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#license"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://github.com/pnpm/pnpm/blob/main/LICENSE">MIT</a>, except the <a href="https://github.com/pnpm/pnpm/tree/main/pnpr"><code>pnpr/</code></a> directory, which is source-available under the <a href="https://github.com/pnpm/pnpm/blob/main/pnpr/LICENSE.md">PolyForm Shield License 1.0.0</a>.</p>
+</article>

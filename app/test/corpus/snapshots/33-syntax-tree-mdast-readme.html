@@ -1,0 +1,1345 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/syntax-tree/mdast/e6b43aa/logo.svg?sanitize=true"><img src="https://raw.githubusercontent.com/syntax-tree/mdast/e6b43aa/logo.svg?sanitize=true" alt="mdast" style="max-width: 100%;"></a></h1><a id="" class="anchor" aria-label="Permalink: " href="#"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><strong>M</strong>ark<strong>d</strong>own <strong>A</strong>bstract <strong>S</strong>yntax <strong>T</strong>ree.</p>
+<hr>
+<p dir="auto"><strong>mdast</strong> is a specification for representing markdown in a <a href="https://github.com/syntax-tree/unist#syntax-tree">syntax
+tree</a>.
+It implements <strong><a href="https://github.com/syntax-tree/unist">unist</a></strong>.
+It can represent several flavours of <a href="https://daringfireball.net/projects/markdown/" rel="nofollow">markdown</a>,
+such as <a href="https://commonmark.org" rel="nofollow">CommonMark</a> and <a href="https://github.github.com/gfm/">GitHub Flavored Markdown</a>.</p>
+<p dir="auto">This document may not be released.
+See <a href="https://github.com/syntax-tree/mdast/releases">releases</a> for released documents.
+The latest released version is <a href="https://github.com/syntax-tree/mdast/releases/tag/5.0.0"><code>5.0.0</code></a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Contents</h2><a id="user-content-contents" class="anchor" aria-label="Permalink: Contents" href="#contents"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="#introduction">Introduction</a>
+<ul dir="auto">
+<li><a href="#where-this-specification-fits">Where this specification fits</a></li>
+</ul>
+</li>
+<li><a href="#types">Types</a></li>
+<li><a href="#nodes-abstract">Nodes (abstract)</a>
+<ul dir="auto">
+<li><a href="#literal"><code>Literal</code></a></li>
+<li><a href="#parent"><code>Parent</code></a></li>
+</ul>
+</li>
+<li><a href="#nodes">Nodes</a>
+<ul dir="auto">
+<li><a href="#blockquote"><code>Blockquote</code></a></li>
+<li><a href="#break"><code>Break</code></a></li>
+<li><a href="#code"><code>Code</code></a></li>
+<li><a href="#definition"><code>Definition</code></a></li>
+<li><a href="#emphasis"><code>Emphasis</code></a></li>
+<li><a href="#heading"><code>Heading</code></a></li>
+<li><a href="#html"><code>Html</code></a></li>
+<li><a href="#image"><code>Image</code></a></li>
+<li><a href="#imagereference"><code>ImageReference</code></a></li>
+<li><a href="#inlinecode"><code>InlineCode</code></a></li>
+<li><a href="#link"><code>Link</code></a></li>
+<li><a href="#linkreference"><code>LinkReference</code></a></li>
+<li><a href="#list"><code>List</code></a></li>
+<li><a href="#listitem"><code>ListItem</code></a></li>
+<li><a href="#paragraph"><code>Paragraph</code></a></li>
+<li><a href="#root"><code>Root</code></a></li>
+<li><a href="#strong"><code>Strong</code></a></li>
+<li><a href="#text"><code>Text</code></a></li>
+<li><a href="#thematicbreak"><code>ThematicBreak</code></a></li>
+</ul>
+</li>
+<li><a href="#mixin">Mixin</a>
+<ul dir="auto">
+<li><a href="#alternative"><code>Alternative</code></a></li>
+<li><a href="#association"><code>Association</code></a></li>
+<li><a href="#reference"><code>Reference</code></a></li>
+<li><a href="#resource"><code>Resource</code></a></li>
+</ul>
+</li>
+<li><a href="#enumeration">Enumeration</a>
+<ul dir="auto">
+<li><a href="#referencetype"><code>referenceType</code></a></li>
+</ul>
+</li>
+<li><a href="#content-model">Content model</a>
+<ul dir="auto">
+<li><a href="#content"><code>Content</code></a></li>
+<li><a href="#flowcontent"><code>FlowContent</code></a></li>
+<li><a href="#listcontent"><code>ListContent</code></a></li>
+<li><a href="#phrasingcontent"><code>PhrasingContent</code></a></li>
+</ul>
+</li>
+<li><a href="#extensions">Extensions</a>
+<ul dir="auto">
+<li><a href="#gfm">GFM</a></li>
+<li><a href="#frontmatter">Frontmatter</a></li>
+<li><a href="#mdx">MDX</a></li>
+</ul>
+</li>
+<li><a href="#glossary">Glossary</a></li>
+<li><a href="#list-of-utilities">List of utilities</a></li>
+<li><a href="#references">References</a></li>
+<li><a href="#security">Security</a></li>
+<li><a href="#related">Related</a></li>
+<li><a href="#contribute">Contribute</a></li>
+<li><a href="#acknowledgments">Acknowledgments</a></li>
+<li><a href="#license">License</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Introduction</h2><a id="user-content-introduction" class="anchor" aria-label="Permalink: Introduction" href="#introduction"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">This document defines a format for representing <a href="https://daringfireball.net/projects/markdown/" rel="nofollow">markdown</a> as an <a href="https://github.com/syntax-tree/unist#syntax-tree">abstract
+syntax tree</a>.
+Development of mdast started in July 2014,
+in <strong><a href="https://github.com/remarkjs/remark">remark</a></strong>,
+before <a href="https://github.com/syntax-tree/unist">unist</a> existed.
+This specification is written in a <a href="https://heycam.github.io/webidl/" rel="nofollow">Web IDL</a>-like grammar.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Where this specification fits</h3><a id="user-content-where-this-specification-fits" class="anchor" aria-label="Permalink: Where this specification fits" href="#where-this-specification-fits"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">mdast extends <a href="https://github.com/syntax-tree/unist">unist</a>,
+a format for syntax trees,
+to benefit from its <a href="https://github.com/syntax-tree/unist#list-of-utilities">ecosystem of utilities</a>.</p>
+<p dir="auto">mdast relates to <a href="https://www.ecma-international.org/ecma-262/9.0/index.html" rel="nofollow">JavaScript</a> in that it has a rich <a href="#list-of-utilities">ecosystem of
+utilities</a> for working with compliant syntax trees in
+JavaScript.
+However,
+mdast is not limited to JavaScript and can be used in other programming
+languages.</p>
+<p dir="auto">mdast relates to the <a href="https://github.com/unifiedjs/unified">unified</a> and <a href="https://github.com/remarkjs/remark">remark</a> projects in that mdast syntax
+trees are used throughout their ecosystems.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Types</h2><a id="user-content-types" class="anchor" aria-label="Permalink: Types" href="#types"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">If you are using TypeScript,
+you can use the unist types by installing them with npm:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm install @types/mdast"><pre>npm install @types/mdast</pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Nodes (abstract)</h2><a id="user-content-nodes-abstract" class="anchor" aria-label="Permalink: Nodes (abstract)" href="#nodes-abstract"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Literal</code></h3><a id="user-content-literal" class="anchor" aria-label="Permalink: Literal" href="#literal"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Literal &lt;: UnistLiteral {
+  value: string
+}"><pre>interface Literal <span class="pl-k">&lt;:</span> UnistLiteral {
+  value<span class="pl-k">:</span> <span class="pl-c1">string</span>
+}</pre></div>
+<p dir="auto"><strong>Literal</strong> (<a href="https://github.com/syntax-tree/unist#literal"><strong>UnistLiteral</strong></a>) represents an abstract
+interface in mdast containing a value.</p>
+<p dir="auto">Its <code>value</code> field is a <code>string</code>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Parent</code></h3><a id="user-content-parent" class="anchor" aria-label="Permalink: Parent" href="#parent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Parent &lt;: UnistParent {
+  children: [MdastContent]
+}"><pre>interface Parent <span class="pl-k">&lt;:</span> UnistParent {
+  children<span class="pl-k">:</span> [MdastContent]
+}</pre></div>
+<p dir="auto"><strong>Parent</strong> (<a href="https://github.com/syntax-tree/unist#parent"><strong>UnistParent</strong></a>) represents an abstract
+interface in mdast containing other nodes (said to be <a href="https://github.com/syntax-tree/unist#child"><em>children</em></a>).</p>
+<p dir="auto">Its content is limited to only other <a href="#content-model"><strong>mdast content</strong></a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Nodes</h2><a id="user-content-nodes" class="anchor" aria-label="Permalink: Nodes" href="#nodes"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Blockquote</code></h3><a id="user-content-blockquote" class="anchor" aria-label="Permalink: Blockquote" href="#blockquote"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Blockquote &lt;: Parent {
+  type: 'blockquote'
+  children: [FlowContent]
+}"><pre>interface Blockquote <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'blockquote'</span>
+  children<span class="pl-k">:</span> [FlowContent]
+}</pre></div>
+<p dir="auto"><strong>Blockquote</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a section quoted from
+somewhere else.</p>
+<p dir="auto"><strong>Blockquote</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is
+expected.
+Its content model is also <a href="#flowcontent"><strong>flow</strong></a> content.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="&gt; Alpha bravo charlie."><pre><span class="pl-ent"><span class="pl-ent">&gt; </span>Alpha bravo charlie.</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'blockquote',
+  children: [{
+    type: 'paragraph',
+    children: [{type: 'text', value: 'Alpha bravo charlie.'}]
+  }]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'blockquote'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span>
+    <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+    <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'Alpha bravo charlie.'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+  <span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Break</code></h3><a id="user-content-break" class="anchor" aria-label="Permalink: Break" href="#break"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Break &lt;: Node {
+  type: 'break'
+}"><pre>interface <span class="pl-k">Break</span> <span class="pl-k">&lt;:</span> Node {
+  type<span class="pl-k">:</span> <span class="pl-s">'break'</span>
+}</pre></div>
+<p dir="auto"><strong>Break</strong> (<a href="https://github.com/syntax-tree/unist#node"><strong>Node</strong></a>) represents a line break,
+such as in poems or addresses.</p>
+<p dir="auto"><strong>Break</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+It has no content model.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="foo··
+bar"><pre>foo··
+bar</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'paragraph',
+  children: [
+    {type: 'text', value: 'foo'},
+    {type: 'break'},
+    {type: 'text', value: 'bar'}
+  ]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span>
+    <span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'foo'</span><span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'break'</span><span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'bar'</span><span class="pl-kos">}</span>
+  <span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Code</code></h3><a id="user-content-code" class="anchor" aria-label="Permalink: Code" href="#code"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Code &lt;: Literal {
+  type: 'code'
+  lang: string?
+  meta: string?
+}"><pre>interface Code <span class="pl-k">&lt;:</span> Literal {
+  type<span class="pl-k">:</span> <span class="pl-s">'code'</span>
+  lang<span class="pl-k">:</span> <span class="pl-c1">string</span><span class="pl-k">?</span>
+  meta<span class="pl-k">:</span> <span class="pl-c1">string</span><span class="pl-k">?</span>
+}</pre></div>
+<p dir="auto"><strong>Code</strong> (<a href="#literal"><strong>Literal</strong></a>) represents a block of preformatted text,
+such as ASCII art or computer code.</p>
+<p dir="auto"><strong>Code</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is expected.
+Its content is represented by its <code>value</code> field.</p>
+<p dir="auto">This node relates to the <a href="#phrasingcontent"><strong>phrasing</strong></a> content concept
+<a href="#inlinecode"><strong>InlineCode</strong></a>.</p>
+<p dir="auto">A <code>lang</code> field can be present.
+It represents the language of computer code being marked up.</p>
+<p dir="auto">If the <code>lang</code> field is present,
+a <code>meta</code> field can be present.
+It represents custom information relating to the node.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="    foo()"><pre>    <span class="pl-c1">foo()</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'code',
+  lang: null,
+  meta: null,
+  value: 'foo()'
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'code'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">lang</span>: <span class="pl-c1">null</span><span class="pl-kos">,</span>
+  <span class="pl-c1">meta</span>: <span class="pl-c1">null</span><span class="pl-kos">,</span>
+  <span class="pl-c1">value</span>: <span class="pl-s">'foo()'</span>
+<span class="pl-kos">}</span></pre></div>
+<p dir="auto">And the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="```js highlight-line=&quot;2&quot;
+foo()
+bar()
+baz()
+```"><pre><span class="pl-s">```</span><span class="pl-en">js</span> highlight-line="2"
+<span class="pl-en">foo</span>()
+<span class="pl-en">bar</span>()
+<span class="pl-en">baz</span>()
+<span class="pl-s">```</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'code',
+  lang: 'js',
+  meta: 'highlight-line=&quot;2&quot;',
+  value: 'foo()\nbar()\nbaz()'
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'code'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">lang</span>: <span class="pl-s">'js'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">meta</span>: <span class="pl-s">'highlight-line="2"'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">value</span>: <span class="pl-s">'foo()\nbar()\nbaz()'</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Definition</code></h3><a id="user-content-definition" class="anchor" aria-label="Permalink: Definition" href="#definition"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Definition &lt;: Node {
+  type: 'definition'
+}
+
+Definition includes Association
+Definition includes Resource"><pre>interface Definition <span class="pl-k">&lt;:</span> Node {
+  type<span class="pl-k">:</span> <span class="pl-s">'definition'</span>
+}
+
+Definition includes Association
+Definition includes Resource</pre></div>
+<p dir="auto"><strong>Definition</strong> (<a href="https://github.com/syntax-tree/unist#node"><strong>Node</strong></a>) represents a resource.</p>
+<p dir="auto"><strong>Definition</strong> can be used where <a href="#content"><strong>content</strong></a> is expected.
+It has no content model.</p>
+<p dir="auto"><strong>Definition</strong> includes the mixins <a href="#association"><strong>Association</strong></a> and
+<a href="#resource"><strong>Resource</strong></a>.</p>
+<p dir="auto"><strong>Definition</strong> should be associated with
+<a href="#linkreference"><strong>LinkReferences</strong></a> and
+<a href="#imagereference"><strong>ImageReferences</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="[Alpha]: https://example.com"><pre><span class="pl-s">[</span><span class="pl-en">Alpha</span><span class="pl-s">]</span>: <span class="pl-corl">https://example.com</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'definition',
+  identifier: 'alpha',
+  label: 'Alpha',
+  url: 'https://example.com',
+  title: null
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'definition'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">identifier</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">label</span>: <span class="pl-s">'Alpha'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">url</span>: <span class="pl-s">'https://example.com'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">title</span>: <span class="pl-c1">null</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Emphasis</code></h3><a id="user-content-emphasis" class="anchor" aria-label="Permalink: Emphasis" href="#emphasis"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Emphasis &lt;: Parent {
+  type: 'emphasis'
+  children: [PhrasingContent]
+}"><pre>interface Emphasis <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'emphasis'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}</pre></div>
+<p dir="auto"><strong>Emphasis</strong> (<a href="#parent"><strong>Parent</strong></a>) represents stress emphasis of its
+contents.</p>
+<p dir="auto"><strong>Emphasis</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+Its content model is <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="*alpha* _bravo_"><pre><span class="pl-s">*</span>alpha<span class="pl-s">*</span> <span class="pl-s">_</span>bravo<span class="pl-s">_</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'paragraph',
+  children: [
+    {
+      type: 'emphasis',
+      children: [{type: 'text', value: 'alpha'}]
+    },
+    {type: 'text', value: ' '},
+    {
+      type: 'emphasis',
+      children: [{type: 'text', value: 'bravo'}]
+    }
+  ]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span>
+    <span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'emphasis'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+    <span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">' '</span><span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'emphasis'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+    <span class="pl-kos">}</span>
+  <span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Heading</code></h3><a id="user-content-heading" class="anchor" aria-label="Permalink: Heading" href="#heading"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Heading &lt;: Parent {
+  type: 'heading'
+  depth: 1 &lt;= number &lt;= 6
+  children: [PhrasingContent]
+}"><pre>interface Heading <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'heading'</span>
+  depth<span class="pl-k">:</span> <span class="pl-c1">1</span> <span class="pl-k">&lt;</span>= number <span class="pl-k">&lt;</span>= <span class="pl-c1">6</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}</pre></div>
+<p dir="auto"><strong>Heading</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a heading of a section.</p>
+<p dir="auto"><strong>Heading</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is expected.
+Its content model is <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto">A <code>depth</code> field must be present.
+A value of <code>1</code> is said to be the highest rank and <code>6</code> the lowest.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="# Alpha"><pre><span class="pl-mh"># <span class="pl-en">Alpha</span></span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'heading',
+  depth: 1,
+  children: [{type: 'text', value: 'Alpha'}]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'heading'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">depth</span>: <span class="pl-c1">1</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'Alpha'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Html</code></h3><a id="user-content-html" class="anchor" aria-label="Permalink: Html" href="#html"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Html &lt;: Literal {
+  type: 'html'
+}"><pre>interface Html <span class="pl-k">&lt;:</span> Literal {
+  type<span class="pl-k">:</span> <span class="pl-s">'html'</span>
+}</pre></div>
+<p dir="auto"><strong>Html</strong> (<a href="#literal"><strong>Literal</strong></a>) represents a fragment of raw <a href="https://html.spec.whatwg.org/multipage/" rel="nofollow">HTML</a>.</p>
+<p dir="auto"><strong>Html</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> or
+<a href="#phrasingcontent"><strong>phrasing</strong></a> content is expected.
+Its content is represented by its <code>value</code> field.</p>
+<p dir="auto"><strong>Html</strong> nodes do not have the restriction of being valid or complete HTML
+(<a href="https://html.spec.whatwg.org/multipage/" rel="nofollow">[HTML]</a>) constructs.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="&lt;div&gt;"><pre>&lt;<span class="pl-ent">div</span>&gt;</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{type: 'html', value: '&lt;div&gt;'}"><pre><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'html'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'&lt;div&gt;'</span><span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Image</code></h3><a id="user-content-image" class="anchor" aria-label="Permalink: Image" href="#image"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Image &lt;: Node {
+  type: 'image'
+}
+
+Image includes Resource
+Image includes Alternative"><pre>interface <span class="pl-c1">Image</span> <span class="pl-k">&lt;:</span> Node {
+  type<span class="pl-k">:</span> <span class="pl-s">'image'</span>
+}
+
+<span class="pl-c1">Image</span> includes Resource
+<span class="pl-c1">Image</span> includes Alternative</pre></div>
+<p dir="auto"><strong>Image</strong> (<a href="https://github.com/syntax-tree/unist#node"><strong>Node</strong></a>) represents an image.</p>
+<p dir="auto"><strong>Image</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+It has no content model,
+but is described by its <code>alt</code> field.</p>
+<p dir="auto"><strong>Image</strong> includes the mixins <a href="#resource"><strong>Resource</strong></a> and
+<a href="#alternative"><strong>Alternative</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="![alpha](https://example.com/favicon.ico &quot;bravo&quot;)"><pre><span class="pl-s">![</span>alpha<span class="pl-s">]</span><span class="pl-s">(</span><span class="pl-corl">https://example.com/favicon.ico</span> <span class="pl-s">"</span><span class="pl-s">bravo</span><span class="pl-s">")</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'image',
+  url: 'https://example.com/favicon.ico',
+  title: 'bravo',
+  alt: 'alpha'
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'image'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">url</span>: <span class="pl-s">'https://example.com/favicon.ico'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">title</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">alt</span>: <span class="pl-s">'alpha'</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>ImageReference</code></h3><a id="user-content-imagereference" class="anchor" aria-label="Permalink: ImageReference" href="#imagereference"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface ImageReference &lt;: Node {
+  type: 'imageReference'
+}
+
+ImageReference includes Reference
+ImageReference includes Alternative"><pre>interface ImageReference <span class="pl-k">&lt;:</span> Node {
+  type<span class="pl-k">:</span> <span class="pl-s">'imageReference'</span>
+}
+
+ImageReference includes Reference
+ImageReference includes Alternative</pre></div>
+<p dir="auto"><strong>ImageReference</strong> (<a href="https://github.com/syntax-tree/unist#node"><strong>Node</strong></a>) represents an image through
+association,
+or its original source if there is no association.</p>
+<p dir="auto"><strong>ImageReference</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a>
+content is expected.
+It has no content model,
+but is described by its <code>alt</code> field.</p>
+<p dir="auto"><strong>ImageReference</strong> includes the mixins <a href="#reference"><strong>Reference</strong></a> and
+<a href="#alternative"><strong>Alternative</strong></a>.</p>
+<p dir="auto"><strong>ImageReference</strong> should be associated with a <a href="#definition"><strong>Definition</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="![alpha][bravo]"><pre><span class="pl-s">![</span>alpha<span class="pl-s">]</span><span class="pl-s">[</span><span class="pl-en">bravo</span><span class="pl-s">]</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'imageReference',
+  identifier: 'bravo',
+  label: 'bravo',
+  referenceType: 'full',
+  alt: 'alpha'
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'imageReference'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">identifier</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">label</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">referenceType</span>: <span class="pl-s">'full'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">alt</span>: <span class="pl-s">'alpha'</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>InlineCode</code></h3><a id="user-content-inlinecode" class="anchor" aria-label="Permalink: InlineCode" href="#inlinecode"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface InlineCode &lt;: Literal {
+  type: 'inlineCode'
+}"><pre>interface InlineCode <span class="pl-k">&lt;:</span> Literal {
+  type<span class="pl-k">:</span> <span class="pl-s">'inlineCode'</span>
+}</pre></div>
+<p dir="auto"><strong>InlineCode</strong> (<a href="#literal"><strong>Literal</strong></a>) represents a fragment of computer
+code,
+such as a file name,
+computer program,
+or anything a computer could parse.</p>
+<p dir="auto"><strong>InlineCode</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content
+is expected.
+Its content is represented by its <code>value</code> field.</p>
+<p dir="auto">This node relates to the <a href="#flowcontent"><strong>flow</strong></a> content concept
+<a href="#code"><strong>Code</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="`foo()`"><pre><span class="pl-s">`</span><span class="pl-c1">foo()</span><span class="pl-s">`</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{type: 'inlineCode', value: 'foo()'}"><pre><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'inlineCode'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'foo()'</span><span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Link</code></h3><a id="user-content-link" class="anchor" aria-label="Permalink: Link" href="#link"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Link &lt;: Parent {
+  type: 'link'
+  children: [PhrasingContent]
+}
+
+Link includes Resource"><pre>interface Link <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'link'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}
+
+Link includes Resource</pre></div>
+<p dir="auto"><strong>Link</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a hyperlink.</p>
+<p dir="auto"><strong>Link</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+Its content model is also <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto"><strong>Link</strong> includes the mixin <a href="#resource"><strong>Resource</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="[alpha](https://example.com &quot;bravo&quot;)"><pre><span class="pl-s">[</span>alpha<span class="pl-s">]</span><span class="pl-s">(</span><span class="pl-corl">https://example.com</span> <span class="pl-s">"</span><span class="pl-s">bravo</span><span class="pl-s">")</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'link',
+  url: 'https://example.com',
+  title: 'bravo',
+  children: [{type: 'text', value: 'alpha'}]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'link'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">url</span>: <span class="pl-s">'https://example.com'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">title</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>LinkReference</code></h3><a id="user-content-linkreference" class="anchor" aria-label="Permalink: LinkReference" href="#linkreference"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface LinkReference &lt;: Parent {
+  type: 'linkReference'
+  children: [PhrasingContent]
+}
+
+LinkReference includes Reference"><pre>interface LinkReference <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'linkReference'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}
+
+LinkReference includes Reference</pre></div>
+<p dir="auto"><strong>LinkReference</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a hyperlink through
+association,
+or its original source if there is no association.</p>
+<p dir="auto"><strong>LinkReference</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content
+is expected.
+Its content model is also <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto"><strong>LinkReference</strong> includes the mixin <a href="#reference"><strong>Reference</strong></a>.</p>
+<p dir="auto"><strong>LinkReferences</strong> should be associated with a <a href="#definition"><strong>Definition</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="[alpha][Bravo]"><pre><span class="pl-s">[</span>alpha<span class="pl-s">]</span><span class="pl-s">[</span><span class="pl-en">Bravo</span><span class="pl-s">]</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'linkReference',
+  identifier: 'bravo',
+  label: 'Bravo',
+  referenceType: 'full',
+  children: [{type: 'text', value: 'alpha'}]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'linkReference'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">identifier</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">label</span>: <span class="pl-s">'Bravo'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">referenceType</span>: <span class="pl-s">'full'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>List</code></h3><a id="user-content-list" class="anchor" aria-label="Permalink: List" href="#list"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface List &lt;: Parent {
+  type: 'list'
+  ordered: boolean?
+  start: number?
+  spread: boolean?
+  children: [ListContent]
+}"><pre>interface <span class="pl-c1">List</span> <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'list'</span>
+  ordered<span class="pl-k">:</span> boolean<span class="pl-k">?</span>
+  start<span class="pl-k">:</span> number<span class="pl-k">?</span>
+  spread<span class="pl-k">:</span> boolean<span class="pl-k">?</span>
+  children<span class="pl-k">:</span> [ListContent]
+}</pre></div>
+<p dir="auto"><strong>List</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a list of items.</p>
+<p dir="auto"><strong>List</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is expected.
+Its content model is <a href="#listcontent"><strong>list</strong></a> content.</p>
+<p dir="auto">An <code>ordered</code> field can be present.
+It represents that the items have been intentionally ordered (when <code>true</code>),
+or that the order of items is not important (when <code>false</code> or not present).</p>
+<p dir="auto">A <code>start</code> field can be present.
+It represents,
+when the <code>ordered</code> field is <code>true</code>,
+the starting number of the list.</p>
+<p dir="auto">A <code>spread</code> field can be present.
+It represents that one or more of its children are separated with a blank line
+from its <a href="https://github.com/syntax-tree/unist#sibling">siblings</a> (when <code>true</code>),
+or not (when <code>false</code> or not present).</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="1. foo"><pre><span class="pl-s">1</span><span class="pl-v">.</span> foo</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'list',
+  ordered: true,
+  start: 1,
+  spread: false,
+  children: [{
+    type: 'listItem',
+    spread: false,
+    children: [{
+      type: 'paragraph',
+      children: [{type: 'text', value: 'foo'}]
+    }]
+  }]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'list'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">ordered</span>: <span class="pl-c1">true</span><span class="pl-kos">,</span>
+  <span class="pl-c1">start</span>: <span class="pl-c1">1</span><span class="pl-kos">,</span>
+  <span class="pl-c1">spread</span>: <span class="pl-c1">false</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span>
+    <span class="pl-c1">type</span>: <span class="pl-s">'listItem'</span><span class="pl-kos">,</span>
+    <span class="pl-c1">spread</span>: <span class="pl-c1">false</span><span class="pl-kos">,</span>
+    <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'foo'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+    <span class="pl-kos">}</span><span class="pl-kos">]</span>
+  <span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>ListItem</code></h3><a id="user-content-listitem" class="anchor" aria-label="Permalink: ListItem" href="#listitem"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface ListItem &lt;: Parent {
+  type: 'listItem'
+  spread: boolean?
+  children: [FlowContent]
+}"><pre>interface ListItem <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'listItem'</span>
+  spread<span class="pl-k">:</span> boolean<span class="pl-k">?</span>
+  children<span class="pl-k">:</span> [FlowContent]
+}</pre></div>
+<p dir="auto"><strong>ListItem</strong> (<a href="#parent"><strong>Parent</strong></a>) represents an item in a
+<a href="#list"><strong>List</strong></a>.</p>
+<p dir="auto"><strong>ListItem</strong> can be used where <a href="#listcontent"><strong>list</strong></a> content is expected.
+Its content model is <a href="#flowcontent"><strong>flow</strong></a> content.</p>
+<p dir="auto">A <code>spread</code> field can be present.
+It represents that the item contains two or more <a href="https://github.com/syntax-tree/unist#child"><em>children</em></a>
+separated by a blank line (when <code>true</code>),
+or not (when <code>false</code> or not present).</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="* bar"><pre><span class="pl-v">*</span> bar</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'listItem',
+  spread: false,
+  children: [{
+    type: 'paragraph',
+    children: [{type: 'text', value: 'bar'}]
+  }]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'listItem'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">spread</span>: <span class="pl-c1">false</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span>
+    <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+    <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'bar'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+  <span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Paragraph</code></h3><a id="user-content-paragraph" class="anchor" aria-label="Permalink: Paragraph" href="#paragraph"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Paragraph &lt;: Parent {
+  type: 'paragraph'
+  children: [PhrasingContent]
+}"><pre>interface Paragraph <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'paragraph'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}</pre></div>
+<p dir="auto"><strong>Paragraph</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a unit of discourse dealing
+with a particular point or idea.</p>
+<p dir="auto"><strong>Paragraph</strong> can be used where <a href="#content"><strong>content</strong></a> is expected.
+Its content model is <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="Alpha bravo charlie."><pre>Alpha bravo charlie.</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'paragraph',
+  children: [{type: 'text', value: 'Alpha bravo charlie.'}]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'Alpha bravo charlie.'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Root</code></h3><a id="user-content-root" class="anchor" aria-label="Permalink: Root" href="#root"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Root &lt;: Parent {
+  type: 'root'
+}"><pre>interface Root <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'root'</span>
+}</pre></div>
+<p dir="auto"><strong>Root</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a document.</p>
+<p dir="auto"><strong>Root</strong> can be used as the <a href="https://github.com/syntax-tree/unist#root"><em>root</em></a> of a <a href="https://github.com/syntax-tree/unist#tree"><em>tree</em></a>,
+never as a <a href="https://github.com/syntax-tree/unist#child"><em>child</em></a>.
+Its content model is <strong>not</strong> limited to <a href="#flowcontent"><strong>flow</strong></a> content,
+but instead can contain any <a href="#content-model"><strong>mdast content</strong></a> with the
+restriction that all content must be of the same category.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Strong</code></h3><a id="user-content-strong" class="anchor" aria-label="Permalink: Strong" href="#strong"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Strong &lt;: Parent {
+  type: 'strong'
+  children: [PhrasingContent]
+}"><pre>interface Strong <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'strong'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}</pre></div>
+<p dir="auto"><strong>Strong</strong> (<a href="#parent"><strong>Parent</strong></a>) represents strong importance,
+seriousness,
+or urgency for its contents.</p>
+<p dir="auto"><strong>Strong</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+Its content model is <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="**alpha** __bravo__"><pre><span class="pl-s">**</span>alpha<span class="pl-s">**</span> <span class="pl-s">__</span>bravo<span class="pl-s">__</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'paragraph',
+  children: [
+    {
+      type: 'strong',
+      children: [{type: 'text', value: 'alpha'}]
+    },
+    {type: 'text', value: ' '},
+    {
+      type: 'strong',
+      children: [{type: 'text', value: 'bravo'}]
+    }
+  ]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span>
+    <span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'strong'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+    <span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">' '</span><span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'strong'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'bravo'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+    <span class="pl-kos">}</span>
+  <span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Text</code></h3><a id="user-content-text" class="anchor" aria-label="Permalink: Text" href="#text"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Text &lt;: Literal {
+  type: 'text'
+}"><pre>interface <span class="pl-c1">Text</span> <span class="pl-k">&lt;:</span> Literal {
+  type<span class="pl-k">:</span> <span class="pl-s">'text'</span>
+}</pre></div>
+<p dir="auto"><strong>Text</strong> (<a href="#literal"><strong>Literal</strong></a>) represents everything that is just text.</p>
+<p dir="auto"><strong>Text</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+Its content is represented by its <code>value</code> field.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="Alpha bravo charlie."><pre>Alpha bravo charlie.</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{type: 'text', value: 'Alpha bravo charlie.'}"><pre><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'Alpha bravo charlie.'</span><span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>ThematicBreak</code></h3><a id="user-content-thematicbreak" class="anchor" aria-label="Permalink: ThematicBreak" href="#thematicbreak"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface ThematicBreak &lt;: Node {
+  type: 'thematicBreak'
+}"><pre>interface ThematicBreak <span class="pl-k">&lt;:</span> Node {
+  type<span class="pl-k">:</span> <span class="pl-s">'thematicBreak'</span>
+}</pre></div>
+<p dir="auto"><strong>ThematicBreak</strong> (<a href="https://github.com/syntax-tree/unist#node"><strong>Node</strong></a>) represents a thematic break,
+such as a scene change in a story,
+a transition to another topic,
+or a new document.</p>
+<p dir="auto"><strong>ThematicBreak</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is
+expected.
+It has no content model.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="***"><pre><span class="pl-ms">***</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{type: 'thematicBreak'}"><pre><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'thematicBreak'</span><span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Mixin</h2><a id="user-content-mixin" class="anchor" aria-label="Permalink: Mixin" href="#mixin"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Alternative</code></h3><a id="user-content-alternative" class="anchor" aria-label="Permalink: Alternative" href="#alternative"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface mixin Alternative {
+  alt: string?
+}"><pre>interface mixin Alternative {
+  alt<span class="pl-k">:</span> <span class="pl-c1">string</span><span class="pl-k">?</span>
+}</pre></div>
+<p dir="auto"><strong>Alternative</strong> represents a node with a fallback</p>
+<p dir="auto">An <code>alt</code> field should be present.
+It represents equivalent content for environments that cannot represent the
+node as intended.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Association</code></h3><a id="user-content-association" class="anchor" aria-label="Permalink: Association" href="#association"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface mixin Association {
+  identifier: string
+  label: string?
+}"><pre>interface mixin Association {
+  identifier<span class="pl-k">:</span> <span class="pl-c1">string</span>
+  label<span class="pl-k">:</span> <span class="pl-c1">string</span><span class="pl-k">?</span>
+}</pre></div>
+<p dir="auto"><strong>Association</strong> represents an internal relation from one node to another.</p>
+<p dir="auto">An <code>identifier</code> field must be present.
+It can match another node.
+<code>identifier</code> is a source value: character escapes and character references are
+<em>not</em> parsed.
+Its value must be normalized.</p>
+<p dir="auto">A <code>label</code> field can be present.
+<code>label</code> is a string value: it works just like <code>title</code> on a link or a <code>lang</code> on
+code: character escapes and character references are parsed.</p>
+<p dir="auto">To normalize a value,
+collapse markdown whitespace (<code>[\t\n\r ]+</code>) to a space,
+trim the optional initial and/or final space,
+and perform case-folding.</p>
+<p dir="auto">Whether the value of <code>identifier</code> (or normalized <code>label</code> if there is no
+<code>identifier</code>) is expected to be a unique identifier or not depends on the type
+of node including the <strong>Association</strong>.
+An example of this is that they should be unique on
+<a href="#definition"><strong>Definition</strong></a>,
+whereas multiple <a href="#linkreference"><strong>LinkReference</strong></a>s can be non-unique to
+be associated with one definition.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Reference</code></h3><a id="user-content-reference" class="anchor" aria-label="Permalink: Reference" href="#reference"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface mixin Reference {
+  referenceType: string
+}
+
+Reference includes Association"><pre>interface mixin Reference {
+  referenceType<span class="pl-k">:</span> <span class="pl-c1">string</span>
+}
+
+Reference includes Association</pre></div>
+<p dir="auto"><strong>Reference</strong> represents a marker that is <a href="#association"><strong>associated</strong></a>
+to another node.</p>
+<p dir="auto">A <code>referenceType</code> field must be present.
+Its value must be a <a href="#referencetype"><strong>referenceType</strong></a>.
+It represents the explicitness of the reference.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Resource</code></h3><a id="user-content-resource" class="anchor" aria-label="Permalink: Resource" href="#resource"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface mixin Resource {
+  url: string
+  title: string?
+}"><pre>interface mixin Resource {
+  url<span class="pl-k">:</span> <span class="pl-c1">string</span>
+  title<span class="pl-k">:</span> <span class="pl-c1">string</span><span class="pl-k">?</span>
+}</pre></div>
+<p dir="auto"><strong>Resource</strong> represents a reference to resource.</p>
+<p dir="auto">A <code>url</code> field must be present.
+It represents a URL to the referenced resource.</p>
+<p dir="auto">A <code>title</code> field can be present.
+It represents  advisory information for the resource,
+such as would be appropriate for a tooltip.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Enumeration</h2><a id="user-content-enumeration" class="anchor" aria-label="Permalink: Enumeration" href="#enumeration"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>referenceType</code></h3><a id="user-content-referencetype" class="anchor" aria-label="Permalink: referenceType" href="#referencetype"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="enum referenceType {
+  'shortcut' | 'collapsed' | 'full'
+}"><pre>enum referenceType {
+  <span class="pl-s">'shortcut'</span> <span class="pl-k">|</span> <span class="pl-s">'collapsed'</span> <span class="pl-k">|</span> <span class="pl-s">'full'</span>
+}</pre></div>
+<p dir="auto"><strong>referenceType</strong> represents the explicitness of a reference.</p>
+<ul dir="auto">
+<li><strong>shortcut</strong>: the reference is implicit,
+its identifier inferred from its content</li>
+<li><strong>collapsed</strong>: the reference is explicit,
+its identifier inferred from its content</li>
+<li><strong>full</strong>: the reference is explicit,
+its identifier explicitly set</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Content model</h2><a id="user-content-content-model" class="anchor" aria-label="Permalink: Content model" href="#content-model"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type MdastContent = FlowContent | ListContent | PhrasingContent"><pre>type MdastContent = FlowContent <span class="pl-k">|</span> ListContent <span class="pl-k">|</span> PhrasingContent</pre></div>
+<p dir="auto">Each node in mdast falls into one or more categories of <strong>Content</strong> that group
+nodes with similar characteristics together.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>Content</code></h3><a id="user-content-content" class="anchor" aria-label="Permalink: Content" href="#content"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type Content = Definition | Paragraph"><pre>type Content = Definition <span class="pl-k">|</span> Paragraph</pre></div>
+<p dir="auto"><strong>Content</strong> represents runs of text that form definitions and paragraphs.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>FlowContent</code></h3><a id="user-content-flowcontent" class="anchor" aria-label="Permalink: FlowContent" href="#flowcontent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type FlowContent =
+  Blockquote | Code | Heading | Html | List | ThematicBreak | Content"><pre>type FlowContent =
+  Blockquote <span class="pl-k">|</span> Code <span class="pl-k">|</span> Heading <span class="pl-k">|</span> Html <span class="pl-k">|</span> <span class="pl-c1">List</span> <span class="pl-k">|</span> ThematicBreak <span class="pl-k">|</span> Content</pre></div>
+<p dir="auto"><strong>Flow</strong> content represent the sections of document.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>ListContent</code></h3><a id="user-content-listcontent" class="anchor" aria-label="Permalink: ListContent" href="#listcontent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type ListContent = ListItem"><pre>type ListContent = ListItem</pre></div>
+<p dir="auto"><strong>List</strong> content represent the items in a list.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><code>PhrasingContent</code></h3><a id="user-content-phrasingcontent" class="anchor" aria-label="Permalink: PhrasingContent" href="#phrasingcontent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type PhrasingContent = Break | Emphasis | Html | Image | ImageReference
+  | InlineCode | Link | LinkReference | Strong | Text"><pre>type PhrasingContent = <span class="pl-k">Break</span> <span class="pl-k">|</span> Emphasis <span class="pl-k">|</span> Html <span class="pl-k">|</span> <span class="pl-c1">Image</span> <span class="pl-k">|</span> ImageReference
+  <span class="pl-k">|</span> InlineCode <span class="pl-k">|</span> Link <span class="pl-k">|</span> LinkReference <span class="pl-k">|</span> Strong <span class="pl-k">|</span> <span class="pl-c1">Text</span></pre></div>
+<p dir="auto"><strong>Phrasing</strong> content represent the text in a document and its markup.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Extensions</h2><a id="user-content-extensions" class="anchor" aria-label="Permalink: Extensions" href="#extensions"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Markdown syntax is often extended.
+It is not a goal of this specification to list all possible extensions.
+However,
+a short list of frequently used extensions are shown below.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">GFM</h3><a id="user-content-gfm" class="anchor" aria-label="Permalink: GFM" href="#gfm"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The following interfaces are found in <a href="https://github.github.com/gfm/">GitHub Flavored Markdown</a>.</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>Delete</code></h4><a id="user-content-delete" class="anchor" aria-label="Permalink: Delete" href="#delete"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Delete &lt;: Parent {
+  type: 'delete'
+  children: [PhrasingContent]
+}"><pre>interface Delete <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'delete'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}</pre></div>
+<p dir="auto"><strong>Delete</strong> (<a href="#parent"><strong>Parent</strong></a>) represents contents that are no longer
+accurate or no longer relevant.</p>
+<p dir="auto"><strong>Delete</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a> content is
+expected.
+Its content model is <a href="#phrasingcontent"><strong>phrasing</strong></a> content.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="~~alpha~~"><pre><span class="pl-s">~~</span>alpha<span class="pl-s">~~</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'delete',
+  children: [{type: 'text', value: 'alpha'}]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'delete'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>ListItem</code> (GFM)</h4><a id="user-content-listitem-gfm" class="anchor" aria-label="Permalink: ListItem (GFM)" href="#listitem-gfm"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface ListItemGfm &lt;: ListItem {
+  checked: boolean?
+}"><pre>interface ListItemGfm <span class="pl-k">&lt;:</span> ListItem {
+  checked<span class="pl-k">:</span> boolean<span class="pl-k">?</span>
+}</pre></div>
+<p dir="auto">In GFM,
+a <code>checked</code> field can be present.
+It represents whether the item is done (when <code>true</code>),
+not done (when <code>false</code>),
+or indeterminate or not applicable (when <code>null</code> or not present).</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>FootnoteDefinition</code></h4><a id="user-content-footnotedefinition" class="anchor" aria-label="Permalink: FootnoteDefinition" href="#footnotedefinition"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface FootnoteDefinition &lt;: Parent {
+  type: 'footnoteDefinition'
+  children: [FlowContent]
+}
+
+FootnoteDefinition includes Association"><pre>interface FootnoteDefinition <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'footnoteDefinition'</span>
+  children<span class="pl-k">:</span> [FlowContent]
+}
+
+FootnoteDefinition includes Association</pre></div>
+<p dir="auto"><strong>FootnoteDefinition</strong> (<a href="#parent"><strong>Parent</strong></a>) represents content relating
+to the document that is outside its flow.</p>
+<p dir="auto"><strong>FootnoteDefinition</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is
+expected.
+Its content model is also <a href="#flowcontent"><strong>flow</strong></a> content.</p>
+<p dir="auto"><strong>FootnoteDefinition</strong> includes the mixin
+<a href="#association"><strong>Association</strong></a>.</p>
+<p dir="auto"><strong>FootnoteDefinition</strong> should be associated with
+<a href="#footnotereference"><strong>FootnoteReferences</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="[^alpha]: bravo and charlie."><pre><span class="pl-s">[</span><span class="pl-s">^</span><span class="pl-en">alpha</span><span class="pl-s">]</span>: bravo and charlie.</pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'footnoteDefinition',
+  identifier: 'alpha',
+  label: 'alpha',
+  children: [{
+    type: 'paragraph',
+    children: [{type: 'text', value: 'bravo and charlie.'}]
+  }]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'footnoteDefinition'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">identifier</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">label</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span>
+    <span class="pl-c1">type</span>: <span class="pl-s">'paragraph'</span><span class="pl-kos">,</span>
+    <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'bravo and charlie.'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+  <span class="pl-kos">}</span><span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>FootnoteReference</code></h4><a id="user-content-footnotereference" class="anchor" aria-label="Permalink: FootnoteReference" href="#footnotereference"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface FootnoteReference &lt;: Node {
+  type: 'footnoteReference'
+}
+
+FootnoteReference includes Association"><pre>interface FootnoteReference <span class="pl-k">&lt;:</span> Node {
+  type<span class="pl-k">:</span> <span class="pl-s">'footnoteReference'</span>
+}
+
+FootnoteReference includes Association</pre></div>
+<p dir="auto"><strong>FootnoteReference</strong> (<a href="https://github.com/syntax-tree/unist#node"><strong>Node</strong></a>) represents a marker through
+association.</p>
+<p dir="auto"><strong>FootnoteReference</strong> can be used where <a href="#phrasingcontent"><strong>phrasing</strong></a>
+content is expected.
+It has no content model.</p>
+<p dir="auto"><strong>FootnoteReference</strong> includes the mixin <a href="#association"><strong>Association</strong></a>.</p>
+<p dir="auto"><strong>FootnoteReference</strong> should be associated with a
+<a href="#footnotedefinition"><strong>FootnoteDefinition</strong></a>.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="[^alpha]"><pre><span class="pl-s">[</span><span class="pl-s">^</span><span class="pl-en">alpha</span><span class="pl-s">]</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'footnoteReference',
+  identifier: 'alpha',
+  label: 'alpha'
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'footnoteReference'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">identifier</span>: <span class="pl-s">'alpha'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">label</span>: <span class="pl-s">'alpha'</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>Table</code></h4><a id="user-content-table" class="anchor" aria-label="Permalink: Table" href="#table"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Table &lt;: Parent {
+  type: 'table'
+  align: [alignType]?
+  children: [TableContent]
+}"><pre>interface Table <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'table'</span>
+  align<span class="pl-k">:</span> [alignType]<span class="pl-k">?</span>
+  children<span class="pl-k">:</span> [TableContent]
+}</pre></div>
+<p dir="auto"><strong>Table</strong> (<a href="#parent"><strong>Parent</strong></a>) represents two-dimensional data.</p>
+<p dir="auto"><strong>Table</strong> can be used where <a href="#flowcontent"><strong>flow</strong></a> content is expected.
+Its content model is <a href="#tablecontent"><strong>table</strong></a> content.</p>
+<p dir="auto">The <a href="https://github.com/syntax-tree/unist#head"><em>head</em></a> of the node represents the labels of the columns.</p>
+<p dir="auto">An <code>align</code> field can be present.
+If present,
+it must be a list of <a href="#aligntype"><strong>alignType</strong>s</a>.
+It represents how cells in columns are aligned.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="| foo | bar |
+| :-- | :-: |
+| baz | qux |"><pre><span class="pl-ml">|</span> foo <span class="pl-ml">|</span> bar <span class="pl-ml">|</span>
+<span class="pl-ml">|</span> :-- <span class="pl-ml">|</span> :-: <span class="pl-ml">|</span>
+<span class="pl-ml">|</span> baz <span class="pl-ml">|</span> qux <span class="pl-ml">|</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{
+  type: 'table',
+  align: ['left', 'center'],
+  children: [
+    {
+      type: 'tableRow',
+      children: [
+        {
+          type: 'tableCell',
+          children: [{type: 'text', value: 'foo'}]
+        },
+        {
+          type: 'tableCell',
+          children: [{type: 'text', value: 'bar'}]
+        }
+      ]
+    },
+    {
+      type: 'tableRow',
+      children: [
+        {
+          type: 'tableCell',
+          children: [{type: 'text', value: 'baz'}]
+        },
+        {
+          type: 'tableCell',
+          children: [{type: 'text', value: 'qux'}]
+        }
+      ]
+    }
+  ]
+}"><pre><span class="pl-kos">{</span>
+  <span class="pl-c1">type</span>: <span class="pl-s">'table'</span><span class="pl-kos">,</span>
+  <span class="pl-c1">align</span>: <span class="pl-kos">[</span><span class="pl-s">'left'</span><span class="pl-kos">,</span> <span class="pl-s">'center'</span><span class="pl-kos">]</span><span class="pl-kos">,</span>
+  <span class="pl-c1">children</span>: <span class="pl-kos">[</span>
+    <span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'tableRow'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span>
+        <span class="pl-kos">{</span>
+          <span class="pl-c1">type</span>: <span class="pl-s">'tableCell'</span><span class="pl-kos">,</span>
+          <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'foo'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+        <span class="pl-kos">}</span><span class="pl-kos">,</span>
+        <span class="pl-kos">{</span>
+          <span class="pl-c1">type</span>: <span class="pl-s">'tableCell'</span><span class="pl-kos">,</span>
+          <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'bar'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+        <span class="pl-kos">}</span>
+      <span class="pl-kos">]</span>
+    <span class="pl-kos">}</span><span class="pl-kos">,</span>
+    <span class="pl-kos">{</span>
+      <span class="pl-c1">type</span>: <span class="pl-s">'tableRow'</span><span class="pl-kos">,</span>
+      <span class="pl-c1">children</span>: <span class="pl-kos">[</span>
+        <span class="pl-kos">{</span>
+          <span class="pl-c1">type</span>: <span class="pl-s">'tableCell'</span><span class="pl-kos">,</span>
+          <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'baz'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+        <span class="pl-kos">}</span><span class="pl-kos">,</span>
+        <span class="pl-kos">{</span>
+          <span class="pl-c1">type</span>: <span class="pl-s">'tableCell'</span><span class="pl-kos">,</span>
+          <span class="pl-c1">children</span>: <span class="pl-kos">[</span><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'text'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'qux'</span><span class="pl-kos">}</span><span class="pl-kos">]</span>
+        <span class="pl-kos">}</span>
+      <span class="pl-kos">]</span>
+    <span class="pl-kos">}</span>
+  <span class="pl-kos">]</span>
+<span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>TableCell</code></h4><a id="user-content-tablecell" class="anchor" aria-label="Permalink: TableCell" href="#tablecell"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface TableCell &lt;: Parent {
+  type: 'tableCell'
+  children: [PhrasingContent]
+}"><pre>interface TableCell <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'tableCell'</span>
+  children<span class="pl-k">:</span> [PhrasingContent]
+}</pre></div>
+<p dir="auto"><strong>TableCell</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a header cell in a
+<a href="#table"><strong>Table</strong></a>,
+if its parent is a <a href="https://github.com/syntax-tree/unist#head"><em>head</em></a>,
+or a data cell otherwise.</p>
+<p dir="auto"><strong>TableCell</strong> can be used where <a href="#rowcontent"><strong>row</strong></a> content is expected.
+Its content model is <a href="#phrasingcontent"><strong>phrasing</strong></a> content excluding
+<a href="#break"><strong>Break</strong></a> nodes.</p>
+<p dir="auto">For an example,
+see <a href="#table"><strong>Table</strong></a>.</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>TableRow</code></h4><a id="user-content-tablerow" class="anchor" aria-label="Permalink: TableRow" href="#tablerow"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface TableRow &lt;: Parent {
+  type: 'tableRow'
+  children: [RowContent]
+}"><pre>interface TableRow <span class="pl-k">&lt;:</span> Parent {
+  type<span class="pl-k">:</span> <span class="pl-s">'tableRow'</span>
+  children<span class="pl-k">:</span> [RowContent]
+}</pre></div>
+<p dir="auto"><strong>TableRow</strong> (<a href="#parent"><strong>Parent</strong></a>) represents a row of cells in a table.</p>
+<p dir="auto"><strong>TableRow</strong> can be used where <a href="#tablecontent"><strong>table</strong></a> content is
+expected.
+Its content model is <a href="#rowcontent"><strong>row</strong></a> content.</p>
+<p dir="auto">If the node is a <a href="https://github.com/syntax-tree/unist#head"><em>head</em></a>,
+it represents the labels of the columns for its parent <a href="#table"><strong>Table</strong></a>.</p>
+<p dir="auto">For an example,
+see <a href="#table"><strong>Table</strong></a>.</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>alignType</code></h4><a id="user-content-aligntype" class="anchor" aria-label="Permalink: alignType" href="#aligntype"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="enum alignType {
+  'left' | 'right' | 'center' | null
+}"><pre>enum alignType {
+  <span class="pl-s">'left'</span> <span class="pl-k">|</span> <span class="pl-s">'right'</span> <span class="pl-k">|</span> <span class="pl-s">'center'</span> <span class="pl-k">|</span> null
+}</pre></div>
+<p dir="auto"><strong>alignType</strong> represents how phrasing content is aligned
+(<a href="https://drafts.csswg.org/css-text/" rel="nofollow">[CSSTEXT]</a>).</p>
+<ul dir="auto">
+<li><strong><code>'left'</code></strong>: See the <a href="https://drafts.csswg.org/css-text/#valdef-text-align-left" rel="nofollow"><code>left</code></a> value of the <code>text-align</code> CSS
+property</li>
+<li><strong><code>'right'</code></strong>: See the <a href="https://drafts.csswg.org/css-text/#valdef-text-align-right" rel="nofollow"><code>right</code></a> value of the <code>text-align</code>
+CSS property</li>
+<li><strong><code>'center'</code></strong>: See the <a href="https://drafts.csswg.org/css-text/#valdef-text-align-center" rel="nofollow"><code>center</code></a> value of the <code>text-align</code>
+CSS property</li>
+<li><strong><code>null</code></strong>: phrasing content is aligned as defined by the host environment</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>FlowContent</code> (GFM)</h4><a id="user-content-flowcontent-gfm" class="anchor" aria-label="Permalink: FlowContent (GFM)" href="#flowcontent-gfm"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type FlowContentGfm = FootnoteDefinition | Table | FlowContent"><pre>type FlowContentGfm = FootnoteDefinition <span class="pl-k">|</span> Table <span class="pl-k">|</span> FlowContent</pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>ListContent</code> (GFM)</h4><a id="user-content-listcontent-gfm" class="anchor" aria-label="Permalink: ListContent (GFM)" href="#listcontent-gfm"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type ListContentGfm = ListItemGfm"><pre>type ListContentGfm = ListItemGfm</pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>PhrasingContent</code> (GFM)</h4><a id="user-content-phrasingcontent-gfm" class="anchor" aria-label="Permalink: PhrasingContent (GFM)" href="#phrasingcontent-gfm"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type PhrasingContentGfm = FootnoteReference | Delete | PhrasingContent"><pre>type PhrasingContentGfm = FootnoteReference <span class="pl-k">|</span> Delete <span class="pl-k">|</span> PhrasingContent</pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>RowContent</code></h4><a id="user-content-rowcontent" class="anchor" aria-label="Permalink: RowContent" href="#rowcontent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type RowContent = TableCell"><pre>type RowContent = TableCell</pre></div>
+<p dir="auto"><strong>Row</strong> content represent the cells in a row.</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>TableContent</code></h4><a id="user-content-tablecontent" class="anchor" aria-label="Permalink: TableContent" href="#tablecontent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type TableContent = TableRow"><pre>type TableContent = TableRow</pre></div>
+<p dir="auto"><strong>Table</strong> content represent the rows in a table.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Frontmatter</h3><a id="user-content-frontmatter" class="anchor" aria-label="Permalink: Frontmatter" href="#frontmatter"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The following interfaces are found with YAML.</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>Yaml</code></h4><a id="user-content-yaml" class="anchor" aria-label="Permalink: Yaml" href="#yaml"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="interface Yaml &lt;: Literal {
+  type: 'yaml'
+}"><pre>interface Yaml <span class="pl-k">&lt;:</span> Literal {
+  type<span class="pl-k">:</span> <span class="pl-s">'yaml'</span>
+}</pre></div>
+<p dir="auto"><strong>Yaml</strong> (<a href="#literal"><strong>Literal</strong></a>) represents a collection of metadata for
+the document in the YAML (<a href="https://yaml.org" rel="nofollow">[YAML]</a>) data serialisation language.</p>
+<p dir="auto"><strong>Yaml</strong> can be used where <a href="#frontmattercontent"><strong>frontmatter</strong></a> content is
+expected.
+Its content is represented by its <code>value</code> field.</p>
+<p dir="auto">For example,
+the following markdown:</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="---
+foo: bar
+---"><pre><span class="pl-s">---</span>
+<span class="pl-ent">foo</span>: <span class="pl-s">bar</span>
+<span class="pl-s">---</span></pre></div>
+<p dir="auto">Yields:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="{type: 'yaml', value: 'foo: bar'}"><pre><span class="pl-kos">{</span><span class="pl-c1">type</span>: <span class="pl-s">'yaml'</span><span class="pl-kos">,</span> <span class="pl-c1">value</span>: <span class="pl-s">'foo: bar'</span><span class="pl-kos">}</span></pre></div>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>FrontmatterContent</code></h4><a id="user-content-frontmattercontent" class="anchor" aria-label="Permalink: FrontmatterContent" href="#frontmattercontent"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type FrontmatterContent = Yaml"><pre>type FrontmatterContent = Yaml</pre></div>
+<p dir="auto"><strong>Frontmatter</strong> content represent out-of-band information about the document.</p>
+<p dir="auto">If frontmatter is present,
+it must be limited to one node in the <a href="https://github.com/syntax-tree/unist#tree"><em>tree</em></a>,
+and can only exist as a <a href="https://github.com/syntax-tree/unist#head"><em>head</em></a>.</p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><code>FlowContent</code> (frontmatter)</h4><a id="user-content-flowcontent-frontmatter" class="anchor" aria-label="Permalink: FlowContent (frontmatter)" href="#flowcontent-frontmatter"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-idl notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="type FlowContentFrontmatter = FrontmatterContent | FlowContent"><pre>type FlowContentFrontmatter = FrontmatterContent <span class="pl-k">|</span> FlowContent</pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">MDX</h3><a id="user-content-mdx" class="anchor" aria-label="Permalink: MDX" href="#mdx"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See <a href="https://mdxjs.com/packages/remark-mdx/#syntax-tree" rel="nofollow"><code>remark-mdx</code></a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Glossary</h2><a id="user-content-glossary" class="anchor" aria-label="Permalink: Glossary" href="#glossary"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See the <a href="https://github.com/syntax-tree/unist#glossary">unist glossary</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">List of utilities</h2><a id="user-content-list-of-utilities" class="anchor" aria-label="Permalink: List of utilities" href="#list-of-utilities"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See the <a href="https://github.com/syntax-tree/unist#list-of-utilities">unist list of utilities</a> for more utilities.</p>
+
+<ul dir="auto">
+<li><a href="https://gitlab.com/staltz/mdast-add-list-metadata" rel="nofollow"><code>mdast-add-list-metadata</code></a>
+— enhance the metadata of <code>list</code> and <code>listItem</code> nodes</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-assert"><code>mdast-util-assert</code></a>
+— assert nodes</li>
+<li><a href="https://github.com/mike-north/mdast-builder"><code>mdast-builder</code></a>
+— build mdast structures with composable functions</li>
+<li><a href="https://github.com/syntax-tree/mdast-comment-marker"><code>mdast-comment-marker</code></a>
+— parse a comment marker</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-compact"><code>mdast-util-compact</code></a>
+— make a tree compact</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-definitions"><code>mdast-util-definitions</code></a>
+— find definition nodes</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-directive"><code>mdast-util-directive</code></a>
+— parse and serialize directives</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-find-and-replace"><code>mdast-util-find-and-replace</code></a>
+— find and replace text</li>
+<li><a href="https://gitlab.com/staltz/mdast-flatten-image-paragraphs" rel="nofollow"><code>mdast-flatten-image-paragraphs</code></a>
+— flatten <code>paragraph</code> and <code>image</code> into one <code>image</code> node</li>
+<li><a href="https://gitlab.com/staltz/mdast-flatten-listitem-paragraphs" rel="nofollow"><code>mdast-flatten-listitem-paragraphs</code></a>
+— flatten <code>listItem</code> and (nested) paragraph into one listItem node</li>
+<li><a href="https://gitlab.com/staltz/mdast-flatten-nested-lists" rel="nofollow"><code>mdast-flatten-nested-lists</code></a>
+— transform a tree to avoid lists in lists</li>
+<li><a href="https://github.com/bitcrowd/mdast-util-from-adf"><code>mdast-util-from-adf</code></a>
+— build mdast syntax tree from Atlassian Document Format (ADF)</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-from-markdown"><code>mdast-util-from-markdown</code></a>
+— parse markdown</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-frontmatter"><code>mdast-util-frontmatter</code></a>
+— parse and serialize frontmatter</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gfm"><code>mdast-util-gfm</code></a>
+— parse and serialize GFM</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gfm-autolink-literal"><code>mdast-util-gfm-autolink-literal</code></a>
+— parse and serialize GFM autolink literals</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gfm-footnote"><code>mdast-util-gfm-footnote</code></a>
+— parse and serialize GFM footnotes</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gfm-strikethrough"><code>mdast-util-gfm-strikethrough</code></a>
+— parse and serialize GFM strikethrough</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gfm-table"><code>mdast-util-gfm-table</code></a>
+— parse and serialize GFM tables</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gfm-task-list-item"><code>mdast-util-gfm-task-list-item</code></a>
+— parse and serialize GFM task list items</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-gridtables"><code>mdast-util-gridtables</code></a>
+— parse and serialize gridtables</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-heading-range"><code>mdast-util-heading-range</code></a>
+— markdown heading as ranges</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-heading-style"><code>mdast-util-heading-style</code></a>
+— get the style of a heading node</li>
+<li><a href="https://github.com/Xunnamius/unified-utils/tree/main/packages/mdast-util-hidden"><code>mdast-util-hidden</code></a>
+— prevent nodes from being seen by transformers.</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-math"><code>mdast-util-math</code></a>
+— parse and serialize math</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-mdx"><code>mdast-util-mdx</code></a>
+— parse and serialize MDX</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-mdx-expression"><code>mdast-util-mdx-expression</code></a>
+— parse and serialize MDX expressions</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-mdx-jsx"><code>mdast-util-mdx-jsx</code></a>
+— parse and serialize MDX JSX</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-mdxjs-esm"><code>mdast-util-mdxjs-esm</code></a>
+— parse and serialize MDX ESM</li>
+<li><a href="https://gitlab.com/staltz/mdast-move-images-to-root" rel="nofollow"><code>mdast-move-images-to-root</code></a>
+— move image nodes up the tree until they are direct children of the root</li>
+<li><a href="https://github.com/syntax-tree/mdast-normalize-headings"><code>mdast-normalize-headings</code></a>
+— ensure at most one top-level heading is in the document</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-phrasing"><code>mdast-util-phrasing</code></a>
+— check if a node is phrasing content</li>
+<li><a href="https://github.com/syntax-tree/mdast-squeeze-paragraphs"><code>mdast-squeeze-paragraphs</code></a>
+— remove empty paragraphs</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-toc"><code>mdast-util-toc</code></a>
+— generate a table of contents from a tree</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-to-hast"><code>mdast-util-to-hast</code></a>
+— transform to hast</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-to-markdown"><code>mdast-util-to-markdown</code></a>
+— serialize markdown</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-to-nlcst"><code>mdast-util-to-nlcst</code></a>
+— transform to nlcst</li>
+<li><a href="https://github.com/syntax-tree/mdast-util-to-string"><code>mdast-util-to-string</code></a>
+— get the plain text content of a node</li>
+<li><a href="https://github.com/syntax-tree/mdast-zone"><code>mdast-zone</code></a>
+— HTML comments as ranges or markers</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">References</h2><a id="user-content-references" class="anchor" aria-label="Permalink: References" href="#references"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><strong>unist</strong>:
+<a href="https://github.com/syntax-tree/unist">Universal Syntax Tree</a>.
+T. Wormer; et al.</li>
+<li><strong>Markdown</strong>:
+<a href="https://daringfireball.net/projects/markdown/" rel="nofollow">Markdown</a>.
+J. Gruber.</li>
+<li><strong>CommonMark</strong>:
+<a href="https://commonmark.org" rel="nofollow">CommonMark</a>.
+J. MacFarlane; et al.</li>
+<li><strong>GFM</strong>:
+<a href="https://github.github.com/gfm/">GitHub Flavored Markdown</a>.
+GitHub.</li>
+<li><strong>HTML</strong>:
+<a href="https://html.spec.whatwg.org/multipage/" rel="nofollow">HTML Standard</a>,
+A. van Kesteren; et al.
+WHATWG.</li>
+<li><strong>CSSTEXT</strong>:
+<a href="https://drafts.csswg.org/css-text/" rel="nofollow">CSS Text</a>,
+CSS Text, E. Etemad, K. Ishii.
+W3C.</li>
+<li><strong>JavaScript</strong>:
+<a href="https://www.ecma-international.org/ecma-262/9.0/index.html" rel="nofollow">ECMAScript Language Specification</a>.
+Ecma International.</li>
+<li><strong>YAML</strong>:
+<a href="https://yaml.org" rel="nofollow">YAML Ain’t Markup Language</a>,
+O. Ben-Kiki, C. Evans, I. döt Net.</li>
+<li><strong>Web IDL</strong>:
+<a href="https://heycam.github.io/webidl/" rel="nofollow">Web IDL</a>,
+C. McCormack.
+W3C.</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Security</h2><a id="user-content-security" class="anchor" aria-label="Permalink: Security" href="#security"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">As mdast can contain HTML and be used to represent HTML,
+and improper use of HTML can open you up to a <a href="https://en.wikipedia.org/wiki/Cross-site_scripting" rel="nofollow">cross-site scripting (XSS)</a>
+attack,
+improper use of mdast is also unsafe.
+When transforming to HTML (typically through <a href="https://github.com/syntax-tree/hast"><strong>hast</strong></a>),
+always be careful with user input and use <a href="https://github.com/syntax-tree/hast-util-sanitize"><code>hast-util-santize</code></a> to
+make the hast tree safe.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Related</h2><a id="user-content-related" class="anchor" aria-label="Permalink: Related" href="#related"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/syntax-tree/hast">hast</a>
+— Hypertext Abstract Syntax Tree format</li>
+<li><a href="https://github.com/syntax-tree/nlcst">nlcst</a>
+— Natural Language Concrete Syntax Tree format</li>
+<li><a href="https://github.com/syntax-tree/xast">xast</a>
+— Extensible Abstract Syntax Tree</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Contribute</h2><a id="user-content-contribute" class="anchor" aria-label="Permalink: Contribute" href="#contribute"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">See <a href="https://github.com/syntax-tree/.github/blob/HEAD/contributing.md"><code>contributing.md</code></a> in <a href="https://github.com/syntax-tree/.github"><code>syntax-tree/.github</code></a> for
+ways to get started.
+See <a href="https://github.com/syntax-tree/.github/blob/HEAD/support.md"><code>support.md</code></a> for ways to get help.
+Ideas for new utilities and tools can be posted in <a href="https://github.com/syntax-tree/ideas"><code>syntax-tree/ideas</code></a>.</p>
+<p dir="auto">A curated list of awesome <code>syntax-tree</code>,
+unist,
+mdast,
+hast,
+xast,
+and nlcst resources,
+can be found in <a href="https://github.com/syntax-tree/awesome-syntax-tree">awesome syntax-tree</a>.</p>
+<p dir="auto">This project has a <a href="https://github.com/syntax-tree/.github/blob/HEAD/code-of-conduct.md">code of conduct</a>.
+By interacting with this repository,
+organization,
+or community you agree to abide by its terms.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Acknowledgments</h2><a id="user-content-acknowledgments" class="anchor" aria-label="Permalink: Acknowledgments" href="#acknowledgments"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The initial release of this project was authored by
+<a href="https://github.com/wooorm"><strong>@wooorm</strong></a>.</p>
+<p dir="auto">Special thanks to <a href="https://github.com/eush77"><strong>@eush77</strong></a> for their work,
+ideas,
+and incredibly valuable feedback!</p>
+<p dir="auto">Thanks to
+<a href="https://github.com/anandthakker"><strong>@anandthakker</strong></a>,
+<a href="https://github.com/arobase-che"><strong>@arobase-che</strong></a>,
+<a href="https://github.com/BarryThePenguin"><strong>@BarryThePenguin</strong></a>,
+<a href="https://github.com/chinesedfan"><strong>@chinesedfan</strong></a>,
+<a href="https://github.com/ChristianMurphy"><strong>@ChristianMurphy</strong></a>,
+<a href="https://github.com/craftzdog"><strong>@craftzdog</strong></a>,
+<a href="https://github.com/d4rekanguok"><strong>@d4rekanguok</strong></a>,
+<a href="https://github.com/detj"><strong>@detj</strong></a>,
+<a href="https://github.com/dominictarr"><strong>@dominictarr</strong></a>,
+<a href="https://github.com/gkatsev"><strong>@gkatsev</strong></a>,
+<a href="https://github.com/Hamms"><strong>@Hamms</strong></a>,
+<a href="https://github.com/Hypercubed"><strong>@Hypercubed</strong></a>,
+<a href="https://github.com/ikatyang"><strong>@ikatyang</strong></a>,
+<a href="https://github.com/izumin5210"><strong>@izumin5210</strong></a>,
+<a href="https://github.com/jasonLaster"><strong>@jasonLaster</strong></a>,
+<a href="https://github.com/Justineo"><strong>@Justineo</strong></a>,
+<a href="https://github.com/justjake"><strong>@justjake</strong></a>,
+<a href="https://github.com/KyleAMathews"><strong>@KyleAMathews</strong></a>,
+<a href="https://github.com/laysent"><strong>@laysent</strong></a>,
+<a href="https://github.com/macklinu"><strong>@macklinu</strong></a>,
+<a href="https://github.com/mike-north"><strong>@mike-north</strong></a>,
+<a href="https://github.com/Murderlon"><strong>@Murderlon</strong></a>,
+<a href="https://github.com/nevik"><strong>@nevik</strong></a>,
+<a href="https://github.com/Rokt33r"><strong>@Rokt33r</strong></a>,
+<a href="https://github.com/rhysd"><strong>@rhysd</strong></a>,
+<a href="https://github.com/rubys"><strong>@rubys</strong></a>,
+<a href="https://github.com/Sarah-Seo"><strong>@Sarah-Seo</strong></a>,
+<a href="https://github.com/sethvincent"><strong>@sethvincent</strong></a>,
+<a href="https://github.com/silvenon"><strong>@silvenon</strong></a>,
+<a href="https://github.com/simov"><strong>@simov</strong></a>,
+<a href="https://github.com/staltz"><strong>@staltz</strong></a>,
+<a href="https://github.com/stefanprobst"><strong>@stefanprobst</strong></a>,
+<a href="https://github.com/tmcw"><strong>@tmcw</strong></a>,
+and <a href="https://github.com/vhf"><strong>@vhf</strong></a>
+for contributing to mdast and related projects!</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#license"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://creativecommons.org/licenses/by/4.0/" rel="nofollow">CC-BY-4.0</a> © <a href="https://wooorm.com" rel="nofollow">Titus Wormer</a></p>
+
+</article>
