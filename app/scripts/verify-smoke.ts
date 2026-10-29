@@ -425,18 +425,12 @@ $x^2$
       await waitFor(() => [...doc.querySelectorAll('img[alt="Local"], img[alt="raw"]')].every(image => image.naturalWidth > 0), 'Astro root images did not load.');
       assert(doc.querySelector('img[alt="Local"]').src.includes('/site/public/images/'), 'Root image used the wrong ancestor.');
       assert(doc.querySelector('img[alt="remote"]').getAttribute('src') === 'https://example.invalid/remote.png', 'Remote images are not enabled by default.');
-      window.simplemd.command('preferences');
-      await waitFor(() => document.querySelector('#preferences').open, 'Preferences did not open.');
-      const toggle = document.querySelector('#pref-remoteImages');
-      assert(toggle.checked, 'Remote images toggle is not on by default.');
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event('change', {bubbles:true}));
-      await waitFor(() => !toggle.disabled, 'Remote image preference did not save.');
-      assert(!(await window.simplemd.ready()).settings.remoteImages, 'Remote image preference did not persist.');
-      document.querySelector('#pref-done').click();
-      window.simplemd.command('toggle-edit');
-      await waitFor(() => !document.querySelector('#read').hidden && document.querySelector('#doc img[alt="remote"]'), 'Read view did not remount.');
-      assert(!document.querySelector('#doc img[alt="remote"]').hasAttribute('src'), 'Remote image remains enabled.');`),
+      window.simplemd.command('preferences');`),
+    { settings: [evaluate(`await waitFor(() => document.querySelector('#remote-images') && !document.querySelector('#remote-images').disabled, 'Settings did not open.');
+      assert((await window.simplemdSettings.get()).settings.remoteImages, 'Remote images are not on by default.');
+      await window.simplemdSettings.set({ remoteImages: false });`)] },
+    evaluate(`await waitFor(() => !document.querySelector('#doc img[alt="remote"]').hasAttribute('src'), 'Remote image remains enabled.');
+      assert(!(await window.simplemd.ready()).settings.remoteImages, 'Remote image preference did not persist.');`),
     { pdf },
     { html },
   ]);
@@ -484,46 +478,32 @@ await test("autosave-persist", async () => {
   assert.equal(fs.readFileSync(file, "utf8"), `${note}!`, "Autosave did not persist the edited bytes.");
 });
 
-await test("preferences-menu-quit", async () => {
-  const name = "preferences-menu-quit";
+await test("settings-menu-quit", async () => {
+  const name = "settings-menu-quit";
   const file = fixture(`${name}/note.md`, note);
   await launch(name, file, [
-    evaluate(`window.simplemd.command('preferences');
-      await waitFor(() => document.querySelector('#preferences').open, 'Preferences did not open.');
-      const change = async (selector, value) => {
-        const input = document.querySelector(selector);
-        if (input.type === 'checkbox') input.checked = value; else input.value = value;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        await waitFor(() => !input.disabled && document.querySelector('#pref-status').textContent === 'Changes save automatically.', 'Preference did not save: ' + selector);
-      };
-      await change('#pref-theme', 'light');
-      await waitFor(() => !matchMedia('(prefers-color-scheme: dark)').matches, 'Light preference did not change appearance.');
-      await change('#pref-theme', 'dark');
-      await waitFor(() => matchMedia('(prefers-color-scheme: dark)').matches, 'Dark preference did not change appearance.');
-      await change('#pref-mode', 'split');
-      await change('#pref-typeface', 'serif');
-      await change('#pref-width', 'wide');
-      await change('#pref-zoom', '110');
-      await change('#pref-autosave', true);
-      await change('#pref-spellcheck', false);
-      assert(!document.querySelector('#pref-shortcut') && !document.querySelector('#pref-spacePreview'), 'Obsolete preview controls remain.');`),
-    { shot: path.join(root, name, "preferences.png") },
-    { input: { type: "keyDown", keyCode: "Escape" } },
-    { input: { type: "keyUp", keyCode: "Escape" } },
-    evaluate(`await waitFor(() => !document.querySelector('#preferences').open, 'Escape did not close Preferences.');
-      assert(document.querySelector('[data-mode="split"]').getAttribute('aria-checked') === 'true', 'Editing default did not apply.');
-      await waitFor(() => document.querySelector('#preview h1')?.textContent === 'Smoke edit note', 'Split preview did not render after Preferences.');`),
+    evaluate(`window.simplemd.command('preferences');`),
+    { settings: [evaluate(`await window.simplemdSettings.set({ theme: 'light' });
+      await waitFor(() => !matchMedia('(prefers-color-scheme: dark)').matches, 'Light setting did not change appearance.');
+      await window.simplemdSettings.set({ theme: 'dark', mode: 'split', readingFontFamily: 'Charter', contentWidth: 100, autosave: true, spellcheck: false });
+      await waitFor(() => matchMedia('(prefers-color-scheme: dark)').matches, 'Dark setting did not change appearance.');`),
+      { shot: path.join(root, name, "settings.png") },
+    ] },
+    evaluate(`await waitFor(() => document.querySelector('[data-mode="split"]').getAttribute('aria-checked') === 'true', 'Editing default did not apply.');
+      await waitFor(() => document.querySelector('#preview h1')?.textContent === 'Smoke edit note', 'Side by side did not render after Settings.');`),
     { menuQuit: true },
   ], "edit");
-  const saved = JSON.parse(fs.readFileSync(path.join(root, name, "profile/settings.json"), "utf8"));
+  const { parseConfig } = await import("../src/shared/config");
+  const saved = parseConfig(fs.readFileSync(path.join(root, name, "profile/config"), "utf8")).settings;
   assert.equal(saved.theme, "dark");
   assert.equal(saved.mode, "split");
-  assert.equal(saved.typeface, "serif");
-  assert.equal(saved.width, "wide");
-  assert.equal(saved.zoom, 1.1);
+  assert.equal(saved.readingFontFamily, "Charter");
+  assert.equal(saved.contentWidth, 100);
   assert.equal(saved.autosave, true);
   assert.equal(saved.spellcheck, false);
-  assert.equal(fs.readFileSync(file, "utf8"), note, "Preferences or menu quit changed the note.");
+  const state = JSON.parse(fs.readFileSync(path.join(root, name, "profile/settings.json"), "utf8"));
+  assert(!('theme' in state) && !('mode' in state), 'User settings remain in settings.json.');
+  assert.equal(fs.readFileSync(file, "utf8"), note, "Settings or menu quit changed the note.");
 });
 
 await test("cache-same-stat", async () => {

@@ -12,18 +12,8 @@ async function listFonts(): Promise<{ fonts: string[] }> {
   let names: string[];
   const options = { encoding: "utf8" as const, timeout: 15000, maxBuffer: 16 * 1024 * 1024, windowsHide: true };
   if (process.platform === "darwin") {
-    const { stdout } = await run("/usr/sbin/system_profiler", ["SPFontsDataType", "-json"], options);
-    const root: unknown = JSON.parse(stdout);
-    names = [];
-    const visit = (value: unknown): void => {
-      if (Array.isArray(value)) { for (const item of value) visit(item); return; }
-      if (!value || typeof value !== "object") return;
-      for (const [key, item] of Object.entries(value)) {
-        if (key === "family" && typeof item === "string") names.push(item);
-        else if (typeof item === "object") visit(item);
-      }
-    };
-    visit(root);
+    const { stdout } = await run("/usr/bin/osascript", ["-l", "JavaScript", "-e", 'ObjC.import("AppKit"); ObjC.deepUnwrap($.NSFontManager.sharedFontManager.availableFontFamilies).join("\\n")'], options);
+    names = stdout.split(/\r?\n/);
   } else if (process.platform === "win32") {
     const { stdout } = await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Add-Type -AssemblyName System.Drawing; (New-Object System.Drawing.Text.InstalledFontCollection).Families.Name"], options);
     names = stdout.split(/\r?\n/);

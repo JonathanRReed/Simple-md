@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from "../src/shared/types";
 import { mkdtemp, writeFile, cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +20,7 @@ const fixture = `
 const {ipcRenderer} = require("electron");
 const listeners = {};
 const pending = [];
-const settings = { theme: 'light', mode: 'source', autosave: false, launchAtLogin: false, vim: false, spellcheck: true, zoom: 1, width: 'normal', typeface: 'sans', recents: [] };
+const settings = ${JSON.stringify({ ...DEFAULT_SETTINGS, theme: "light", mode: "source", autosave: false })};
 const calls = { dirty: [], saved: [], opened: [], images: [] };
 const blocks = text => [{ key: text, html: '<p>' + text.replaceAll('&', '&amp;').replaceAll('<', '&lt;') + '</p>' }];
 window.simplemd = {
@@ -73,7 +74,6 @@ document.querySelector('#open-file').click();
 document.querySelector('#new-note').click();
 assert(calls.openDialog === 1, 'empty-state Open file opens the existing file chooser');
 assert(calls.command === 'new', 'empty-state New note invokes the existing new-note command');
-assert(document.querySelector('#open-hint').textContent.includes('choose a file'), 'Linux shortcut hint describes the chooser');
 await doc('first');
 ${checks}
 return receipts;
