@@ -125,3 +125,20 @@ first screen, and memory. All typing gates passed. Load averages were
 20.70, 24.82, 22.49 at receipt creation and 25.09, 25.48, 23.55 at completion.
 The corrected candidate must repeat functional acceptance and a full perf
 attempt before the final verdict.
+
+## Corrected candidate acceptance
+
+At `0282ee2`, every source check in the table above passed again, including
+345 unit tests, the 41-document corpus with zero semantic edits, 21 packaging
+tests, and 7 Rust tests. The existing packaged-app test remained skipped.
+The CLI passed all seven scenarios and cold start passed alone.
+
+Both full smoke runs passed **91/91**, including the new late-notification
+case and every originally reported failure. Each used a separate temporary
+blog copy. The originals and both copies retained their SHA-256 hashes.
+The final logs and copy paths are in
+`.audit/m6-finish/lifecycle-checks.json`, `lifecycle-smoke-runs.json`,
+`lifecycle-smoke-1.log`, and `lifecycle-smoke-2.log`.
+
+The second perf attempt will use this corrected bundle. It is a new candidate
+qualification, not a controlled speed comparison with the first attempt.
