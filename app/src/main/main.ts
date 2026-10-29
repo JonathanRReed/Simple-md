@@ -1165,7 +1165,10 @@ if (!app.requestSingleInstanceLock()) {
     settingsWindow = createSettingsWindow({ here, config: configStore(), apply: applySettings });
     configStore().watch(value => applySettings(value, false));
     nativeTheme.on("updated", () => applySettings({}, false));
-    if (process.platform !== "linux") systemPreferences.on("accent-color-changed", () => applySettings({}, false));
+    if (process.platform === "darwin") {
+      const accentSubscription = systemPreferences.subscribeNotification("AppleColorPreferencesChangedNotification", () => { if (!quitting) applySettings({}, false); });
+      app.once("will-quit", () => systemPreferences.unsubscribeNotification(accentSubscription));
+    } else if (process.platform === "win32") systemPreferences.on("accent-color-changed", () => { if (!quitting) applySettings({}, false); });
     if (process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath()));
     createDocumentWindow();
     trace("window-created");

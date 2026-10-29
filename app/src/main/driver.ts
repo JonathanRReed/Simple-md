@@ -51,7 +51,8 @@ export async function runDriver(
           }
           if (step.nativeFind !== null && await readFindText() !== step.nativeFind) throw new Error("Native find pasteboard differs.");
         } else if ("nativeAccent" in step && process.platform !== "linux") {
-          systemPreferences.emit("accent-color-changed", {}, systemPreferences.getAccentColor());
+          if (process.platform === "darwin") systemPreferences.postNotification("AppleColorPreferencesChangedNotification", {}, true);
+          else systemPreferences.emit("accent-color-changed", {}, systemPreferences.getAccentColor());
         } else if ("nativeContext" in step) {
           const c = step.nativeContext;
           const popup = Menu.prototype.popup;
