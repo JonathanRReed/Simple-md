@@ -8,6 +8,7 @@ import { fixtures } from "./sanitizer/fixtures";
 import { hostileInputs } from "./sanitizer/hostile";
 import manifest from "./corpus/manifest.json";
 import { parse, defaultTreeAdapter as tree, type DefaultTreeAdapterTypes as P } from "parse5";
+import { authorTags, globalAttrs, perTag } from "../src/shared/sanitizer-policy";
 
 const urls = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/" };
 const core = createRenderCore({ urls: () => urls });
@@ -46,6 +47,23 @@ test("static author policy matches every sanitizer fixture and all 41 corpus doc
   console.log(`Static differential: ${fixtures.length} fixtures, ${manifest.length} corpus documents, ${fragments} raw fragments; zero differences`);
 }, 60_000);
 
+test("policy attributes, inert document constructs and slot-name spoofing match the renderer", async () => {
+  const attrs = [...new Set([...globalAttrs, ...Object.values(perTag).flat(), "class", "style", "onclick", "is", "data-evil", "aria-label"])];
+  const sources = [
+    ...authorTags.map((tag) => `<${tag} ${attrs.map((name) => `${name}="javascript:alert(1)"`).join(" ")}>Safe</${tag}>`),
+    " \n\t<p>Whitespace</p>", "<html><head><title>Head</title><style>bad</style></head><body><p>Body</p></body></html>",
+    "<template><p id=x>Hidden</p></template><p>Shown</p>", "<noscript><p>Hidden</p></noscript><p>Shown</p>",
+    "<![CDATA[<b>Bad</b>]]><?xml test?><p>Shown</p><!--<p>Hidden</p>-->",
+    '<p><!--<img>-->&lt;x&gt;</p><textarea>&lt;img onerror=alert(1)&gt;</textarea>',
+    ...attrs.map((name) => `<p ${name}="javascript:alert(1)">Safe</p>`),
+  ];
+  const inputs = sources.map((source, i) => ({ name: `policy-${i}`, source, staticHtml: sanitizeAuthorHtmlStatic(source, { urls }) }));
+  const rendered = await core.renderMarkdown('<details>\n<summary>More</summary>\n<simplemd-static-slot-0><img onerror=run() src=x></simplemd-static-slot-0>\n\n**Safe**\n\n</details>', "/project/docs/note.md");
+  const results = await runDom(browser, [...inputs, { name: "slot spoof", source: "", rendered, staticHtml: renderStaticTree(rendered, { urls }) }]) as Result[];
+  expect(results.filter((result) => !result.equal)).toEqual([]);
+  expect(results.filter((result) => result.hazards.length)).toEqual([]);
+  expect(sanitizeAuthorHtmlStatic("<frameset><frame src=javascript:run()></frameset>")).toBe("");
+}, 60_000);
 
 test("4,000 hostile inputs remain inert and match DOMPurify after browser reparse", async () => {
   function canonical(node: P.Node): unknown {

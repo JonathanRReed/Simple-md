@@ -1,3 +1,4 @@
+import "./static-runtime.js";
 import { parse, parseFragment, serialize, defaultTreeAdapter as tree, html as htmlNames,
   type DefaultTreeAdapterTypes as P } from "parse5";
 import GithubSlugger from "github-slugger";
@@ -89,8 +90,9 @@ function sanitizeTree(html: string, options: StaticAuthorOptions, originals: Ori
   // Match DOMParser(text/html), including head handling, table foster parenting,
   // adoption-agency repair and inert noscript parsing. Fragment parsing differs.
   const doc = parse(html, { scriptingEnabled: false });
-  const body = elements(doc).find((node) => node.tagName === "body")!;
+  const body = elements(doc).find((node) => node.tagName === "body");
   const fragment = tree.createDocumentFragment();
+  if (!body) return fragment;
   const leading = /^[\r\n\t ]+/.exec(html)?.[0];
   if (leading) tree.insertText(fragment, leading);
   for (const child of [...body.childNodes]) tree.appendChild(fragment, child);
@@ -204,4 +206,3 @@ export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOp
   }
   return serialize(fragment);
 }
-import "./static-runtime.js";
