@@ -63,6 +63,8 @@ test("theme fragments survive replacement with embedded raster images", async ()
   expect(output).toContain('data-simplemd-theme="dark"');
   expect(output).toContain('data-simplemd-theme="light"');
   expect(output).toContain('img[data-simplemd-theme="dark"]');
+  const visibility = await runDom(path.join(import.meta.dir, 'sanitizer/theme-browser.ts'), [output]);
+  expect(visibility).toEqual([[[false, true], [true, false]]]);
 });
 
 test("preview and thumbnail log interpolation keeps filenames private", async () => {
@@ -71,4 +73,12 @@ test("preview and thumbnail log interpolation keeps filenames private", async ()
     expect(source).not.toMatch(/\\\(name, privacy: \.public\)/);
     expect(source).toContain('\\(name, privacy: .private)');
   }
+});
+
+
+test("static render exceptions return escaped plain-text source", async () => {
+  const output = await renderStaticHtml('<script>run()</script> & source', 'file://[');
+  expect(output).toContain('Preview unavailable. Showing source.');
+  expect(output).toContain('&lt;script&gt;run()&lt;/script&gt; &amp; source');
+  expect(output).not.toContain('<script>');
 });
