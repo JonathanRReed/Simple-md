@@ -1,0 +1,73 @@
+{
+  "baselineRevision": "a38994f4acb792907ea5a0a1870ec03946b69aac",
+  "candidateRevision": "d9d5bfd423f33bb8c570c126ca8a4bc50eec34eb",
+  "baselineBundleSha256": "38ac8497d88099f159dbd7e4b4fcb1ede0251dea82e75ab77851b6646eb8ae27",
+  "hostCores": 14,
+  "method": "app/bench.ts --worker-medium, five alternating worker samples per side; first render plus twenty warmups and fifty measured warm renders per worker",
+  "result": {
+    "fixtureBytes": 90000,
+    "warmupRenders": 20,
+    "warmRendersPerSample": 50,
+    "loadAverage": [
+      12.95458984375,
+      12.46240234375,
+      13.86572265625
+    ],
+    "samples": {
+      "before": [
+        {
+          "first": 9.122125000000011,
+          "warm": 1.1497883199999999,
+          "blocks": 24
+        },
+        {
+          "first": 8.95966599999997,
+          "warm": 1.1275925400000029,
+          "blocks": 24
+        },
+        {
+          "first": 8.785250000000019,
+          "warm": 1.13030082,
+          "blocks": 24
+        },
+        {
+          "first": 8.676832999999988,
+          "warm": 1.1680698999999959,
+          "blocks": 24
+        },
+        {
+          "first": 9.239749999999958,
+          "warm": 1.1554084400000102,
+          "blocks": 24
+        }
+      ],
+      "after": [
+        {
+          "first": 7.6246249999999804,
+          "warm": 0.9997225199999923,
+          "blocks": 24
+        },
+        {
+          "first": 8.073082999999997,
+          "warm": 1.0171566999999948,
+          "blocks": 24
+        },
+        {
+          "first": 7.2393749999999955,
+          "warm": 1.063705840000007,
+          "blocks": 24
+        },
+        {
+          "first": 7.433083000000124,
+          "warm": 1.0221574000000055,
+          "blocks": 24
+        },
+        {
+          "first": 7.799665999999888,
+          "warm": 1.053146700000002,
+          "blocks": 24
+        }
+      ]
+    }
+  }
+}
