@@ -1181,6 +1181,19 @@ for (const native of [false, true]) await test(`tabs-last-close-${native ? "nati
 
 
 const contextBase = { selectionPresent: false, editable: false, linkURL: "", imageURL: "", misspelledWord: "", suggestions: [] };
+await test("native-menu-rebuilds", async () => {
+  const a = fixture("native-menu-rebuilds/a.md", note), b = fixture("native-menu-rebuilds/b.md", "# Recent\n");
+  await launch("native-menu-rebuilds", a, [
+    { nativeMenus: "capture" },
+    evaluate(`await window.simplemd.setSettings({ bounds: { x: 100, y: 100, width: 850, height: 700 }, zoom: 1.1 });`),
+    { nativeMenus: "unchanged" },
+    evaluate(`window.simplemd.command('mode-live'); await waitFor(() => document.querySelector('[data-element=modes] button[data-mode=live]')?.getAttribute('aria-checked') === 'true', 'Mode did not update');`),
+    { wait: 100 }, { nativeMenus: "app-only" },
+    evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit');`),
+    { nativeMenus: "recents" },
+  ], "edit");
+});
+
 await test("native-context-link-image", async () => {
   const sibling = fixture("native-context/sibling.md", "# Sibling\n");
   const image = fixture("native-context/image.svg", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20"/></svg>');

@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
 type NativeStep = { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
-export type DriverStep = NativeStep | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
+export type DriverStep = NativeStep | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true };
 
 export async function runDriver(
   win: { isVisible?: () => boolean; getBounds?: BrowserWindow["getBounds"]; webContents: Pick<BrowserWindow["webContents"], "executeJavaScript" | "capturePage" | "sendInputEvent"> & Partial<Pick<BrowserWindow["webContents"], "debugger" | "paste" | "setBackgroundThrottling" | "getBackgroundThrottling" | "loadFile" | "send">> },
@@ -24,6 +24,7 @@ export async function runDriver(
   let removeDiagnostics: (() => void) | undefined;
   const flushStarted = new Map<number, number>();
   let restoreDialogs: (() => void) | undefined;
+  let menuSnapshot: { application: unknown; dock: unknown } | undefined;
   let pendingDialog: { response: 0 | 1 | 2; savePath?: string } | undefined;
   try {
     for (const step of steps) {
@@ -84,6 +85,18 @@ export async function runDriver(
             await shown;
           } finally { clearTimeout(timer); Menu.prototype.popup = popup; }
         }
+        continue;
+      }
+      if ("nativeMenus" in step) {
+        const { Menu, app } = await import("electron");
+        const next = { application: Menu.getApplicationMenu(), dock: app.dock?.getMenu() };
+        if (step.nativeMenus !== "capture") {
+          if (!menuSnapshot) throw new Error("Capture native menus before comparing them.");
+          const appChanged = next.application !== menuSnapshot.application;
+          const dockChanged = next.dock !== menuSnapshot.dock;
+          if (appChanged !== (step.nativeMenus !== "unchanged") || process.platform === "darwin" && dockChanged !== (step.nativeMenus === "recents")) throw new Error(`Unexpected native menu rebuild: app=${appChanged}, dock=${dockChanged}`);
+        }
+        menuSnapshot = next;
         continue;
       }
       if ("selectWindow" in step) {
