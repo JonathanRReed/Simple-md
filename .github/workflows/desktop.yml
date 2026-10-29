@@ -120,6 +120,12 @@ jobs:
       - name: Test (virtual display)
         if: runner.os == 'Linux'
         run: xvfb-run -a bun run test
+      - name: GitHub fidelity corpus
+        if: runner.os != 'Linux'
+        run: bun run test:corpus
+      - name: GitHub fidelity corpus (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a bun run test:corpus
       - name: Check Rust formatting
         run: cargo fmt --manifest-path app/native/Cargo.toml --check
       - name: Check Rust

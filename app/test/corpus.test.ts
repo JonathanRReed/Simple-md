@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { renderMarkdown } from "../src/main/markdown";
 import documents from "./corpus/manifest.json";
@@ -80,6 +81,8 @@ test("GitHub corpus reports semantic gaps without refreshing references", async 
   expect(receipts).toHaveLength(documents.length);
   const inputs: ComparisonInput[] = [];
   const sources: string[] = [];
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "simplemd-corpus-repos-"));
+  try {
   for (const doc of documents) {
     const source = await Bun.file(path.join(root, "snapshots", `${doc.id}.md`)).text();
     sources.push(source);
@@ -90,9 +93,15 @@ test("GitHub corpus reports semantic gaps without refreshing references", async 
     expect(hash(reference)).toBe(receipt.referenceSha256);
     expect(receipt?.rawUrl).toContain(`/${doc.commit}/${doc.path}`);
     expect(receipt?.pageUrl).toContain(`/blob/${doc.commit}/${doc.path}`);
-    const rendered = await renderMarkdown(source, `/__corpus__/${doc.repo}/${doc.path}`);
-    inputs.push({ id: doc.id, expected: reference, actual: rendered.html, rendered, context: doc });
+    const repoRoot = path.join(workspace, doc.repo);
+    const file = path.join(repoRoot, doc.path);
+    await mkdir(path.join(repoRoot, ".git"), { recursive: true });
+    await mkdir(path.dirname(file), { recursive: true });
+    const rendered = await renderMarkdown(source, file);
+    inputs.push({ id: doc.id, expected: reference, actual: rendered.html, rendered,
+      context: { ...doc, localRoot: pathToFileURL(repoRoot + path.sep).href } });
   }
+  } finally { await rm(workspace, { recursive: true, force: true }); }
   const results = await compareInDom([...equivalent, ...different, ...inputs]);
   for (const input of equivalent) expect(results.find((result) => result.id === input.id)?.mismatches, input.id).toEqual([]);
   for (const input of different) expect(results.find((result) => result.id === input.id)?.mismatches.length, input.id).toBeGreaterThan(0);

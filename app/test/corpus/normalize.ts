@@ -4,6 +4,7 @@ export interface Context {
   commit: string;
   side: "github" | "simplemd";
   canonicalRepo?: string;
+  localRoot?: string;
   diagrams?: { source: string; rendered: boolean }[];
 }
 
@@ -22,7 +23,7 @@ const canonicalId = (value: string) => {
 };
 const codeText = (value: string) => value.replace(/\r\n?/g, "\n").replace(/\n$/, "");
 const mathText = (value: string) => value.trim().replace(/^\$\$([\s\S]*)\$\$$/, "$1").replace(/^\$`([\s\S]*)`\$$/, "$1").replace(/^\$([\s\S]*)\$$/, "$1").trim();
-const blockTags = new Set("article div p h1 h2 h3 h4 h5 h6 section ul ol li table thead tbody tfoot tr th td blockquote pre details summary hr dl dt dd math mermaid".split(" "));
+const blockTags = new Set("article div p h1 h2 h3 h4 h5 h6 section ul ol li table thead tbody tfoot tr th td blockquote pre code-block details summary hr dl dt dd math mermaid".split(" "));
 const booleanAttrs = new Set(["checked", "disabled", "open", "controls", "muted", "readonly", "multiple", "selected"]);
 
 // N01 DOM parsing, N02 wrappers, N03 chrome, N04 presentation, N05 IDs,
@@ -66,8 +67,10 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
     }
     const attachment = /^https:\/\/private-user-images\.githubusercontent\.com\/\d+\/\d+-([a-f0-9-]{36})\.[^?#]+\?jwt=/.exec(value);
     if (attachment) return `https://github.com/user-attachments/assets/${attachment[1]}`;
-    const local = `file:///__corpus__/${context.repo}/`;
-    if (value.startsWith(local)) return `repo:${value.slice(local.length)}`;
+    const asset = /^https:\/\/github\.com\/[^/]+\/[^/]+\/assets\/\d+\/([a-f0-9-]{36})(?=$|[?#])/.exec(value);
+    if (asset) value = `https://github.com/user-attachments/assets/${asset[1]}`;
+    const local = context.localRoot ?? `file:///__corpus__/${context.repo}/`;
+    if (value.startsWith(local)) return `repo:${value.slice(local.length).replace(/\/(?=[?#]|$)/, "")}`;
     if (/^(?:data:|mailto:|file:)/i.test(value)) return value;
     const base = `https://github.com/${context.repo}/blob/${context.commit}/${context.path}`;
     let resolved: URL;
@@ -80,7 +83,7 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
     for (const prefix of prefixes) {
       if (resolved.href.startsWith(prefix)) {
         if (kind !== "href") resolved.searchParams.delete("raw");
-        const logical = resolved.href.slice(prefix.length);
+        const logical = resolved.href.slice(prefix.length).replace(/\/(?=[?#]|$)/, "");
         const split = logical.indexOf("#");
         return `repo:${split < 0 ? logical : logical.slice(0, split) + "#" + id(logical.slice(split + 1))}`;
       }
@@ -148,7 +151,13 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
     if (tag === "img" && node.classList.contains("emoji")) return [text(node.getAttribute("alt") ?? "")];
     if (tag === "math-renderer" || node.matches(".katex-display, .katex:not(.katex-display .katex)")) {
       const annotation = node.querySelector('annotation[encoding="application/x-tex"]');
-      const source = tag === "math-renderer" ? mathText(node.textContent ?? "") : (annotation?.textContent ?? "").trim();
+      let source = tag === "math-renderer" ? mathText(node.textContent ?? "") : (annotation?.textContent ?? "").trim();
+      if (tag === "math-renderer") {
+        // GitHub transports already-escaped TeX inside an HTML text node.
+        const decoded = doc.createElement("textarea");
+        decoded.innerHTML = source.replace(/</g, "&lt;");
+        source = decoded.value;
+      }
       const display = node.classList.contains("js-display-math") || node.classList.contains("katex-display");
       return [element("math", { mode: display ? "display" : "inline", rendered: String(tag === "math-renderer" || !!annotation), source })];
     }
@@ -182,12 +191,13 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
     if (tag === "article" || tag === "markdown-accessiblity-table" || tag === "themed-picture" || node.matches(".markdown-heading, .highlight, .snippet-clipboard-content, .code-block")) return children(node, preserve);
     const attrs: Record<string, string> = {};
     for (const attr of node.attributes) {
-      if (attr.name.startsWith("data-") || ["class", "style", "rel", "target", "itemprop", "loading", "decoding"].includes(attr.name)) continue;
+      if (attr.name.startsWith("data-") || ["class", "style", "rel", "target", "itemprop", "loading", "decoding", "secured-asset-link"].includes(attr.name)) continue;
       if ((attr.name === "dir" && attr.value === "auto") || (attr.name === "dir" && attr.value === "ltr" && tag === "code") || (attr.name === "tabindex" && attr.value === "-1" && /^h[1-6]$/.test(tag))) continue;
-      if (!attr.value && attr.name === "id") continue;
+      if (attr.name === "id" && !canonicalId(attr.value)) continue;
       if (["id", "name"].includes(attr.name)) attrs[attr.name] = id(attr.value);
       else if (["href", "src", "poster"].includes(attr.name)) attrs[attr.name] = url(attr.value, attr.name);
       else if (attr.name === "srcset") attrs.srcset = srcset(attr.value);
+      else if (attr.name === "media") attrs.media = node.getAttribute("data-simplemd-media") ?? attr.value;
       else if (attr.name === "aria-describedby" || attr.name === "aria-labelledby") attrs[attr.name] = attr.value.split(/\s+/).map(id).join(" ");
       else attrs[attr.name] = booleanAttrs.has(attr.name) ? "true" : attr.value;
     }

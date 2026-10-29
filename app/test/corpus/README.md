@@ -20,6 +20,8 @@ Normal tests compare all documents offline and write `.audit/corpus/report.md` a
 
 The corpus uses Electron's DOMParser and the current `renderMarkdown()` implementation. The comparison bundles the existing `renderDiagrams()` function and checks its SVG output for every Mermaid block. A hidden, isolated Electron process denies all network requests. No images, iframes or author scripts execute. No DOM package enters the worker or production code. Electron's binary must be installed, as for other app workflows. To typecheck the test helpers too, run `bunx tsgo --noEmit -p test/corpus/tsconfig.json` from `app/`.
 
+The test creates temporary repository folders with `.git` markers. This lets the production resolver discover the repository root for `/assets/...` and other root-relative paths. The normalizer maps each temporary file URL to its repository path. No repository is cloned and no source file is changed.
+
 ## Refresh
 
 Only this explicit command fetches references:
@@ -54,6 +56,14 @@ These rules apply to both sides. They remove implementation differences while ke
 | N11 declared fences | Map only GeoJSON, TopoJSON and STL enrichment to its raw code fallback, as allowed by PLAN.md. | Language and code text. This does not grant support for interactive maps or models. |
 | N12 emoji | Unwrap g-emoji around Unicode text. Map custom image emoji to their shortcode text, as allowed by PLAN.md. | Unicode emoji and ordinary image alt text. Missing shortcode support remains a gap. |
 | N13 attributes | Sort attributes, canonicalize boolean attributes and equivalent s/strike tags to del. Map CSS text-align to align. | Checked/disabled/open state, table alignment and other semantic attributes. |
+
+M2 fills in these named rules. None permits missing content or a new unsupported feature:
+
+- N04a secured assets removes GitHub's `secured-asset-link` marker. This is GitHub asset-delivery metadata, not an author attribute or image destination.
+- N09a math transport decodes one extra HTML-entity layer in GitHub's `math-renderer` payload. For example, its text node contains `&amp;` where the TeX source contains `&`. KaTeX annotations already contain decoded source. TeX commands, spacing and mode still compare exactly.
+- N06a app picture media reads the authored query from `data-simplemd-media`. SimpleMD keeps that query while replacing only its color-scheme clauses with app-theme matches at runtime. The original query, source order and URLs still compare. Separate DOM and app checks verify theme selection.
+- N05 drops an ID that becomes empty after prefix removal, as it already does for a literal empty ID. N08 treats normalized code blocks as block boundaries when removing HTML indentation.
+- N06 maps the pinned Prisma repository's `prisma/orm` redirect, legacy GitHub attachment URLs and their permanent asset IDs, and repository directory URLs with or without a trailing slash. Resource paths, queries and fragments remain significant. These are GitHub URL canonicalization differences, not permission to ignore destinations.
 
 GitHub's saved math-renderer and enrichment elements prove source and server-side presence. They do not prove that GitHub's client-side hydration completed. The app's KaTeX output and Mermaid SVG checks prove local rendering only. Theme media and fragments are compared as DOM attributes; light/dark asset selection, font layout, image decoding, navigation and screenshots need separate runtime checks.
 

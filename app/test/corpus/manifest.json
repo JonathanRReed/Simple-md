@@ -434,6 +434,7 @@
   {
     "id": "28-prisma-prisma-readme",
     "repo": "prisma/prisma",
+    "canonicalRepo": "prisma/orm",
     "path": "README.md",
     "commit": "1143e9310013a10c8d7f8a100491e844545320c2",
     "license": "Apache-2.0",

@@ -4,6 +4,8 @@ import type { Token } from "markdown-it";
 import { createMarkdownParser } from "./markdown-parser.js";
 import { resolveAuthorUrl, type UrlContext } from "./url-resolver.js";
 import { isRenderNode, type RenderedHtml, type RenderNode } from "./render-tree.js";
+import GithubSlugger from "github-slugger";
+import { renderFrontmatter } from "./frontmatter.js";
 export type { RenderedHtml } from "./render-tree.js";
 
 export interface RenderServices {
@@ -81,14 +83,6 @@ const resolveLang = (info: string) => {
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// GitHub's slug rules, so links copied from READMEs keep working.
-const slugify = (s: string) =>
-  s
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, "")
-    .replace(/ /g, "-");
-
 // Heading ids are prefixed so a heading named "doc" cannot take over the app's own element ids.
 const FRAGMENT_PREFIX = "user-content-";
 
@@ -133,7 +127,7 @@ export function createRenderCore(services: RenderServices = {}) {
   md.renderer.rules.fence = (tokens, idx, options, env, self) => {
     const html = defaultFence(tokens, idx, options, env, self);
     const lang = resolveLang(tokens[idx]!.info);
-    if (lang === "mermaid") return html;
+    if (lang === "mermaid" || lang === "math") return html;
     const label = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
     return `<div class="code-block"${label}><button class="copy-code" type="button" aria-label="Copy code">Copy</button>${html}</div>`;
   };
@@ -159,24 +153,17 @@ export function createRenderCore(services: RenderServices = {}) {
   });
 
   function inlineText(tokens: Token[]): string {
-    return tokens.map((token) => token.children ? inlineText(token.children) :
-      token.type === "softbreak" || token.type === "hardbreak" ? " " : token.content).join("");
+    return tokens.map((token) => token.type === "image" || token.type === "html_inline" ? "" : token.children ? inlineText(token.children) :
+      token.type === "softbreak" || token.type === "hardbreak" ? "\n" : token.content).join("");
   }
 
   md.core.ruler.push("heading_ids", (state) => {
-    const suffix = new Map<string, number>();
-    const used = new Set<string>();
+    const slugger = new GithubSlugger();
     state.tokens.forEach((tok, i) => {
       if (tok.type !== "heading_open") return;
       const inline = state.tokens[i + 1];
-      const slug = slugify(inline?.children ? inlineText(inline.children) : inline?.content ?? "");
-      if (!slug) return;
-      let n = suffix.get(slug) ?? 0;
-      let candidate = n ? `${slug}-${n}` : slug;
-      while (used.has(candidate)) candidate = `${slug}-${++n}`;
-      suffix.set(slug, n + 1);
-      used.add(candidate);
-      tok.attrSet("id", FRAGMENT_PREFIX + candidate);
+      const slug = slugger.slug(inline?.children ? inlineText(inline.children) : inline?.content ?? "");
+      tok.attrSet("id", FRAGMENT_PREFIX + slug);
     });
   });
 
@@ -304,7 +291,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const blocks: RenderedBlock[] = [];
     const seenKeys = new Map<string, number>();
     if (raw !== undefined) {
-      const html = `<details class="frontmatter" dir="ltr"><summary>Properties</summary><pre>${escapeHtml(raw)}</pre></details>`;
+      const html = renderFrontmatter(raw);
       blocks.push({ key: "fm" + hash(raw), html, urls: env.urls, sourceRange: [0, offset] });
     }
     for (const group of balancedGroups) {

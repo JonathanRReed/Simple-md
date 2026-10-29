@@ -18,6 +18,10 @@ export function resolveAuthorUrl(input: string, kind: UrlKind, context: UrlConte
     if (scheme !== undefined && scheme !== "http" && scheme !== "https" && !(kind === "anchor" && scheme === "mailto")) return null;
     try {
       const url = new URL(value, "https://relative.invalid/");
+      if (kind === "resource" && remote(url) && url.hostname === "github.com" && /^\/[^/]+\/[^/]+\/blob\//.test(url.pathname)) {
+        url.pathname = url.pathname.replace(/^(\/[^/]+\/[^/]+)\/blob\//, "$1/raw/");
+        return url.href;
+      }
       return remote(url) || (kind === "anchor" && url.protocol === "mailto:") ? (value.startsWith("//") ? url.href : value) : null;
     } catch { return null; }
   }

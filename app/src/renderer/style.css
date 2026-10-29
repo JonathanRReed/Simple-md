@@ -1208,3 +1208,22 @@ code,
 .prose .mdx-expression { white-space: pre-wrap; }
 .prose .mdx-error { border-left: 2px solid var(--muted); padding-left: .85em; }
 .prose .mdx-error pre { white-space: pre-wrap; }
+/* GitHub image fragments follow the selected app theme. */
+:root[data-theme="light"] img[src$="#gh-dark-mode-only"],
+:root[data-theme="dark"] img[src$="#gh-light-mode-only"] { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) img[src$="#gh-dark-mode-only"] { display: none; }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img[src$="#gh-light-mode-only"] { display: none; }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

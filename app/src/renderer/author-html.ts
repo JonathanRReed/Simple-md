@@ -2,6 +2,8 @@ import createDOMPurify from "dompurify";
 import { authorPolicy, globalAttrs, perTag, prefixFragment } from "../shared/sanitizer-policy.js";
 import { resolveAuthorUrl, resolveSrcset, resolveFragment, type UrlContext } from "../shared/url-resolver.js";
 import type { RenderedHtml, RenderNode } from "../shared/render-tree.js";
+import GithubSlugger from "github-slugger";
+import { applyImageTheme, currentImageTheme } from "./document-images.js";
 
 const purifier = createDOMPurify(window);
 const originals = new WeakMap<Element, Map<string, string>>();
@@ -95,11 +97,22 @@ export function mountRenderedHtml(root: HTMLElement, rendered: RenderedHtml, rem
       for (const attr of ["src", "srcset"]) if (/^(?:https?:)?\/\//i.test(image.getAttribute(attr) ?? "")) image.removeAttribute(attr);
     }
   }
+  applyImageTheme(fragment, currentImageTheme());
   root.replaceChildren(fragment);
 }
 
 // Rebuild after block reuse, so duplicate IDs and references remain document-scoped.
 export function updateFragments(root: HTMLElement | DocumentFragment): void {
+  const slugger = new GithubSlugger();
+  for (const heading of root.querySelectorAll("h1,h2,h3,h4,h5,h6")) {
+    if (heading.closest("section.footnotes")) continue;
+    const slug = slugger.slug(heading.textContent ?? "");
+    if (!originals.get(heading)?.has("id")) {
+      const id = "user-content-" + slug;
+      heading.setAttribute("id", id);
+      generatedIds.set(heading, new Map([["id", id]]));
+    }
+  }
   const map = new Map<string, string>();
   const used = new Set<string>();
   for (const element of root.querySelectorAll("[id], [name]")) {
