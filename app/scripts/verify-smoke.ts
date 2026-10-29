@@ -1198,8 +1198,11 @@ await test("native-menu-rebuilds", async () => {
     { nativeMenus: "capture" },
     evaluate(`await window.simplemd.setSettings({ bounds: { x: 100, y: 100, width: 850, height: 700 }, zoom: 1.1 });`),
     { nativeMenus: "unchanged" },
-    evaluate(`window.simplemd.command('mode-live'); await waitFor(() => document.querySelector('[data-element=modes] button[data-mode=live]')?.getAttribute('aria-checked') === 'true', 'Mode did not update');`),
-    { wait: 100 }, { nativeMenus: "app-only" },
+    evaluate(`const current = document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-checked=true]')?.dataset.mode;
+      window.nextMenuMode = current === 'live' ? 'source' : 'live';
+      window.simplemd.command('mode-' + window.nextMenuMode);
+      await waitFor(() => document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-checked=true]')?.dataset.mode === window.nextMenuMode, 'Mode did not update');`),
+    { nativeMenus: "app-only" },
     evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit');`),
     { nativeMenus: "recents" },
   ], "edit");

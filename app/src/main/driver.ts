@@ -89,7 +89,15 @@ export async function runDriver(
       }
       if ("nativeMenus" in step) {
         const { Menu, app } = await import("electron");
-        const next = { application: Menu.getApplicationMenu(), dock: app.dock?.getMenu() };
+        const snapshot = () => ({ application: Menu.getApplicationMenu(), dock: app.dock?.getMenu() });
+        let next = snapshot();
+        if (step.nativeMenus === "app-only" && menuSnapshot) {
+          const deadline = performance.now() + 2000;
+          while (next.application === menuSnapshot.application && performance.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+            next = snapshot();
+          }
+        }
         if (step.nativeMenus !== "capture") {
           if (!menuSnapshot) throw new Error("Capture native menus before comparing them.");
           const appChanged = next.application !== menuSnapshot.application;
