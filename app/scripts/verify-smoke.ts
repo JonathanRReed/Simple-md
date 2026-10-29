@@ -407,6 +407,26 @@ await test("quit-with-late-renderer-markers", async () => {
   assert(!logs.includes("TypeError"), "Late markers reached the disposed document registry.");
 });
 
+await test("tabs-last-close-late-notifications", async () => {
+  const name = "tabs-last-close-late-notifications";
+  const file = fixture(`${name}/note.md`, note);
+  await launch(name, file, [
+    evaluate(`window.closedDocumentId = Number(document.documentElement.dataset.documentId);
+      assert(await window.simplemd.closeTab(window.closedDocumentId), 'Last tab did not close.');
+      await waitFor(() => !document.querySelector('.document-pane'), 'Closed pane survived.');
+      window.simplemd.perfMarker(window.closedDocumentId, 'diagrams-ready');
+      window.simplemd.documentReady(window.closedDocumentId);
+      window.simplemd.editing(window.closedDocumentId);`),
+    { wait: 100 }, { windowCount: 1 }, { visibility: false },
+    { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: false, checked: false } },
+    evaluate(`await window.simplemd.openPath(${quote(file)}, 'read');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)}, 'Resident window did not reopen after late notifications.');`),
+    { windowCount: 1 }, { visibility: true },
+  ], "read", undefined, 0, "source", { env: { SMD_PERF: "1" } });
+  assert.deepEqual(fs.readFileSync(file), Buffer.from(note));
+  assert(!fs.readFileSync(path.join(root, name, 'electron.log'), 'utf8').includes('TypeError'), 'Late notification reached the closed session.');
+});
+
 await test("driver-assertion-failure", async () => {
   const file = fixture("driver-check/note.md", note);
   await launch("driver-assertion-failure", file, [

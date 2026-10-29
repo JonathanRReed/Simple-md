@@ -97,3 +97,31 @@ do not qualify a signed distribution bundle or Windows hardware.
 The host has 14 logical cores. Smoke run 1 started at load averages
 19.42, 21.70, 20.58 and ended at 18.28, 20.67, 20.32. Run 2 ended at
 32.95, 27.19, 23.08. The perf gate will record its own load and failures.
+
+## Lifecycle failure found by full perf
+
+The first full perf attempt, at `bf80058`, exposed a product defect during
+`resident-closed/bom.md`. Late renderer notifications outlived the last tab.
+The `smd:perf-marker` handler dereferenced `currentSession().documentId`
+after that session had been removed. Electron displayed a critical alert
+with a `TypeError` at `dist/main-app.mjs:3905:64`. The `smd:editing` and
+`smd:document-ready` handlers had the same unsafe assumption.
+
+The stalled process was verified as this worktree's test instance, PID 96792,
+then killed so the harness could retain its logs, count the case as failed,
+and continue. This was not a valid sample for that fixture. The first attempt
+has 20 failed samples and a failed correctness gate. Its receipt is
+`.audit/perf-vnIN7o/receipt.json`.
+
+The three handlers now ignore notifications when no current session exists.
+The new `tabs-last-close-late-notifications` smoke case closes the last tab,
+sends all three stale notifications, verifies the hidden resident window and
+disabled Git action, then reopens the file in the same window. It passed in
+isolation, as did `quit-with-late-renderer-markers` and all five originally
+reported smoke cases. Typecheck passed. No window-count assertion was relaxed.
+
+The first perf attempt also failed cold starts, closed math reopen, the 20 MB
+first screen, and memory. All typing gates passed. Load averages were
+20.70, 24.82, 22.49 at receipt creation and 25.09, 25.48, 23.55 at completion.
+The corrected candidate must repeat functional acceptance and a full perf
+attempt before the final verdict.

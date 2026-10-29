@@ -926,20 +926,22 @@ function registerIpc(): void {
   });
   on("smd:release-view", (_e, id) => { if (isDocumentId(id) && context().layout.has(id)) releaseDocumentDelta(id); });
   on("smd:editing", (e, id: unknown) => {
-    if (!mainSender(e) || id !== currentSession().documentId) return;
-    currentSession().intent = "edit";
+    const doc = currentSession();
+    if (!mainSender(e) || !doc || id !== doc.documentId) return;
+    doc.intent = "edit";
     if (process.platform === "darwin") void app.dock?.show();
   });
   on("smd:perf-marker", (e, id: unknown, marker: unknown, rendererEpochMs: unknown) => {
-    if (testProfile && mainSender(e) && id === currentSession().documentId && typeof marker === "string" &&
+    const doc = currentSession();
+    if (testProfile && mainSender(e) && doc && id === doc.documentId && typeof marker === "string" &&
         ["renderer-receive", "renderer-mount", "first-readable", "fully-highlighted", "diagrams-ready", "ready-for-input"].includes(marker)) {
-      perfMark(marker, { documentId: id, path: currentSession().path,
+      perfMark(marker, { documentId: id, path: doc.path,
         rendererEpochMs: typeof rendererEpochMs === "number" && Number.isFinite(rendererEpochMs) ? rendererEpochMs : null,
         receiverEpochMs: performance.timeOrigin + performance.now(), windowVisible: context().win.isVisible() });
     }
   });
   on("smd:document-ready", (e, id: unknown) => {
-    if (mainSender(e) && isDocumentId(id) && id === currentSession().documentId) documentWaiters.get(`${e.sender.id}:${id}`)?.forEach(done => done());
+    if (mainSender(e) && isDocumentId(id) && id === currentSession()?.documentId) documentWaiters.get(`${e.sender.id}:${id}`)?.forEach(done => done());
   });
   on("smd:flush-response", (e, id: unknown, r: unknown) => {
     if (!mainSender(e) || !isRequestId(id) || !r || typeof r !== "object") return;
