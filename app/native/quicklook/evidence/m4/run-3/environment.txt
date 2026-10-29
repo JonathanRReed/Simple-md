@@ -1,0 +1,12 @@
+Thu Oct 29 07:21:27 UTC 2026
+f7fc0c87d2ec18b0878417f091b6b626adf02707
+?? app/native/quicklook/evidence/m4/
+/Library/Developer/CommandLineTools
+Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)
+Target: arm64-apple-macosx27.2.0
+27.0
+ProductName:		macOS
+ProductVersion:		27.2
+BuildVersion:		26B123
+ 2:21  up 1 day, 11:37, 2 users, load averages: 8.79 17.80 18.77
+14

@@ -1,0 +1,30 @@
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLThumbnail.appex
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper.app
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper.app
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper (Plugin).app
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper (GPU).app
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper (Plugin).app
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper (GPU).app
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper (Renderer).app
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Mantle.framework/Versions/Current/.
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/SimpleMD Helper (Renderer).app
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/ReactiveObjC.framework/Versions/Current/.
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/app_shim_loader
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/app_shim_loader
+--prepared:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/Helpers/chrome_crashpad_handler
+--validated:/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app: valid on disk
+/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app: satisfies its Designated Requirement
+Executable=/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+Executable=/Users/jonathanreed/Applications/SimpleMD-M4-1101377a.app/Contents/PlugIns/SimpleMDQLThumbnail.appex/Contents/MacOS/SimpleMDQLThumbnail
+warning: Specifying ':' in the path is deprecated and will not work in a future release

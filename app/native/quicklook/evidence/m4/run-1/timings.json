@@ -1,0 +1,92 @@
+[
+  {
+    "fixture": "README.md",
+    "preview_launch_epoch": 1793257772.7663949,
+    "capture_bound_ms": 4221.593,
+    "thumbnail_wall_ms": 76.014,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "math.md",
+    "preview_launch_epoch": 1793257777.133769,
+    "capture_bound_ms": 4258.745,
+    "thumbnail_wall_ms": 59.882,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "mermaid.md",
+    "preview_launch_epoch": 1793257781.546287,
+    "capture_bound_ms": 4199.556,
+    "thumbnail_wall_ms": 38.085,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "local-image.md",
+    "preview_launch_epoch": 1793257785.865951,
+    "capture_bound_ms": 4294.171,
+    "thumbnail_wall_ms": 33.516,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "fixture.mdx",
+    "preview_launch_epoch": 1793257790.2562492,
+    "capture_bound_ms": 4161.113,
+    "thumbnail_wall_ms": 274.481,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "large.md",
+    "preview_launch_epoch": 1793257794.7596748,
+    "capture_bound_ms": 4204.857,
+    "thumbnail_wall_ms": 129.407,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "empty.md",
+    "preview_launch_epoch": 1793257799.167198,
+    "capture_bound_ms": 4181.168,
+    "thumbnail_wall_ms": 62.791,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "non-utf8.md",
+    "preview_launch_epoch": 1793257803.4917371,
+    "capture_bound_ms": 4263.688,
+    "thumbnail_wall_ms": 39.35,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  },
+  {
+    "fixture": "not-markdown.txt",
+    "preview_launch_epoch": 1793257807.86932,
+    "capture_bound_ms": 4228.403,
+    "thumbnail_wall_ms": 44.434,
+    "thumbnail_pixels": [
+      512,
+      512
+    ]
+  }
+]

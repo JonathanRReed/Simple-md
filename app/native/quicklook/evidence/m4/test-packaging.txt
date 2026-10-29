@@ -1,0 +1,29 @@
+$ bun test build/packaging.test.mjs
+bun test v1.4.4 (38afee6c8)
+
+build/packaging.test.mjs:
+(pass) host-only packaging > darwin/arm64 packages the exact helper [0.09ms]
+(pass) host-only packaging > darwin/x64 packages the exact helper [0.01ms]
+(pass) host-only packaging > win32/x64 packages the exact helper
+(pass) host-only packaging > win32/arm64 packages the exact helper
+(pass) host-only packaging > linux/x64 packages the exact helper
+(pass) host-only packaging > linux/arm64 packages the exact helper
+(pass) host-only packaging > rejects mismatched toolchains and unsupported architectures [0.04ms]
+(pass) host-only packaging > requires explicit signing identity and rejects publishing or foreign CLI targets [0.21ms]
+(pass) host-only packaging > keeps the bootstrap, worker chunks, and MIT license in package inputs [0.14ms]
+(pass) host-only packaging > keeps Automation permission on the main app, separate from Electron helpers [0.41ms]
+  • loaded configuration  file=package.json ("build" field)
+(pass) host-only packaging > installed electron-builder accepts the merged unsigned configuration [857.44ms]
+(pass) Linux launch integration > prints a single-file association and escapes desktop Exec metacharacters [0.13ms]
+(pass) Linux launch integration > portable wrapper preserves file arguments and clears Electron's Node mode [42.66ms]
+(pass) the package file filter excludes the browser render bundle from app.asar [23.79ms]
+(pass) Quick Look packaging > uses explicit Developer ID or ad-hoc signing without notarization [0.06ms]
+(pass) Quick Look packaging > builds extensions before outer signing and excludes PlugIns from Electron signing [0.11ms]
+(pass) Quick Look packaging > declares only Markdown and MDX, and App Sandbox only [11.76ms]
+(skip) Quick Look packaging > verifies the exact packaged layout, signatures and entitlements
+
+ 17 pass
+ 1 skip
+ 0 fail
+ 117 expect() calls
+Ran 18 tests across 1 file. [1000.00ms]

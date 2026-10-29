@@ -1,0 +1,60 @@
+
+type id:                    net.daringfireball.markdown (0x2c30)
+bundle:                     FluxMarkdown (0x139c)
+uti:                        net.daringfireball.markdown
+localizedDescription:       "de" = ?, "en" = ?, "es" = ?, "fr" = ?, "LSDefaultLocalizedValue" = "Markdown Document", "zh-Hans" = ?
+flags:                      inactive  imported  trusted (0000000000000040)
+conforms to:                public.plain-text
+tags:                       .md, .markdown
+
+--------------------------------------------------------------------------------
+
+type id:                    net.daringfireball.markdown (0x2ef4)
+bundle:                     Claude (0x1858)
+uti:                        net.daringfireball.markdown
+localizedDescription:       "af" = ?, "am" = ?, "ar" = ?, "bg" = ?, "bn" = ?, "ca" = ?, "cs" = ?, "da" = ?, "de" = ?, "el" = ?, "en" = ?, "en_GB" = ?, "es" = ?, "es_419" = ?, "et" = ?, "fa" = ?, "fi" = ?, "fil" = ?, "fr" = ?, "gu" = ?, "he" = ?, "hi" = ?, "hr" = ?, "hu" = ?, "id" = ?, "it" = ?, "ja" = ?, "kn" = ?, "ko" = ?, "LSDefaultLocalizedValue" = "Markdown document", "lt" = ?, "lv" = ?, "ml" = ?, "mr" = ?, "ms" = ?, "nb" = ?, "nl" = ?, "pl" = ?, "pt_BR" = ?, "pt_PT" = ?, "ro" = ?, "ru" = ?, "sk" = ?, "sl" = ?, "sr" = ?, "sv" = ?, "sw" = ?, "ta" = ?, "te" = ?, "th" = ?, "tr" = ?, "uk" = ?, "ur" = ?, "vi" = ?, "zh_CN" = ?, "zh_TW" = ?
+flags:                      inactive  imported  trusted (0000000000000040)
+conforms to:                public.plain-text
+tags:                       .md, .markdown
+
+--------------------------------------------------------------------------------
+
+type id:                    net.daringfireball.markdown (0x45b4)
+bundle:                     CoreTypes (0x2b38)
+uti:                        net.daringfireball.markdown
+localizedDescription:       "ar" = "‏Markdown", "ca" = "Markdown", "cs" = "Markdown", "da" = "Markdown", "de" = "Markdown", "el" = "Markdown", "en" = "Markdown", "en_AU" = "Markdown", "en_CA" = "Markdown", "en_GB" = "Markdown", "en_IN" = "Markdown", "en_PH" = "Markdown", "es" = "Markdown", "es_419" = "Marcado", "es_US" = "Marcado", "fi" = "Markdown", "fr" = "Markdown", "fr_CA" = "Markdown", "he" = "סימון", "hi" = "मार्कडाउन", "hr" = "Obilježavanje", "hu" = "Markdown", "id" = "Markdown", "it" = "Markdown", "ja" = "マークダウン", "ko" = "Markdown", "LSDefaultLocalizedValue" = "Markdown", "ms" = "Markdown", "nl" = "Markdown", "no" = "Markdown", "pl" = "Markdown", "pt_BR" = "Markdown", "pt_PT" = "Markdown", "ro" = "Markdown", "ru" = "Markdown", "sk" = "Markdown", "sl" = "Markdown", "sv" = "Markdown", "th" = "Markdown", "tr" = "Markdown", "uk" = "Markdown", "vi" = "Markdown", "zh_CN" = "Markdown", "zh_HK" = "Markdown", "zh_TW" = "Markdown"
+flags:                      active  apple-internal  exported  core  trusted (0000000000000075)
+conforms to:                public.utf8-plain-text
+tags:                       .md, .markdown, text/markdown
+
+--------------------------------------------------------------------------------
+
+type id:                    net.daringfireball.markdown (0x2c30)
+bundle:                     FluxMarkdown (0x139c)
+uti:                        net.daringfireball.markdown
+localizedDescription:       "de" = ?, "en" = ?, "es" = ?, "fr" = ?, "LSDefaultLocalizedValue" = "Markdown Document", "zh-Hans" = ?
+flags:                      inactive  imported  trusted (0000000000000040)
+conforms to:                public.plain-text
+tags:                       .md, .markdown
+
+
+--------------------------------------------------------------------------------
+
+type id:                    net.daringfireball.markdown (0x2ef4)
+bundle:                     Claude (0x1858)
+uti:                        net.daringfireball.markdown
+localizedDescription:       "af" = ?, "am" = ?, "ar" = ?, "bg" = ?, "bn" = ?, "ca" = ?, "cs" = ?, "da" = ?, "de" = ?, "el" = ?, "en" = ?, "en_GB" = ?, "es" = ?, "es_419" = ?, "et" = ?, "fa" = ?, "fi" = ?, "fil" = ?, "fr" = ?, "gu" = ?, "he" = ?, "hi" = ?, "hr" = ?, "hu" = ?, "id" = ?, "it" = ?, "ja" = ?, "kn" = ?, "ko" = ?, "LSDefaultLocalizedValue" = "Markdown document", "lt" = ?, "lv" = ?, "ml" = ?, "mr" = ?, "ms" = ?, "nb" = ?, "nl" = ?, "pl" = ?, "pt_BR" = ?, "pt_PT" = ?, "ro" = ?, "ru" = ?, "sk" = ?, "sl" = ?, "sr" = ?, "sv" = ?, "sw" = ?, "ta" = ?, "te" = ?, "th" = ?, "tr" = ?, "uk" = ?, "ur" = ?, "vi" = ?, "zh_CN" = ?, "zh_TW" = ?
+flags:                      inactive  imported  trusted (0000000000000040)
+conforms to:                public.plain-text
+tags:                       .md, .markdown
+
+
+--------------------------------------------------------------------------------
+
+type id:                    net.daringfireball.markdown (0x45b4)
+bundle:                     CoreTypes (0x2b38)
+uti:                        net.daringfireball.markdown
+localizedDescription:       "ar" = "‏Markdown", "ca" = "Markdown", "cs" = "Markdown", "da" = "Markdown", "de" = "Markdown", "el" = "Markdown", "en" = "Markdown", "en_AU" = "Markdown", "en_CA" = "Markdown", "en_GB" = "Markdown", "en_IN" = "Markdown", "en_PH" = "Markdown", "es" = "Markdown", "es_419" = "Marcado", "es_US" = "Marcado", "fi" = "Markdown", "fr" = "Markdown", "fr_CA" = "Markdown", "he" = "סימון", "hi" = "मार्कडाउन", "hr" = "Obilježavanje", "hu" = "Markdown", "id" = "Markdown", "it" = "Markdown", "ja" = "マークダウン", "ko" = "Markdown", "LSDefaultLocalizedValue" = "Markdown", "ms" = "Markdown", "nl" = "Markdown", "no" = "Markdown", "pl" = "Markdown", "pt_BR" = "Markdown", "pt_PT" = "Markdown", "ro" = "Markdown", "ru" = "Markdown", "sk" = "Markdown", "sl" = "Markdown", "sv" = "Markdown", "th" = "Markdown", "tr" = "Markdown", "uk" = "Markdown", "vi" = "Markdown", "zh_CN" = "Markdown", "zh_HK" = "Markdown", "zh_TW" = "Markdown"
+flags:                      active  apple-internal  exported  core  trusted (0000000000000075)
+conforms to:                public.utf8-plain-text
+tags:                       .md, .markdown, text/markdown
