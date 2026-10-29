@@ -5,6 +5,7 @@ export interface Bridge {
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;
   onTransition(cb: (busy: boolean) => void): void;
+  perfMarker(documentId: number, marker: string): void;
   documentReady(documentId: number): void;
   editing(documentId: number): void;
   acceptDisk(text: string, documentId: number): Promise<boolean>;

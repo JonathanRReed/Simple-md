@@ -16,6 +16,7 @@
     "pack": "bun run --cwd app pack",
     "pack:plan": "bun run --cwd app pack:plan",
     "dist": "bun run --cwd app dist",
-    "bench": "bun run --cwd app bench"
+    "bench": "bun run --cwd app bench",
+    "perf:gate": "bun run --cwd app perf:gate"
   }
 }

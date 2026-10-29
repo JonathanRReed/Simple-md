@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Token } from "markdown-it";
@@ -52,7 +53,9 @@ function highlight(code: string, lang: string): string {
   const key = `${lang}\0${code}`;
   const hit = highlightCache.get(key);
   if (hit !== undefined) return hit;
+  perfMark("highlight-start");
   const html = highlighter!.codeToHtml(code, { lang, themes: THEMES, defaultColor: false });
+  perfMark("highlight-end");
   const bytes = Buffer.byteLength(key) + Buffer.byteLength(html);
   if (bytes > HIGHLIGHT_CACHE_MAX_BYTES) return html;
   highlightCache.set(key, html);
@@ -255,8 +258,12 @@ export async function renderBlocks(src: string, filePath: string | null): Promis
   const isMdx = filePath !== null && path.extname(filePath).toLowerCase() === ".mdx";
   const text = isMdx ? preprocessMdx(body) : body;
   const env: RenderEnv = { baseDir: filePath ? path.dirname(filePath) : undefined };
+  perfMark("parse-start");
   const tokens = md.parse(text, env);
+  perfMark("parse-end");
+  perfMark("highlight-prepare-start");
   await prepareHighlighting(tokens);
+  perfMark("highlight-prepare-end");
 
   // Balance nesting rather than source maps so generated footnote sections stay intact.
   const groups: Token[][] = [];
@@ -267,6 +274,7 @@ export async function renderBlocks(src: string, filePath: string | null): Promis
     depth += token.nesting;
   }
 
+  perfMark("html-serialize-start");
   const blocks: RenderedBlock[] = [];
   const seenKeys = new Map<string, number>();
   if (raw !== undefined) {
@@ -294,13 +302,18 @@ export async function renderBlocks(src: string, filePath: string | null): Promis
     seenKeys.set(key, seen + 1);
     blocks.push({ key: seen ? `${key}~${seen}` : key, html });
   }
+  perfMark("html-serialize-end");
   return { title: title ?? (filePath ? path.basename(filePath, path.extname(filePath)) : "Untitled"), blocks };
 }
 
 async function renderBody(text: string, baseDir: string | undefined): Promise<string> {
   const env: RenderEnv = { baseDir };
+  perfMark("parse-start");
   const tokens = md.parse(text, env);
+  perfMark("parse-end");
+  perfMark("highlight-prepare-start");
   await prepareHighlighting(tokens);
+  perfMark("highlight-prepare-end");
 
   return md.renderer.render(tokens, md.options, env);
 }

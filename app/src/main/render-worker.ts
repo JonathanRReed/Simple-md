@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import { parentPort } from "node:worker_threads";
 import { renderBlocks, renderFragment, type RenderedBlocks } from "./markdown.js";
 
@@ -18,6 +19,7 @@ const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
 port.on("message", async (request: RenderRequest) => {
+  perfMark("worker-receive", { requestId: request.id });
   try {
     let response: RenderResponse;
     switch (request.kind) {
@@ -35,7 +37,9 @@ port.on("message", async (request: RenderRequest) => {
         throw new Error(`Unknown render request: ${JSON.stringify(invalid)}`);
       }
     }
+    perfMark("worker-serialize-start", { requestId: request.id });
     port.postMessage(response);
+    perfMark("worker-serialize-end", { requestId: request.id });
   } catch (error) {
     port.postMessage({ id: request.id, kind: "error", message: error instanceof Error ? error.message : String(error) } satisfies RenderResponse);
   }

@@ -3,9 +3,9 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { KeyboardInputEvent } from "electron";
+import type { DriverStep } from "../src/main/driver";
 
-type Step = { eval: string } | { assert: string } | { input: KeyboardInputEvent } | { shot: string } | { pdf: string } | { html: string } | { menuQuit: true };
+type Step = DriverStep;
 type Result = { name: string; status: "passed" } | { name: string; status: "failed"; error: string };
 type DiskChange = { marker: string; file: string; text: string; preserveTimes?: boolean };
 
@@ -160,6 +160,7 @@ await test("render-links-pdf", async () => {
   const html = path.join(root, "render-links-pdf/output.html");
   await launch("render-links-pdf", alpha, [
     evaluate(`await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Smoke render alpha', 'Initial note did not render.');
+      assert(document.documentElement.dataset.firstReadable === ${quote(alpha)}, 'First-readable marker is missing.');
       assert(document.querySelector('#edit').hidden, 'Peek opened an editor.');
       assert(document.querySelector('#doc .shiki'), 'Shiki code did not render.');
       assert(document.querySelector('#doc .katex'), 'KaTeX did not render.');

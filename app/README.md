@@ -70,6 +70,18 @@ The script uses temporary fixtures and an isolated `SMD_USER_DATA` profile. That
 
 For local performance investigation, `bun run bench` runs the benchmark script. Record the exact revision, host, cold or warm state, fixture, and measured completion marker before comparing results. A half Dock bounce remains a target to measure after integration. It has not been proved by this packaging work. This guide makes no latency, energy-use, or battery-life guarantee.
 
+## Performance gates
+
+Run `bun run perf:gate` from the repository root or this directory. It builds the app, generates deterministic fixtures, builds the measurement helper, and opens isolated Electron profiles. It prints the JSON receipt path last. Keep the Mac plugged in and avoid typing in the test windows. The full run opens many documents and can take several minutes.
+
+The receipt contains every sample, marker, cache state, assertion failure, fixture digest, build hash, and host detail. Gates use the targets in `docs/PLAN.md`. A failed gate exits nonzero; tabs and two document panes report `n/a` until they exist. `bun run bench.ts --perf-gate --smoke` runs a reduced local GUI check without enforcing absolute thresholds. Hosted macOS CI compiles that entrypoint and runs its protocol, fixture, and statistics tests because the runner has no stable logged-in GUI session.
+
+Memory uses five settled samples of every PID from `app.getAppMetrics()`. The separate `perf-memory` binary in the existing Rust package reads macOS `proc_pid_rusage` physical footprint and resident size. On Windows it counts private resident pages with `QueryWorkingSet` and records total resident pages beside them. It does not start native preview hooks, run `footprint` or `vmmap`, or add a dependency. Values use decimal MB. RSS is diagnostic, not the gate.
+
+Typing uses Event Timing for trusted `keydown` and `beforeinput` events in a 100k-character document. The receipt keeps p50, p95, p99, raw entries, trusted event counts, and the separate beforeinput-to-rAF lower bound. The API omits durations below 16 ms and rounds reported durations to 8 ms. Censored quantiles report bounds; missing API support cannot pass a gate. Each case verifies the complete editor text and saved bytes after typing, burst input, selection movement, backspace, undo, paste, and CDP composition. Composition still needs native IME qualification.
+
+First-readable is a separate double-rAF marker after mount. It does not await diagrams or font readiness. The existing `documentReady` marker keeps its meaning. The current worker highlights before sending its payload, so that cost remains in first-readable measurements. Process-cold tests do not purge the OS file cache. The receipt identifies the development bundle and records ASAR as absent; it does not qualify a packaged installation.
+
 ## Package locally
 
 ```sh
