@@ -1,11 +1,12 @@
 # Run in a normal 64-bit PowerShell session, not as administrator.
 [CmdletBinding()]
 param(
-    [string]$DllPath = (Join-Path $PSScriptRoot 'simplemd_windows_preview.dll'),
+    [string]$DllPath,
     [switch]$RestartPreviewHost,
     [switch]$CheckRuntime
 )
 $ErrorActionPreference = 'Stop'
+if (-not $DllPath) { $DllPath = Join-Path $PSScriptRoot 'simplemd_windows_preview.dll' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell for this x64 DLL.' }
 $DllPath = (Resolve-Path -LiteralPath $DllPath).Path
 $clsid = '{a8b4f9c2-6e75-4eaa-9a1d-e4276f01d937}'
