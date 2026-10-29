@@ -60,7 +60,7 @@ import { configStore, flushSettings, loadSettings, patchSettings, saveSettings }
 const T0 = performance.now();
 const tracing = !!process.env.SMD_TRACE;
 const trace = (mark: string) => {
-  perfMark(mark);
+  perfMark(mark.replace(/ .*/, ""));
   if (tracing) console.error(`trace ${mark}: ${(performance.now() - T0).toFixed(0)}ms`);
 };
 trace("main-bundle-loaded");
