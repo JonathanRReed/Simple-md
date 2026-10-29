@@ -185,6 +185,9 @@ async function startupBench(): Promise<void> {
 
 if (import.meta.main && process.argv.includes("--render-sample")) {
   console.log(JSON.stringify(await renderSample()));
+} else if (import.meta.main && process.argv.includes("--perf-gate")) {
+  const { perfGate } = await import("./scripts/perf-gate");
+  await perfGate();
 } else if (import.meta.main) {
   await renderBench();
   if (process.env.SMD_BENCH_STARTUP !== "0") await startupBench();
@@ -193,4 +196,57 @@ if (import.meta.main && process.argv.includes("--render-sample")) {
     process.exit(1);
   }
   console.log("\nall measured budgets met");
+}
+
+export type DriverEvent = { elapsedMs: number; data: Record<string, unknown> };
+
+// All elapsed times originate in the parent, before spawn or before acknowledging
+// a driver barrier. Neither Electron's clock nor console's printed ms is the gate.
+export async function measureDriverRun(options: {
+  executable: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv;
+  logPath: string; timeoutMs?: number;
+  onEvent?: (event: DriverEvent) => void;
+}): Promise<{ events: DriverEvent[]; barriers: Record<string, number>; elapsedMs: number }> {
+  const started = performance.now();
+  const child = spawn(options.executable, options.args, { cwd: options.cwd, env: options.env, stdio: ["pipe", "pipe", "pipe"] });
+  const events: DriverEvent[] = [];
+  const barriers: Record<string, number> = {};
+  let output = "";
+  let pending = "";
+  let timedOut = false;
+  let protocolError: unknown;
+  child.stdout.on("data", (chunk: Buffer) => {
+    output += chunk.toString();
+    pending += chunk.toString();
+    let end: number;
+    while ((end = pending.indexOf("\n")) >= 0) {
+      const line = pending.slice(0, end);
+      pending = pending.slice(end + 1);
+      if (!line.startsWith("smd-perf ")) continue;
+      try {
+        const data: unknown = JSON.parse(line.slice(9));
+        if (typeof data !== "object" || data === null || Array.isArray(data) || !("kind" in data) || typeof data.kind !== "string") throw new Error("Invalid perf driver event");
+        const event = { elapsedMs: performance.now() - started, data };
+        events.push(event);
+        if (data.kind === "barrier") {
+          if (!("name" in data) || typeof data.name !== "string" || data.name in barriers) throw new Error("Invalid or duplicate perf barrier");
+          barriers[data.name] = event.elapsedMs;
+          child.stdin.write(data.name + "\n");
+        }
+        options.onEvent?.(event);
+      } catch (error) { protocolError = error; child.kill("SIGTERM"); }
+    }
+  });
+  child.stderr.on("data", (chunk: Buffer) => { output += chunk.toString(); });
+  const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, options.timeoutMs ?? 300_000);
+  const force = setTimeout(() => child.kill("SIGKILL"), (options.timeoutMs ?? 300_000) + 3000);
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", resolve);
+  }).finally(() => { clearTimeout(timer); clearTimeout(force); fs.writeFileSync(options.logPath, output); });
+  if (protocolError) throw protocolError;
+  if (code !== 0 || timedOut || /driver failed|failed to open|driver eval failed/.test(output)) {
+    throw new Error(`Performance driver failed: exit=${code}, timeout=${timedOut}. See ${options.logPath}`);
+  }
+  return { events, barriers, elapsedMs: performance.now() - started };
 }

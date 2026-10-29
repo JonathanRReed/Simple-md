@@ -4,8 +4,14 @@ const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
   ipcRenderer.on(channel, (_e, ...args) => cb(...(args as T)));
 };
 
+let performanceTracing = false;
+
 contextBridge.exposeInMainWorld("simplemd", {
-  ready: () => ipcRenderer.invoke("smd:ready"),
+  ready: async () => {
+    const ready = await ipcRenderer.invoke("smd:ready");
+    performanceTracing = ready.performanceTracing === true;
+    return ready;
+  },
 
   onDoc: (cb: (doc: unknown) => void) => on("smd:doc", cb),
   onSettings: (cb: (s: unknown) => void) => on("smd:settings", cb),
@@ -20,6 +26,9 @@ contextBridge.exposeInMainWorld("simplemd", {
     ipcRenderer.send("smd:flush-response", id, result),
   setDirty: (dirty: boolean, documentId: number) => ipcRenderer.send("smd:dirty", dirty, documentId),
   editing: (documentId: number) => ipcRenderer.send("smd:editing", documentId),
+  perfMarker: (documentId: number, marker: string) => {
+    if (performanceTracing) ipcRenderer.send("smd:perf-marker", documentId, marker);
+  },
   documentReady: (documentId: number) => ipcRenderer.send("smd:document-ready", documentId),
   acceptDisk: (text: string, documentId: number) => ipcRenderer.invoke("smd:accept-disk", text, documentId),
   printReady: (error?: string) => ipcRenderer.send("smd:print-ready", error),

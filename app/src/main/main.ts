@@ -28,6 +28,7 @@ import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } 
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
 import { replaceShortcut } from "./shortcuts.js";
 import { runDriver } from "./driver.js";
+import { perfMark } from "./perf.js";
 import { disposeRenderer, prefetchBlocks, renderBlocks, renderFragment, warmUp } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
@@ -291,7 +292,9 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
     blocks = [];
   } else if (file && fromDisk) {
     const stat = await fs.promises.stat(file).catch(() => null);
+    perfMark("read-and-hash-start", { path: file });
     const hit = stat && getCachedRender(file, stat.mtimeMs, stat.size, text);
+    perfMark("read-and-hash-end", { path: file, diskRenderCache: hit ? "hit" : "miss" });
     if (hit) {
       ({ title, blocks } = hit);
     } else {
@@ -360,6 +363,7 @@ async function present(payload: DocPayload): Promise<void> {
       resolve();
     });
   });
+  perfMark("renderer-send", { path: payload.path, documentId: payload.documentId });
   send("smd:doc", payload);
   trace(`doc-sent name=${payload.name} blocks=${payload.blocks.length} intent=${payload.intent}`);
   await usable;
@@ -390,10 +394,16 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, val
   }
   if (!isMarkdown(file)) return false;
   const abs = path.resolve(file);
+  perfMark("file-open-arrival", { path: abs });
   try {
     return await openPreparedDocument({
       valid,
-      prepare: async () => payloadFor(abs, await fs.promises.readFile(abs, "utf8"), intent, true),
+      prepare: async () => {
+        perfMark("read-start", { path: abs });
+        const text = await fs.promises.readFile(abs, "utf8");
+        perfMark("read-end", { path: abs });
+        return payloadFor(abs, text, intent, true);
+      },
       transition,
       settle,
       refresh: async (payload) => {
@@ -856,12 +866,18 @@ function registerIpc(): void {
     trace("renderer-ready");
     rendererReady = true;
     markRendererLoaded();
-    return { settings, platform: process.platform };
+    return { settings, platform: process.platform, performanceTracing: testProfile && process.env.SMD_PERF === "1" };
   });
   ipcMain.on("smd:editing", (e, id: unknown) => {
     if (!mainSender(e) || id !== current.documentId) return;
     current.intent = "edit";
     if (process.platform === "darwin") void app.dock?.show();
+  });
+  ipcMain.on("smd:perf-marker", (e, id: unknown, marker: unknown) => {
+    if (testProfile && mainSender(e) && id === current.documentId && typeof marker === "string" &&
+        ["renderer-receive", "renderer-mount", "first-readable", "fully-highlighted", "diagrams-ready", "ready-for-input"].includes(marker)) {
+      perfMark(marker, { documentId: id, path: current.path });
+    }
   });
   ipcMain.on("smd:document-ready", (e, id: unknown) => {
     if (mainSender(e) && typeof id === "number" && id === current.documentId) documentWaiters.get(id)?.();

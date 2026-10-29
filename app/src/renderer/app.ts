@@ -117,7 +117,10 @@ function mountBlocks(el: HTMLElement, blocks: RenderedBlock[]): void {
     stale.remove();
   }
   blockEls.set(el, next);
-  for (const node of fresh) void renderDiagrams(node);
+  const id = documentId;
+  void Promise.all(fresh.map((node) => renderDiagrams(node))).then(() => {
+    if (id === documentId && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
+  });
 }
 
 function renderRead(text: string, keepScroll: boolean): Promise<void> {
@@ -331,6 +334,7 @@ async function showRead(): Promise<void> {
 
 async function onDoc(payload: DocPayload): Promise<void> {
   const id = payload.documentId;
+  simplemd.perfMarker(id, "renderer-receive");
   ++readRenderSeq;
   ++previewRenderSeq;
   ++viewSeq;
@@ -354,6 +358,7 @@ async function onDoc(payload: DocPayload): Promise<void> {
   meta = { path: payload.path, name: payload.name, baseUrl: payload.baseUrl };
   root.dataset.documentPath = payload.path ?? "";
   delete root.dataset.documentPainted;
+  delete root.dataset.firstReadable;
   hasDoc = true;
   readText = payload.text;
   savedText = payload.text;
@@ -376,6 +381,15 @@ async function onDoc(payload: DocPayload): Promise<void> {
     await showEdit(true);
     if (id !== documentId) return;
   }
+  simplemd.perfMarker(id, "renderer-mount");
+  // This marker does not await fonts, highlighting completion checks or diagram work.
+  // The current worker still highlights before sending the payload.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (id !== documentId) return;
+    root.dataset.firstReadable = payload.path ?? "";
+    simplemd.perfMarker(id, "first-readable");
+    if (payload.intent === "peek" || isReadOnly() || settings.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
+  }));
   const sourceOnly = payload.intent === "edit" && !isReadOnly() && settings.mode === "source";
   const visibleRoot = payload.intent === "edit" && !isReadOnly() ? settings.mode === "split" ? previewEl : editorHost : docEl;
   if (!sourceOnly && visibleRoot.querySelector(".katex")) {
@@ -796,7 +810,10 @@ async function boot(): Promise<void> {
     if (busy) clearTimeout(autosaveTimer);
     else {
       scheduleAutosave();
-      if (view === "edit") editor?.focus();
+      if (view === "edit") {
+        editor?.focus();
+        if (editor) simplemd.perfMarker(documentId, "ready-for-input");
+      }
     }
   });
   simplemd.onSaved(onSaved);

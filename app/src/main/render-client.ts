@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import { Worker } from "node:worker_threads";
 import type { RenderedBlocks } from "./markdown.js";
 import type { RenderCommand, RenderRequest, RenderResponse } from "./render-worker.js";
@@ -80,6 +81,7 @@ export class RenderClient {
       } else {
         this.foreground.push(pending);
       }
+      perfMark("worker-queue", { requestId: pending.request.id, command: request.kind });
       this.dispatch();
     });
   }
@@ -119,6 +121,7 @@ export class RenderClient {
       }
       this.worker.ref();
       this.timer = setTimeout(() => this.fail(new Error("Render worker request timed out")), this.timeoutMs);
+      perfMark("worker-dispatch", { requestId: pending.request.id });
       this.worker.postMessage(pending.request);
     } catch (error) {
       this.fail(error instanceof Error ? error : new Error(String(error)));

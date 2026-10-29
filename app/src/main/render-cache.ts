@@ -1,3 +1,4 @@
+import { perfMark } from "./perf.js";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -14,7 +15,12 @@ export const RENDER_CACHE_VERSION = 2;
 const MAX_ENTRIES = 24;
 const MAX_BYTES = 16 * 1024 * 1024;
 const ENVELOPE_BYTES = Buffer.byteLength(JSON.stringify({ version: RENDER_CACHE_VERSION, entries: {} }));
-const sourceHash = (text: string) => createHash("sha256").update(text).digest("hex");
+const sourceHash = (text: string) => {
+  perfMark("hash-start");
+  const hash = createHash("sha256").update(text).digest("hex");
+  perfMark("hash-end");
+  return hash;
+};
 
 function isBlock(value: unknown): value is RenderedBlock {
   return typeof value === "object" && value !== null &&

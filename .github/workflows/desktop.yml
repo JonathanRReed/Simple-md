@@ -58,6 +58,15 @@ jobs:
         run: bun run pack:plan
       - name: Build and package unsigned artifacts
         run: bun run dist
+      # Hosted macOS does not provide a stable logged-in GUI session or owner-host
+      # thresholds. Compile the same entrypoint and run its protocol/statistics tests.
+      - name: Performance harness smoke signal (no absolute thresholds)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        working-directory: app
+        run: |
+          bun build bench.ts --target=bun --outdir=.perf-ci
+          bun test test/performance.test.ts
       - name: Upload unsigned artifacts
         uses: actions/upload-artifact@v4
         with:
