@@ -1,3 +1,4 @@
+import { shareDocument } from "./share.js";
 import { contextTemplate, validateContext } from "./context-menu.js";
 import type { NativeContext } from "../shared/native-context.js";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -139,6 +140,8 @@ function refreshMenus(): void {
     openDialog: () => void openDialog(),
     openPath: (p) => void openFile(p, "edit"),
     patch: applySettings,
+    share: () => { const doc = currentSession(); if (doc.path) shareDocument(context().win, doc.path); },
+    canShare: () => !!currentSession().path,
     quit: () => app.quit(),
   });
   tray?.setContextMenu(trayMenu());
@@ -1031,6 +1034,7 @@ function registerIpc(): void {
         copy: text => { void clipboard.writeText(text); },
         reveal: url => { void containedLocalFile(url, urlContext(doc.path ? path.dirname(doc.path) : undefined)).then(file => shell.showItemInFolder(file)).catch(() => {}); },
         lookup: () => host.win.webContents.showDefinitionForSelection(),
+        share: doc.path ? () => shareDocument(host.win, doc.path!) : undefined,
       }));
       menu.popup({ window: host.win, callback: () => resolve(replacement) });
     });

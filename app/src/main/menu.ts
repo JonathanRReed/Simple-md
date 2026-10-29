@@ -8,6 +8,8 @@ export interface MenuActions {
   openDialog(): void;
   openPath(file: string): void;
   patch(patch: Partial<Settings>): void;
+  share(): void;
+  canShare(): boolean;
   quit(): void;
 }
 
@@ -65,6 +67,7 @@ export function buildMenu(a: MenuActions): void {
         cmd("Save", "save", "CommandOrControl+S"),
         cmd("Save As…", "save-as", "CommandOrControl+Shift+S"),
         { type: "separator" },
+        ...(mac ? [{ label: "Share", enabled: a.canShare(), click: a.share } satisfies MenuItemConstructorOptions] : []),
         cmd("Export as PDF…", "export-pdf"),
         cmd("Export as HTML…", "export-html"),
         cmd("Print…", "print", "CommandOrControl+P"),
