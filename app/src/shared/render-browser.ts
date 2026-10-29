@@ -1,5 +1,6 @@
 import { createRenderCore as createCore, type RenderServices } from "./render-core.js";
-import { createHighlighter, bundledLanguages, type BundledLanguage, type Highlighter } from "shiki";
+import { createHighlighterCore, type HighlighterCore } from "shiki/core";
+import { bundledLanguages, type BundledLanguage } from "shiki/langs";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { authorPolicy } from "./sanitizer-policy.js";
 export { authorPolicy };
@@ -11,8 +12,8 @@ import type { UrlContext } from "./url-resolver.js";
 export { sanitizeAuthorHtmlStatic } from "./sanitize-static.js";
 import { staticImageUrls, embedStaticImages } from "./static-images.js";
 
-let highlighter: Highlighter | undefined;
-let loading: Promise<Highlighter> | undefined;
+let highlighter: HighlighterCore | undefined;
+let loading: Promise<HighlighterCore> | undefined;
 const themes = { light: "github-light", dark: "github-dark" } as const;
 const highlighting: RenderServices = {
   async prepareHighlighting(tokens) {
@@ -21,10 +22,11 @@ const highlighting: RenderServices = {
       .map((lang) => lang === "gitignore" ? "ini" : lang))]
       .filter((lang): lang is BundledLanguage => Object.hasOwn(bundledLanguages, lang));
     if (!wanted.length) return;
-    loading ??= createHighlighter({ themes: Object.values(themes), langs: [], engine: createJavaScriptRegexEngine() });
+    loading ??= Promise.all([import("shiki/themes/github-light.mjs"), import("shiki/themes/github-dark.mjs")])
+      .then(([light, dark]) => createHighlighterCore({ themes: [light.default, dark.default], langs: [], engine: createJavaScriptRegexEngine() }));
     highlighter = await loading;
     const missing = wanted.filter((lang) => !highlighter!.getLoadedLanguages().includes(lang));
-    if (missing.length) await highlighter.loadLanguage(...missing);
+    if (missing.length) await highlighter.loadLanguage(...missing.map(lang => bundledLanguages[lang]));
   },
   highlight(code, lang) {
     return highlighter?.getLoadedLanguages().includes(lang) ? highlighter.codeToHtml(code, { lang, themes, defaultColor: false }) : "";

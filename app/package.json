@@ -144,6 +144,22 @@
         ],
         "UTImportedTypeDeclarations": [
           {
+            "UTTypeIdentifier": "net.daringfireball.markdown",
+            "UTTypeDescription": "Markdown document",
+            "UTTypeConformsTo": [
+              "public.plain-text"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "md",
+                "markdown",
+                "mdown",
+                "mkd"
+              ],
+              "public.mime-type": "text/markdown"
+            }
+          },
+          {
             "UTTypeIdentifier": "com.fluxmarkdown.mdx",
             "UTTypeDescription": "MDX document",
             "UTTypeConformsTo": [

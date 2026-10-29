@@ -38,7 +38,7 @@ A-->B
 </details>`;
 
 test("non-math documents omit KaTeX assets and preserve native notices", async () => {
-  for (const source of ["# Plain\n\nText", "```math\nnot math\n```".replace("math", "text"), '<span class="katex">fake</span>']) {
+  for (const source of ["# Plain\n\nText", "```text\n$x^2$\n```", '<span class="katex">fake</span>']) {
     const html = await renderStaticHtml(source, null, { truncated: true, invalidUtf8: true });
     expect(html).not.toContain("data:font/woff2");
     expect(html).not.toContain("@font-face");

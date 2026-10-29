@@ -62,6 +62,8 @@ exposes it as `globalThis.SimpleMDRenderCore.renderStaticHtml` in an IIFE bundle
 ```ts
 interface StaticRenderOptions {
   urls?: { baseUrl?: string; rootUrl?: string };
+  truncated?: boolean;
+  invalidUtf8?: boolean;
 }
 function renderStaticHtml(
   source: string,
@@ -79,8 +81,8 @@ never values taken from author HTML. The host still controls sandbox access.
 Remote resources are always disabled, including generated Markdown images.
 
 The document embeds the default light and dark theme, follows
-`prefers-color-scheme`, and contains KaTeX CSS with all 20 WOFF2 fonts as data
-URLs. Its CSP is exactly
+`prefers-color-scheme`, and includes KaTeX CSS with all 20 WOFF2 fonts as data URLs only when the sanitized
+body contains generated math. Its CSP is exactly
 `default-src 'none'; style-src 'unsafe-inline'; img-src data: file:; font-src data:`.
 Mermaid fences become `<pre><code class="language-mermaid">` with escaped source.
 Copy buttons are removed. No page script, external stylesheet or font file is
@@ -152,9 +154,23 @@ Shiki, Mermaid code and local images, with no `document`, `window`, Node or fetc
 This proves the bundle's runtime contract. Finder display, extension sandbox
 access, signing and packaged installation remain separate checks.
 
-For size reference, the repository README is 2,834 UTF-8 bytes. Rendering it with
-`filePath = "/project/README.md"` produces a 382,307-byte standalone document with
-the embedded theme and all KaTeX fonts.
+The extension passes truncation and UTF-8 decoding flags to `renderStaticHtml`.
+The page shows those notices before the document. It follows the display host's
+system appearance through CSS, without reading app preferences.
+
+After rendering, `staticImageUrls(html)` enumerates resolved image URLs from the
+sanitized document. Swift reads them within its existing sandbox grant. It accepts
+PNG, JPEG, GIF and WebP, with at most 32 candidates, 2 MB per file, 8 MB total,
+8,192 pixels per dimension and 16,777,216 pixels per image. SVG and other formats
+use placeholders. `embedStaticImages(html, resources)` inserts host-supplied raster
+data URLs and replaces missing, denied, remote or unsupported images with escaped
+alt text in an "Image unavailable" box. Picture sources cannot override that image.
+There is no native file bridge in JavaScript and no additional sandbox entitlement.
+
+The repository README is now 2,905 UTF-8 bytes. It produces a 13,705-byte page,
+compared with 382,425 bytes before conditional math assets. The math fixture keeps
+all 20 fonts. See `app/native/quicklook/evidence/m4-final/` for exact fixtures,
+page sizes and packaged runtime evidence.
 
 ## Thumbnail extension
 
@@ -168,16 +184,17 @@ Source: `.audit/research/e-os-integration.md`, Quick Look sections (local only).
 
 ## Static renderer integration contract
 
-The M4 extension calls the synchronous global function
-`renderStaticHtml(source, filePath, options): string` in JavaScriptCore.
-`source` and `filePath` are strings. Options contain
-`appearance: "light" | "dark"`, `truncated: boolean`, and
-`invalidUtf8: boolean`. The result is a complete HTML document with no page
-scripts or remote resources. The function must not require a DOM, Node, fetch,
-or native callbacks.
+The extension bundles `app/src/shared/render-browser.ts` with
+`bun build --target browser --format iife --minify` into its Resources directory.
+`globalThis.SimpleMDRenderCore.renderStaticHtml` returns `Promise<string>`.
+Swift creates one JavaScriptCore context per extension process and accesses it
+only on the serial render queue. A trusted wrapper observes the promise result.
+JavaScriptCore drains the bundle's ECMAScript promise jobs at the outer call
+boundary. The bundle uses no asynchronous host I/O. A missing result or exception
+fails the request instead of displaying partial HTML. Source and paths enter as
+arguments, never evaluated code.
 
-Until the shared static renderer lands, `preview/render-stub.ts` escapes the
-source into a `pre` element. It renders no Markdown, math, diagrams, or images.
-Replace that build entry with the shared browser entry at integration. Preserve
-the global synchronous signature and the size and encoding notices, then run
-the sanitizer parity checks and repeat the packaged fixture checks.
+The synchronous escaped-source stub is removed. The bare-context test and the
+packaged Swift check exercise the real renderer, including lazy grammar and math
+imports. Package signing still uses App Sandbox as the extensions' sole
+entitlement, with no network access or page scripts.

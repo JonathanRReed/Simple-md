@@ -41,10 +41,10 @@ final class StaticRenderer {
         self.render = render
         self.imageUrls = imageUrls
         self.embedImages = embedImages
-        logger.notice("Renderer initialized context_ms=\((created-start)*1000) bundle_read_ms=\((read-created)*1000) bundle_eval_ms=\((evaluated-read)*1000) bundle_bytes=\(code.utf8.count)")
+        logger.notice("Renderer initialized context_ms=\((created-started)*1000) bundle_read_ms=\((read-created)*1000) bundle_eval_ms=\((evaluated-read)*1000) bundle_bytes=\(code.utf8.count)")
     }
 
-    func html(source: PreviewSource, filePath: String, dark: Bool) throws -> String {
+    func html(source: PreviewSource, filePath: String) throws -> String {
         context.exception = nil
         let started = ProcessInfo.processInfo.systemUptime
         let options = ["truncated": source.truncated, "invalidUtf8": source.invalidUtf8]

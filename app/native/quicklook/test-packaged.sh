@@ -8,7 +8,7 @@ source_app="$(cd "$1" && pwd)"
 mkdir "$2"
 evidence="$(cd "$2" && pwd)"
 source_dir="$(cd "$(dirname "$0")" && pwd)"
-installed="$HOME/Applications/SimpleMD-M4-1101377a.app"
+installed="$HOME/Applications/SimpleMD-M4-final.app"
 id=com.jonathanreed.simplemd
 flux=com.xykong.Markdown.QuickLook
 lsreg=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
@@ -94,4 +94,4 @@ for name in SimpleMDQLPreview SimpleMDQLThumbnail; do
     codesign -dvvv --entitlements - "$installed/Contents/PlugIns/$name.appex" >> "$evidence/signatures.txt" 2>&1
     xcrun vtool -show-build "$installed/Contents/PlugIns/$name.appex/Contents/MacOS/$name" >> "$evidence/signatures.txt"
 done
-python3 "$source_dir/test-packaged.py" "$evidence" "$scratch/windows" "$source_dir/../../README.md"
+python3 "$source_dir/test-packaged.py" "$evidence" "$scratch/windows" "$source_dir/../../../README.md"

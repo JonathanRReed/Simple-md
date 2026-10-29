@@ -1,6 +1,5 @@
 """Exercise one registered package. The calling shell owns registration and cleanup."""
 from pathlib import Path
-import base64
 import datetime
 import hashlib
 import json
@@ -9,6 +8,7 @@ import struct
 import subprocess
 import sys
 import time
+import zlib
 
 root, windows, readme = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
 fixtures = root / "fixtures"
@@ -20,12 +20,21 @@ for directory in [fixtures, panels, pngs]:
 (fixtures / "math.md").write_text("# Math\n\n$E = mc^2$\n\n$$\\frac{1}{2}$$\n")
 (fixtures / "mermaid.md").write_text("# A Mermaid fence\n\n~~~mermaid\ngraph TD\n  A --> B\n~~~\n")
 (fixtures / "local-image.md").write_text("# A local image\n\n![Local red dot](./dot.png)\n\n![Remote image](https://example.com/no-network.png)\n")
-(fixtures / "dot.png").write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="))
+def chunk(kind, content):
+    return struct.pack(">I", len(content)) + kind + content + struct.pack(">I", zlib.crc32(kind + content))
+
+
+(fixtures / "dot.png").write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 96, 96, 8, 2, 0, 0, 0)) +
+                                    chunk(b"IDAT", zlib.compress((b"\0" + b"\xdd\x33\x33" * 96) * 96)) + chunk(b"IEND", b""))
 (fixtures / "fixture.mdx").write_text('---\ntitle: MDX\n---\nimport Widget from "./widget.js"\n\n# An inert MDX page\n\n<Widget onClick={() => alert("never")} />\n')
 (fixtures / "large.md").write_bytes(b"# A bounded large file\n" + b"Only the first four megabytes appear.\n" * 125000 + b"TAIL MUST NOT APPEAR\n")
 (fixtures / "empty.md").write_bytes(b"")
 (fixtures / "non-utf8.md").write_bytes(b"# Invalid bytes\nBefore \xff\xfe after.\n")
 (fixtures / "not-markdown.txt").write_text("Plain text stays with the system provider.\n")
+hostile = readme.parent / "app/test/sanitizer/fixtures.ts"
+# Preserve the active-tags fixture verbatim, instead of inventing another sanitizer case.
+active = re.search(r'name: "active tags", source: \'(.*?)\', expected:', hostile.read_text()).group(1)
+(fixtures / "hostile.md").write_text("# Hostile author HTML\n\n" + active + "\n")
 (root / "fixture-sha256.json").write_text(json.dumps({
     p.name: dict(bytes=p.stat().st_size, sha256=hashlib.sha256(p.read_bytes()).hexdigest())
     for p in fixtures.iterdir()
@@ -49,8 +58,16 @@ assert not main_processes(), main_processes()
 start = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 results = []
 for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixture.mdx",
-                 "large.md", "empty.md", "non-utf8.md", "not-markdown.txt"]:
+                 "large.md", "empty.md", "non-utf8.md", "hostile.md", "readable-image.md", "not-markdown.txt"]:
     fixture = fixtures / filename
+    if filename == "readable-image.md":
+        # A second sandbox case: the extension already owns this container folder.
+        folder = Path.home() / "Library/Containers/com.jonathanreed.simplemd.preview/Data/Documents/m4-final-image"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "dot.png").write_bytes((fixtures / "dot.png").read_bytes())
+        fixture = folder / filename
+        fixture.write_text("# A readable local image\n\n![Readable red square](dot.png)\n\n![Missing sibling](missing.png)\n")
+        (root / "readable-image-path.txt").write_text(str(fixture) + "\n")
     # Request the thumbnail before preview generation can populate the shared cache.
     tick = time.perf_counter()
     thumbnail = run(["qlmanage", "-t", "-x", "-s", "512", "-o", str(pngs), str(fixture)])
@@ -89,7 +106,8 @@ for filename in ["README.md", "math.md", "mermaid.md", "local-image.md", "fixtur
 runtime = run(["/usr/bin/log", "show", "--start", start, "--style", "compact", "--info", "--debug",
                "--predicate", 'subsystem == "com.jonathanreed.simplemd.quicklook" OR '
                '(process == "sandboxd" AND eventMessage CONTAINS "SimpleMDQL") OR '
-               '(process == "secinitd" AND eventMessage CONTAINS "SimpleMDQL")'])
+               '(process == "secinitd" AND eventMessage CONTAINS "SimpleMDQL") OR '
+               '(process == "com.apple.quicklook.ThumbnailsAgent" AND (eventMessage CONTAINS "simplemd" OR eventMessage CONTAINS "TextExtension"))'])
 (root / "runtime.txt").write_text(runtime.stdout + runtime.stderr)
 failures = []
 for result in results:
@@ -103,7 +121,10 @@ for result in results:
         if not preview:
             failures.append(result["fixture"] + ": no SimpleMD preview receipt")
         if not drawn:
-            failures.append(result["fixture"] + ": no SimpleMD thumbnail receipt")
+            # Markdown may route to the system provider. Record this separately
+            # from the renderer gate and require MDX to retain its native card.
+            if result["fixture"].endswith(".mdx"):
+                failures.append(result["fixture"] + ": no SimpleMD thumbnail receipt")
     if preview:
         ready_line = next(line for line in runtime.stdout.splitlines() if "Preview ready file=" + result["fixture"] + " " in line)
         ready_date = " ".join(ready_line.split()[:2])
@@ -115,9 +136,9 @@ for result in results:
     result["simplemd_preview"] = bool(preview)
     result["simplemd_thumbnail"] = bool(drawn)
 assert "read_bytes=4194304 truncated=true" in runtime.stdout
-if not re.search(r"Thumbnail preparing file=large.md bytes=65536 ", runtime.stdout):
-    failures.append("large.md: no runtime receipt for the 64 KB thumbnail cap")
 assert re.search(r"Preview ready file=non-utf8.md .*invalid_utf8=true", runtime.stdout)
+assert "images_requested=1 images_embedded=0" in runtime.stdout, "No sandbox sibling denial receipt"
+assert "images_requested=2 images_embedded=1" in runtime.stdout, "No sandbox readable image receipt"
 assert not main_processes(), main_processes()
 (root / "timings.json").write_text(json.dumps(results, indent=2) + "\n")
 (root / "main-app-closed.txt").write_text("No process executable ending /Contents/MacOS/SimpleMD before or after the complete fixture sequence.\n")

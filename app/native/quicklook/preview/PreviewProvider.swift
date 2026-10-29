@@ -24,8 +24,7 @@ final class PreviewProvider: QLPreviewProvider, QLPreviewingController {
                 let dequeued = ProcessInfo.processInfo.systemUptime
                 let source = try PreviewSource.read(request.fileURL)
                 let read = ProcessInfo.processInfo.systemUptime
-                let dark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
-                let html = try Self.renderer.get().html(source: source, filePath: request.fileURL.path, dark: dark)
+                let html = try Self.renderer.get().html(source: source, filePath: request.fileURL.path)
                 let data = Data(html.utf8)
                 let reply = QLPreviewReply(dataOfContentType: .html, contentSize: CGSize(width: 800, height: 600)) { reply in
                     reply.stringEncoding = .utf8

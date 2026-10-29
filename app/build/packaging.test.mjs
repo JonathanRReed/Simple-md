@@ -166,6 +166,9 @@ describe("Quick Look packaging", () => {
     expect(pkg.build.mac.minimumSystemVersion).toBe("13.0");
     const mdx = pkg.build.mac.extendInfo.UTExportedTypeDeclarations.find(type => type.UTTypeIdentifier === "com.jonathanreed.simplemd.mdx");
     expect(mdx.UTTypeTagSpecification["public.filename-extension"]).toContain("mdx");
+    const markdown = pkg.build.mac.extendInfo.UTImportedTypeDeclarations.find(type => type.UTTypeIdentifier === "net.daringfireball.markdown");
+    expect(markdown.UTTypeConformsTo).toEqual(["public.plain-text"]);
+    expect(markdown.UTTypeTagSpecification["public.filename-extension"]).toEqual(["md", "markdown", "mdown", "mkd"]);
   });
   test.skipIf(process.platform !== "darwin")("declares only Markdown and MDX, and App Sandbox only", async () => {
     const { readPlist } = await import("./quicklook-verify.mjs");
