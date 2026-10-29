@@ -368,6 +368,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       }
     }
     updateChrome();
+    pane.editor?.refreshLayout();
   }
 
   function setDirty(next: boolean): void {

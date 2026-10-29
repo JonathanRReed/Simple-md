@@ -7,8 +7,9 @@ import type { DriverStep } from "../src/main/driver";
 
 const phase = process.argv[2] ?? "after";
 assert(["before", "after"].includes(phase));
-const appRoot = path.resolve(import.meta.dir, "..");
-const output = path.resolve(appRoot, "../.audit/design", phase);
+const workspace = path.resolve(import.meta.dir, "../..");
+const appRoot = process.env.SMD_DESIGN_APP_ROOT ?? path.join(workspace, "app");
+const output = path.join(workspace, ".audit/design", phase);
 fs.mkdirSync(output, { recursive: true });
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-design-"));
 const profile = path.join(temporary, "profile");
@@ -74,6 +75,9 @@ if (phase === "after") {
     const content = document.querySelector('.cm-content');
     assert(content.getBoundingClientRect().left > document.querySelector('[data-element="editor-host"]').getBoundingClientRect().left + 24, 'Editor measure is not centered');
     assert(getComputedStyle(content).maxWidth === getComputedStyle(content).width, 'Editor ignored its measure');
+    await new Promise(r => setTimeout(r, 200));
+    const view = content.cmTile.root.view;
+    assert(Math.abs(parseFloat(document.querySelector('.cm-cursor-primary').style.left) + view.scrollDOM.getBoundingClientRect().left - view.scrollDOM.scrollLeft - view.coordsAtPos(view.state.selection.main.head).left) < 2, 'Caret stayed at the old content width: ' + JSON.stringify({content:content.getBoundingClientRect().toJSON(), coords:view.coordsAtPos(view.state.selection.main.head), cursors:[...document.querySelectorAll('.cm-cursor-primary')].map(c=>({rect:c.getBoundingClientRect().toJSON(),style:c.style.cssText,layer:c.parentElement.style.cssText})),panes:document.querySelectorAll('.document-pane').length}));
   `), shot("one-tab-source"));
 }
 steps.push(evaluate(`await window.simplemd.setSettings({writingContentWidth:66}); window.simplemd.command('preferences');`));
@@ -90,7 +94,11 @@ for (const theme of ["light", "dark"]) steps.push({ settings: [
   shot(`settings-${theme}`),
 ] });
 const drive = path.join(output, "drive.json");
-fs.writeFileSync(drive, JSON.stringify(steps, null, 2));
+function settleCaptures(sequence: DriverStep[]): DriverStep[] {
+  return sequence.flatMap(step => "shot" in step ? [{ wait: 200 }, step]
+    : "settings" in step ? [{ settings: settleCaptures(step.settings) }] : [step]);
+}
+fs.writeFileSync(drive, JSON.stringify(settleCaptures(steps), null, 2));
 const executable = path.join(appRoot, "node_modules/electron/dist", fs.readFileSync(path.join(appRoot, "node_modules/electron/path.txt"), "utf8").trim());
 const env = { ...process.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: "read" };
 delete env.ELECTRON_RUN_AS_NODE;

@@ -52,6 +52,7 @@ export interface EditorHandle {
   setMode(mode: EditMode): void;
   setVim(on: boolean): void;
   focus(): void;
+  refreshLayout(): void;
   format(kind: FormatKind): void;
   find(): void;
   undo(): void;
@@ -302,6 +303,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       configureVim(on);
     },
     focus: () => view.focus(),
+    refreshLayout: () => view.requestMeasure(),
     format(kind) {
       view.focus();
       if (kind === "link") insertLink(view);
