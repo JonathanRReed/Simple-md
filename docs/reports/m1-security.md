@@ -1,6 +1,6 @@
 # Milestone 1 security fixes
 
-Runtime source: `a09a1f4f6334f08fba3ae8e435e82249fde819f1`. Baseline: `a38994f4acb792907ea5a0a1870ec03946b69aac`. Both are local revisions. No push or pull request.
+Runtime source: `80f728eafd45d8c19fad369a967bbd60968807ad`. Baseline: `a38994f4acb792907ea5a0a1870ec03946b69aac`. Both are local revisions. No push or pull request.
 
 ## Findings and regression evidence
 
@@ -12,7 +12,7 @@ Runtime source: `a09a1f4f6334f08fba3ae8e435e82249fde819f1`. Baseline: `a38994f4a
 
 3. Locked files. The macOS write-access check detects immutable targets and opens them read-only. Saves reject them before creating a temporary file. The helper copies ACLs and xattrs without `COPYFILE_STAT`, and chmod restores mode separately. Cleanup ignores removal failures so the original error survives. The `chflags uchg` regression failed before the fix and now passes. A separate test verifies that metadata copying does not lock the temporary file. Both tests clear flags in teardown. Existing xattr, Finder-tag, ACL, permission and repeated-save tests pass.
 
-4. Quadratic MDX. The inline rule exits unless the current character is `@`, slices through `END@` and performs one Map lookup. App-owned token nodes use a WeakMap instead of repeated subtree validation. Worker replies validate trees once with an iterative validator that rejects cycles. Live and Source edits request parser ranges only. Read and Side by side request full renders. Beyond 128 nested JSX elements, the preview shows escaped source with a visible marker instead of dropping it. The original 5,000-level content-retention and tree-validation regressions failed and now pass. Worker tests verify range-only replies and all 20,000 expressions within the default 30-second deadline. Electron smoke confirms that Source and Live edits do not request full renders.
+4. Quadratic MDX. The inline rule exits unless the current character is `@`, slices through `END@` and performs one Map lookup. App-owned token nodes use a WeakMap instead of repeated subtree validation. Worker replies validate trees once with an iterative validator that rejects cycles. Live and Source opens and edits request parser ranges only. Read and Side by side request full renders. Beyond 128 nested JSX elements, the preview shows escaped source with a visible marker instead of dropping it. The original 5,000-level content-retention and tree-validation regressions failed and now pass. Worker tests verify range-only replies and all 20,000 expressions within the default 30-second deadline. Electron smoke confirms that Source and Live opens and edits do not request full renders. The initial-open assertion also failed before that path switched to ranges.
 
 5. Save documentation. The README now says that metadata-copy failures log an error and the save proceeds, and that metadata uses one short-lived process per save. The documentation regression failed before the update and passes now.
 
@@ -55,4 +55,4 @@ A separate CPU profile placed the baseline's hottest worker frame in the MDX inl
 - Full smoke with `SMD_BYTE_BLOG_DIR` pointing only to a temporary copy: 51 of 51 passed on the final runtime source. All 15 blog cases passed. SHA-256 checks confirmed that the original files and the temporary input copies kept their original bytes.
 - Full `perf:gate`: not run, as requested.
 
-Local failure and success logs are retained in `.audit/m1-security/`. Final full-smoke artifacts are in `/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simple-md-smoke-E7Wp86`.
+Local failure and success logs are retained in `.audit/m1-security/`. Final full-smoke artifacts are in `/var/folders/ph/7cfrg6mn3bj120hdsfs79d140000gn/T/simple-md-smoke-6LoKP3`.

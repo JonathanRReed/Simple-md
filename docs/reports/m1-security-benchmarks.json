@@ -1,6 +1,6 @@
 {
   "baselineRevision": "a38994f4acb792907ea5a0a1870ec03946b69aac",
-  "runtimeRevision": "a09a1f4f6334f08fba3ae8e435e82249fde819f1",
+  "runtimeRevision": "80f728eafd45d8c19fad369a967bbd60968807ad",
   "measurement": "Node RenderClient request after worker warmup, through response validation",
   "order": "before then after, five alternating pairs, a fresh worker per fixture",
   "host": "macOS arm64, 14 logical CPUs, Node 26.12.1, Bun 1.4.4-canary.1",
@@ -276,5 +276,6 @@
       ],
       "workerSha256": "1a798bc6bddd989daca9e61c51c98c47f8ea9851a8261db8714f2a726cd080ea"
     }
-  }
+  },
+  "workerBinding": "Rebuilt after final main/renderer changes. Both render-client.mjs and render-worker.mjs match the measured bundles byte for byte."
 }
