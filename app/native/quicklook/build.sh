@@ -1,14 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 2 || -z "$1" || "$1" == "-" ]]; then
-    echo "Usage: $0 'Developer ID Application: Name (TEAMID)' [new-output-directory]" >&2
+if [[ $# -lt 1 || $# -gt 3 || -z "$1" || "$1" == "-" ]]; then
+    echo "Usage: $0 'Developer ID Application: Name (TEAMID)' [new-output-directory] [view|data|data-static]" >&2
     exit 2
 fi
 
 IDENTITY="$1"
 SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [[ $# -eq 2 ]]; then
+MODE="${3:-view}"
+case "$MODE" in
+    view) PREVIEW_SOURCE=PreviewController.swift; ENTITLEMENTS=preview.entitlements ;;
+    data|data-static) PREVIEW_SOURCE=PreviewProvider.swift; ENTITLEMENTS=data-preview.entitlements ;;
+    *) echo "Expected view, data, or data-static" >&2; exit 2 ;;
+esac
+if [[ $# -ge 2 ]]; then
     # Refuse existing output rather than deleting a possibly registered app.
     mkdir "$2"
     OUTPUT_DIR="$(cd "$2" && pwd)"
@@ -21,9 +27,33 @@ EXTENSION="$APP/Contents/PlugIns/SimpleMDQLPreview.appex"
 mkdir -p "$APP/Contents/MacOS" "$EXTENSION/Contents/MacOS" "$OUTPUT_DIR/module-cache"
 cp "$SOURCE_DIR/Host-Info.plist" "$APP/Contents/Info.plist"
 cp "$SOURCE_DIR/Preview-Info.plist" "$EXTENSION/Contents/Info.plist"
+if [[ "$MODE" != view ]]; then
+    /usr/libexec/PlistBuddy -c "Set :NSExtension:NSExtensionPrincipalClass PreviewProvider" "$EXTENSION/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :NSExtension:NSExtensionAttributes:QLIsDataBasedPreview true" "$EXTENSION/Contents/Info.plist"
+    mkdir -p "$EXTENSION/Contents/Resources"
+    cp "$SOURCE_DIR/StaticFixture.html" "$EXTENSION/Contents/Resources/"
+    if [[ "$MODE" == data-static ]]; then
+        /usr/libexec/PlistBuddy -c "Add :SimpleMDStaticFixture bool true" "$EXTENSION/Contents/Info.plist"
+    else
+        bun build "$SOURCE_DIR/parser-entry.ts" --target browser --format iife \
+            --outfile "$EXTENSION/Contents/Resources/parser.js"
+        python3 - "$SOURCE_DIR/../../node_modules/katex/dist" "$EXTENSION/Contents/Resources/katex-inline.css" <<'PYFONT'
+import base64, pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+css = (root / 'katex.min.css').read_text()
+def inline(match):
+    font = root / match[1]
+    return 'src:url(data:font/woff2;base64,' + base64.b64encode(font.read_bytes()).decode() + ') format("woff2");'
+css = re.sub(r'src:url\(([^)]*\.woff2)\)[^;]*;', inline, css)
+pathlib.Path(sys.argv[2]).write_text(css)
+PYFONT
+    fi
+fi
 plutil -lint "$APP/Contents/Info.plist" "$EXTENSION/Contents/Info.plist" \
-    "$SOURCE_DIR/host.entitlements" "$SOURCE_DIR/preview.entitlements"
+    "$SOURCE_DIR/host.entitlements" "$SOURCE_DIR/$ENTITLEMENTS"
 
+PREVIEW_SOURCES=("$SOURCE_DIR/$PREVIEW_SOURCE")
+if [[ "$MODE" != view ]]; then PREVIEW_SOURCES+=("$SOURCE_DIR/ParserRenderer.swift"); fi
 for ARCH in arm64 x86_64; do
     xcrun swiftc -sdk "$SDK" -target "$ARCH-apple-macos13.0" \
         -module-cache-path "$OUTPUT_DIR/module-cache" -parse-as-library \
@@ -31,9 +61,9 @@ for ARCH in arm64 x86_64; do
     xcrun swiftc -sdk "$SDK" -target "$ARCH-apple-macos13.0" \
         -module-cache-path "$OUTPUT_DIR/module-cache" -parse-as-library \
         -application-extension -module-name SimpleMDQLPreview \
-        -framework Cocoa -framework QuickLookUI -framework WebKit \
+        -framework Cocoa -framework QuickLookUI -framework WebKit -framework JavaScriptCore \
         -Xlinker -e -Xlinker _NSExtensionMain \
-        "$SOURCE_DIR/PreviewController.swift" -o "$OUTPUT_DIR/Preview-$ARCH"
+        "${PREVIEW_SOURCES[@]}" -o "$OUTPUT_DIR/Preview-$ARCH"
 done
 xcrun lipo -create "$OUTPUT_DIR/Host-arm64" "$OUTPUT_DIR/Host-x86_64" \
     -output "$APP/Contents/MacOS/SimpleMDQLHost"
@@ -42,7 +72,7 @@ xcrun lipo -create "$OUTPUT_DIR/Preview-arm64" "$OUTPUT_DIR/Preview-x86_64" \
 
 # Sign inner code first. Never replace these entitlements with Electron's.
 codesign --force --sign "$IDENTITY" --options runtime --timestamp \
-    --entitlements "$SOURCE_DIR/preview.entitlements" "$EXTENSION"
+    --entitlements "$SOURCE_DIR/$ENTITLEMENTS" "$EXTENSION"
 codesign --force --sign "$IDENTITY" --options runtime --timestamp \
     --entitlements "$SOURCE_DIR/host.entitlements" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"

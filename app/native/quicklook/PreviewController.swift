@@ -8,14 +8,19 @@ final class PreviewController: NSViewController, QLPreviewingController, WKNavig
     private let logger = Logger(subsystem: "com.jonathanreed.simplemd.qlspike", category: "preview")
     private var completion: ((Error?) -> Void)?
     private var timeout: DispatchWorkItem?
+    private var webView: WKWebView!
 
     override func loadView() {
+        preferredContentSize = NSSize(width: 800, height: 600)
+        view = NSView(frame: NSRect(origin: .zero, size: preferredContentSize))
+        view.autoresizingMask = [.width, .height]
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
-        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), configuration: configuration)
+        webView = WKWebView(frame: view.bounds, configuration: configuration)
+        webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
-        view = webView
+        view.addSubview(webView)
         logger.notice("WKWebView created pid=\(getpid())")
     }
 
@@ -36,9 +41,7 @@ final class PreviewController: NSViewController, QLPreviewingController, WKNavig
             h1{font-size:28px}pre{white-space:pre-wrap;font:16px ui-monospace,monospace}</style>
             </head><body><h1>SimpleMD Quick Look spike</h1><pre>\(escaped)</pre></body></html>
             """
-            guard let webView = view as? WKWebView else {
-                throw NSError(domain: "SimpleMDQLSpike", code: 1)
-            }
+            _ = view // Load the container before accessing its web view.
             let deadline = DispatchWorkItem { [weak self] in
                 self?.finish(NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut))
             }
@@ -51,7 +54,7 @@ final class PreviewController: NSViewController, QLPreviewingController, WKNavig
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        logger.notice("WKWebView didFinish pid=\(getpid())")
+        logger.notice("WKWebView didFinish pid=\(getpid()) frame=\(String(describing: webView.frame), privacy: .public) root=\(String(describing: self.view.frame), privacy: .public)")
         finish(nil)
     }
 

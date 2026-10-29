@@ -1,0 +1,9 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-28 19:55:13.013 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Data preparing followup.md pid=49865
+2026-10-28 19:55:13.047 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Parser cold setup_ms=25.695667 first_ms=7.409458 total_ms=33.105125 input_bytes=224 output_bytes=2656
+2026-10-28 19:55:13.048 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Parser warm sample=1 render_ms=0.617625 output_bytes=2656 equal=true
+2026-10-28 19:55:13.049 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Parser warm sample=2 render_ms=0.627583 output_bytes=2656 equal=true
+2026-10-28 19:55:13.050 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Parser warm sample=3 render_ms=0.509000 output_bytes=2656 equal=true
+2026-10-28 19:55:13.050 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Parser warm sample=4 render_ms=0.452375 output_bytes=2656 equal=true
+2026-10-28 19:55:13.051 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Parser warm sample=5 render_ms=0.444708 output_bytes=2656 equal=true
+2026-10-28 19:55:13.052 Df SimpleMDQLPreview[49865:b26ca4] [com.jonathanreed.simplemd.qlspike:data] Data ready bytes=371270
