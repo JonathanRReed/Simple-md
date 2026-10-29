@@ -1,8 +1,5 @@
-/* Documents and state changes are instant. Only pointer feedback transitions. */
-.copy-code, .tab-close, .tab, .seg button, .pill {
-  transition: background-color 80ms ease-out, color 80ms ease-out;
-}
+/* Documents and chrome state changes are instant. Copy affordances follow hover. */
 .copy-code { transition: opacity 80ms ease-out, background-color 80ms ease-out; }
 @media (prefers-reduced-motion: reduce) {
-  .copy-code, .tab-close, .tab, .seg button, .pill { transition: none; }
+  .copy-code { transition: none; }
 }

@@ -33,6 +33,8 @@ function syncChrome(): void {
       else document.documentElement.dataset[key] = element.dataset[key];
     }
   }
+  const tabFocused = strip.contains(document.activeElement);
+  const closeFocused = document.activeElement?.classList.contains("tab-close");
   const ids = layout.tabs;
   strip.hidden = ids.length <= 1;
   strip.replaceChildren(...ids.map((id, index) => {
@@ -56,7 +58,15 @@ function syncChrome(): void {
     const close = document.createElement("button");
     close.type = "button";
     close.className = "tab-close";
-    close.innerHTML = dirty ? '<span class="tab-dirty" aria-hidden="true"></span>' : '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+    if (dirty) {
+      const dot = document.createElement("span"); dot.className = "tab-dirty"; dot.setAttribute("aria-hidden", "true"); close.append(dot);
+    } else {
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      icon.setAttribute("viewBox", "0 0 12 12"); icon.setAttribute("width", "12"); icon.setAttribute("height", "12"); icon.setAttribute("aria-hidden", "true");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      for (const [name, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(name, value);
+      icon.append(path); close.append(icon);
+    }
     close.tabIndex = controller?.documentId === id ? 0 : -1;
     close.setAttribute("aria-label", `Close ${title.textContent}`);
     close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
@@ -71,6 +81,7 @@ function syncChrome(): void {
     });
     return button;
   }));
+  if (tabFocused) strip.querySelector<HTMLElement>(closeFocused ? '.tab[aria-selected="true"] .tab-close' : '.tab[aria-selected="true"]')?.focus({ preventScroll: true });
   for (const [id, pane] of panes) pane.element.dataset.active = String(id === layout.activePane);
 }
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {

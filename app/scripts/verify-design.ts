@@ -29,7 +29,7 @@ const viewport = (width: number, height = 700): DriverStep => ({ debug: { method
 const steps: DriverStep[] = [
   evaluate(`await window.simplemd.setSettings({theme:'light', themeLight:'editorial-light', themeDark:'editorial-dark'}); await waitFor(() => document.querySelector('#doc h1'));`),
   shot("one-tab-light-read"),
-  evaluate(`await window.simplemd.openPath(${JSON.stringify(writing)}, 'edit'); await waitFor(() => document.querySelector('.cm-content')); window.simplemd.command('split-panes'); await waitFor(() => document.querySelectorAll('.document-pane').length === 2); window.simplemd.command('mode-split'); await waitFor(() => document.querySelector('[data-element="preview"] h1'));`),
+  evaluate(`await window.simplemd.openPath(${JSON.stringify(writing)}, 'edit'); await waitFor(() => document.querySelector('.cm-content')); window.simplemd.command('split-panes'); await waitFor(() => document.querySelectorAll('.document-pane').length === 2); window.simplemd.command('mode-split'); await waitFor(() => document.querySelector('[data-element="preview"] h1')); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));`),
   shot("two-tabs-two-panes-light"),
   evaluate(`await window.simplemd.setSettings({theme:'dark'}); await waitFor(() => document.documentElement.dataset.theme === 'dark');`),
   shot("two-tabs-two-panes-dark"),
@@ -46,7 +46,8 @@ if (phase === "after") steps.push(evaluate(`
   assert(getComputedStyle(pane.querySelector('.mode-menu')).display !== 'none', 'Narrow pane has no mode menu');
   assert(getComputedStyle(pane.querySelector('[data-element="modes"]')).display === 'none', 'Narrow pane still has cramped segments');
   assert(document.documentElement.scrollWidth === innerWidth, 'Window overflows horizontally');
-  assert(!document.getAnimations().length, 'Decorative motion remains');
+  await new Promise(r => setTimeout(r, 120));
+  assert(document.getAnimations().every(a => a instanceof CSSAnimation && /^cm-blink2?$/.test(a.animationName)), 'Decorative motion remains: ' + JSON.stringify(document.getAnimations().map(a => ({name:a.animationName,property:a.transitionProperty,target:a.effect?.target?.className}))));
 `));
 steps.push(viewport(860), evaluate(`window.simplemd.command('preferences');`));
 for (const theme of ["light", "dark"]) steps.push({ settings: [

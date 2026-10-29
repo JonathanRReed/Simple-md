@@ -65,10 +65,11 @@ for (const [key, def] of configEntries) {
     const value = def.setting === "readingStyle" && input instanceof HTMLInputElement ? (input.checked ? "github" : "editorial")
       : def.kind === "boolean" && input instanceof HTMLInputElement ? input.checked
       : def.kind === "number" && input instanceof HTMLInputElement ? input.valueAsNumber : input.value;
+    const restoreFocus = document.activeElement === input;
     input.disabled = true;
     try { sync(await bridge.set({ [def.setting]: value })); error.hidden = true; }
     catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save settings."; error.hidden = false; sync(await bridge.get()); }
-    finally { input.disabled = false; }
+    finally { input.disabled = false; if (restoreFocus && document.activeElement === document.body) input.focus(); }
   });
 }
 const advanced = document.createElement("fieldset");

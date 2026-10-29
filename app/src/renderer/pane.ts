@@ -327,7 +327,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function updateChrome(): void {
     nameEl.textContent = doc.meta.name;
     root.dataset.view = pane.view;
-    root.title = doc.meta.path ?? doc.meta.name;
+    container.querySelector<HTMLElement>(".pane-toolbar")!.title = doc.meta.path ?? doc.meta.name;
     readScroll.title = isReadOnly() ? "Read only" : "Enter to edit";
     modeMenu.hidden = pane.view !== "edit";
     modeMenu.value = pane.mode;

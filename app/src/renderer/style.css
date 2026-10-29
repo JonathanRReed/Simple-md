@@ -187,6 +187,8 @@ body:not([data-platform="darwin"]) .tb-right {
   display: flex;
 }
 
+.scroller:focus-visible { outline: 1px solid color-mix(in srgb, var(--system-accent) 60%, transparent); outline-offset: -2px; }
+
 .scroller {
   flex: 1;
   overflow-y: auto;
@@ -1141,7 +1143,7 @@ body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; pa
 .pane-toolbar .seg { border-radius: 6px; }
 .pane-toolbar .seg button { padding: 3px 9px; border-radius: 4px; font-size: 11px; }
 .pane-toolbar .seg button[aria-checked="true"] { box-shadow: 0 1px 2px #0002; }
-.mode-menu { display: none; max-width: 140px; height: 24px; font: 11px system-ui; color: CanvasText; color-scheme: inherit; accent-color: var(--accent); }
+.mode-menu { display: none; max-width: 140px; height: 24px; font: 11px system-ui; color: CanvasText; color-scheme: inherit; accent-color: var(--accent); border: 1px solid var(--rule); border-radius: 5px; background: var(--bg); padding-inline: 5px; }
 @container (max-width: 360px) {
   .pane-toolbar .seg { display: none; }
   .mode-menu:not([hidden]) { display: block; }
