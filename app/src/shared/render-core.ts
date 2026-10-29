@@ -314,7 +314,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const seenKeys = new Map<string, number>();
     if (raw !== undefined) {
       const html = renderFrontmatter(raw);
-      blocks.push({ key: "fm" + hash(raw), html, urls: env.urls, sourceRange: [0, offset] });
+      blocks.push({ key: "fm" + hash(raw), fingerprint: hash(html + JSON.stringify(env.urls)), html, urls: env.urls, sourceRange: [0, offset] });
     }
     for (const group of balancedGroups) {
       const key = hash(JSON.stringify(tokenState(group)) + (hasAuthor(group) ? JSON.stringify(env.urls) : ""));
@@ -331,7 +331,7 @@ export function createRenderCore(services: RenderServices = {}) {
       seenKeys.set(key, seen + 1);
       const maps = group.flatMap((token) => token.map ? [token.map] : []);
       const sourceRange: [number, number] = maps.length ? [offset + sourceLine(Math.min(...maps.map((m) => m[0]))), offset + sourceLine(Math.max(...maps.map((m) => m[1])))] : [offset + lineCount - 1, offset + lineCount - 1];
-      blocks.push({ key: seen ? `${key}~${seen}` : key, fingerprint: hash(rendered.html + (rendered.content ? JSON.stringify(rendered.content) : "")), ...rendered, urls: env.urls, sourceRange });
+      blocks.push({ key: seen ? `${key}~${seen}` : key, fingerprint: hash(rendered.html + (rendered.content ? JSON.stringify(rendered.content) : "") + JSON.stringify(env.urls)), ...rendered, urls: env.urls, sourceRange });
       batchBytes += byteLength(rendered.html);
       if (batchBytes >= 64 * 1024) {
         yield result();
@@ -342,7 +342,7 @@ export function createRenderCore(services: RenderServices = {}) {
     }
     if (mdx?.error) {
       const html = `<div class="mdx-error"><span class="mdx-label">Incomplete MDX</span><pre>${escapeHtml(src.slice(mdx.error.start, mdx.error.end))}</pre></div>`;
-      blocks.push({ key: "mdx-error" + hash(html), html, urls: env.urls, sourceRange: [mdx.error.startLine - 1, mdx.error.endLine] });
+      blocks.push({ key: "mdx-error" + hash(html), fingerprint: hash(html + JSON.stringify(env.urls)), html, urls: env.urls, sourceRange: [mdx.error.startLine - 1, mdx.error.endLine] });
     }
     services.mark?.("html-serialize-end");
     if (blocks.length || !balancedGroups.length) yield result();

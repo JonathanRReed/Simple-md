@@ -1,5 +1,5 @@
 import { IncrementalBlocks } from "./incremental-blocks.js";
-import type { BlockDelta } from "../shared/block-delta.js";
+import { blockDelta, type BlockDelta } from "../shared/block-delta.js";
 import { BlockStreams } from "./block-stream.js";
 import type { BlockUpdate } from "../shared/block-update.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
@@ -10,7 +10,7 @@ import { parentPort } from "node:worker_threads";
 import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
-  | { kind: "blocks"; text: string; filePath: string | null }
+  | { kind: "blocks"; text: string; filePath: string | null; known?: { key: string; fingerprint?: string }[] }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
   | { kind: "mdx-ranges"; text: string }
   | { kind: "stream-start"; text: string; filePath: string | null }
@@ -52,7 +52,9 @@ port.on("message", async (request: RenderRequest) => {
         break;
       case "blocks": {
         if (!incremental || incremental.filePath !== request.filePath) incremental = { filePath: request.filePath, blocks: new IncrementalBlocks() };
-        const { delta } = await incremental.blocks.render(request.text, request.filePath);
+        const { result } = await incremental.blocks.render(request.text, request.filePath);
+        const known = new Map(request.known?.map(block => [block.key, block.fingerprint]));
+        const delta = blockDelta(result.blocks.filter(block => block.fingerprint !== undefined && known.get(block.key) === block.fingerprint), result);
         response = { id: request.id, kind: "blocks-delta", value: delta };
         break;
       }

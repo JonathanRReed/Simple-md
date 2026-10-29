@@ -172,7 +172,9 @@ export class RenderClient {
       this.worker.ref();
       this.timer = setTimeout(() => this.fail(new Error("Render worker request timed out")), this.timeoutMs);
       perfMark("worker-dispatch", { requestId: pending.request.id });
-      this.worker.postMessage(pending.request);
+      this.worker.postMessage(pending.request.kind === "blocks"
+        ? { ...pending.request, known: this.retainedBlocks.map(({ key, fingerprint }) => ({ key, fingerprint })) }
+        : pending.request);
     } catch (error) {
       this.fail(error instanceof Error ? error : new Error(String(error)));
     }

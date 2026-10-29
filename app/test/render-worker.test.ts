@@ -96,6 +96,21 @@ describe("persistent Node render worker", () => {
     `);
   }, 20_000);
 
+  test("stream completion resynchronizes deltas after an intervening full render", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        const beta = await client.startBlocks('# Beta\\n\\nRetained beta.', '/tmp/beta.md');
+        await client.renderBlocks('# Alpha\\n\\nExport alpha.', '/tmp/alpha.md');
+        assert.equal((await client.nextBlocks(beta.stream)).kind, 'done');
+        const result = await client.renderBlocks('# Beta\\n\\nRetained beta.', '/tmp/beta.md');
+        assert.equal(result.blocks.length, 2);
+        assert.match(result.blocks[0].html, /Beta/);
+        assert.match(result.blocks[1].html, /Retained beta/);
+      } finally { await client.dispose(); }
+    `);
+  });
+
   test("plain Markdown and Mermaid do not load Shiki", async () => {
     const bundle = fs.readFileSync(path.join(dir, "render-worker.mjs"), "utf8");
     const chunk = /import\("(\.\/chunks\/core-[^"]+)"\)/.exec(bundle)?.[1];
