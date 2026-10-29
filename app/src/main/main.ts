@@ -757,10 +757,18 @@ async function getExportJobs() {
   return exportJobs ??= exportModule.createExportJobs(here, () => settings);
 }
 const exportSource = (text: string, current = currentSession()) => ({ path: current.path, name: current.name, text });
-const makePdf = async (text: string, current = currentSession()) => (await getExportJobs()).makePdf(exportSource(text, current));
-const makeHtml = async (text: string, current = currentSession()) => (await getExportJobs()).makeHtml(exportSource(text, current));
-const withPrintWindow = async <T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()) =>
-  (await getExportJobs()).withPrintWindow(exportSource(text, current), use);
+async function makePdf(text: string, current = currentSession()) {
+  const source = exportSource(text, current);
+  return (await getExportJobs()).makePdf(source);
+}
+async function makeHtml(text: string, current = currentSession()) {
+  const source = exportSource(text, current);
+  return (await getExportJobs()).makeHtml(source);
+}
+async function withPrintWindow<T>(text: string, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>, current = currentSession()) {
+  const source = exportSource(text, current);
+  return (await getExportJobs()).withPrintWindow(source, use);
+}
 let dragExports: DragExports | undefined;
 async function getDragExports() {
   if (dragExports) return dragExports;
