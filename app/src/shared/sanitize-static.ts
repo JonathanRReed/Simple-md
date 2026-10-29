@@ -148,7 +148,7 @@ export function sanitizeAuthorHtmlStatic(html: string, options: StaticAuthorOpti
 }
 
 /** Assemble app nodes only after the containing author unit has been sanitized. */
-export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOptions = {}): string {
+export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOptions = {}, preview = false): string {
   const originals: Originals = new WeakMap();
   const root = rendered.content ?? { kind: "app", parts: [rendered.html] };
   const strings: string[] = [];
@@ -186,5 +186,22 @@ export function renderStaticTree(rendered: RenderedHtml, options: StaticAuthorOp
   }
   const fragment = build(root);
   updateFragments(fragment, originals);
+  for (const node of elements(fragment)) {
+    // Generated Markdown images use their own path, just as mountRenderedHtml
+    // filters them after inserting generated nodes in the renderer.
+    if (options.remoteImages === false && ["img", "source", "video"].includes(node.tagName)) {
+      node.attrs = node.attrs.filter(({ name, value }) => !["src", "srcset"].includes(name) || !/^(?:https?:)?\/\//i.test(value));
+    }
+    if (!preview) continue;
+    const classes = attr(node, "class")?.split(/\s+/) ?? [];
+    if (node.tagName === "button" && classes.includes("copy-code")) tree.detachNode(node);
+    if (node.tagName === "pre" && classes.includes("mermaid")) {
+      node.attrs = [];
+      const code = tree.createElement("code", htmlNames.NS.HTML, [{ name: "class", value: "language-mermaid" }]);
+      for (const child of [...node.childNodes]) { tree.detachNode(child); tree.appendChild(code, child); }
+      tree.appendChild(node, code);
+    }
+  }
   return serialize(fragment);
 }
+import "./static-runtime.js";

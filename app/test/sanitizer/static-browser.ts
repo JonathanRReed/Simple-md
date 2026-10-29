@@ -1,7 +1,8 @@
 import { sanitizeAuthorHtml, mountRenderedHtml } from "../../src/renderer/author-html";
 import type { RenderedHtml } from "../../src/shared/render-tree";
+import { authorTags } from "../../src/shared/sanitizer-policy";
 
-interface Input { name: string; source: string; staticHtml: string; rendered?: RenderedHtml; remoteImages?: boolean }
+interface Input { name: string; source: string; staticHtml: string; parsedDom?: unknown; rendered?: RenderedHtml; remoteImages?: boolean }
 const urls = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/" };
 function canonical(node: Node): unknown {
   if (node.nodeType === Node.TEXT_NODE) return node.textContent;
@@ -11,9 +12,10 @@ function canonical(node: Node): unknown {
 }
 function hazards(root: HTMLElement): string[] {
   const found: string[] = [];
+  const allowed = new Set(authorTags);
   for (const node of root.querySelectorAll("*")) {
     if (node.namespaceURI !== "http://www.w3.org/1999/xhtml") found.push("namespace");
-    if (node.matches("script,style,iframe,template,noscript,svg,math,object,embed,form,input")) found.push(node.localName);
+    if (!allowed.has(node.localName)) found.push("forbidden " + node.localName);
     for (const { name, value } of node.attributes) {
       if (/^on|^(?:style|class|is|data-.+|aria-.+)$/i.test(name)) found.push(name);
       if ((name === "id" || name === "name") && !value.startsWith("user-content-")) found.push("unprefixed " + name);
@@ -32,8 +34,15 @@ function runBatch(inputs: Input[]) {
     output.innerHTML = input.staticHtml;
     dom.normalize();
     output.normalize();
+    const raw = new DOMParser().parseFromString(input.source, "text/html").body;
+    raw.normalize();
+    const reparsed = document.createElement("div");
+    reparsed.innerHTML = dom.innerHTML;
+    reparsed.normalize();
     return { name: input.name, actual: output.innerHTML, expected: dom.innerHTML,
       equal: JSON.stringify(canonical(output)) === JSON.stringify(canonical(dom)),
+      parserEqual: input.parsedDom === undefined || JSON.stringify(input.parsedDom) === JSON.stringify(canonical(raw)),
+      serializable: JSON.stringify(canonical(reparsed)) === JSON.stringify(canonical(dom)),
       hazards: input.rendered ? [] : [...hazards(output), ...hazards(dom)] };
   });
 }

@@ -5,6 +5,10 @@ import { authorPolicy } from "./sanitizer-policy.js";
 export { authorPolicy };
 import { resolveAuthorUrl, resolveSrcset } from "./url-resolver.js";
 export { resolveAuthorUrl, resolveSrcset };
+import { renderStaticTree } from "./sanitize-static.js";
+import { staticCss, katexCss } from "./static-assets.js";
+import type { UrlContext } from "./url-resolver.js";
+export { sanitizeAuthorHtmlStatic } from "./sanitize-static.js";
 
 let highlighter: Highlighter | undefined;
 let loading: Promise<Highlighter> | undefined;
@@ -31,4 +35,25 @@ export function createRenderCore(services: RenderServices = {}) {
 const core = createRenderCore();
 export const { renderMarkdown, renderBlocks, renderFragment } = core;
 
-Object.assign(globalThis, { SimpleMDRenderCore: { ...core, createRenderCore, authorPolicy, resolveAuthorUrl, resolveSrcset } });
+export interface StaticRenderOptions {
+  /** Host-minted file URLs. Supply rootUrl for a granted project/public folder. */
+  urls?: UrlContext;
+}
+const escapeAttribute = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** Complete, script-free Quick Look document. Remote resources are always disabled. */
+export async function renderStaticHtml(source: string, filePath: string | null, options: StaticRenderOptions = {}): Promise<string> {
+  let baseUrl: string | undefined;
+  if (filePath) {
+    const fileUrl = filePath.startsWith("file:") ? new URL(filePath) : new URL("file://" + filePath.split("/").map(encodeURIComponent).join("/"));
+    baseUrl = new URL(".", fileUrl).href;
+  }
+  const urls: UrlContext = { baseUrl, rootUrl: baseUrl, ...options.urls };
+  const renderer = createRenderCore({ urls: () => ({ ...urls }) });
+  const rendered = await renderer.renderMarkdown(source, filePath);
+  const body = renderStaticTree(rendered, { urls, remoteImages: false }, true);
+  const csp = "default-src 'none'; style-src 'unsafe-inline'; img-src data: file:; font-src data:";
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeAttribute(rendered.title)}</title><style>${staticCss}\n${katexCss}</style></head><body><main class="prose">${body}</main></body></html>`;
+}
+
+Object.assign(globalThis, { SimpleMDRenderCore: { ...core, createRenderCore, renderStaticHtml, authorPolicy, resolveAuthorUrl, resolveSrcset } });
