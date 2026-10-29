@@ -647,7 +647,7 @@ details.frontmatter pre {
   scrollbar-width: thin;
   scrollbar-color: var(--rule) transparent;
 }
-.cm-content {
+.cm-editor .cm-content {
   padding: 8px 24px 40vh;
   caret-color: var(--fg);
 }
@@ -694,7 +694,6 @@ details.frontmatter pre {
 .cm-editor[data-mode="source"] .cm-content,
 .cm-editor[data-mode="split"] .cm-content {
   font: 0.88em/1.7 var(--mono);
-  max-width: none;
   padding-top: 16px;
 }
 .cm-editor[data-mode="source"] .cm-content {
@@ -1071,7 +1070,8 @@ code,
 #stage .cm-content {
   font-family: var(--writing-font, system-ui, sans-serif);
   font-size: calc(var(--writing-size, 17px) * var(--zoom)); line-height: var(--writing-line-height, 1.65);
-  max-width: var(--writing-width, 66ch); margin-inline: auto;
+  width: 100%; max-width: calc(var(--writing-width, 66ch) + 48px);
+  flex: 0 1 auto; margin-inline: auto;
 }
 #stage .cm-editor[data-mode="live"] .cm-content { font-family: var(--writing-font, system-ui, sans-serif); }
 #stage .cm-panels { --accent: var(--system-accent); }
