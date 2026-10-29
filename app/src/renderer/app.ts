@@ -1,6 +1,5 @@
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { applyImageTheme, currentImageTheme } from "./document-images.js";
 import { type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
@@ -245,7 +244,6 @@ function applySettings(s: Settings): void {
   settings = s;
   root.dataset.theme = s.theme;
   root.style.colorScheme = s.theme === "system" ? "light dark" : s.theme;
-  applyImageTheme(document, s.theme);
   preferences?.sync(s);
   root.dataset.width = s.width;
   root.dataset.typeface = s.typeface;
@@ -784,8 +782,6 @@ async function navigateLink(href: string): Promise<void> {
   const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
   if (await simplemd.openLink(href, view === "read" ? "peek" : "edit") && fragment) scrollToFragment(fragment);
 }
-
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyImageTheme(document, currentImageTheme()));
 
 document.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;

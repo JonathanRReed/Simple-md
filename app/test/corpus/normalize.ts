@@ -197,7 +197,6 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
       if (["id", "name"].includes(attr.name)) attrs[attr.name] = id(attr.value);
       else if (["href", "src", "poster"].includes(attr.name)) attrs[attr.name] = url(attr.value, attr.name);
       else if (attr.name === "srcset") attrs.srcset = srcset(attr.value);
-      else if (attr.name === "media") attrs.media = node.getAttribute("data-simplemd-media") ?? attr.value;
       else if (attr.name === "aria-describedby" || attr.name === "aria-labelledby") attrs[attr.name] = attr.value.split(/\s+/).map(id).join(" ");
       else attrs[attr.name] = booleanAttrs.has(attr.name) ? "true" : attr.value;
     }

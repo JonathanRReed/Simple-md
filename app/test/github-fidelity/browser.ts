@@ -1,5 +1,4 @@
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "../../src/renderer/author-html";
-import { applyImageTheme } from "../../src/renderer/document-images";
 import type { RenderedHtml } from "../../src/shared/render-tree";
 
 interface Input { rendered: RenderedHtml; css: string }
@@ -15,9 +14,8 @@ async function runBatch(inputs: Input[]) {
     const themes = ["light", "dark"] as const;
     const selection = themes.map((theme) => {
       document.documentElement.dataset.theme = theme;
-      applyImageTheme(root, theme);
       return { theme,
-        sources: [...root.querySelectorAll("source")].map((source) => ({ matches: matchMedia(source.media).matches, original: source.getAttribute("data-simplemd-media") })),
+        sources: [...root.querySelectorAll("source")].map((source) => source.media),
         images: [...root.querySelectorAll("img[src*='#gh-']")].map((image) => getComputedStyle(image).display !== "none"),
       };
     });

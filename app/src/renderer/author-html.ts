@@ -3,7 +3,6 @@ import { authorPolicy, globalAttrs, perTag, prefixFragment } from "../shared/san
 import { resolveAuthorUrl, resolveSrcset, resolveFragment, type UrlContext } from "../shared/url-resolver.js";
 import type { RenderedHtml, RenderNode } from "../shared/render-tree.js";
 import GithubSlugger from "github-slugger";
-import { applyImageTheme, currentImageTheme } from "./document-images.js";
 
 const purifier = createDOMPurify(window);
 const originals = new WeakMap<Element, Map<string, string>>();
@@ -97,7 +96,6 @@ export function mountRenderedHtml(root: HTMLElement, rendered: RenderedHtml, rem
       for (const attr of ["src", "srcset"]) if (/^(?:https?:)?\/\//i.test(image.getAttribute(attr) ?? "")) image.removeAttribute(attr);
     }
   }
-  applyImageTheme(fragment, currentImageTheme());
   root.replaceChildren(fragment);
 }
 

@@ -61,7 +61,6 @@ M2 fills in these named rules. None permits missing content or a new unsupported
 
 - N04a secured assets removes GitHub's `secured-asset-link` marker. This is GitHub asset-delivery metadata, not an author attribute or image destination.
 - N09a math transport decodes one extra HTML-entity layer in GitHub's `math-renderer` payload. For example, its text node contains `&amp;` where the TeX source contains `&`. KaTeX annotations already contain decoded source. TeX commands, spacing and mode still compare exactly.
-- N06a app picture media reads the authored query from `data-simplemd-media`. SimpleMD keeps that query while replacing only its color-scheme clauses with app-theme matches at runtime. The original query, source order and URLs still compare. Separate DOM and app checks verify theme selection.
 - N05 drops an ID that becomes empty after prefix removal, as it already does for a literal empty ID. N08 treats normalized code blocks as block boundaries when removing HTML indentation.
 - N06 maps the pinned Prisma repository's `prisma/orm` redirect, legacy GitHub attachment URLs and their permanent asset IDs, and repository directory URLs with or without a trailing slash. Resource paths, queries and fragments remain significant. These are GitHub URL canonicalization differences, not permission to ignore destinations.
 
