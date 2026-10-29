@@ -1,0 +1,15 @@
+/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app/Contents/Info.plist: OK
+/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/Info.plist: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-b8791dd9/app/native/quicklook/host.entitlements: OK
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-b8791dd9/app/native/quicklook/preview.entitlements: OK
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+ld: warning: ignoring file '/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswiftCompatibilityPacks.a': fat file missing arch 'x86_64', file has 'arm64,arm64e'
+/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex: replacing existing signature
+/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app: replacing existing signature
+--prepared:/private/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--validated:/private/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app: valid on disk
+/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app: satisfies its Designated Requirement
+Built and signed: /tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app

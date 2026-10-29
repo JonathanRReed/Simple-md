@@ -1,0 +1,25 @@
+Executable=/private/tmp/simplemd-qlspike-build-b8791dd9/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+Identifier=com.jonathanreed.simplemd.qlspike.preview
+Format=bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=597 flags=0x10000(runtime) hashes=7+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=773583febd167aa343088bda7b5343246e32b714
+CandidateCDHashFull sha256=773583febd167aa343088bda7b5343246e32b714879c7f6a972333723c25cf4b
+Hash choices=sha256
+CMSDigest=773583febd167aa343088bda7b5343246e32b714879c7f6a972333723c25cf4b
+CMSDigestType=2
+CDHash=773583febd167aa343088bda7b5343246e32b714
+Signature size=9046
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 28, 2026 at 7:30:44 PM
+Info.plist entries=8
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=0
+Internal requirements count=1 size=204
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+Total signatures=1
+Chosen signature=1
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>

@@ -1,0 +1,16 @@
+2026-10-28 19:31:24.726 I  secinitd[23933:afc1b2] SimpleMDQLPreview[28379]: AppSandbox request
+2026-10-28 19:31:24.783 Df secinitd[23933:afc1b2] SimpleMDQLPreview[28379]: AppSandbox request successful
+2026-10-28 19:31:25.117 Df SimpleMDQLPreview[28379:afc1ae] [com.jonathanreed.simplemd.qlspike:preview] WKWebView created pid=28379
+2026-10-28 19:31:25.122 Df SimpleMDQLPreview[28379:afc1ae] [com.jonathanreed.simplemd.qlspike:preview] Preparing fixture.md pid=28379
+2026-10-28 19:31:25.192 E  SimpleMDQLPreview[28379:afc1ae] [com.apple.WebKit:Process] 0x120078680 - [PID=0] WebProcessProxy::didFinishLaunching: Invalid connection identifier (web process failed to launch)
+2026-10-28 19:31:25.192 E  SimpleMDQLPreview[28379:afc1ae] [com.apple.WebKit:Process] 0x120078680 - [PID=0] WebProcessProxy::processDidTerminateOrFailedToLaunch: reason=Crash
+2026-10-28 19:31:25.195 E  SimpleMDQLPreview[28379:afc1ae] [com.jonathanreed.simplemd.qlspike:preview] Preview failed: The operation couldn’t be completed. (SimpleMDQLSpike error 2.)
+2026-10-28 19:31:25.711 E  sandboxd[95851:af6888] [com.apple.sandbox.reporting:violation] Sandbox: SimpleMDQLPreview(28379) deny(1) mach-lookup com.apple.backboard.hid-services.xpc
+2026-10-28 19:31:25.830 E  sandboxd[95851:af6888] [com.apple.sandbox.reporting:violation] Sandbox: SimpleMDQLPreview(28379) deny(1) mach-lookup com.apple.webprivacyd
+2026-10-28 19:32:35.912 I  secinitd[23933:afddec] SimpleMDQLPreview[29363]: AppSandbox request
+2026-10-28 19:32:35.922 Df secinitd[23933:afddec] SimpleMDQLPreview[29363]: AppSandbox request successful
+2026-10-28 19:32:36.245 Df SimpleMDQLPreview[29363:afddeb] [com.jonathanreed.simplemd.qlspike:preview] WKWebView created pid=29363
+2026-10-28 19:32:36.249 Df SimpleMDQLPreview[29363:afddeb] [com.jonathanreed.simplemd.qlspike:preview] Preparing fixture.md pid=29363
+2026-10-28 19:32:36.331 E  SimpleMDQLPreview[29363:afddeb] [com.apple.WebKit:Process] 0x122078680 - [PID=0] WebProcessProxy::didFinishLaunching: Invalid connection identifier (web process failed to launch)
+2026-10-28 19:32:36.331 E  SimpleMDQLPreview[29363:afddeb] [com.apple.WebKit:Process] 0x122078680 - [PID=0] WebProcessProxy::processDidTerminateOrFailedToLaunch: reason=Crash
+2026-10-28 19:32:36.334 E  SimpleMDQLPreview[29363:afddeb] [com.jonathanreed.simplemd.qlspike:preview] Preview failed: The operation couldn’t be completed. (SimpleMDQLSpike error 2.)

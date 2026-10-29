@@ -1,0 +1,86 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "setup_ms": 42.082458,
+      "first_render_ms": 16.784208,
+      "cold_total_ms": 58.866667,
+      "warm_ms": [
+        7.152958,
+        6.946542,
+        6.890417,
+        6.980542,
+        6.92375
+      ],
+      "visible_capture_bound_s": 3.6758949756622314
+    },
+    {
+      "run": 2,
+      "setup_ms": 43.515625,
+      "first_render_ms": 20.373708,
+      "cold_total_ms": 63.889333,
+      "warm_ms": [
+        11.251958,
+        10.713708,
+        7.346292,
+        9.107417,
+        9.320333
+      ],
+      "visible_capture_bound_s": 3.681478977203369
+    },
+    {
+      "run": 3,
+      "setup_ms": 45.982542,
+      "first_render_ms": 20.251417,
+      "cold_total_ms": 66.233958,
+      "warm_ms": [
+        9.451917,
+        8.973792,
+        8.624333,
+        9.514375,
+        9.943583
+      ],
+      "visible_capture_bound_s": 3.6377899646759033
+    },
+    {
+      "run": 4,
+      "setup_ms": 54.629333,
+      "first_render_ms": 19.461667,
+      "cold_total_ms": 74.091,
+      "warm_ms": [
+        7.516792,
+        7.247542,
+        7.258833,
+        9.337667,
+        9.258542
+      ],
+      "visible_capture_bound_s": 3.551347255706787
+    },
+    {
+      "run": 5,
+      "setup_ms": 30.411917,
+      "first_render_ms": 16.796583,
+      "cold_total_ms": 47.2085,
+      "warm_ms": [
+        7.643208,
+        7.42325,
+        7.516125,
+        7.239333,
+        7.455792
+      ],
+      "visible_capture_bound_s": 3.673046112060547
+    }
+  ],
+  "input_bytes": 10467,
+  "output_bytes": 11606,
+  "cold_median_ms": 63.889333,
+  "cold_range_ms": [
+    47.2085,
+    74.091
+  ],
+  "warm_median_ms": 7.516792,
+  "warm_range_ms": [
+    6.890417,
+    11.251958
+  ]
+}

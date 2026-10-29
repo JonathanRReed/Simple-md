@@ -1,0 +1,7 @@
+type id:                    com.jonathanreed.simplemd.qlspike.mdx (0x6f8c)
+bundle:                     SimpleMD Quick Look spike (0x39e8)
+uti:                        com.jonathanreed.simplemd.qlspike.mdx
+localizedDescription:       "LSDefaultLocalizedValue" = "MDX document"
+flags:                      active  exported  trusted (0000000000000051)
+conforms to:                public.plain-text
+tags:                       .mdx

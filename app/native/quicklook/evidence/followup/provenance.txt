@@ -1,0 +1,11 @@
+Worktree t3/ae5e42e4, starting a98679bfa4c39fbf21050fe663e330b817cc5286.
+Merged t3/b8791dd9 by git merge --no-edit t3/b8791dd9, fast-forward to e4c502e.
+Read-only upstream clones under /tmp/simplemd-ql-followup-research:
+sbarex/QLMarkdown 3a0cdcd40c5f53584a2fd9cf9dde6007276b31ce
+xykong/flux-markdown d2979de59ed45933397b7383ca7066f84a7547ad
+Bun 1.4.4. Dependency resolution used a temporary app/node_modules symlink to
+/Users/jonathanreed/.t3/worktrees/Simple-md/t3-375e8349/app/node_modules.
+The symlink was created by this spike and must be removed during final cleanup.
+No app/src files were modified.
+Initial uptime load averages 11.36 10.65 10.84 on 14 logical CPUs.
+Times are exploratory on a shared host. No speed comparison or gate claim.

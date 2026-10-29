@@ -1,0 +1,144 @@
+COMMAND ['codesign', '-dvvv', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+Executable=/private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+Identifier=com.jonathanreed.simplemd.qlspike.preview
+Format=bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=661 flags=0x10000(runtime) hashes=9+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=118ed8c0e50698cbb046278c834315535eba430e
+CandidateCDHashFull sha256=118ed8c0e50698cbb046278c834315535eba430efb2e6ed1860324030c4977a1
+Hash choices=sha256
+CMSDigest=118ed8c0e50698cbb046278c834315535eba430efb2e6ed1860324030c4977a1
+CMSDigestType=2
+CDHash=118ed8c0e50698cbb046278c834315535eba430e
+Signature size=9046
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 28, 2026 at 7:58:26 PM
+Info.plist entries=8
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=0
+Internal requirements count=1 size=204
+Total signatures=1
+Chosen signature=1
+EXIT 0
+COMMAND ['codesign', '--verify', '--deep', '--strict', '--verbose=2', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex: valid on disk
+/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex: satisfies its Designated Requirement
+EXIT 0
+COMMAND ['codesign', '-d', '--entitlements', ':-', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+Executable=/private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/><key>com.apple.security.network.client</key><true/></dict></plist>
+EXIT 0
+COMMAND ['codesign', '-dvvv', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app']
+Executable=/private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/MacOS/SimpleMDQLHost
+Identifier=com.jonathanreed.simplemd.qlspike
+Format=app bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=461 flags=0x10000(runtime) hashes=3+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=b865e9b130588f820f28e7f7e3d079428164ccff
+CandidateCDHashFull sha256=b865e9b130588f820f28e7f7e3d079428164ccffdd75553f85cba9822d6d4ce8
+Hash choices=sha256
+CMSDigest=b865e9b130588f820f28e7f7e3d079428164ccffdd75553f85cba9822d6d4ce8
+CMSDigestType=2
+CDHash=b865e9b130588f820f28e7f7e3d079428164ccff
+Signature size=9046
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 28, 2026 at 7:58:26 PM
+Info.plist entries=11
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=1
+Internal requirements count=1 size=196
+Total signatures=1
+Chosen signature=1
+EXIT 0
+COMMAND ['codesign', '--verify', '--deep', '--strict', '--verbose=2', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app']
+--prepared:/private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--validated:/private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app: valid on disk
+/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app: satisfies its Designated Requirement
+EXIT 0
+COMMAND ['codesign', '-d', '--entitlements', ':-', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app']
+Executable=/private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/MacOS/SimpleMDQLHost
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>
+EXIT 0
+view /tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/MacOS/SimpleMDQLHost x86_64 arm64
+view /tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview x86_64 arm64
+COMMAND ['codesign', '-dvvv', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+Executable=/private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+Identifier=com.jonathanreed.simplemd.qlspike.preview
+Format=bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=661 flags=0x10000(runtime) hashes=9+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=0b96318aca6f19c20f47658fb7681568f09d4b4f
+CandidateCDHashFull sha256=0b96318aca6f19c20f47658fb7681568f09d4b4fa2867647428b9d0cb84b479b
+Hash choices=sha256
+CMSDigest=0b96318aca6f19c20f47658fb7681568f09d4b4fa2867647428b9d0cb84b479b
+CMSDigestType=2
+CDHash=0b96318aca6f19c20f47658fb7681568f09d4b4f
+Signature size=9047
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 28, 2026 at 7:54:53 PM
+Info.plist entries=8
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=3
+Internal requirements count=1 size=204
+Total signatures=1
+Chosen signature=1
+EXIT 0
+COMMAND ['codesign', '--verify', '--deep', '--strict', '--verbose=2', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex: valid on disk
+/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex: satisfies its Designated Requirement
+EXIT 0
+COMMAND ['codesign', '-d', '--entitlements', ':-', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+Executable=/private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>
+EXIT 0
+COMMAND ['codesign', '-dvvv', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app']
+Executable=/private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/MacOS/SimpleMDQLHost
+Identifier=com.jonathanreed.simplemd.qlspike
+Format=app bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=461 flags=0x10000(runtime) hashes=3+7 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=cf5272baee760f48ea962261ace800163ba1bfbb
+CandidateCDHashFull sha256=cf5272baee760f48ea962261ace800163ba1bfbb8f76cb1c4cd653512ad35dc6
+Hash choices=sha256
+CMSDigest=cf5272baee760f48ea962261ace800163ba1bfbb8f76cb1c4cd653512ad35dc6
+CMSDigestType=2
+CDHash=cf5272baee760f48ea962261ace800163ba1bfbb
+Signature size=9047
+Authority=Developer ID Application: Jonathan Reed (AJ9VWBRNZN)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 28, 2026 at 7:54:53 PM
+Info.plist entries=11
+TeamIdentifier=AJ9VWBRNZN
+Runtime Version=27.0.0
+Sealed Resources version=2 rules=13 files=1
+Internal requirements count=1 size=196
+Total signatures=1
+Chosen signature=1
+EXIT 0
+COMMAND ['codesign', '--verify', '--deep', '--strict', '--verbose=2', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app']
+--prepared:/private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+--validated:/private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app: valid on disk
+/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app: satisfies its Designated Requirement
+EXIT 0
+COMMAND ['codesign', '-d', '--entitlements', ':-', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app']
+Executable=/private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/MacOS/SimpleMDQLHost
+warning: Specifying ':' in the path is deprecated and will not work in a future release
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>
+EXIT 0
+data /tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/MacOS/SimpleMDQLHost x86_64 arm64
+data /tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex/Contents/MacOS/SimpleMDQLPreview x86_64 arm64

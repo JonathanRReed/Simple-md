@@ -1,0 +1,81 @@
+COMMAND ['pluginkit', '-e', 'default', '-i', 'com.xykong.Markdown.QuickLook']
+EXIT 0
+COMMAND ['pluginkit', '-e', 'default', '-i', 'com.jonathanreed.simplemd.qlspike.preview']
+EXIT 0
+COMMAND ['pluginkit', '-r', '/tmp/simplemd-ql-followup-view1/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+remove: no plugin at /private/tmp/simplemd-ql-followup-view1/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+EXIT 1
+COMMAND ['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-u', '/tmp/simplemd-ql-followup-view1/SimpleMDQLSpike.app']
+failed to scan /tmp/simplemd-ql-followup-view1/SimpleMDQLSpike.app: -10814
+ from spotlightEXIT 1
+COMMAND ['pluginkit', '-r', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+remove: no plugin at /private/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+EXIT 1
+COMMAND ['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-u', '/tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app']
+failed to scan /tmp/simplemd-ql-followup-view-final/SimpleMDQLSpike.app: -10814
+ from spotlightEXIT 1
+COMMAND ['pluginkit', '-r', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+remove: no plugin at /private/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+EXIT 1
+COMMAND ['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-u', '/tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app']
+failed to scan /tmp/simplemd-ql-followup-data2/SimpleMDQLSpike.app: -10814
+ from spotlightEXIT 1
+COMMAND ['pluginkit', '-r', '/tmp/simplemd-ql-followup-data-static-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex']
+remove: no plugin at /private/tmp/simplemd-ql-followup-data-static-final/SimpleMDQLSpike.app/Contents/PlugIns/SimpleMDQLPreview.appex
+EXIT 1
+COMMAND ['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-u', '/tmp/simplemd-ql-followup-data-static-final/SimpleMDQLSpike.app']
+failed to scan /tmp/simplemd-ql-followup-data-static-final/SimpleMDQLSpike.app: -10814
+ from spotlightEXIT 1
+REMOVE /Users/jonathanreed/Applications/SimpleMDQLFollowup.app exists=False
+REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike exists=False
+REMOVE /Users/jonathanreed/Library/Containers/com.jonathanreed.simplemd.qlspike.preview exists=False
+REMOVE /tmp/simplemd-ql-followup-view1 exists=True
+REMOVE /tmp/simplemd-ql-followup-view2 exists=True
+REMOVE /tmp/simplemd-ql-followup-view-final exists=True
+REMOVE /tmp/simplemd-ql-followup-data1 exists=True
+REMOVE /tmp/simplemd-ql-followup-data2 exists=True
+REMOVE /tmp/simplemd-ql-followup-data-static-final exists=True
+REMOVE /tmp/simplemd-ql-followup-research exists=True
+REMOVE /tmp/simplemd-ql-followup-parser-check.swift exists=True
+REMOVE /tmp/simplemd-ql-followup-windows.swift exists=True
+REMOVE /tmp/simplemd-ql-followup-data1-build.log exists=True
+REMOVE /tmp/simplemd-ql-followup-data2-build.log exists=True
+REMOVE /tmp/simplemd-ql-followup-parser-check.log exists=True
+REMOVE /tmp/simplemd-ql-followup-view-final-build.log exists=True
+REMOVE /tmp/simplemd-ql-followup-view1-build.log exists=True
+REMOVE /tmp/simplemd-ql-followup-view2-build.log exists=True
+REMOVE /tmp/simplemd-ql-followup-types.txt exists=True
+REMOVE /tmp/simplemd-ql-followup-parser.js exists=True
+REMOVE /tmp/simplemd-ql-followup-math.html exists=True
+REMOVE /tmp/simplemd-followup-raw-data-parser-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-data-readme1-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-data-readme2-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-data-readme3-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-data-readme4-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-data-readme5-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-data-static-runtime.txt exists=True
+REMOVE /tmp/simplemd-followup-raw-view-sizing-runtime.txt exists=True
+REMOVE /tmp/simplemd-ql-followup-run.sh exists=True
+REMOVE /tmp/simplemd-ql-followup-windows exists=True
+REMOVE /tmp/simplemd-ql-followup-parser-check exists=True
+REMOVED dependency symlink app/node_modules; donor untouched
+COMMAND ['pluginkit', '-m', '-A', '-D', '-vv', '-i', 'com.xykong.Markdown.QuickLook']
+     com.xykong.Markdown.QuickLook(1.36.582)
+	            Path = /Applications/FluxMarkdown.app/Contents/PlugIns/MarkdownPreview.appex
+	            UUID = A4414778-FAA0-4A32-935F-347B0BB02628
+	       Timestamp = 2026-10-20 04:33:51 +0000
+	             SDK = com.apple.quicklook.preview
+	   Parent Bundle = /Applications/FluxMarkdown.app
+	    Display Name = FluxMarkdown
+	      Short Name = FluxMarkdown
+	     Parent Name = FluxMarkdown
+	        Platform = macOS
+
+ (1 plug-in)
+EXIT 0
+COMMAND ['pluginkit', '-m', '-A', '-D', '-vv', '-i', 'com.jonathanreed.simplemd.qlspike.preview']
+  (no matches)
+EXIT 0
+LaunchServices matching lines: []
+Spike processes: []
+PASS: FluxMarkdown default state matches pre-run state; spike unregistered; host copies, build directories, containers, research scratch, helpers and dependency symlink removed.

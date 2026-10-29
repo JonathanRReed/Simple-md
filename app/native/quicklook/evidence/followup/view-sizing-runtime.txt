@@ -1,0 +1,11 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-28 19:50:19.946 Df SimpleMDQLPreview[46365:b20055] [com.jonathanreed.simplemd.qlspike:preview] WKWebView created pid=46365
+2026-10-28 19:50:19.953 Df SimpleMDQLPreview[46365:b20055] [com.jonathanreed.simplemd.qlspike:preview] Preparing fixture.md pid=46365
+2026-10-28 19:50:20.044 E  sandboxd[95851:b1be4b] [com.apple.sandbox.reporting:violation] Sandbox: SimpleMDQLPreview(46365) deny(1) mach-lookup com.apple.backboard.hid-services.xpc
+2026-10-28 19:50:20.090 E  sandboxd[95851:b1be4b] [com.apple.sandbox.reporting:violation] Sandbox: SimpleMDQLPreview(46365) deny(1) mach-lookup com.apple.backboard.hid-services.xpc
+2026-10-28 19:50:20.144 E  SimpleMDQLPreview[46365:b20055] [com.apple.WebKit:Process] SecurityFlagsController: WebPrivacy failed to answer with the disabled security flags: Error Domain=WebPrivacyErrorDomain Code=1 "DecodingFailure" UserInfo={NSLocalizedFailureReason=DecodingFailure}
+2026-10-28 19:50:20.172 E  sandboxd[95851:b1be4b] [com.apple.sandbox.reporting:violation] Sandbox: SimpleMDQLPreview(46365) deny(1) mach-lookup com.apple.webprivacyd
+2026-10-28 19:50:20.269 E  sandboxd[95851:b1be4b] [com.apple.sandbox.reporting:violation] Sandbox: SimpleMDQLPreview(46365) deny(1) network-outbound /private/var/run/mDNSResponder
+2026-10-28 19:50:20.568 Df SimpleMDQLPreview[46365:b20055] [com.jonathanreed.simplemd.qlspike:preview] WKWebView didFinish pid=46365 frame=(0.0, 0.0, 1290.0, 757.0) root=(0.0, 0.0, 1290.0, 757.0)
+2026-10-28 19:50:20.568 Df SimpleMDQLPreview[46365:b20055] [com.jonathanreed.simplemd.qlspike:preview] Preview ready
+2026-10-28 19:50:21.145 E  SimpleMDQLPreview[46365:b20055] [com.apple.WebKit:Process] SecurityFlagsController: WebPrivacy failed to answer with the disabled security flags: Error Domain=WebPrivacyErrorDomain Code=1 "DecodingFailure" UserInfo={NSLocalizedFailureReason=DecodingFailure}

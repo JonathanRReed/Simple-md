@@ -1,0 +1,2 @@
+/Users/jonathanreed/Applications/SimpleMDQLSpike.app: rejected
+source=Unnotarized Developer ID
