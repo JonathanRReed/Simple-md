@@ -165,6 +165,7 @@ try {
   for (const runtime of runtimes) {
     const state = path.join(runtime, "state.json");
     if (fs.existsSync(state)) { const value = JSON.parse(fs.readFileSync(state, "utf8")); try { process.kill(value.pid, "SIGKILL"); } catch {} }
-    fs.rmSync(runtime, { recursive: true, force: true });
+    for (const name of ["state.json", "ipc.sock"]) fs.rmSync(path.join(runtime, name), { force: true });
+    try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error; }
   }
 }

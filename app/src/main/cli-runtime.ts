@@ -60,11 +60,14 @@ export async function prepareCliRuntime(binary: string, profile?: string): Promi
     fs.writeFileSync(temporary, JSON.stringify({ version: 1, pid: process.pid, secret }), { flag: "wx", mode: 0o600 });
     fs.renameSync(temporary, stateFile);
   } finally { fs.rmSync(temporary, { force: true }); }
+  let stateRemoved = false;
   return { directory, endpoint, secret, cleanup() {
     // A different server's state must never be removed during shutdown.
     try {
       const state: unknown = JSON.parse(fs.readFileSync(stateFile, "utf8"));
-      if (state && typeof state === "object" && "secret" in state && state.secret === secret) fs.unlinkSync(stateFile);
-    } catch {}
+      if (!state || typeof state !== "object" || !("secret" in state) || state.secret !== secret) return;
+      fs.unlinkSync(stateFile); stateRemoved = true;
+    } catch { if (!stateRemoved) return; }
+    try { fs.rmdirSync(directory); } catch {}
   } };
 }

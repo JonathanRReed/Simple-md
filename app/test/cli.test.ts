@@ -153,3 +153,17 @@ test.skipIf(process.platform === "win32")("authenticated waiters have a separate
     expect(await connect(256)).toMatchObject({ status: "error", message: "Too many authenticated CLI connections. Close a waiting session and retry." });
   } finally { for (const socket of sockets) socket.destroy(); server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
 }, 15000);
+
+test.skipIf(process.platform === "win32")("runtime cleanup removes its empty directory after listener shutdown", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-cleanup-")), runtime = cliRuntime(root);
+  try {
+    const prepared = await prepareCliRuntime("unused", root); prepared.cleanup();
+    expect(fs.existsSync(runtime)).toBe(false);
+    const server = await startCliServer({ binary: "unused", profile: root, dispatch: async () => undefined });
+    server.close();
+    const deadline = Date.now() + 2000;
+    while (fs.existsSync(runtime) && Date.now() < deadline) await Bun.sleep(5);
+    expect(fs.existsSync(runtime)).toBe(false);
+    server.close();
+  } finally { fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+});

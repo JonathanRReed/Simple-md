@@ -272,6 +272,10 @@ export async function perfGate(): Promise<void> {
       runResults.set(name, { events: partialEvents, barriers, elapsedMs: partialEvents.at(-1)?.elapsedMs ?? 0 });
       runs.push({ name, file, profile: userData, loadAverageStart: startedLoad, loadAverageEnd: os.loadavg(), events: partialEvents, error: String(error) });
       throw error;
+    } finally {
+      const runtime = cliRuntime(userData);
+      for (const name of ["state.json", "ipc.sock"]) fs.rmSync(path.join(runtime, name), { force: true });
+      try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error; }
     }
     runs.push({ name, file, profile: userData, compileCache: env.NODE_COMPILE_CACHE, loadAverageStart: startedLoad, loadAverageEnd: os.loadavg(), ...result });
     runResults.set(name, result);

@@ -8,6 +8,8 @@ import { prepareCliRuntime } from "./cli-runtime.js";
 export type CliDispatch = (request: CliRequest, stdin: string, closed: () => void, signal: AbortSignal) => Promise<(() => void) | undefined>;
 export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }): Promise<{ close(): void }> {
   const runtime = await prepareCliRuntime(options.binary, options.profile);
+  let stopTransport = () => {};
+  try {
   const active = new Set<() => void>();
   const handle = (send: (value: object) => void, end: () => void) => {
     const controller = new AbortController(); let remove: (() => void) | undefined; let id = "invalid"; let closed = false;
@@ -33,6 +35,7 @@ export async function startCliServer(options: { binary: string; profile?: string
   };
   if (process.platform === "win32") {
     const broker = spawn(options.binary, ["--ipc-broker"], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    stopTransport = () => { broker.kill(); };
     const clients = new Map<number, ReturnType<typeof handle>>();
     const lines = createInterface({ input: broker.stdout });
     await new Promise<void>((resolve, reject) => {
@@ -102,9 +105,12 @@ export async function startCliServer(options: { binary: string; profile?: string
     socket.on("error", () => {});
     socket.on("close", () => { sockets.delete(socket); unauthenticated.delete(socket); authenticated.delete(socket); client.cleanup(); });
   });
+  stopTransport = () => { server.close(() => runtime.cleanup()); };
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(runtime.endpoint, () => resolve()); });
   fs.chmodSync(runtime.endpoint, 0o600);
-  return { close() { for (const cleanup of active) cleanup(); for (const socket of sockets) socket.destroy(); server.close(); runtime.cleanup(); } };
+  let closed = false;
+  return { close() { if (closed) return; closed = true; for (const cleanup of active) cleanup(); for (const socket of sockets) socket.destroy(); stopTransport(); runtime.cleanup(); } };
+  } catch (error) { stopTransport(); runtime.cleanup(); throw error; }
 }
 
 export async function startOptionalCliServer(options: Parameters<typeof startCliServer>[0]): Promise<Awaited<ReturnType<typeof startCliServer>> | undefined> {
