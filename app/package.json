@@ -113,7 +113,9 @@
             "LSHandlerRank": "Alternate",
             "LSItemContentTypes": [
               "net.daringfireball.markdown",
-              "public.markdown"
+              "public.markdown",
+              "com.jonathanreed.simplemd.mdx",
+              "com.fluxmarkdown.mdx"
             ],
             "CFBundleTypeExtensions": [
               "md",
@@ -123,10 +125,43 @@
               "mdx"
             ]
           }
+        ],
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.jonathanreed.simplemd.mdx",
+            "UTTypeDescription": "MDX document",
+            "UTTypeConformsTo": [
+              "public.plain-text"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "mdx"
+              ],
+              "public.mime-type": "text/mdx"
+            }
+          }
+        ],
+        "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.fluxmarkdown.mdx",
+            "UTTypeDescription": "MDX document",
+            "UTTypeConformsTo": [
+              "public.plain-text"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "mdx"
+              ]
+            }
+          }
         ]
       },
-      "identity": null,
-      "notarize": false
+      "identity": "-",
+      "notarize": false,
+      "signIgnore": [
+        "/Contents/PlugIns/"
+      ],
+      "minimumSystemVersion": "13.0"
     },
     "dmg": {
       "sign": false
@@ -169,7 +204,9 @@
       "maintainer": "Jonathan R. Reed <130617826+JonathanRReed@users.noreply.github.com>"
     },
     "forceCodeSigning": false,
-    "publish": null
+    "publish": null,
+    "afterPack": "build/quicklook.mjs",
+    "afterSign": "build/quicklook-verify.mjs"
   },
   "desktopName": "simplemd.desktop",
   "homepage": "https://github.com/JonathanRReed/Simple-md"
