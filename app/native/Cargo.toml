@@ -1,21 +1,14 @@
 [package]
-name = "simplemd-peek"
+name = "simplemd-helper"
 version = "0.1.0"
 edition = "2024"
-description = "Native helper that turns Space in the OS file manager into a SimpleMD preview request"
+description = "macOS save-metadata helper for SimpleMD"
 license = "MIT"
 publish = false
-default-run = "simplemd-peek"
+default-run = "simplemd-helper"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-core-foundation = "0.10"
-core-foundation-sys = "0.8"
-objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSWorkspace", "NSRunningApplication"] }
 
 [profile.release]
 opt-level = 3

@@ -8,9 +8,9 @@ const run = promisify(execFile);
 export async function copyMetadata(source: string, target: string): Promise<void> {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
-    path.join(process.resourcesPath ?? "", "native", "simplemd-peek"),
-    path.resolve(here, "../native/target/release/simplemd-peek"),
-    path.resolve(here, "../../native/target/release/simplemd-peek"),
+    path.join(process.resourcesPath ?? "", "native", "simplemd-helper"),
+    path.resolve(here, "../native/target/release/simplemd-helper"),
+    path.resolve(here, "../../native/target/release/simplemd-helper"),
   ];
   const binary = candidates.find((candidate) => fs.existsSync(candidate));
   if (!binary) throw new Error("Build the native helper before saving: bun run build:native.");

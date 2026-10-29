@@ -1,4 +1,4 @@
-// Measurement-only helper. It never starts the file-manager backend.
+// Measurement-only helper. It does not run the save-metadata helper.
 #[cfg(target_os = "macos")]
 fn measure(pid: u32) -> Result<(u64, u64), String> {
     // rusage_info_v0, from sys/resource.h. Flavor 0 has a stable 96-byte ABI.

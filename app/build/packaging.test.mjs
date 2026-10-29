@@ -23,7 +23,7 @@ describe("host-only packaging", () => {
       expect(plan.args[plan.args.indexOf("--target-dir") + 1]).toBe(path.join(appDir, "native", "target"));
       expect(plan.binary).toContain(path.join(host, "release", plan.executable));
       expect(plan.executable.endsWith(".exe")).toBe(platform === "win32");
-      expect(plan.executable).toBe(platform === "win32" ? "simplemd-peek.exe" : "simplemd-peek");
+      expect(plan.executable).toBe(platform === "win32" ? "simplemd-helper.exe" : "simplemd-helper");
       expect(unsignedConfig(plan).extraResources[0]).toEqual({ from: plan.binary, to: `native/${plan.executable}` });
     });
   }
@@ -63,12 +63,13 @@ describe("host-only packaging", () => {
     expect(pkg.build.linux.executableName).toBe("simplemd");
     expect(pkg.desktopName).toBe("simplemd.desktop");
   });
-  test("keeps Automation permission on the main app, separate from Electron helpers", () => {
+  test("keeps JIT support without Apple Events permission", () => {
     const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
     const main = readFileSync(path.join(appDir, pkg.build.mac.entitlements), "utf8");
     const helpers = readFileSync(path.join(appDir, pkg.build.mac.entitlementsInherit), "utf8");
     expect(main).toContain("com.apple.security.cs.allow-jit");
-    expect(main).toContain("com.apple.security.automation.apple-events");
+    expect(main).not.toContain("com.apple.security.automation.apple-events");
+    expect(pkg.build.mac.extendInfo.NSAppleEventsUsageDescription).toBeUndefined();
     expect(helpers).toContain("com.apple.security.cs.allow-jit");
     expect(helpers).not.toContain("com.apple.security.automation.apple-events");
     expect(main + helpers).not.toContain("com.apple.security.cs.allow-unsigned-executable-memory");
