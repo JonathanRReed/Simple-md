@@ -58,6 +58,7 @@ const trace = (mark: string) => {
 trace("main-bundle-loaded");
 
 app.setName("SimpleMD");
+if (process.platform === "win32") app.setAppUserModelId("com.jonathanreed.simplemd");
 
 const testProfile = !app.isPackaged && !!process.env.SMD_USER_DATA;
 if (testProfile) app.setPath("userData", path.resolve(process.env.SMD_USER_DATA!));
@@ -137,7 +138,11 @@ function applySettings(patch: unknown, persist = true): void {
 }
 
 function refreshMenus(): void {
-  settings.recents = recentFiles(recentOS, process.platform, settings.recents);
+  const recents = recentFiles(recentOS, process.platform, settings.recents);
+  if (JSON.stringify(recents) !== JSON.stringify(settings.recents)) {
+    settings.recents = recents;
+    saveSettings(settings);
+  }
   buildMenu({
     settings: () => ({ ...settings, mode: context().paneModes.get(context().mainPane.paneId) ?? settings.mode }),
     command: (cmd) => runCommand(cmd),
@@ -1169,7 +1174,11 @@ if (!app.requestSingleInstanceLock()) {
       const accentSubscription = systemPreferences.subscribeNotification("AppleColorPreferencesChangedNotification", () => { if (!quitting) applySettings({}, false); });
       app.once("will-quit", () => systemPreferences.unsubscribeNotification(accentSubscription));
     } else if (process.platform === "win32") systemPreferences.on("accent-color-changed", () => { if (!quitting) applySettings({}, false); });
-    if (process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath()));
+    if (process.platform === "win32") {
+      settings.recents = recentFiles(recentOS, process.platform, settings.recents);
+      saveSettings(settings);
+      recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath()));
+    }
     createDocumentWindow();
     trace("window-created");
     // A login launch stays invisible until the first file open; a real launch shows its skeleton

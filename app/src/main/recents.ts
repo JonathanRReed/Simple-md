@@ -22,7 +22,12 @@ export function isolatedRecents(): RecentOS {
 export function recentFiles(os: RecentOS, platform: string, fallback: string[]): string[] {
   if (platform !== "darwin" && platform !== "win32") return fallback;
   const removed = platform === "win32" ? new Set(os.getJumpListSettings().removedItems.flatMap(item => item.path ? [item.path.toLowerCase()] : [])) : new Set<string>();
-  return os.getRecentDocuments().filter(file => !removed.has(file.toLowerCase())).slice(0, 12);
+  const native = os.getRecentDocuments();
+  if (platform === "win32") {
+    const present = new Set(native.map(file => file.toLowerCase()));
+    return fallback.filter(file => present.has(file.toLowerCase()) && !removed.has(file.toLowerCase())).slice(0, 12);
+  }
+  return native.slice(0, 12);
 }
 
 export function jumpList(executable: string, appPath?: string): JumpListCategory[] {

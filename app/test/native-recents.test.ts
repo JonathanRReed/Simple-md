@@ -6,7 +6,11 @@ test("recents add, deduplicate, respect OS removals and clear", () => {
   os.addRecentDocument("/a.md"); os.addRecentDocument("/b.md"); os.addRecentDocument("/a.md");
   expect(recentFiles(os, "darwin", [])).toEqual(["/a.md", "/b.md"]);
   os.getJumpListSettings = () => ({ removedItems: [{ type: "file", path: "/A.md" }] });
-  expect(recentFiles(os, "win32", [])).toEqual(["/b.md"]);
+  os.addRecentDocument("/unrelated.pdf"); os.addRecentDocument("/foreign.md");
+  const retained = recentFiles(os, "win32", ["/a.md", "/b.md", "/missing.md"]);
+  expect(retained).toEqual(["/b.md"]);
+  os.getJumpListSettings = () => ({ removedItems: [] });
+  expect(recentFiles(os, "win32", retained)).toEqual(["/b.md"]);
   os.clearRecentDocuments();
   expect(recentFiles(os, "darwin", ["/stale.md"])).toEqual([]);
   expect(recentFiles(os, "linux", ["/local.md"])).toEqual(["/local.md"]);
