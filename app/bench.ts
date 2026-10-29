@@ -218,6 +218,7 @@ export async function measureDriverRun(options: {
   executable: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv;
   logPath: string; timeoutMs?: number;
   onEvent?: (event: DriverEvent) => void;
+  onBarrier?: (name: string) => Promise<void>;
 }): Promise<{ events: DriverEvent[]; barriers: Record<string, number>; elapsedMs: number }> {
   const started = performance.now();
   const child = spawn(options.executable, options.args, { cwd: options.cwd, env: options.env, stdio: ["pipe", "pipe", "pipe"] });
@@ -243,7 +244,9 @@ export async function measureDriverRun(options: {
         if (data.kind === "barrier") {
           if (!("name" in data) || typeof data.name !== "string" || data.name in barriers) throw new Error("Invalid or duplicate perf barrier");
           barriers[data.name] = event.elapsedMs;
-          child.stdin.write(data.name + "\n");
+          const name = data.name;
+          if (options.onBarrier) void options.onBarrier(name).then(() => { child.stdin.write(name + "\n"); }, error => { protocolError = error; child.kill("SIGTERM"); });
+          else child.stdin.write(name + "\n");
         }
         options.onEvent?.(event);
       } catch (error) { protocolError = error; child.kill("SIGTERM"); }

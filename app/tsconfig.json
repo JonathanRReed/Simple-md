@@ -3,13 +3,28 @@
     "target": "ES2023",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["node", "bun"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node",
+      "bun"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src", "build.ts", "bench.ts", "scripts/perf*.ts", "test/performance.test.ts"]
+  "include": [
+    "src",
+    "build.ts",
+    "bench.ts",
+    "scripts/perf*.ts",
+    "test/performance.test.ts",
+    "scripts/verify-cli.ts",
+    "test/cli.test.ts"
+  ]
 }

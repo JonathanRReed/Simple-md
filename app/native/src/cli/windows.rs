@@ -77,29 +77,8 @@ fn descriptor() -> Result<Descriptor, String> {
     }
     Ok(Descriptor(sd))
 }
-fn check_acl(file: &Path) -> Result<(), String> {
-    let meta = fs::symlink_metadata(file).map_err(|e| e.to_string())?;
-    if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-        return Err("Runtime reparse points are forbidden".into());
-    }
+fn verify_acl(owner: PSID, dacl: *mut ACL) -> Result<(), String> {
     unsafe {
-        let mut owner = null_mut();
-        let mut dacl = null_mut();
-        let mut sd = null_mut();
-        let result = GetNamedSecurityInfoW(
-            wide(&file.to_string_lossy()).as_ptr(),
-            SE_FILE_OBJECT,
-            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
-            &mut owner,
-            null_mut(),
-            &mut dacl,
-            null_mut(),
-            &mut sd,
-        );
-        if result != 0 {
-            return Err(format!("Cannot inspect runtime ACL: {result}"));
-        }
-        let _sd = Descriptor(sd);
         let expected = descriptor()?;
         let mut expected_owner = null_mut();
         let mut defaulted = 0;
@@ -125,6 +104,33 @@ fn check_acl(file: &Path) -> Result<(), String> {
         {
             return Err("Unsafe runtime ACL".into());
         }
+    }
+    Ok(())
+}
+fn check_acl(file: &Path) -> Result<(), String> {
+    let meta = fs::symlink_metadata(file).map_err(|e| e.to_string())?;
+    if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        return Err("Runtime reparse points are forbidden".into());
+    }
+    unsafe {
+        let mut owner = null_mut();
+        let mut dacl = null_mut();
+        let mut sd = null_mut();
+        let result = GetNamedSecurityInfoW(
+            wide(&file.to_string_lossy()).as_ptr(),
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            &mut owner,
+            null_mut(),
+            &mut dacl,
+            null_mut(),
+            &mut sd,
+        );
+        if result != 0 {
+            return Err(format!("Cannot inspect runtime ACL: {result}"));
+        }
+        let _sd = Descriptor(sd);
+        verify_acl(owner, dacl)?;
     }
     Ok(())
 }
@@ -184,7 +190,28 @@ pub fn connect(_: &Path) -> Result<File, String> {
     if handle == INVALID_HANDLE_VALUE {
         return Err(error());
     }
-    Ok(unsafe { File::from_raw_handle(handle) })
+    let file = unsafe { File::from_raw_handle(handle) };
+    unsafe {
+        let mut owner = null_mut();
+        let mut dacl = null_mut();
+        let mut sd = null_mut();
+        let result = GetSecurityInfo(
+            handle,
+            SE_KERNEL_OBJECT,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            &mut owner,
+            null_mut(),
+            &mut dacl,
+            null_mut(),
+            &mut sd,
+        );
+        if result != 0 {
+            return Err(format!("Cannot inspect pipe ACL: {result}"));
+        }
+        let _sd = Descriptor(sd);
+        verify_acl(owner, dacl)?;
+    }
+    Ok(file)
 }
 pub fn wait_forever(_: &File) -> Result<(), String> {
     Ok(())

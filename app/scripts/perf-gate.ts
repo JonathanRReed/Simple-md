@@ -1,15 +1,16 @@
 import { calibratedTyping, typingInput, typingLetters, typingProbe, typingRecord, type InputMethod } from "./perf-typing";
 import assert from "node:assert/strict";
 import type { KeyboardInputEvent } from "electron";
-import { execFileSync } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { measureDriverRun, type DriverEvent } from "../bench";
 import type { DriverStep } from "../src/main/driver";
+import { cliRuntime } from "../src/main/cli-runtime";
 import { perfFixtures, sha256, writePerfFixtures } from "./perf-fixtures";
 
-type State = "process-cold-fresh-profile" | "process-cold-reused-profile" | "resident-visible" | "resident-hidden" | "resident-closed" | "resident-new-file-miss" | "A-to-B-to-A";
+type State = "process-cold-fresh-profile" | "process-cold-reused-profile" | "resident-cli" | "resident-visible" | "resident-hidden" | "resident-closed" | "resident-new-file-miss" | "A-to-B-to-A";
 export function percentile(values: number[], fraction: number): number | null {
   if (!values.length) return null;
   if (values.some((value) => !Number.isFinite(value) || value < 0)) throw new Error("Invalid performance sample");
@@ -148,7 +149,7 @@ export async function perfGate(): Promise<void> {
   if (!Number.isSafeInteger(count) || count < 2) throw new Error("At least two samples are required");
   const only = process.argv.find(arg => arg.startsWith("--only="))?.split("=")[1];
   const includes = (name: string) => !only || only.split(",").includes(name);
-  if (only && only.split(",").some(name => !["cold", "resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing", "tab-switch-100k"].includes(name))) throw new Error("Unknown performance subset");
+  if (only && only.split(",").some(name => !["cold", "resident-cli", "resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A", "memory", "typing", "tab-switch-100k"].includes(name))) throw new Error("Unknown performance subset");
   const typingCases = process.argv.find(arg => arg.startsWith("--typing-cases="))?.slice("--typing-cases=".length).split(",");
   if (typingCases?.some(value => !/^(live|source|split)\/(top|middle|end)\/(native|cdp)$/.test(value))) throw new Error("Unknown typing case");
   const typingPaneCounts = process.argv.includes("--two-panes") ? [2] : [1, 2];
@@ -189,6 +190,7 @@ export async function perfGate(): Promise<void> {
       reused: "Explicit seed process exits cleanly and flushes compile and disk render caches, then a new process uses those directories. Shiki and DOM start empty in each process.",
       residentClock: "The gate keeps parent acknowledgement to first-readable. deliveryMs and afterArrivalMs split command delivery from work after file-open-arrival; neither is subtracted from the gate.",
       resident: "Seeded small document; main/worker compile caches and Shiki TS loaded. Disk render cache reused. Hidden is confirmed with BrowserWindow.isVisible and held for hiddenDwellMs before the external barrier so preceding native window-ordering work can settle. Resident-closed issues close-tab until no pane remains, confirms the last window is hidden and dwells before reopening through the same renderer. Revisit explicitly opens A, then B, then A. DOM follows current implementation; replacements destroy old blocks.",
+      cli: "The resident-cli state spawns the Rust CLI after the parent barrier and includes process startup, authentication, socket delivery and first-readable. It reopens the seeded reading tab through the real CLI. No second Electron process starts.",
       miss: "Unique fixture path for every sample. Not in recents or disk cache before the timed open. In-process Shiki/block caches remain warm and are not called cold.",
       memory: "One medium document in Live mode. Wait 5 seconds, then observe every second for 30 samples. Gate the latest stable five-sample window ending within the final five observations, with the final PID set, using max(window median, final total). All observations, including startup GPU allocations, remain in memory. No forced GC or low-value selection.",
     },
@@ -211,10 +213,20 @@ export async function perfGate(): Promise<void> {
     const env: NodeJS.ProcessEnv = { ...process.env, SMD_PERF: "1", SMD_TRACE: "1", SMD_DRIVE: drive, SMD_USER_DATA: userData, SMD_INTENT: intent, NODE_COMPILE_CACHE: path.join(userData, "compile-cache") };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_DISABLE_COMPILE_CACHE;
+
     const startedLoad = os.loadavg();
     const partialEvents: DriverEvent[] = [];
     let result: Awaited<ReturnType<typeof measureDriverRun>>;
     try { result = await measureDriverRun({ executable, args: [...(electronSwitch ? [`--${electronSwitch}`] : []), appRoot, file], cwd: appRoot, env, logPath: path.join(directory, "electron.log"), timeoutMs: 600_000,
+      async onBarrier(name) {
+        if (!name.startsWith("resident-cli-")) return;
+        const match = /^resident-cli-(\d+)-(.+)$/.exec(name);
+        if (!match) throw new Error("Invalid CLI performance barrier");
+        const measuredFile = path.join(fixtureDirectory, match[2]!);
+        const child = spawn(path.join(appRoot, "native/target/release", process.platform === "win32" ? "simplemd.exe" : "simplemd"), [measuredFile], { env: { ...env, SMD_CLI_RUNTIME: cliRuntime(userData) }, stdio: ["ignore", "ignore", "pipe"] });
+        let error = ""; child.stderr.on("data", data => { error += String(data); });
+        await new Promise<void>((resolve, reject) => { child.once("error", reject); child.once("close", code => code === 0 ? resolve() : reject(new Error(`CLI performance open failed: ${error}`))); });
+      },
       onEvent(event) {
         partialEvents.push(event);
         if (event.data.kind === "barrier" && typeof event.data.name === "string") loadAtBarrier.set(event.data.name, os.loadavg());
@@ -292,7 +304,7 @@ export async function perfGate(): Promise<void> {
       });
     }
     const normal = smoke ? ["small.md", "unicode.md"] : Object.keys(fixtureText).filter((name) => !["huge.md", "ceiling.md", "typing-100k.md"].includes(name));
-    for (const state of ["resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A"] as const) {
+    for (const state of ["resident-cli", "resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A"] as const) {
       if (!includes(state)) continue;
       const names = state === "resident-new-file-miss" && !smoke ? [...normal, "huge.md", "ceiling.md"] : normal;
       for (const fixture of names.filter(name => !fixtureFilter || fixtureFilter.includes(name))) await attempt(`${state}/${fixture}`, async () => {
@@ -311,11 +323,12 @@ export async function perfGate(): Promise<void> {
           if (["resident-hidden", "resident-new-file-miss"].includes(state) && process.argv.includes("--compare-throttling")) steps.push({ throttling: sample % 2 === 0 });
           if (state === "resident-closed") steps.push(evaluate(`while (document.querySelectorAll(".document-pane").length) { window.simplemd.command("close-tab"); await new Promise(r => setTimeout(r, 30)); }`), { wait: hiddenDwell(sample) }, { visibility: false });
           if (state === "resident-hidden") steps.push(evaluate("window.simplemd.hide();"), { wait: hiddenDwell(sample) }, { visibility: false });
+          if (state === "resident-cli") steps.push(evaluate("delete document.documentElement.dataset.firstReadable;"));
           const assertion = assertDocument(file, fixtureText[fixture]!);
           if (!("eval" in assertion)) throw new Error("Invalid document assertion step");
           steps.push({ barrier }, { record: { name: barrier, eval: `(async () => {
             try {
-              if (!(await window.simplemd.openPath(${quote(file)}, 'read'))) throw new Error('Measured open failed');
+              ${state === 'resident-cli' ? '' : `if (!(await window.simplemd.openPath(${quote(file)}, 'read'))) throw new Error('Measured open failed');`}
               await ${assertion.eval};
               return true;
             } catch (error) { return String(error); }
@@ -508,7 +521,7 @@ export async function perfGate(): Promise<void> {
   } catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
   for (const state of ["process-cold-fresh-profile", "process-cold-reused-profile"] as const) receipt.gates[state] = summarizeGate(samples.filter((sample) => sample.state === state).map((sample) => sample.ms), 800, smoke ? 2 : 20);
   const normalFixtures = smoke ? ["small.md", "unicode.md"] : Object.keys(fixtureText).filter((name) => !["huge.md", "ceiling.md", "typing-100k.md"].includes(name));
-  for (const state of ["resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A"] as const) {
+  for (const state of ["resident-cli", "resident-visible", "resident-hidden", "resident-closed", "resident-new-file-miss", "A-to-B-to-A"] as const) {
     for (const fixture of normalFixtures) receipt.gates[`${state}/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === state && sample.fixture === fixture).map((sample) => sample.ms), 150, smoke ? 2 : 20);
   }
   for (const fixture of smoke ? normalFixtures : [...normalFixtures, "huge.md", "ceiling.md"]) receipt.gates[`first-screen/${fixture}`] = summarizeGate(samples.filter((sample) => sample.state === "resident-new-file-miss" && sample.fixture === fixture).map((sample) => sample.ms), 200, smoke ? 2 : 20);

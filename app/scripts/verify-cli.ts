@@ -42,7 +42,7 @@ async function session(name: string, steps: DriverStep[], actions: Record<string
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ mode: "source", autosave: false, launchAtLogin: false, ...settings }));
   const drive = path.join(profile, "drive.json"); fs.writeFileSync(drive, JSON.stringify(steps));
   const runtime = cliRuntime(profile); runtimes.add(runtime);
-  const env = { ...process.env, PATH: bin + path.delimiter + process.env.PATH, SMD_USER_DATA: profile, SMD_CLI_RUNTIME: runtime, SMD_DRIVE: drive, SMD_TRACE: "1" };
+  const env: NodeJS.ProcessEnv = { ...process.env, PATH: bin + path.delimiter + process.env.PATH, SMD_USER_DATA: profile, SMD_CLI_RUNTIME: runtime, SMD_DRIVE: drive, SMD_TRACE: "1" };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = run(electron, [appRoot, first], env);
   let pending = ""; let tasks = Promise.resolve(); let actionError: unknown;
@@ -101,6 +101,16 @@ try {
     "save-as": async () => { assert.equal(waiter.child.exitCode, null); assert.equal(fs.readFileSync(savedStdin, "utf8"), stdinText); },
     "stdin-closed": async () => { assert.equal(await waiter.done, 0, waiter.errors()); },
   });
+  await session("cancel-and-discard", [
+    { barrier: "dirty" }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="name"]')?.textContent === 'discard.md');`),
+    { dialog: { response: 2 } }, evalStep(`assert(!(await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId))), 'Cancelled close succeeded');`),
+    { barrier: "cancelled" }, { dialog: { response: 1 } }, evalStep(`assert(await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId)), 'Confirmed discard failed');`),
+    { barrier: "discarded" },
+  ], {
+    dirty: async env => { waiter = run(cli, ["--wait", "--stdin-name", "discard.md", "-"], env, "# Discard me\n"); await new Promise(resolve => setTimeout(resolve, 150)); },
+    cancelled: async () => { assert.equal(waiter.child.exitCode, null); },
+    discarded: async () => { assert.equal(await waiter.done, 0, waiter.errors()); },
+  });
   const html = path.join(root, "out.html"), pdf = path.join(root, "out.pdf");
   await session("exports-url-secret", [
     { barrier: "export" }, painted(first), { windowCount: 1 },
@@ -143,7 +153,7 @@ try {
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ launchAtLogin: false, autosave: false }));
   const shot = path.join(root, "cold.png"), drive = path.join(root, "cold-drive.json");
   fs.writeFileSync(drive, JSON.stringify([painted(file), { shot }, { wait: 150 }]));
-  const env = { ...process.env, SMD_USER_DATA: profile, SMD_CLI_RUNTIME: runtime, SMD_CLI_APP: electron, SMD_CLI_APP_ROOT: appRoot, SMD_DRIVE: drive };
+  const env: NodeJS.ProcessEnv = { ...process.env, SMD_USER_DATA: profile, SMD_CLI_RUNTIME: runtime, SMD_CLI_APP: electron, SMD_CLI_APP_ROOT: appRoot, SMD_DRIVE: drive };
   delete env.ELECTRON_RUN_AS_NODE;
   await ok(env, [file]); await until(() => fs.existsSync(shot)); await until(() => !fs.existsSync(path.join(runtime, "state.json")));
   results.push("cold-open");

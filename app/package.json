@@ -21,7 +21,8 @@
     "test:asar": "bun run build/verify-asar-worker.mjs",
     "check:rust": "cargo check --locked --manifest-path native/Cargo.toml",
     "test:rust": "cargo test --locked --manifest-path native/Cargo.toml",
-    "perf:gate": "bun run build && bun run bench.ts --perf-gate"
+    "perf:gate": "bun run build && bun run bench.ts --perf-gate",
+    "test:cli": "bun scripts/verify-cli.ts"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.4",
