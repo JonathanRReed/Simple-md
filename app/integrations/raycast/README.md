@@ -4,4 +4,4 @@ Install the SimpleMD CLI, then add this directory to Raycast's Script Commands d
 
 The script runs `simplemd -- "$1"`. Raycast must have the CLI directory in its PATH. If needed, replace `simplemd` in the script with its absolute installed path. Relative paths resolve against Raycast's working directory, so use absolute paths.
 
-This is a shell script command, not an extension package. See [CLI commands](../../../../docs/cli.md).
+This is a shell script command, not an extension package. See [CLI commands](../../../docs/cli.md).
