@@ -7,7 +7,7 @@ import { findMdxRanges } from "../shared/mdx-ranges.js";
 import type { MdxResult } from "../shared/render-core.js";
 import { perfMark } from "./perf.js";
 import { parentPort } from "node:worker_threads";
-import { renderBlocks, renderFragment, type RenderedBlocks } from "./markdown.js";
+import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
   | { kind: "blocks"; text: string; filePath: string | null }

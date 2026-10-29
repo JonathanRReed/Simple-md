@@ -1,3 +1,4 @@
+import { cacheBudget } from "./cache-budget.js";
 import { isRenderedBlock } from "../shared/render-tree.js";
 import { perfMark } from "./perf.js";
 import { createHash } from "node:crypto";
@@ -33,13 +34,13 @@ function isEntry(value: unknown): value is CacheEntry {
 }
 
 export class RenderCache {
-  private entries: Map<string, { entry: CacheEntry; bytes: number }> | undefined;
+  private entries: Map<string, { entry: CacheEntry; bytes: number; token: object }> | undefined;
   private bytes = ENVELOPE_BYTES;
   private saveTimer: NodeJS.Timeout | undefined;
 
   constructor(private readonly file: string, private readonly maxBytes = MAX_BYTES) {}
 
-  private load(): Map<string, { entry: CacheEntry; bytes: number }> {
+  private load(): Map<string, { entry: CacheEntry; bytes: number; token: object }> {
     if (this.entries) return this.entries;
     this.entries = new Map();
     try {
@@ -61,15 +62,20 @@ export class RenderCache {
   private insert(filePath: string, entry: CacheEntry): void {
     const map = this.entries!;
     const previous = map.get(filePath);
-    if (previous) this.bytes -= previous.bytes;
+    if (previous) { this.bytes -= previous.bytes; cacheBudget.release(previous.token); }
     map.delete(filePath);
     const bytes = Buffer.byteLength(JSON.stringify({ [filePath]: entry })) - 1;
     if (bytes + ENVELOPE_BYTES > this.maxBytes) return;
-    map.set(filePath, { entry, bytes });
+    const token = {};
+    if (!cacheBudget.reserve(token, 2 * bytes, () => {
+      if (map.get(filePath)?.token === token) { map.delete(filePath); this.bytes -= bytes; }
+    })) return;
+    map.set(filePath, { entry, bytes, token });
     this.bytes += bytes;
     while (map.size > MAX_ENTRIES || this.bytes > this.maxBytes) {
       const oldest = map.entries().next();
       if (oldest.done) break;
+      cacheBudget.release(oldest.value[1].token);
       this.bytes -= oldest.value[1].bytes;
       map.delete(oldest.value[0]);
     }
@@ -79,6 +85,7 @@ export class RenderCache {
     const map = this.load();
     const hit = map.get(filePath);
     if (!hit || hit.entry.mtimeMs !== mtimeMs || hit.entry.size !== size || hit.entry.sourceHash !== sourceHash(text)) return null;
+    cacheBudget.touch(hit.token);
     map.delete(filePath);
     map.set(filePath, hit);
     return { title: hit.entry.title, blocks: hit.entry.blocks };

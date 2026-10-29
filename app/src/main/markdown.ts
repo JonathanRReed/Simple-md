@@ -1,3 +1,5 @@
+import { cacheBudget } from "./cache-budget.js";
+import { ByteCache } from "../shared/byte-cache.js";
 import { createHash } from "node:crypto";
 import { perfMark } from "./perf.js";
 import { urlContext } from "./document-urls.js";
@@ -54,9 +56,7 @@ async function prepareHighlighting(tokens: Token[]): Promise<void> {
 // A file watcher re-renders the same document on every save; most fences are unchanged.
 // Capped by bytes, not entries: a count cap below a document's fence count thrashes
 // (every insert evicts a block the same render still needs), which is worse than no cache.
-const HIGHLIGHT_CACHE_MAX_BYTES = 16 * 1024 * 1024;
-let highlightCacheBytes = 0;
-const highlightCache = new Map<string, string>();
+const highlightCache = new ByteCache<string>(cacheBudget);
 
 function highlight(code: string, lang: string): string {
   const key = `${lang}\0${code}`;
@@ -66,21 +66,13 @@ function highlight(code: string, lang: string): string {
   const html = highlighter!.codeToHtml(code, { lang, themes: THEMES, defaultColor: false });
   perfMark("highlight-end");
   const bytes = Buffer.byteLength(key) + Buffer.byteLength(html);
-  if (bytes > HIGHLIGHT_CACHE_MAX_BYTES) return html;
-  highlightCache.set(key, html);
-  highlightCacheBytes += bytes;
-  while (highlightCacheBytes > HIGHLIGHT_CACHE_MAX_BYTES) {
-    const oldest = highlightCache.keys().next();
-    if (oldest.done) break;
-    const evicted = highlightCache.get(oldest.value)!;
-    highlightCacheBytes -= Buffer.byteLength(oldest.value) + Buffer.byteLength(evicted);
-    highlightCache.delete(oldest.value);
-  }
+  highlightCache.set(key, html, 2 * bytes);
   return html;
 }
 
 
 export const createWorkerRenderCore = () => createRenderCore({
+  cacheBudget,
   prepareHighlighting,
   hash: (text) => createHash("sha256").update(text).digest("hex"),
   highlight: (code, lang) => highlighter?.getLoadedLanguages().includes(lang) ? highlight(code, lang) : "",

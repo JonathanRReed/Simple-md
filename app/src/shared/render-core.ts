@@ -1,3 +1,4 @@
+import { ByteCache, CacheBudget } from "./byte-cache.js";
 import { findMdxRanges, type MdxRange, type MdxParseError } from "./mdx-ranges.js";
 import { mapMdxPreview, type MdxPreview } from "./mdx-preview.js";
 import type { Token } from "markdown-it";
@@ -9,6 +10,7 @@ import { renderFrontmatter } from "./frontmatter.js";
 export type { RenderedHtml } from "./render-tree.js";
 
 export interface RenderServices {
+  cacheBudget?: CacheBudget;
   prepareHighlighting?(tokens: Token[]): Promise<void>;
   highlight?(code: string, language: string): string;
   urls?(baseDir: string | undefined, discoverRoot: boolean): UrlContext;
@@ -217,9 +219,8 @@ export function createRenderCore(services: RenderServices = {}) {
   const hash = services.hash ?? defaultHash;
   const byteLength = services.byteLength ?? utf8ByteLength;
   // Cache resolved tokens, since document context changes heading ids, references and footnotes.
-  const BLOCK_CACHE_MAX_BYTES = 24 * 1024 * 1024;
-  let blockCacheBytes = 0;
-  const blockCache = new Map<string, RenderedHtml>();
+  const cacheBudget = services.cacheBudget ?? new CacheBudget();
+  const blockCache = new ByteCache<RenderedHtml>(cacheBudget);
 
   function defaultHash(s: string): string {
     // Two interleaved 32-bit FNV lanes via Math.imul: all-int32, no BigInt, ~100x faster
@@ -245,17 +246,14 @@ export function createRenderCore(services: RenderServices = {}) {
   }
 
   // Unchanged sources are rendered repeatedly (mode switches, cache checks), so reuse recent parses.
-  const mdxCache = new Map<string, ReturnType<typeof findMdxRanges>>();
+  const mdxCache = new ByteCache<ReturnType<typeof findMdxRanges>>(cacheBudget);
   function cachedMdxRanges(src: string): ReturnType<typeof findMdxRanges> {
     const hit = mdxCache.get(src);
     if (hit) {
-      mdxCache.delete(src);
-      mdxCache.set(src, hit);
       return hit;
     }
     const ranges = findMdxRanges(src);
-    mdxCache.set(src, ranges);
-    if (mdxCache.size > 4) mdxCache.delete(mdxCache.keys().next().value!);
+    mdxCache.set(src, ranges, 2 * byteLength(src) + 2 * byteLength(JSON.stringify({ ranges, error: ranges.error })));
     return ranges;
   }
 
@@ -327,16 +325,7 @@ export function createRenderCore(services: RenderServices = {}) {
         rendered = { html, urls: env.urls };
         if (hasAuthor(group)) rendered.content = planSequence(group, env, false);
         const bytes = byteLength(key) + byteLength(rendered.html) + (rendered.content ? byteLength(JSON.stringify(rendered.content)) : 0);
-        if (bytes <= BLOCK_CACHE_MAX_BYTES) {
-          blockCache.set(cacheKey, rendered);
-          blockCacheBytes += bytes;
-          while (blockCacheBytes > BLOCK_CACHE_MAX_BYTES) {
-            const oldest = blockCache.keys().next();
-            if (oldest.done) break;
-            blockCacheBytes -= byteLength(oldest.value) + byteLength(blockCache.get(oldest.value)!.html) + (blockCache.get(oldest.value)!.content ? byteLength(JSON.stringify(blockCache.get(oldest.value)!.content)) : 0);
-            blockCache.delete(oldest.value);
-          }
-        }
+        blockCache.set(cacheKey, rendered, 2 * bytes);
       }
       const seen = seenKeys.get(key) ?? 0;
       seenKeys.set(key, seen + 1);

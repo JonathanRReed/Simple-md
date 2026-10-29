@@ -1,4 +1,4 @@
-import type { RenderedBlock, RenderedBlocks } from "./render-core.js";
+import type { RenderedBlock } from "./render-core.js";
 import { isRenderedBlock } from "./render-tree.js";
 
 export type BlockUpdate =

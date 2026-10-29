@@ -1,3 +1,4 @@
+import { cacheBudget } from "./cache-budget.js";
 import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
 import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
 import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
@@ -123,7 +124,11 @@ export class RenderClient {
     this.active = pending;
     try {
       if (!this.worker) {
-        const worker = new Worker(this.workerUrl);
+        const owner = cacheBudget.claimOwner();
+        let worker: Worker;
+        try { worker = new Worker(this.workerUrl, { workerData: { cacheBudget: owner.data } }); }
+        catch (error) { owner.release(); throw error; }
+        worker.once("exit", owner.release);
         this.worker = worker;
         worker.on("message", (response: unknown) => {
           if (worker !== this.worker || !this.active) return;
