@@ -8,9 +8,9 @@ export interface Settings {
   shortcut: string;
   mode: EditMode;
   autosave: boolean;
-  /** Press Space on a Markdown file in Finder/Explorer to preview it. Needs the native helper. */
+  /** Press Space on a Markdown file in Finder to preview it. Needs the native helper. */
   spacePreview: boolean;
-  /** Keep Simple-md resident so Space is instant; the app lives in the tray, not the Dock. */
+  /** Keep SimpleMD resident so Space is instant; the app lives in the tray, not the Dock. */
   launchAtLogin: boolean;
   /** Modal editing in the source modes. */
   vim: boolean;

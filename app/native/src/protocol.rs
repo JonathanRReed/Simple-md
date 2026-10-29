@@ -10,7 +10,7 @@ pub enum PermissionState {
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     Missing,
     /// Only the fallback backend reports this.
-    #[cfg_attr(any(target_os = "macos", windows), allow(dead_code))]
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     Unsupported,
 }
 

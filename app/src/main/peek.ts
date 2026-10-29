@@ -25,13 +25,12 @@ interface HelperEvent {
   permission?: PeekPermission;
   paths?: string[];
   requestId?: number;
-  origin?: string;
   message?: string;
   valid?: boolean;
 }
 
 function helperPath(): string | null {
-  const exe = process.platform === "win32" ? "simple-md-peek.exe" : "simple-md-peek";
+  const exe = process.platform === "win32" ? "simplemd-peek.exe" : "simplemd-peek";
   const candidates = app.isPackaged
     ? [path.join(process.resourcesPath, "native", exe)]
     : [path.join(app.getAppPath(), "native", "target", "release", exe)];
@@ -54,8 +53,7 @@ export class PeekHelper {
     const bin = helperPath();
     if (!bin || this.child) return;
     this.stopped = false;
-    const args = process.platform === "win32" && !app.isPackaged && process.env.SMD_EXPERIMENTAL_WINDOWS_SPACE === "1" ? ["--experimental-space"] : [];
-    const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(bin, [], { stdio: ["pipe", "pipe", "pipe"] });
     this.child = child;
     this.buffer = "";
     const requests = new PeekSession((command) => {
@@ -114,7 +112,7 @@ export class PeekHelper {
       this.handlers.onPermission(this.permission);
     } else if (msg.event === "peek") {
       if (typeof msg.requestId !== "number" || !Number.isSafeInteger(msg.requestId)) return;
-      const request = requests.request(msg.requestId, Array.isArray(msg.paths) ? msg.paths.filter((p) => typeof p === "string") : [], typeof msg.origin === "string" ? msg.origin : undefined);
+      const request = requests.request(msg.requestId, Array.isArray(msg.paths) ? msg.paths.filter((p) => typeof p === "string") : []);
       if (request) this.handlers.onPeek(request);
     } else if (msg.event === "peek-valid") {
       if (typeof msg.requestId === "number" && typeof msg.valid === "boolean") requests.validation(msg.requestId, msg.valid);

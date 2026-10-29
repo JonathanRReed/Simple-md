@@ -479,7 +479,7 @@ fn ensure_tap() -> Result<(), String> {
         if tap.is_null() {
             return Err(
                 "could not create the keyboard event tap; grant Accessibility and \
-                        Input Monitoring to the app that launches simple-md-peek"
+                        Input Monitoring to the app that launches simplemd-peek"
                     .into(),
             );
         }

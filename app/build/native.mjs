@@ -17,7 +17,7 @@ export function nativePlan(host, platform = process.platform, arch = process.arc
   if (!expected || host !== expected) {
     throw new Error(`Rust host ${host} does not match ${platform}/${arch}. Use a matching native Rust and Bun toolchain. Cross-compilation and universal packages are not supported by this script.`);
   }
-  const executable = platform === "win32" ? "simple-md-peek.exe" : "simple-md-peek";
+  const executable = platform === "win32" ? "simplemd-peek.exe" : "simplemd-peek";
   const targetDir = path.join(appDir, "native", "target");
   return {
     host,

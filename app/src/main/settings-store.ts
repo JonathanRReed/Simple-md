@@ -38,6 +38,20 @@ export function loadSettings(settingsFile: string): Settings {
   }
 }
 
+export function migrateSettings({ userData, appData, isolated }: { userData: string; appData: string; isolated: boolean }): void {
+  if (isolated) return;
+  const source = path.join(appData, "Simple-md", "settings.json");
+  const target = path.join(userData, "settings.json");
+  if (fs.existsSync(target) || !fs.existsSync(source)) return;
+  try {
+    fs.mkdirSync(userData, { recursive: true });
+    // Recents live in settings.json. Exclusive copy keeps an existing new profile authoritative.
+    fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
+  } catch {
+    // An unreadable old profile must not prevent startup.
+  }
+}
+
 let timer: NodeJS.Timeout | undefined;
 let pending: { file: string; settings: Settings } | undefined;
 

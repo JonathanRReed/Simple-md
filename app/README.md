@@ -1,4 +1,4 @@
-# Simple-md app
+# SimpleMD app
 
 This directory contains the Electron app. Bun bundles the TypeScript code; Rust provides the native file-manager helper.
 
@@ -32,7 +32,7 @@ On macOS, the Rust helper checks Finder's foreground state, text focus, and curr
 
 In the reading view, Space or Escape dismisses the window. Enter or `e` switches a Markdown note to editing. MDX remains read-only. The helper's `--probe` reports foreground app, text focus, Accessibility state, and selected paths for a separate native check.
 
-Windows bare-Space interception is disabled by default. The experimental backend still needs item-at-keypress and runtime qualification. File > Open, Open With, and the separate shortcut are available. Developers can opt into the experimental hook with `SMD_EXPERIMENTAL_WINDOWS_SPACE=1` on a Windows development run.
+On Windows, use File > Open, Open With, or the global shortcut. Bare-Space interception is unavailable.
 
 Linux has no portable bare-Space backend or selected-file lookup. A registered global shortcut cannot discover the selected note there. Use File > Open, Open With, or pass an absolute file path. See the [Linux integration guide](integrations/linux/README.md) for desktop entries and AppImage setup. Tray and shortcut availability also depend on the desktop and session, including Wayland.
 
@@ -104,13 +104,13 @@ After packaging, check the archived render worker under Electron from the reposi
 bun run test:asar /absolute/path/to/app.asar
 ```
 
-This launches a temporary Electron harness with an isolated profile, without starting Simple-md's native hooks or login integration. It checks that the bootstrap, main bundle, worker, and shared chunks match the current `dist`, remain packed, and render highlighted TypeScript and Python fences through the worker protocol. It retains the archive hash, runtime result, HTML, and logs in the reported temporary directory. This checks Electron's ASAR worker loader. It does not launch the packaged app's normal UI or establish trust, permissions, or installed behavior.
+This launches a temporary Electron harness with an isolated profile, without starting SimpleMD's native hooks or login integration. It checks that the bootstrap, main bundle, worker, and shared chunks match the current `dist`, remain packed, and render highlighted TypeScript and Python fences through the worker protocol. It retains the archive hash, runtime result, HTML, and logs in the reported temporary directory. This checks Electron's ASAR worker loader. It does not launch the packaged app's normal UI or establish trust, permissions, or installed behavior.
 
 The [desktop workflow](../.github/workflows/desktop.yml) installs locked dependencies, runs TypeScript checks and Bun tests, checks Rust formatting, checks and tests Rust, then builds and packages unsigned artifacts. Its native runner matrix covers macOS arm64, macOS x64, Windows x64, and Linux x64. CI pins [Bun 1.4.3](https://github.com/oven-sh/bun/releases/tag/bun-v1.4.3); macOS runner labels follow the [GitHub runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
 Artifacts remain workflow attachments for seven days. The workflow has read-only repository permissions and no release job. It does not exercise the graphical smoke script, run benchmarks, install packages, or validate permissions and file associations. Windows arm64 and Linux arm64 are accepted by the host-only script but are outside this CI matrix.
 
-No Windows or Linux desktop runtime has been verified from this Mac. Treat window controls, tray behavior, file associations, local image loading, printing, and native Explorer hooks as external QA gates until they run on those systems. Packaging configuration and passing unit tests are separate evidence from an installed application.
+No Windows or Linux desktop runtime has been verified from this Mac. Treat window controls, tray behavior, file associations, local image loading, printing, and the Explorer global shortcut as external QA gates until they run on those systems. Packaging configuration and passing unit tests are separate evidence from an installed application.
 
 ## License
 

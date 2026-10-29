@@ -1,9 +1,9 @@
 {
-  "name": "simple-md",
+  "name": "simplemd",
   "version": "0.1.0",
   "private": true,
   "description": "Markdown and read-only MDX viewer and Markdown editor",
-  "productName": "Simple-md",
+  "productName": "SimpleMD",
   "main": "dist/main.mjs",
   "type": "commonjs",
   "scripts": {
@@ -55,7 +55,7 @@
   "license": "MIT",
   "build": {
     "appId": "com.jonathanreed.simplemd",
-    "productName": "Simple-md",
+    "productName": "SimpleMD",
     "copyright": "© Jonathan Ray Reed. MIT License.",
     "directories": {
       "output": "release",
@@ -134,7 +134,8 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "SimpleMD"
     },
     "linux": {
       "icon": "../resources/icon2.png",
@@ -147,7 +148,7 @@
         "text/markdown",
         "text/x-markdown"
       ],
-      "executableName": "simple-md",
+      "executableName": "simplemd",
       "syncDesktopName": true,
       "executableArgs": [
         "%f"
@@ -163,6 +164,6 @@
     "forceCodeSigning": false,
     "publish": null
   },
-  "desktopName": "simple-md.desktop",
+  "desktopName": "simplemd.desktop",
   "homepage": "https://github.com/JonathanRReed/Simple-md"
 }

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "flux",
+      "name": "simplemd",
       "devDependencies": {
         "@codemirror/autocomplete": "^6.20.4",
         "@codemirror/commands": "^6.11.1",

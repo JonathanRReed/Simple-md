@@ -1,10 +1,12 @@
-# Simple-md
+# SimpleMD
 
 A Markdown viewer and editor for macOS, Windows, and Linux. The current app lives in [`app/`](app/). It uses Electron, TypeScript, Bun, and a Rust helper for file-manager previews.
 
 Choose live preview, split view, or source editing. Read Markdown with syntax highlighting, math, diagrams, and local images. MDX opens read-only. The app drops import and export statements and shows JSX as code rather than executing it.
 
 Open **Preferences** from the app menu, toolbar, or Command/Control+, to change the theme, editing defaults, text size, autosave, Vim, spelling, and preview settings. Changes save automatically.
+
+Settings and recent documents migrate automatically from the old profile, without caches. You can remove an old Simple-md.app or Windows install by hand.
 
 ## Develop
 
@@ -38,7 +40,7 @@ See the [app guide](app/README.md) for controls, platform limits, packaging, and
 
 ## File-manager previews
 
-On macOS, the Rust helper supports Space previews in Finder with Accessibility permission. It reads the current selection through Accessibility and resolves file URLs outside the key callback. The separate Command-Shift-Space fallback may request Automation access to Finder and System Events. Windows bare-Space interception is disabled by default until its selection handling is qualified. On Linux, open a note through the app or the file manager's Open With menu. Linux has no portable bare-Space hook or selected-file lookup. See [Linux integration](app/integrations/linux/README.md).
+On macOS, the Rust helper supports Space previews in Finder with Accessibility permission. It reads the current selection through Accessibility and resolves file URLs outside the key callback. The separate Command-Shift-Space fallback may request Automation access to Finder and System Events. On Windows, use Open With or the global shortcut. On Linux, open a note through the app or the file manager's Open With menu. Linux has no portable bare-Space hook or selected-file lookup. See [Linux integration](app/integrations/linux/README.md).
 
 ## License
 

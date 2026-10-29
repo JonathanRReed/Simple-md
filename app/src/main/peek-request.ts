@@ -1,6 +1,5 @@
 export interface PeekRequest {
   readonly paths: string[];
-  readonly origin?: string;
   validate(): Promise<boolean>;
   replay(): void;
   complete(): void;
@@ -16,12 +15,12 @@ export class PeekSession {
 
   constructor(private readonly send: (command: PeekCommand) => boolean, private readonly timeoutMs = 200) {}
 
-  request(requestId: number, paths: string[], origin?: string): PeekRequest | null {
+  request(requestId: number, paths: string[]): PeekRequest | null {
     if (!this.alive || this.pending.has(requestId)) return null;
     const state: Pending = { open: true, completed: false, replayed: false };
     this.pending.set(requestId, state);
     return {
-      paths, origin,
+      paths,
       validate: () => this.validate(requestId, state),
       replay: () => {
         if (!this.alive || state.completed || state.replayed) return;

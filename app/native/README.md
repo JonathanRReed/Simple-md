@@ -1,6 +1,6 @@
-# simple-md-peek
+# simplemd-peek
 
-Rust helper for Simple-md's file-manager preview shortcut. It runs as a child of Electron and exchanges newline-delimited JSON over stdio. Closing stdin or sending `quit` stops it.
+Rust helper for SimpleMD's file-manager preview shortcut. It runs as a child of Electron and exchanges newline-delimited JSON over stdio. Closing stdin or sending `quit` stops it.
 
 ## Build and check
 
@@ -23,7 +23,6 @@ Helper output:
 | `{"event":"permission","state":"granted"}` | macOS Accessibility trust changed. |
 | `{"event":"selection","paths":["/a.md"]}` | Speculative pre-render candidate. This never authorizes a later Space interception. |
 | `{"event":"peek","requestId":1,"app":"com.apple.finder","paths":["/a.md"]}` | A Space request with a current selected-file snapshot. |
-| `{"event":"peek","requestId":2,"origin":"12345","app":"explorer.exe"}` | Windows request bound to the originating Explorer HWND. The app resolves the selection for that window. |
 | `{"event":"error","message":"..."}` | Helper or platform failure. |
 
 App input:
@@ -52,20 +51,18 @@ Supported Markdown extensions are `.md`, `.markdown`, `.mdown`, `.mkd`, and `.md
 
 ## Windows
 
-A `WH_KEYBOARD_LL` hook runs on a message-loop thread. It captures the originating Explorer HWND before accepting the request. The app checks that foreground window before and after its selection lookup. Replay requires the matching request ID, original window, and non-text focus.
-
-This backend is disabled by default. `--experimental-space` enables it for development. Its current window-bound selection lookup does not establish the selected item at the keypress. The app does not expose it as a supported Space feature. It has been cross-checked by the Rust compiler on macOS. Explorer tabs, desktop selection, elevated windows, keyboard-hook behavior, and replay still require Windows runtime tests.
+The helper reports `unsupported` and intercepts no keys. Use Open With or the app's global shortcut. The global shortcut looks up the selected file in the foreground Explorer window.
 
 ## Linux
 
-The helper reports `unsupported` and intercepts no keys. Use Open With, drag and drop, or Simple-md's Open command. See [Linux integration](../integrations/linux/README.md) for desktop entries. There is no universal selected-file or bare-Space hook across Linux file managers and Wayland compositors.
+The helper reports `unsupported` and intercepts no keys. Use Open With, drag and drop, or SimpleMD's Open command. See [Linux integration](../integrations/linux/README.md) for desktop entries. There is no universal selected-file or bare-Space hook across Linux file managers and Wayland compositors.
 
 ## Diagnostics and proof limits
 
 ```sh
-./target/release/simple-md-peek --probe
-./target/release/simple-md-peek --probe --delay 3
-SMD_TRACE=1 ./target/release/simple-md-peek
+./target/release/simplemd-peek --probe
+./target/release/simplemd-peek --probe --delay 3
+SMD_TRACE=1 ./target/release/simplemd-peek
 ```
 
 The probe reports the frontmost application, text-input focus, Accessibility trust, and resolved Markdown paths when Finder exposes a supported selection. Trace logs record Space events seen by the tap. They do not log other keys.

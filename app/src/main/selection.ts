@@ -15,10 +15,9 @@ tell application "Finder"
 end tell`;
 
 // Matches the foreground window against Explorer's open windows, then lists its selected items.
-const explorerScript = (origin?: string) => `
+const EXPLORER_SCRIPT = `
 Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow();'
 $fg = [W.U]::GetForegroundWindow().ToInt64()
-${origin ? `if ($fg -ne ${origin}) { exit }` : ""}
 $selected = @()
 $shell = New-Object -ComObject Shell.Application
 foreach ($w in $shell.Windows()) {
@@ -34,13 +33,12 @@ function run(cmd: string, args: string[], timeout = 2000): Promise<string> {
 
 // Paths selected in the frontmost file manager. The key hook only fires when one is frontmost, so it
 // passes verifyFrontmost=false; the global shortcut can fire anywhere and must check. Linux has no portable equivalent.
-export async function getFileManagerSelection(verifyFrontmost = true, origin?: string): Promise<string[]> {
+export async function getFileManagerSelection(verifyFrontmost = true): Promise<string[]> {
   let out = "";
   if (process.platform === "darwin") {
     out = await run("osascript", ["-e", (verifyFrontmost ? FRONT_CHECK : "") + FINDER_SCRIPT]);
   } else if (process.platform === "win32") {
-    if (origin !== undefined && !/^\d+$/.test(origin)) return [];
-    out = await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", explorerScript(origin)]);
+    out = await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", EXPLORER_SCRIPT]);
   }
   return out.split(/\r?\n/).filter(Boolean);
 }

@@ -23,6 +23,7 @@ describe("host-only packaging", () => {
       expect(plan.args[plan.args.indexOf("--target-dir") + 1]).toBe(path.join(appDir, "native", "target"));
       expect(plan.binary).toContain(path.join(host, "release", plan.executable));
       expect(plan.executable.endsWith(".exe")).toBe(platform === "win32");
+      expect(plan.executable).toBe(platform === "win32" ? "simplemd-peek.exe" : "simplemd-peek");
       expect(unsignedConfig(plan).extraResources[0]).toEqual({ from: plan.binary, to: `native/${plan.executable}` });
     });
   }
@@ -54,6 +55,13 @@ describe("host-only packaging", () => {
     expect(pkg.build.extraResources).toContainEqual({ from: "../LICENSE", to: "LICENSE" });
     expect(pkg.build.linux.executableArgs).toEqual(["%f"]);
     expect(pkg.build.linux.syncDesktopName).toBe(true);
+    expect(pkg.name).toBe("simplemd");
+    expect(pkg.productName).toBe("SimpleMD");
+    expect(pkg.build.productName).toBe("SimpleMD");
+    expect(pkg.build.appId).toBe("com.jonathanreed.simplemd");
+    expect(pkg.build.nsis.shortcutName).toBe("SimpleMD");
+    expect(pkg.build.linux.executableName).toBe("simplemd");
+    expect(pkg.desktopName).toBe("simplemd.desktop");
   });
   test("keeps Automation permission on the main app, separate from Electron helpers", () => {
     const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
@@ -92,6 +100,8 @@ describe("Linux launch integration", () => {
     const entry = desktopEntry('/home/test/My "notes" $cash` %app\\.AppImage');
     expect(entry).toContain('Exec="/home/test/My \\\\"notes\\\\" \\\\$cash\\\\` %%app\\\\\\\\.AppImage" %f\n');
     expect(entry).toContain("MimeType=text/markdown;text/x-markdown;");
+    expect(entry).toContain("Name=SimpleMD\n");
+    expect(entry).toContain("StartupWMClass=simplemd\n");
     for (const invalid of [undefined, "relative.AppImage", "/tmp/app\nExec=bad", "/tmp/a\r", "/tmp/a\t", "/tmp/a\0", "/tmp/a\x7f"]) {
       expect(() => desktopEntry(invalid)).toThrow("absolute Linux");
     }

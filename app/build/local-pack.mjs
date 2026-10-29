@@ -1,4 +1,6 @@
 import { appDir, buildNative, currentNativePlan, run } from "./native.mjs";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 export function unsignedConfig(plan) {
   return {
@@ -34,7 +36,8 @@ if (import.meta.main) {
   const plan = currentNativePlan();
   const config = unsignedConfig(plan);
   if (args.includes("--dry-run")) {
-    console.log(JSON.stringify({ platform: process.platform, arch: process.arch, mode, native: plan, config, publish: "never" }, null, 2));
+    const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
+    console.log(JSON.stringify({ productName: pkg.build.productName, platform: process.platform, arch: process.arch, mode, native: plan, config, publish: "never" }, null, 2));
   } else {
     const clean = localEnvironment(process.env);
     for (const key of Object.keys(process.env)) if (!(key in clean)) delete process.env[key];

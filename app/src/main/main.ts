@@ -43,8 +43,11 @@ const trace = (mark: string) => {
 };
 trace("main-bundle-loaded");
 
+app.setName("SimpleMD");
+
 const testProfile = !app.isPackaged && !!process.env.SMD_USER_DATA;
 if (testProfile) app.setPath("userData", path.resolve(process.env.SMD_USER_DATA!));
+else app.setPath("userData", path.join(app.getPath("appData"), app.name));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const INDEX = path.join(here, "renderer", "index.html");
@@ -144,7 +147,7 @@ function createWindow(): BrowserWindow {
     ...restoredBounds(),
     // Shown immediately below: the skeleton paints while the first document renders.
     show: false,
-    title: "Simple-md",
+    title: "SimpleMD",
     titleBarStyle: mac ? "hiddenInset" : "hidden",
     titleBarOverlay: mac ? undefined : overlayColors(),
     trafficLightPosition: mac ? { x: 16, y: 13 } : undefined,
@@ -315,7 +318,7 @@ async function payloadFor(file: string | null, text: string, intent: OpenIntent,
 
 function updateTitle(): void {
   if (win.isDestroyed()) return;
-  win.setTitle(`${current.name}${dirty ? " — Edited" : ""} — Simple-md`);
+  win.setTitle(`${current.name}${dirty ? " (Edited)" : ""} | SimpleMD`);
   win.setDocumentEdited(dirty);
   if (current.path) win.setRepresentedFilename(current.path);
 }
@@ -601,7 +604,7 @@ async function makeHtml(text: string): Promise<string> {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="generator" content="Simple-md" />
+<meta name="generator" content="SimpleMD" />
 <title>${esc(title)}</title>
 <style>${css}</style>
 <style>${katex}</style>
@@ -647,12 +650,11 @@ let automationDenied = false;
 const automationPane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation";
 
 // The helper is holding a Space keypress. Markdown opens in peek; anything else gets the key back so
-// Quick Look and friends behave exactly as if Simple-md were not installed.
+// Quick Look and friends behave exactly as if SimpleMD were not installed.
 async function onSpacePressed(request: PeekRequest): Promise<void> {
   trace(`peek-received paths=${request.paths.length}`);
   try {
-    const picked = request.paths.find(isPeekable) ?? (process.platform === "win32" && request.origin
-      ? (await getFileManagerSelection(false, request.origin)).find(isPeekable) : undefined);
+    const picked = request.paths.find(isPeekable);
     if (picked && await openFile(picked, "peek", request.validate)) return;
     trace("peek-replayed");
     request.replay();
@@ -707,13 +709,13 @@ function applyLoginItem(): void {
   if (!app.isPackaged || testProfile) return;
   if (process.platform === "linux") {
     const dir = path.join(app.getPath("home"), ".config", "autostart");
-    const desktop = path.join(dir, "simple-md.desktop");
+    const desktop = path.join(dir, "simplemd.desktop");
     try {
       if (settings.launchAtLogin) {
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(
           desktop,
-          `[Desktop Entry]\nType=Application\nName=Simple-md\nExec=\"${process.execPath}\" --background\nX-GNOME-Autostart-enabled=true\n`,
+          `[Desktop Entry]\nType=Application\nName=SimpleMD\nExec=\"${process.execPath}\" --background\nX-GNOME-Autostart-enabled=true\n`,
         );
       } else {
         fs.rmSync(desktop, { force: true });
@@ -727,7 +729,7 @@ function applyLoginItem(): void {
 }
 
 function syncPeekHelper(): void {
-  if (testProfile || !settings.spacePreview) {
+  if (testProfile || process.platform !== "darwin" || !settings.spacePreview) {
     helper?.stop();
     helper = undefined;
     refreshMenus();
@@ -781,19 +783,17 @@ function trayMenu(): Electron.Menu {
     },
     ...peekMenuItems(),
     { type: "separator" },
-    { label: "Quit Simple-md", click: () => app.quit() },
+    { label: "Quit SimpleMD", click: () => app.quit() },
   ]);
 }
 
 function peekMenuItems(): Electron.MenuItemConstructorOptions[] {
-  const where = process.platform === "darwin" ? "Finder" : "Explorer";
-  const experimentalWindows = process.platform === "win32" && !app.isPackaged && process.env.SMD_EXPERIMENTAL_WINDOWS_SPACE === "1";
-  const items: Electron.MenuItemConstructorOptions[] = process.platform === "linux" ? [] : process.platform === "win32" && !experimentalWindows
+  const items: Electron.MenuItemConstructorOptions[] = process.platform === "linux" ? [] : process.platform === "win32"
     ? [{ type: "separator" }, { label: "Space preview unavailable on Windows", enabled: false }]
     : [
       { type: "separator" },
       {
-        label: `Preview with Space in ${where}${experimentalWindows ? " (experimental)" : ""}`,
+        label: "Preview with Space in Finder",
         type: "checkbox",
         checked: settings.spacePreview,
         click: (item) => applySettings({ spacePreview: item.checked }),
@@ -818,7 +818,7 @@ function createTray(): void {
   const icon = nativeImage.createFromPath(path.join(here, "assets", "trayTemplate.png"));
   icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip("Simple-md");
+  tray.setToolTip("SimpleMD");
   tray.setContextMenu(trayMenu());
   tray.on("click", () => void togglePeek());
 }
@@ -974,7 +974,7 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   let pendingOpen = fileArg(process.argv);
 
-  app.setAboutPanelOptions({ applicationName: "Simple-md", copyright: "© Jonathan Ray Reed. MIT License." });
+  app.setAboutPanelOptions({ applicationName: "SimpleMD", copyright: "© Jonathan Ray Reed. MIT License." });
 
   app.on("second-instance", (_e, argv) => void openFile(fileArg(argv), "edit"));
   app.on("open-file", (e, file) => {

@@ -13,7 +13,7 @@ use crate::protocol::Event;
 /// `Some(event)` is written to stdout; `None` flushes everything queued before it and exits.
 pub type Outbox = Sender<Option<Event>>;
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(target_os = "macos")]
 mod pending;
 
 pub trait Backend: Send + Sync {
@@ -29,12 +29,7 @@ mod macos;
 #[cfg(target_os = "macos")]
 pub use macos::{init, probe, run_loop};
 
-#[cfg(windows)]
-mod windows;
-#[cfg(windows)]
-pub use windows::{init, probe, run_loop};
-
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(target_os = "macos"))]
 mod linux;
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(target_os = "macos"))]
 pub use linux::{init, probe, run_loop};

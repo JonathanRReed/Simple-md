@@ -61,7 +61,7 @@ jobs:
       - name: Upload unsigned artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Simple-md-unsigned-${{ matrix.name }}
+          name: SimpleMD-unsigned-${{ matrix.name }}
           if-no-files-found: error
           retention-days: 7
           path: |

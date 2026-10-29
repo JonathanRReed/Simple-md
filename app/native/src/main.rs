@@ -1,5 +1,5 @@
 // The fallback backend never produces most events.
-#![cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
 mod platform;
 mod protocol;

@@ -19,11 +19,11 @@ impl Backend for Unsupported {
 
 pub fn init(out: Outbox) -> Arc<dyn Backend> {
     let _ = out.send(Some(Event::Ready {
-        platform: "linux",
+        platform: if cfg!(windows) { "windows" } else { "linux" },
         permission: PermissionState::Unsupported,
     }));
     let _ = out.send(Some(Event::error(
-        "bare Space preview is unsupported on this desktop; open a Markdown file with Simple-md",
+        "bare Space preview is unsupported on this desktop; open a Markdown file with SimpleMD",
     )));
     Arc::new(Unsupported)
 }
