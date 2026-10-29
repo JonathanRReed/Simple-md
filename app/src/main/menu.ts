@@ -1,9 +1,11 @@
+import type { GitChangesStatus } from "../shared/change-highlights.js";
 import path from "node:path";
 import { Menu, app, type MenuItemConstructorOptions } from "electron";
 import type { Command, EditMode, Settings, ThemeSetting } from "../shared/types.js";
 
 export interface MenuActions {
   settings(): Settings;
+  changesStatus(): GitChangesStatus;
   command(cmd: Command): void;
   openDialog(): void;
   openPath(file: string): void;
@@ -16,6 +18,7 @@ export interface MenuActions {
 
 export function buildMenu(a: MenuActions): void {
   const s = a.settings();
+  const changes = a.changesStatus();
   const mac = process.platform === "darwin";
   const cmd = (label: string, command: Command, accelerator?: string): MenuItemConstructorOptions => ({
     label,
@@ -122,6 +125,11 @@ export function buildMenu(a: MenuActions): void {
         cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+Right"),
         cmd("Next Tab", "next-tab", "CommandOrControl+Shift+]"),
         cmd("Previous Tab", "previous-tab", "CommandOrControl+Shift+["),
+        { label: "Show Changes Since Last Commit", type: "checkbox", enabled: changes.available, checked: changes.available && changes.active, toolTip: changes.available ? "Compare this file with Git HEAD" : changes.reason, click: () => a.command("toggle-head-changes") },
+        cmd("Mark Seen", "mark-seen", "CommandOrControl+Shift+M"),
+        cmd("Next Change", "next-change", "CommandOrControl+Alt+Down"),
+        cmd("Previous Change", "previous-change", "CommandOrControl+Alt+Up"),
+        { type: "separator" },
         cmd("Read / Edit", "toggle-edit", "CommandOrControl+Return"),
         cmd("Back", "nav-back", mac ? "Cmd+[" : "Alt+Left"),
         cmd("Forward", "nav-forward", mac ? "Cmd+]" : "Alt+Right"),

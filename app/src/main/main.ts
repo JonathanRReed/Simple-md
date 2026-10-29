@@ -1,3 +1,4 @@
+import { readGitBaseline } from "./git-baseline.js";
 import { FlushWaiters } from "./flush-waiters.js";
 import { menuState } from "./menu-state.js";
 import { watchWindowTheme } from "./window-theme.js";
@@ -45,7 +46,7 @@ import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } 
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
-import { startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
+import { blockChanges, startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
 import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { configEntries } from "../shared/config-schema.js";
@@ -150,9 +151,12 @@ function refreshMenus(): void {
   }
   const host = frontmost;
   const mode = host?.paneModes.get(host.mainPane.paneId) ?? settings.mode;
-  const next = menuState(settings, mode, !!registry.get(host?.mainPane.documentId)?.path);
+  const activeDoc = registry.get(host?.mainPane.documentId);
+  const gitStatus = activeDoc?.gitStatus ?? { available: false as const, reason: "Open a file first." };
+  const next = menuState(settings, mode, !!activeDoc?.path, gitStatus);
   if (next.application !== lastMenuState?.application) buildMenu({
     settings: () => ({ ...settings, mode }),
+    changesStatus: () => gitStatus,
     command: (cmd) => runCommand(cmd),
     openDialog: () => void openDialog(),
     openPath: (p) => void openFile(p, "edit"),
@@ -694,6 +698,10 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
       else finishClosedWindow(host);
       return;
     }
+    case "mark-seen":
+    case "toggle-head-changes":
+    case "next-change":
+    case "previous-change": send("smd:cmd", cmd, target); return;
     case "move-tab-window": void documents.run(moveTabToWindow); return;
     case "next-tab": context().layout.cycle(1); syncLayout(); return;
     case "previous-tab": context().layout.cycle(-1); syncLayout(); return;
@@ -1047,10 +1055,56 @@ function registerIpc(): void {
     const documentId = ipcDocument(id);
     return documents.run(() => saveText(text, forceDialog, documentId));
   });
-  handle("smd:accept-disk", (value, id) => {
+  handle("smd:accept-disk", (value, id, automatic) => {
     const text = ipcText(value);
     const documentId = ipcDocument(id);
-    return documents.run(() => ipcSession(documentId).acceptDisk(text));
+    return documents.run(() => ipcSession(documentId).acceptDisk(text, automatic === true));
+  });
+  handle("smd:changes", async (id, revision) => {
+    const doc = ipcSession(id);
+    const revisionId = ipcRevision(doc, revision);
+    const baseline = doc.baseline;
+    const generation = doc.baselineGeneration;
+    const changes = baseline ? await doc.render(revisionId, () => blockChanges(baseline.text, doc.text, doc.path)) : { changed: [], deleted: [] };
+    if (generation !== doc.baselineGeneration) throw new Error("The change baseline was replaced.");
+    return { kind: baseline?.kind ?? null, generation, changes };
+  });
+  handle("smd:mark-seen", (id, revision, watchOnly) => {
+    const doc = ipcSession(id);
+    if (!isRevisionId(revision) || !doc.isCurrent(revision) || (watchOnly === true && doc.baseline?.kind !== "watch")) return false;
+    doc.markSeen();
+    if (doc.gitStatus.available) doc.gitStatus = { available: true, active: false };
+    refreshMenus();
+    return true;
+  });
+  handle("smd:git-status", async id => {
+    const doc = ipcSession(id);
+    if (doc.gitStatusChecked) return doc.gitStatus;
+    const file = doc.path;
+    const result = await readGitBaseline(file);
+    if (doc.path !== file || registry.get(doc.documentId) !== doc) throw new Error("The document was replaced.");
+    doc.gitStatus = result.available ? { available: true, active: doc.baseline?.kind === "head" } : result;
+    doc.gitStatusChecked = true;
+    refreshMenus();
+    return doc.gitStatus;
+  });
+  handle("smd:head-changes", async (id, enabled) => {
+    if (typeof enabled !== "boolean") throw new TypeError("Expected change view option.");
+    const doc = ipcSession(id);
+    const generation = doc.baselineGeneration;
+    const file = doc.path;
+    if (enabled) {
+      const result = await readGitBaseline(file);
+      if (doc.path !== file || registry.get(doc.documentId) !== doc || generation !== doc.baselineGeneration) throw new Error("The document or change baseline was replaced.");
+      doc.gitStatusChecked = true;
+      doc.gitStatus = result.available ? { available: true, active: true } : result;
+      if (result.available) doc.setHeadBaseline(result.text);
+    } else {
+      doc.markSeen();
+      if (doc.gitStatus.available) doc.gitStatus = { available: true, active: false };
+    }
+    refreshMenus();
+    return doc.gitStatus;
   });
   handle("smd:save-image", (bytes, ext, id) => {
     const documentId = ipcDocument(id);
@@ -1112,7 +1166,7 @@ function registerIpc(): void {
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
     if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
-    const commands: readonly string[] = ["close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
+    const commands: readonly string[] = ["mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }

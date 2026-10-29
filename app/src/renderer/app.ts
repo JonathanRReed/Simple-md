@@ -103,7 +103,10 @@ function syncChrome(): void {
     if (strip.children[index] !== button) strip.insertBefore(button, strip.children[index] ?? null);
   });
   if (tabFocused) strip.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus({ preventScroll: true });
-  for (const [id, pane] of panes) pane.element.dataset.active = String(id === layout.activePane);
+  for (const [id, pane] of panes) {
+    pane.element.dataset.active = String(id === layout.activePane);
+    pane.controller.activeChanged(id === layout.activePane);
+  }
 }
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {
   const tab = documents.get(entry.controller.documentId);
@@ -116,6 +119,7 @@ function stash(entry: { element: HTMLElement; controller: PaneController }): voi
 function mountLayout(next: TabLayoutState): void {
   closeOverlays();
   const previousActive = layout?.activePane;
+  for (const [id, entry] of panes) entry.controller.activeChanged(next.activePane === id && next.panes.some(slot => slot.paneId === id && slot.documentId === entry.controller.documentId));
   layout = next;
   stage.dataset.axis = next.axis;
   stage.dataset.panes = String(next.panes.length);
@@ -268,6 +272,7 @@ async function boot(): Promise<void> {
       e.preventDefault(); const index = Number(e.key) === 9 ? layout.tabs.length - 1 : Number(e.key) - 1;
       const id = layout.tabs[index]; if (id !== undefined) void api.activateTab(id); return;
     }
+    if (mod && e.shiftKey && e.key.toLowerCase() === "m") command = "mark-seen";
     if (command) { e.preventDefault(); api.command(command); }
   }, { capture: true });
   document.addEventListener("dragover", e => e.preventDefault());

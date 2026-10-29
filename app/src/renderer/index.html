@@ -65,7 +65,14 @@
         </div>
       </section>
         </div>
-        <footer class="pane-status"><span id="hint" hidden></span></footer>
+        <footer class="pane-status"><span id="hint" hidden></span>
+          <div id="changes" class="change-controls" hidden>
+            <span id="change-count"></span>
+            <button id="previous-change" type="button" title="Previous change" aria-label="Previous change">↑</button>
+            <button id="next-change" type="button" title="Next change" aria-label="Next change">↓</button>
+            <button id="mark-seen" type="button" title="Mark Seen (⌘⇧M)">Mark Seen</button>
+          </div>
+        </footer>
       </div>
     </template>
 

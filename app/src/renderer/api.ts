@@ -1,3 +1,4 @@
+import type { HighlightState, GitChangesStatus } from "../shared/change-highlights.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
@@ -22,7 +23,11 @@ export interface Bridge {
   documentReady(documentId: DocumentId): void;
   edit(text: string, documentId: DocumentId, revisionId: RevisionId): void;
   editing(documentId: DocumentId): void;
-  acceptDisk(text: string, documentId: DocumentId): Promise<boolean>;
+  acceptDisk(text: string, documentId: DocumentId, automatic?: boolean): Promise<boolean>;
+  changes(documentId: DocumentId, revisionId: RevisionId): Promise<HighlightState>;
+  markSeen(documentId: DocumentId, revisionId: RevisionId, watchOnly?: boolean): Promise<boolean>;
+  gitStatus(documentId: DocumentId): Promise<GitChangesStatus>;
+  headChanges(documentId: DocumentId, enabled: boolean): Promise<GitChangesStatus>;
   onSettings(cb: (s: Settings) => void): void;
   onCommand(cb: (cmd: Command, documentId?: DocumentId) => void): void;
   onDiskChanged(cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void): void;

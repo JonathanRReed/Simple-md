@@ -1,3 +1,4 @@
+import type { HighlightState, GitChangesStatus } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
@@ -47,6 +48,7 @@ export interface DormantDocument {
   back: string[];
   forward: string[];
   disk?: { text: string; reason?: string };
+  seenOnReturn?: RevisionId;
 }
 export function createPane(container: HTMLElement, paneId: PaneId, options: {
   active(): boolean;
@@ -83,6 +85,18 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let disposed = false;
   let navigatingLink = false;
   let pendingDisk: DormantDocument["disk"];
+  let highlights: HighlightState = { kind: null, generation: 0, changes: { changed: [], deleted: [] } };
+  let gitStatus: GitChangesStatus = { available: false, reason: "Checking Git HEAD..." };
+  let changeTimer: number | undefined;
+  let changeSequence = 0;
+  let changeIndex = -1;
+  let changeWork: Promise<void> | undefined;
+  let changePending = false;
+  let visibleRevision: RevisionId | undefined;
+  let visibleSince = 0;
+  let seenOnReturn: RevisionId | undefined;
+  let active = options.active();
+
   interface PaneState {
     paneId: PaneId;
     documentId: DocumentId;
@@ -123,6 +137,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     doc.revisionId = makeRevisionId(doc.revisionId + 1);
     root.dataset.revisionId = String(doc.revisionId);
     simplemd.edit(text, pane.documentId, doc.revisionId);
+    visibleRevision = undefined;
+    if (highlights.kind) scheduleChanges();
   }
 
   let transitioning = false;
@@ -160,6 +176,95 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   // Retained blocks stay attached so diagrams and browser selections survive unchanged renders.
   const blockEls = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 
+  function paintChanges(): void {
+    const { changed, deleted } = highlights.changes;
+    for (const article of [docEl, previewEl]) {
+      for (const marker of article.querySelectorAll(":scope > .change-deleted")) marker.remove();
+      const blocks = [...article.querySelectorAll<HTMLElement>(":scope > .block")];
+      for (const block of blocks) {
+        const start = Number(block.dataset.sourceStart), end = Number(block.dataset.sourceEnd);
+        block.classList.toggle("change-highlight", changed.some(([a, b]) => start < b && end > a));
+      }
+      for (const line of deleted) {
+        const marker = document.createElement("div");
+        marker.className = "change-deleted";
+        marker.dataset.sourceStart = String(line);
+        marker.title = "Deleted block";
+        article.insertBefore(marker, blocks.find(block => Number(block.dataset.sourceStart) >= line) ?? null);
+      }
+    }
+    $("changes").hidden = !changed.length && !deleted.length;
+    const count = changed.length + deleted.length;
+    $("change-count").textContent = `${count} ${count === 1 ? "change" : "changes"}`;
+    $("change-count").title = highlights.kind === "head" ? "Since last commit" : "Since last seen";
+    pane.editor?.setChanges(highlights.changes);
+  }
+
+  function refreshChanges(): Promise<void> {
+    changePending = true;
+    if (changeWork) return changeWork;
+    const owner = pane;
+    changeWork = (async () => {
+      while (changePending && !disposed && owner === pane) {
+        changePending = false;
+        const id = pane.documentId, revision = doc.revisionId, sequence = ++changeSequence;
+        try {
+          const state = await simplemd.changes(id, revision);
+          if (disposed || owner !== pane || id !== pane.documentId || revision !== doc.revisionId || sequence !== changeSequence) continue;
+          highlights = state;
+          changeIndex = -1;
+          visibleRevision = revision;
+          visibleSince = performance.now();
+          paintChanges();
+        } catch (error) {
+          if (!disposed && owner === pane && revision === doc.revisionId && sequence === changeSequence) console.warn("simplemd: changes unavailable", error);
+        }
+      }
+    })().finally(() => { if (owner === pane) changeWork = undefined; });
+    return changeWork;
+  }
+  function scheduleChanges(): void {
+    ++changeSequence;
+    clearTimeout(changeTimer);
+    changeTimer = window.setTimeout(() => void refreshChanges(), 180);
+  }
+  async function markSeen(watchOnly = false, revision = doc.revisionId): Promise<void> {
+    const id = pane.documentId;
+    if (await simplemd.markSeen(id, revision, watchOnly) && id === pane.documentId && !disposed) {
+      if (gitStatus.available && !watchOnly) gitStatus = { available: true, active: false };
+      await refreshChanges();
+    }
+  }
+  async function toggleHeadChanges(): Promise<void> {
+    const id = pane.documentId;
+    const status = await simplemd.headChanges(id, highlights.kind !== "head");
+    if (id !== pane.documentId || disposed) return;
+    gitStatus = status;
+    if (!status.available) toast(status.reason);
+    await refreshChanges();
+  }
+  function navigateChange(direction: number): void {
+    const lines = [...highlights.changes.changed.map(([start]) => start), ...highlights.changes.deleted].sort((a, b) => a - b);
+    if (!lines.length) return;
+    changeIndex = (changeIndex + direction + lines.length) % lines.length;
+    const line = lines[changeIndex]!;
+    if (pane.view === "edit") pane.editor?.scrollToLine(line);
+    else {
+      const blocks = [...docEl.querySelectorAll<HTMLElement>(":scope > .block, :scope > .change-deleted")];
+      (blocks.find(block => Number(block.dataset.sourceStart) >= line) ?? blocks.at(-1))?.scrollIntoView({ block: "center" });
+    }
+  }
+  function activeChanged(next: boolean): void {
+    if (next === active) return;
+    if (!next) {
+      seenOnReturn = highlights.kind === "watch" && visibleRevision === doc.revisionId && performance.now() - visibleSince >= 1000 ? doc.revisionId : undefined;
+    } else if (seenOnReturn !== undefined) {
+      void markSeen(true, seenOnReturn);
+      seenOnReturn = undefined;
+    }
+    active = next;
+  }
+
   function mountBlocks(el: HTMLElement, blocks: RenderedBlock[], append = false): void {
     const prev = blockEls.get(el) ?? new Map<string, HTMLElement>();
     const next = append ? prev : new Map<string, HTMLElement>();
@@ -192,6 +297,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       stale.remove();
     }
     blockEls.set(el, next);
+    paintChanges();
     updateFragments(el);
     // renderDiagrams is idempotent per block, so retained blocks only rejoin the readiness wait.
     const id = pane.documentId;
@@ -425,6 +531,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       });
       retainedEditor = undefined;
       pane.editor.setEditable(!transitioning && !isReadOnly());
+      pane.editor.setChanges(highlights.changes);
       return pane.editor;
     });
     return pane.editorLoading;
@@ -486,6 +593,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
     disposed = false;
+    clearTimeout(changeTimer);
+    ++changeSequence;
+    changeWork = undefined;
+    changePending = false;
+    highlights = { kind: null, generation: 0, changes: { changed: [], deleted: [] } };
+    active = options.active();
+    seenOnReturn = retained?.seenOnReturn;
+    visibleRevision = undefined;
     pendingDisk = undefined;
     const id = payload.documentId;
     const mode = doc.hasDoc ? pane.mode : settings.mode;
@@ -560,6 +675,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (retained && !sourceEdit && !doc.lastGoodBlocks) await renderRead(doc.readText, false);
     if (disposed || pane !== owner || id !== pane.documentId) return;
     simplemd.perfMarker(id, "renderer-mount");
+    setTimeout(() => {
+      if (disposed || pane !== owner || id !== pane.documentId) return;
+      if (active && seenOnReturn !== undefined) { void markSeen(true, seenOnReturn); seenOnReturn = undefined; }
+      else void refreshChanges();
+      void simplemd.gitStatus(id).then(status => { if (!disposed && id === pane.documentId) gitStatus = status; }).catch(console.warn);
+    }, 0);
     // This marker does not await fonts, highlighting completion checks or diagram work.
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -666,7 +787,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       { label: "Keep mine", run: () => accept(false) },
     ]);
     const accept = async (reload: boolean, automatic = false) => {
-      if (!(await simplemd.acceptDisk(text, id)) || id !== pane.documentId || seq !== doc.diskSeq) return false;
+      if (!(await simplemd.acceptDisk(text, id, automatic)) || id !== pane.documentId || seq !== doc.diskSeq) return false;
       if (automatic && currentText() !== observedText) {
         offerChoice();
         return false;
@@ -676,7 +797,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       doc.readOnlyReason = undefined;
       pane.editor?.setEditable(!transitioning && !isReadOnly());
       hideBanner();
-      if (reload) applyDiskText(text);
+      if (reload) { applyDiskText(text); void refreshChanges(); }
       else {
         doc.savedText = text;
         setDirty(currentText() !== doc.savedText);
@@ -799,6 +920,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const set = (patch: Partial<Settings>) => () => { if (patch.mode) setMode(patch.mode); else void simplemd.setSettings(patch); };
     const cmd = (c: Command) => () => handleCommand(c);
     const items: PickerItem[] = [
+      { label: "Mark Seen", run: cmd("mark-seen") },
+      { label: "Next Change", run: cmd("next-change") },
+      { label: "Previous Change", run: cmd("previous-change") },
+      ...(gitStatus.available ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
       { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
       { label: "Settings…", run: () => handleCommand("preferences") },
       { label: "New note", hint: "⌘N", run: cmd("new") },
@@ -834,6 +959,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function handleCommand(cmd: Command): void {
     if (transitioning && ["toggle-edit", "undo", "redo", "save", "save-as", "format-bold", "format-italic", "format-code", "format-link", "format-strike"].includes(cmd)) return;
     switch (cmd) {
+      case "mark-seen": void markSeen(); return;
+      case "toggle-head-changes": void toggleHeadChanges().catch(error => toast(String(error))); return;
+      case "next-change": navigateChange(1); return;
+      case "previous-change": navigateChange(-1); return;
       case "save":
         void saveNow(false);
         break;
@@ -1005,6 +1134,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (mode === "live" || mode === "split" || mode === "source") setMode(mode);
   });
   editBtn.addEventListener("click", () => void showEdit());
+  $("mark-seen").addEventListener("click", () => void markSeen());
+  $("next-change").addEventListener("click", () => navigateChange(1));
+  $("previous-change").addEventListener("click", () => navigateChange(-1));
 
   function setMode(mode: EditMode): void {
     pane.mode = mode;
@@ -1015,6 +1147,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     updateChrome();
   }
   function suspend(): DormantDocument {
+    activeChanged(false);
     doc.readText = currentText();
     if (settings.autosave && doc.dirty && doc.meta.path && !doc.diskConflict && !isReadOnly()) {
       const retained = doc;
@@ -1033,9 +1166,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       state: doc, editor: pane.editor?.snapshot() ?? retainedEditor,
       view: pane.view,
       scroll: pane.view === "edit" ? pane.editor?.scroller.scrollTop ?? 0 : readScroll.scrollTop,
-      back: [...navBack], forward: [...navForward], disk: pendingDisk,
+      back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
+    clearTimeout(changeTimer); ++changeSequence;
     simplemd.releaseView(pane.documentId);
     if (!doc.mdx?.error) doc.lastGoodBlocks = null;
     ++pane.readRenderSeq; ++pane.previewRenderSeq; ++pane.viewSeq;
@@ -1059,6 +1193,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (context.editable && pane.editor) await pane.editor.contextMenu(context, request);
       else await request();
     },
+    activeChanged,
     load: onDoc, suspend, settings: applySettings, command: handleCommand, saved: onSaved, diskChanged: onDiskChanged,
     focus() { if (pane.view === "edit") pane.editor?.focus(); else readScroll.focus(); },
     get documentId() { return pane.documentId; },

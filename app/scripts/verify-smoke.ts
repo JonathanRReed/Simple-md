@@ -1,6 +1,6 @@
 import { assertDocument as assertPerfDocument } from "./perf-gate";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -142,6 +142,80 @@ async function test(name: string, run: () => Promise<void>): Promise<void> {
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 const note = "# Smoke edit note\n\nOriginal text.\n";
+
+await test("m6b-watch-highlights", async () => {
+  const before = "# Delivery plan\n\n## Ready\n\nThe foundation is complete.\n\n## Next\n\nReview the export path.\n";
+  const after = before.replace("Review the export path.", "Review the export path and verify image containment.");
+  const file = fixture("m6b-watch/note.md", before);
+  const other = fixture("m6b-watch/other.md", "# Other\n");
+  const marker = path.join(root, "m6b-watch-highlights", "armed.png");
+  const audit = path.resolve(appRoot, "../.audit/m6b"); fs.mkdirSync(audit, { recursive: true });
+  await launch("m6b-watch-highlights", file, [
+    evaluate(`window.watchFocus = document.activeElement; window.watchScroll = document.querySelector('#read-scroll').scrollTop;`),
+    { shot: marker },
+    evaluate(`await waitFor(() => document.querySelector('#doc .change-highlight'), 'Clean rewrite did not show highlights.');
+      assert(document.activeElement === window.watchFocus, 'Watch reload stole focus.');
+      assert(document.querySelector('#read-scroll').scrollTop === window.watchScroll, 'Watch reload scrolled.');
+      assert(document.querySelector('#doc .change-highlight').textContent.includes('image containment'), 'Wrong block highlighted.');
+      assert(document.querySelectorAll('#doc .change-highlight').length === 1, 'Unchanged blocks highlighted.');
+      assert(document.querySelector('#change-count').textContent === '1 change', 'Wrong change count.');
+      assert(document.querySelector('#banner').hidden, 'Clean rewrite entered conflict flow.');`),
+    { shot: path.join(audit, "watch-highlights.png") },
+    evaluate(`window.simplemd.command('toggle-edit'); await waitFor(() => document.querySelector('.cm-line.change-highlight'), 'Editor has no source-range highlight.');`),
+    { shot: path.join(audit, "watch-editor.png") },
+    evaluate(`window.simplemd.command('mark-seen'); await waitFor(() => document.querySelector('#changes').hidden, 'Mark Seen did not clear marks.');
+      assert(!document.querySelector('.cm-line.change-highlight'), 'Editor marks survived Mark Seen.');`),
+    evaluate(`const id = Number(document.querySelector('.document-pane').dataset.documentId);
+      assert(!(await window.simplemd.gitStatus(id)).available, 'Outside-repo toggle is enabled.');
+      assert(!(await window.simplemd.headChanges(id, true)).available, 'Outside-repo HEAD read succeeded.');
+      await window.simplemd.openPath(${quote(other)}, 'read');
+      await window.simplemd.openPath(${quote(file)}, 'read');`),
+  ], "read", { marker, file, text: after });
+  assert.equal(fs.readFileSync(file, "utf8"), after, "Watch or Mark Seen changed source bytes.");
+});
+
+for (const away of [false, true]) await test(`m6b-watch-tab-${away ? "unread" : "seen"}`, async () => {
+  const file = fixture(`m6b-tab-${away}/plan.md`, "# Plan\n\nBefore\n");
+  const other = fixture(`m6b-tab-${away}/other.md`, "# Other\n");
+  const name = `m6b-watch-tab-${away ? "unread" : "seen"}`;
+  const marker = path.join(root, name, "armed.png");
+  await launch(name, file, [
+    ...(away ? [evaluate(`await window.simplemd.openPath(${quote(other)}, 'read');`)] : []),
+    { shot: marker },
+    evaluate(away ? `await new Promise(resolve => setTimeout(resolve, 300));
+      await window.simplemd.openPath(${quote(file)}, 'read');
+      await waitFor(() => document.querySelector('#doc .change-highlight'), 'An update received while away was marked seen.');`
+      : `await waitFor(() => document.querySelector('#doc .change-highlight'), 'Watch marks did not appear.');
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      await window.simplemd.openPath(${quote(other)}, 'read');
+      await window.simplemd.openPath(${quote(file)}, 'read');
+      await waitFor(() => document.querySelector('#changes').hidden, 'Returning after reading did not mark seen.');`),
+  ], "read", { marker, file, text: "# Plan\n\nAfter\n" });
+});
+
+await test("m6b-git-head-highlights", async () => {
+  const committed = "# Delivery plan\n\n## Ready\n\nThe foundation is complete.\n\nAn obsolete step.\n\n## Next\n\nReview the export path.\n";
+  const current = committed.replace("An obsolete step.\n\n", "").replace("Review the export path.", "Review the export path and verify image containment.");
+  const file = fixture("m6b-git/plan.md", committed);
+  const dir = path.dirname(file);
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+  git("init"); git("config", "user.name", "Smoke"); git("config", "user.email", "smoke@example.invalid");
+  git("add", "--", file); git("commit", "-m", "fixture"); fs.writeFileSync(file, current);
+  const audit = path.resolve(appRoot, "../.audit/m6b"); fs.mkdirSync(audit, { recursive: true });
+  await launch("m6b-git-head-highlights", file, [
+    evaluate(`const id = Number(document.querySelector('.document-pane').dataset.documentId);
+      assert((await window.simplemd.gitStatus(id)).available, 'Git HEAD toggle is unavailable.');`),
+    { nativeMenu: ["View", "Show Changes Since Last Commit"] },
+    evaluate(`await waitFor(() => document.querySelector('#doc .change-highlight') && document.querySelector('#doc .change-deleted'), 'Git HEAD changes did not render.');
+      assert(document.querySelectorAll('#doc .change-highlight').length === 1, 'HEAD marked unchanged blocks.');
+      assert(document.querySelector('#change-count').title === 'Since last commit', 'Wrong baseline source.');
+      document.querySelector('#next-change').click(); document.querySelector('#previous-change').click();`),
+    { shot: path.join(audit, "git-head-highlights.png") },
+    { nativeMenu: ["View", "Show Changes Since Last Commit"] },
+    evaluate(`await waitFor(() => document.querySelector('#changes').hidden, 'Turning HEAD off kept highlights.');`),
+  ]);
+  assert.equal(fs.readFileSync(file, "utf8"), current);
+});
 
 await test("normal-read-window", async () => {
   const file = fixture("normal-read-window/note.md", note);
@@ -616,6 +690,7 @@ for (const choice of ["Reload", "Keep mine"] as const) {
       ...appendCharacter("!"),
       { shot: marker },
       evaluate(`await waitFor(() => !document.querySelector('#banner').hidden, 'External atomic replacement did not show a conflict.');
+        assert(!document.querySelector('.change-highlight'), 'Dirty conflict created watch highlights.');
         const button = [...document.querySelectorAll('#banner button')].find(button => button.textContent === ${quote(choice)});
         assert(button, 'Conflict choice is missing.');
         button.click();

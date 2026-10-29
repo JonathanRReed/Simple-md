@@ -1,3 +1,5 @@
+import { changeMarks, setChangeMarks } from "./change-marks.js";
+import type { BlockChanges } from "../shared/change-highlights.js";
 import { retainEditorState } from "./editor-history.js";
 import { spellingReplacement } from "./spelling.js";
 import type { ContextResult, NativeContext } from "../shared/native-context.js";
@@ -49,6 +51,8 @@ export interface EditorHandle {
   contextMenu(context: NativeContext, request: () => Promise<ContextResult>): Promise<void>;
   getText(): string;
   snapshot(): EditorSnapshot;
+  setChanges(changes: BlockChanges): void;
+  scrollToLine(line: number): void;
   setMdx(source: string, result: MdxResult): void;
   /** Replaces the document while keeping the cursor and scroll position near where they were. */
   setText(text: string, addToHistory?: boolean): void;
@@ -148,6 +152,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         historySlot.of([history({ minDepth: 100 }), ...(opts.snapshot ? [historyField.init(() => opts.snapshot!.state.field(historyField))] : [])]),
         byteText.init(() => opts.snapshot?.state.field(byteText) ?? initial.format),
         editorText,
+        changeMarks,
         drawSelection(),
         dropCursor(),
         indentOnInput(),
@@ -279,6 +284,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     snapshot() {
       return { scroll: view.scrollSnapshot(), state: retainEditorState(view.state) };
     },
+    setChanges(changes) { view.dispatch({ effects: setChangeMarks.of(changes) }); },
+    scrollToLine(line) { view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from, { y: "center" }) }); },
     getText: () => view.state.field(editorText).text,
     setText(text, addToHistory = false) {
       if (view.state.field(editorText).text === text) return;

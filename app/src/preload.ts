@@ -55,7 +55,11 @@ contextBridge.exposeInMainWorld("simplemd", {
     if (performanceTracing) ipcRenderer.send("smd:perf-marker", documentId, marker, performance.timeOrigin + performance.now());
   },
   documentReady: (documentId: DocumentId) => ipcRenderer.send("smd:document-ready", documentId),
-  acceptDisk: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:accept-disk", text, documentId),
+  acceptDisk: (text: string, documentId: DocumentId, automatic = false) => ipcRenderer.invoke("smd:accept-disk", text, documentId, automatic),
+  changes: (documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:changes", documentId, revisionId),
+  markSeen: (documentId: DocumentId, revisionId: RevisionId, watchOnly = false) => ipcRenderer.invoke("smd:mark-seen", documentId, revisionId, watchOnly),
+  gitStatus: (documentId: DocumentId) => ipcRenderer.invoke("smd:git-status", documentId),
+  headChanges: (documentId: DocumentId, enabled: boolean) => ipcRenderer.invoke("smd:head-changes", documentId, enabled),
   printReady: (error?: string) => ipcRenderer.send("smd:print-ready", error),
 
   mdxRanges: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:mdx-ranges", text, documentId, revisionId),
