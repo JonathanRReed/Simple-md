@@ -59,6 +59,16 @@ macOS previews use the Quick Look preview and thumbnail extensions described in 
 
 On Windows and Linux, open notes through File > Open, Open With, file associations, or an explicit command-line file path. The old preview-only global shortcut is removed. The app stays resident in the tray for warm opens; Launch at Login is optional. See [Linux integration](app/integrations/linux/README.md).
 
+## Releases and updates
+
+Download installers from [GitHub Releases](https://github.com/JonathanRReed/Simple-md/releases). macOS releases require the owner's Developer ID signature and notarization. Windows releases use SignPath when configured.
+
+For an unsigned Windows installer, verify its SHA-256 against the release checksums. If SmartScreen blocks it, choose More info, then Run anyway after confirming the source. If that option is unavailable, follow your organization's policy.
+
+Automatic updates check daily and download in the background. Disable them in Settings or with `auto-update = false`. Use Check for Updates in the SimpleMD menu on macOS or Help on Windows/Linux. Restart to Install Update asks for confirmation and settles unsaved edits. Unsigned Mac and development builds skip updates; DEB installations use the package manager.
+
+See the [owner release runbook](docs/release.md) for local macOS signing, Actions builds, and winget/Homebrew manifest generation.
+
 ## License
 
 [MIT](LICENSE). Copyright 2026 Jonathan Ray Reed. The license also ships in packaged app resources.
