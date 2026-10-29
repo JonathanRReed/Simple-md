@@ -49,13 +49,16 @@ test("static author policy matches every sanitizer fixture and all 41 corpus doc
 
 test("policy attributes, inert document constructs and slot-name spoofing match the renderer", async () => {
   const attrs = [...new Set([...globalAttrs, ...Object.values(perTag).flat(), "class", "style", "onclick", "is", "data-evil", "aria-label"])];
+  const values = ["", "x", "javascript:alert(1)", "https://safe.test/x", "#x", "&lt;/style&gt;", " --&gt; "];
   const sources = [
-    ...authorTags.map((tag) => `<${tag} ${attrs.map((name) => `${name}="javascript:alert(1)"`).join(" ")}>Safe</${tag}>`),
+    ...values.flatMap((value) => authorTags.map((tag) => `<${tag} ${attrs.map((name) => `${name}="${value}"`).join(" ")}>Safe</${tag}>`)),
     " \n\t<p>Whitespace</p>", "<html><head><title>Head</title><style>bad</style></head><body><p>Body</p></body></html>",
     "<template><p id=x>Hidden</p></template><p>Shown</p>", "<noscript><p>Hidden</p></noscript><p>Shown</p>",
     "<![CDATA[<b>Bad</b>]]><?xml test?><p>Shown</p><!--<p>Hidden</p>-->",
     '<p><!--<img>-->&lt;x&gt;</p><textarea>&lt;img onerror=alert(1)&gt;</textarea>',
-    ...attrs.map((name) => `<p ${name}="javascript:alert(1)">Safe</p>`),
+    ...values.flatMap((value) => attrs.map((name) => `<p ${name}="${value}">Safe</p>`)),
+    '<p for="x">Safe</p><p headers="javascript:x">Safe</p>',
+    '<a for="x" href="#x">Ref</a><p headers="javascript:x" usemap="#x">Ref</p>',
   ];
   const inputs = sources.map((source, i) => ({ name: `policy-${i}`, source, staticHtml: sanitizeAuthorHtmlStatic(source, { urls }) }));
   const rendered = await core.renderMarkdown('<details>\n<summary>More</summary>\n<simplemd-static-slot-0><img onerror=run() src=x></simplemd-static-slot-0>\n\n**Safe**\n\n</details>', "/project/docs/note.md");

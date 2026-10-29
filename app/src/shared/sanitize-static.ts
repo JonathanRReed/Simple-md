@@ -17,6 +17,7 @@ const uriSafeAttrs = new Set(["alt", "class", "for", "id", "label", "name", "pat
 const uriPattern = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 const attrWhitespace = /[\u0000-\u0020\u00a0\u1680\u180e\u2000-\u2029\u205f\u3000]/g;
 const unsafeAttribute = /((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i;
+const referenceAttrs = ["href", "for", "headers", "usemap"];
 
 function elements(root: P.ParentNode): P.Element[] {
   const result: P.Element[] = [];
@@ -77,7 +78,8 @@ function updateFragments(root: P.ParentNode, originals: Originals): void {
     if (!map.has(base)) map.set(base, id);
     setAttr(node, name, id);
   }
-  for (const node of nodes) for (const name of ["href", "for", "headers", "usemap"]) {
+  // Match the renderer's selector before consulting saved, possibly removed attributes.
+  for (const node of nodes.filter((node) => node.attrs.some(({ name }) => referenceAttrs.includes(name)))) for (const name of referenceAttrs) {
     const value = originals.get(node)?.get(name) ?? attr(node, name);
     if (value === undefined) continue;
     if (name === "href" || name === "usemap") {
@@ -132,6 +134,8 @@ function sanitizeTree(html: string, options: StaticAuthorOptions, originals: Ori
         return resolved === null ? [] : [{ name, value: resolved }];
       }
       if (name === "id" || name === "name") value = prefixFragment(value);
+      // DOMPurify removes declarative patch linkage. Neither label nor output is allowed.
+      if (name === "for") return [];
       if (unsafeAttribute.test(value) || (value && !uriSafeAttrs.has(name) && !uriPattern.test(value.replace(attrWhitespace, "")))) return [];
       return [{ name, value }];
     });
