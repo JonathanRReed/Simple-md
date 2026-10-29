@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -19,6 +19,32 @@ test("concurrent writes use separate temporary files and leave one complete revi
   await Promise.all(revisions.map((text) => writeAtomic(file, text)));
   expect(revisions).toContain(await fs.readFile(file, "utf8"));
   expect(await fs.readdir(dir)).toEqual(["note.md"]);
+});
+
+test.skipIf(process.platform !== "win32")("atomic save retries temporary Windows sharing errors", async () => {
+  const dir = await fixture(), file = path.join(dir, "note.md");
+  await fs.writeFile(file, "old");
+  const rename = spyOn(fs, "rename");
+  rename.mockRejectedValueOnce(Object.assign(new Error("Sharing violation"), { code: "EPERM" }));
+  try {
+    await writeAtomic(file, "new", "old");
+    expect(await fs.readFile(file, "utf8")).toBe("new");
+    expect(await fs.readdir(dir)).toEqual(["note.md"]);
+  } finally { rename.mockRestore(); }
+});
+
+test.skipIf(process.platform !== "win32")("an external edit during a Windows rename retry is preserved", async () => {
+  const dir = await fixture(), file = path.join(dir, "note.md");
+  await fs.writeFile(file, "old");
+  const rename = spyOn(fs, "rename").mockImplementationOnce(async () => {
+    await fs.writeFile(file, "external edit");
+    throw Object.assign(new Error("Sharing violation"), { code: "EPERM" });
+  });
+  try {
+    await expect(writeAtomic(file, "new", "old")).rejects.toThrow("changed on disk");
+    expect(await fs.readFile(file, "utf8")).toBe("external edit");
+    expect(await fs.readdir(dir)).toEqual(["note.md"]);
+  } finally { rename.mockRestore(); }
 });
 
 test("saving preserves existing private permissions", async () => {
