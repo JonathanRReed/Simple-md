@@ -172,7 +172,7 @@ function refreshMenus(): void {
       applySettings({ recents: [] });
     },
     share: () => { const doc = currentSession(); if (doc?.path) shareDocument(context().win, doc.path); },
-    canShare: () => !!currentSession()?.path,
+    hasDocumentPath: () => !!activeDoc?.path,
     installCli: () => void installCli(),
     quit: () => app.quit(),
   });

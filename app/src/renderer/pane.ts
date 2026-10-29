@@ -1,4 +1,4 @@
-import type { HighlightState, GitChangesStatus } from "../shared/change-highlights.js";
+import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
@@ -86,7 +86,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let navigatingLink = false;
   let pendingDisk: DormantDocument["disk"];
   let highlights: HighlightState = { kind: null, generation: 0, changes: { changed: [], deleted: [] } };
-  let gitStatus: GitChangesStatus = { available: false, reason: "Save the file in a Git repository first." };
   let changeTimer: number | undefined;
   let changeSequence = 0;
   let changeIndex = -1;
@@ -289,7 +288,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   async function markSeen(watchOnly = false, revision = doc.revisionId): Promise<void> {
     const id = pane.documentId;
     if (await simplemd.markSeen(id, revision, watchOnly) && id === pane.documentId && !disposed) {
-      if (gitStatus.available && !watchOnly) gitStatus = { available: true, active: false };
       await refreshChanges();
     }
   }
@@ -297,7 +295,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const id = pane.documentId;
     const status = await simplemd.headChanges(id, highlights.kind !== "head");
     if (id !== pane.documentId || disposed) return;
-    gitStatus = status;
     if (!status.available) toast(status.reason);
     await refreshChanges();
   }
@@ -719,7 +716,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (doc.readOnlyReason) showBanner(doc.readOnlyReason, []);
     emptyEl.hidden = true;
     docEl.hidden = false;
-    gitStatus = payload.path ? { available: true, active: false } : { available: false, reason: "Save the file in a Git repository first." };
     document.title = payload.title;
     mountBlocks(previewEl, []);
     const sourceEdit = (retained ? retained.view === "edit" : payload.intent === "edit") && !isReadOnly();
@@ -772,7 +768,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
       invalidateExport();
-      gitStatus = { available: true, active: false };
       void refreshChanges();
     }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
@@ -987,7 +982,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       { label: "Mark Seen", run: cmd("mark-seen") },
       { label: "Next Change", run: cmd("next-change") },
       { label: "Previous Change", run: cmd("previous-change") },
-      ...(gitStatus.available ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
+      ...(doc.meta.path ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
       { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
       { label: "Settings…", run: () => handleCommand("preferences") },
       { label: "New note", hint: "⌘N", run: cmd("new") },

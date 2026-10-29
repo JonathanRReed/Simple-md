@@ -213,7 +213,10 @@ await test("m6b-watch-highlights", async () => {
       assert(!(await window.simplemd.headChanges(id, true)).available, 'Outside-repo HEAD read succeeded.');
       await window.simplemd.openPath(${quote(other)}, 'read');
       await window.simplemd.openPath(${quote(file)}, 'read');`),
-    { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: false, tooltip: true } },
+    { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: true, checked: false, tooltip: true } },
+    { nativeMenu: ['View', 'Show Changes Since Last Commit'] },
+    evaluate(`await waitFor(() => document.querySelector('#toast').textContent.includes('outside a Git repository'), 'Outside-repo Git action did not explain the failure.');`),
+    { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: true, checked: false } },
   ], "read", { marker, file, text: after });
   assert.equal(fs.readFileSync(file, "utf8"), after, "Watch or Mark Seen changed source bytes.");
 });

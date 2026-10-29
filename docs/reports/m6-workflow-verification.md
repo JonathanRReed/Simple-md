@@ -29,3 +29,24 @@ window exists. It retains only the last closed window, as the tray contract
 requires. Full-suite verification is pending.
 
 Local logs are under `.audit/m6-finish/`.
+
+## Menu correction
+
+`changesMenuState()` now supplies the native item and its cache key with the
+same enabled, checked, and tooltip values. A document path enables the action,
+including after a failed Git read. The renderer palette uses the path too.
+Git still runs only on explicit use. The watch smoke case now expects the
+enabled retry and verifies the outside-repository message.
+
+The retry check also reproduced a checked-state bug. Electron toggles a
+checkbox before calling its handler. A repeated identical failure leaves the
+menu cache unchanged, so the checkbox stayed checked. The handler now restores
+the confirmed state while the asynchronous result is pending. The new smoke
+assertion failed before this fix and passed afterward. The menu unit checks
+and typecheck passed.
+
+The exploratory full run passed 89 of 90 cases, including all five reported
+failures in sequence. Its one failure was caused by rebuilding `dist` while
+the suite was launching `bytes-roundtrip-binary-looking`, temporarily removing
+`main-app.mjs`. This run is excluded from final acceptance. The two acceptance
+runs will use a fixed build and separate temporary blog copies.

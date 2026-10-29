@@ -1,4 +1,5 @@
 import type { GitChangesStatus } from "../shared/change-highlights.js";
+import { changesMenuState } from "./menu-state.js";
 import path from "node:path";
 import { Menu, app, type MenuItemConstructorOptions } from "electron";
 import type { Command, EditMode, Settings, ThemeSetting } from "../shared/types.js";
@@ -12,14 +13,14 @@ export interface MenuActions {
   patch(patch: Partial<Settings>): void;
   clearRecents(): void;
   share(): void;
-  canShare(): boolean;
+  hasDocumentPath(): boolean;
   quit(): void;
   installCli(): void;
 }
 
 export function buildMenu(a: MenuActions): void {
   const s = a.settings();
-  const changes = a.changesStatus();
+  const changes = changesMenuState(a.hasDocumentPath(), a.changesStatus());
   const mac = process.platform === "darwin";
   const cmd = (label: string, command: Command, accelerator?: string): MenuItemConstructorOptions => ({
     label,
@@ -73,7 +74,7 @@ export function buildMenu(a: MenuActions): void {
         cmd("Save", "save", "CommandOrControl+S"),
         cmd("Save As…", "save-as", "CommandOrControl+Shift+S"),
         { type: "separator" },
-        ...(mac ? [{ label: "Share", enabled: a.canShare(), click: a.share } satisfies MenuItemConstructorOptions] : []),
+        ...(mac ? [{ label: "Share", enabled: a.hasDocumentPath(), click: a.share } satisfies MenuItemConstructorOptions] : []),
         cmd("Export as PDF…", "export-pdf"),
         cmd("Export as HTML…", "export-html"),
         cmd("Print…", "print", "CommandOrControl+P"),
@@ -127,7 +128,7 @@ export function buildMenu(a: MenuActions): void {
         cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+Right"),
         cmd("Next Tab", "next-tab", "CommandOrControl+Shift+]"),
         cmd("Previous Tab", "previous-tab", "CommandOrControl+Shift+["),
-        { label: "Show Changes Since Last Commit", type: "checkbox", enabled: changes.available, checked: changes.available && changes.active, toolTip: changes.available ? "Compare this file with Git HEAD" : changes.reason, click: () => a.command("toggle-head-changes") },
+        { label: "Show Changes Since Last Commit", type: "checkbox", ...changes, click: item => { item.checked = changes.checked; a.command("toggle-head-changes"); } },
         cmd("Mark Seen", "mark-seen", "CommandOrControl+Shift+M"),
         cmd("Next Change", "next-change", "CommandOrControl+Alt+Down"),
         cmd("Previous Change", "previous-change", "CommandOrControl+Alt+Up"),
