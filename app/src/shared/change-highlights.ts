@@ -2,6 +2,7 @@
 export interface BlockChanges {
   changed: [number, number][];
   deleted: number[];
+  note?: string;
 }
 export type ChangeBaseline = { kind: "watch" | "head"; text: string };
 export type GitChangesStatus = { available: true; active: boolean } | { available: false; reason: string };
@@ -10,6 +11,7 @@ export function isBlockChanges(value: unknown): value is BlockChanges {
   const line = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
   return typeof value === "object" && value !== null && "changed" in value && Array.isArray(value.changed) &&
     value.changed.every(r => Array.isArray(r) && r.length === 2 && line(r[0]) && line(r[1]) && r[1] >= r[0]) &&
+    (!("note" in value) || typeof value.note === "string") &&
     "deleted" in value && Array.isArray(value.deleted) && value.deleted.every(line);
 }
 
@@ -18,3 +20,6 @@ export interface HighlightState {
   generation: number;
   changes: BlockChanges;
 }
+
+export const MAX_CHANGE_BYTES = 2 * 1024 * 1024;
+export const CHANGE_SIZE_NOTE = "Change highlights are off above 2 MB.";

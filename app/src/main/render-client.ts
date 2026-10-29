@@ -87,8 +87,8 @@ export class RenderClient {
     return response.value;
   }
 
-  async changes(before: string, text: string, filePath: string | null): Promise<BlockChanges> {
-    const response = await this.request({ kind: "changes", before, text, filePath });
+  async changes(before: string, text: string, filePath: string | null, baselineKey = ""): Promise<BlockChanges> {
+    const response = await this.request({ kind: "changes", before, text, filePath, baselineKey });
     if (response?.kind !== "changes") throw new Error("Invalid changes response");
     return response.value;
   }
@@ -219,4 +219,4 @@ export const mdxRanges = (text: string) => client.mdxRanges(text);
 export const startBlocks = (text: string, filePath: string | null) => client.startBlocks(text, filePath);
 export const nextBlocks = (stream: number) => client.nextBlocks(stream);
 
-export const blockChanges = (before: string, text: string, filePath: string | null) => client.changes(before, text, filePath);
+export const blockChanges = (before: string, text: string, filePath: string | null, baselineKey: string) => client.changes(before, text, filePath, baselineKey);

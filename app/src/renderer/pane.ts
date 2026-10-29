@@ -223,7 +223,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function paintChanges(): void {
     const { changed, deleted } = highlights.changes;
     const hasChanges = !!(changed.length || deleted.length);
-    if (!hasChanges && !paintedChanges) { $("changes").hidden = true; return; }
+    if (!hasChanges && !paintedChanges && !highlights.changes.note) { $("changes").hidden = true; return; }
     paintedChanges = hasChanges;
     const ranges = [...changed].sort((a, b) => a[0] - b[0]);
     const maxEnds: number[] = [];
@@ -251,9 +251,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         article.insertBefore(marker, bySource[lo] ?? null);
       }
     }
-    $("changes").hidden = !changed.length && !deleted.length;
+    $("changes").hidden = !changed.length && !deleted.length && !highlights.changes.note;
     const count = changed.length + deleted.length;
-    $("change-count").textContent = `${count} ${count === 1 ? "change" : "changes"}`;
+    $("change-count").textContent = highlights.changes.note ?? `${count} ${count === 1 ? "change" : "changes"}`;
     $("change-count").title = highlights.kind === "head" ? "Since last commit" : "Since last seen";
     pane.editor?.setChanges(highlights.changes);
   }

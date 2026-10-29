@@ -11,7 +11,7 @@ import { parentPort } from "node:worker_threads";
 import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
-  | { kind: "changes"; before: string; text: string; filePath: string | null }
+  | { kind: "changes"; before: string; text: string; filePath: string | null; baselineKey: string }
   | { kind: "blocks"; text: string; filePath: string | null; known?: { key: string; fingerprint?: string }[] }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
   | { kind: "mdx-ranges"; text: string }
@@ -46,7 +46,7 @@ port.on("message", async (request: RenderRequest) => {
     let response: RenderResponse;
     switch (request.kind) {
       case "changes":
-        response = { id: request.id, kind: "changes", value: await calculateBlockChanges(request.before, request.text, request.filePath) };
+        response = { id: request.id, kind: "changes", value: await calculateBlockChanges(request.before, request.text, request.filePath, request.baselineKey) };
         break;
       case "stream-start":
         incremental = undefined;

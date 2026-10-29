@@ -46,3 +46,19 @@ test("changed reference definitions mark the block whose rendered link changed",
   expect(await calculateBlockChanges(before, before.replace("before.example", "after.example"), null))
     .toEqual({ changed: [[2, 3]], deleted: [] });
 });
+
+test("baseline blocks are reused until their generation changes", async () => {
+  const { BlockChangeCalculator } = await import("../src/main/block-changes");
+  const { createWorkerRenderCore } = await import("../src/main/markdown");
+  const core = createWorkerRenderCore(); let baselineRenders = 0;
+  const calculator = new BlockChangeCalculator(async (...args) => { if (args[0] === "Baseline") baselineRenders++; return core.renderBlocks(...args); });
+  expect((await calculator.calculate("Baseline", "Edit", null, "doc:1")).changed).toEqual([[0, 1]]);
+  await calculator.calculate("Baseline", "Another edit", null, "doc:1");
+  expect(baselineRenders).toBe(1);
+  await calculator.calculate("Baseline", "Third edit", null, "doc:2");
+  expect(baselineRenders).toBe(2);
+});
+test("large documents skip change rendering with a quiet status note", async () => {
+  const { calculateBlockChanges } = await import("../src/main/block-changes");
+  expect(await calculateBlockChanges("Small", "x".repeat(2 * 1024 * 1024 + 1), null)).toEqual({ changed: [], deleted: [], note: "Change highlights are off above 2 MB." });
+});

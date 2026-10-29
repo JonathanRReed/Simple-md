@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { ByteCache } from "../shared/byte-cache.js";
+import { cacheBudget } from "./cache-budget.js";
+import { MAX_CHANGE_BYTES, CHANGE_SIZE_NOTE } from "../shared/change-highlights.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
 import type { RenderedBlock } from "../shared/render-core.js";
 import { createWorkerRenderCore } from "./markdown.js";
@@ -50,9 +53,22 @@ export function diffSourceBlocks(before: string, old: SourceBlock[], after: stri
 }
 
 const core = createWorkerRenderCore();
-export async function calculateBlockChanges(before: string, after: string, filePath: string | null): Promise<BlockChanges> {
-  if (before === after) return { changed: [], deleted: [] };
-  const old = await core.renderBlocks(before, filePath, false);
-  const current = await core.renderBlocks(after, filePath, false);
-  return diffSourceBlocks(before, old.blocks, after, current.blocks);
+export class BlockChangeCalculator {
+  private readonly baselines = new ByteCache<{ text: string; blocks: SourceBlock[] }>(cacheBudget);
+  constructor(private readonly render = core.renderBlocks) {}
+  async calculate(before: string, after: string, filePath: string | null, baselineKey = ""): Promise<BlockChanges> {
+    if (Buffer.byteLength(before) > MAX_CHANGE_BYTES || Buffer.byteLength(after) > MAX_CHANGE_BYTES) return { changed: [], deleted: [], note: CHANGE_SIZE_NOTE };
+    if (before === after) return { changed: [], deleted: [] };
+    const key = `${baselineKey}\0${filePath}`;
+    let old = baselineKey ? this.baselines.get(key) : undefined;
+    if (!old || old.text !== before) {
+      const rendered = await this.render(before, filePath, false);
+      old = { text: before, blocks: rendered.blocks.map(({ sourceRange, fingerprint }) => ({ sourceRange, fingerprint })) };
+      if (baselineKey) this.baselines.set(key, old, 2 * Buffer.byteLength(before) + 2 * Buffer.byteLength(JSON.stringify(old.blocks)));
+    }
+    const current = await this.render(after, filePath, false);
+    return diffSourceBlocks(before, old.blocks, after, current.blocks);
+  }
 }
+const calculator = new BlockChangeCalculator();
+export const calculateBlockChanges = (before: string, after: string, filePath: string | null, baselineKey = "") => calculator.calculate(before, after, filePath, baselineKey);

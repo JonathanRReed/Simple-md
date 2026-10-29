@@ -1000,7 +1000,7 @@ function registerIpc(): void {
     const revisionId = ipcRevision(doc, revision);
     const baseline = doc.baseline;
     const generation = doc.baselineGeneration;
-    const changes = baseline ? await doc.render(revisionId, () => blockChanges(baseline.text, doc.text, doc.path)) : { changed: [], deleted: [] };
+    const changes = baseline ? await doc.render(revisionId, () => blockChanges(baseline.text, doc.text, doc.path, `${doc.documentId}:${generation}`)) : { changed: [], deleted: [] };
     if (generation !== doc.baselineGeneration) throw new Error("The change baseline was replaced.");
     return { kind: baseline?.kind ?? null, generation, changes };
   });

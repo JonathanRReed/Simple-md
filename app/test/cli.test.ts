@@ -144,7 +144,7 @@ test.skipIf(process.platform === "win32")("authenticated waiters have a separate
     return new Promise((resolve, reject) => {
       const reader = new FrameReader();
       socket.once("connect", () => socket.write(frame(Buffer.from(JSON.stringify({ ...request, id: `cap-${index}`, secret: state.secret })))));
-      socket.on("data", bytes => reader.push(bytes, frame => resolve(JSON.parse(frame.toString()))));
+      socket.on("data", bytes => reader.push(typeof bytes === "string" ? Buffer.from(bytes) : bytes, frame => resolve(JSON.parse(frame.toString()))));
       socket.once("error", reject); socket.once("close", () => reject(new Error("Closed before response")));
     });
   }
