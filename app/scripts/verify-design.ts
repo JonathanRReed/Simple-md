@@ -49,7 +49,34 @@ if (phase === "after") steps.push(evaluate(`
   await new Promise(r => setTimeout(r, 120));
   assert(document.getAnimations().every(a => a instanceof CSSAnimation && /^cm-blink2?$/.test(a.animationName)), 'Decorative motion remains: ' + JSON.stringify(document.getAnimations().map(a => ({name:a.animationName,property:a.transitionProperty,target:a.effect?.target?.className}))));
 `));
-steps.push(viewport(860), evaluate(`window.simplemd.command('preferences');`));
+steps.push(viewport(860));
+if (phase === "after") {
+  steps.push(evaluate(`
+    document.querySelector('.document-pane[data-active="true"] [data-element="modes"] [aria-checked="true"]').focus();
+  `), { input: { type: "keyDown", keyCode: "Right" } }, { input: { type: "keyUp", keyCode: "Right" } }, evaluate(`
+    const pane = document.querySelector('.document-pane[data-active="true"]');
+    await waitFor(() => pane.querySelector('[data-element="edit"]').dataset.mode === 'source');
+    assert(document.activeElement.dataset.mode === 'source', 'Radio navigation lost focus');
+    const reading = [...document.querySelectorAll('.tab')].find(t => t.querySelector('.tab-name').textContent === 'reading.md');
+    await window.simplemd.closeTab(Number(reading.dataset.documentId));
+    await waitFor(() => document.querySelector('#stage').dataset.panes === '1');
+    assert(document.querySelector('#tabs').hidden, 'One-tab strip is visible');
+    assert(document.querySelector('.pane-toolbar').getBoundingClientRect().height === 0, 'Single pane still has a header');
+    assert(document.querySelector('.pane-controls').getBoundingClientRect().top < 38, 'Single-pane modes are not in the title bar');
+    for (const mode of ['live','split','source']) {
+      window.simplemd.command('mode-' + mode);
+      await waitFor(() => document.querySelector('[data-element="edit"]').dataset.mode === mode);
+      assert(parseFloat(getComputedStyle(document.querySelector('.cm-content')).paddingLeft) >= 24, mode + ' lost editor padding');
+    }
+    window.designOldWidth = getComputedStyle(document.querySelector('.cm-content')).maxWidth;
+    await window.simplemd.setSettings({writingContentWidth:40});
+    await waitFor(() => getComputedStyle(document.querySelector('.cm-content')).maxWidth !== window.designOldWidth);
+    const content = document.querySelector('.cm-content');
+    assert(content.getBoundingClientRect().left > document.querySelector('[data-element="editor-host"]').getBoundingClientRect().left + 24, 'Editor measure is not centered');
+    assert(getComputedStyle(content).maxWidth === getComputedStyle(content).width, 'Editor ignored its measure');
+  `), shot("one-tab-source"));
+}
+steps.push(evaluate(`await window.simplemd.setSettings({writingContentWidth:66}); window.simplemd.command('preferences');`));
 for (const theme of ["light", "dark"]) steps.push({ settings: [
   evaluate(`await waitFor(() => document.querySelector('#reading-font-family option')); await window.simplemdSettings.set({theme:${JSON.stringify(theme)}});`),
   { debug: { method: "Emulation.setEmulatedMedia", params: { features: [{ name: "prefers-color-scheme", value: theme }] } } },

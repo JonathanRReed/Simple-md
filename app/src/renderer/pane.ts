@@ -741,7 +741,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     pane.editor?.setText(next, true);
     setDirty(doc.readText !== doc.savedText);
     await renderRead(doc.readText, true);
-    // Pulse the re-rendered checkbox (same ordinal in the fresh DOM) as press feedback.
     if (disposed || id !== pane.documentId) return;
     if (!disposed && id === pane.documentId) scheduleAutosave();
   }

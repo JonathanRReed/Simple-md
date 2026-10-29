@@ -73,6 +73,7 @@ function syncChrome(): void {
     button.append(title, close);
     button.addEventListener("click", () => void api.activateTab(id));
     button.addEventListener("keydown", e => {
+      if (e.target !== button) return;
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void api.activateTab(id); }
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         e.preventDefault(); const next = ids[(index + (e.key === "ArrowRight" ? 1 : -1) + ids.length) % ids.length];
