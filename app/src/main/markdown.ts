@@ -3,7 +3,7 @@ import { perfMark } from "./perf.js";
 import { urlContext } from "./document-urls.js";
 import type { Token } from "markdown-it";
 import { createRenderCore } from "../shared/render-core.js";
-import type { BundledLanguage, Highlighter } from "shiki";
+import type { HighlighterCore } from "shiki/core";
 
 const resolveLang = (info: string) => {
   const raw = info.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
@@ -15,15 +15,15 @@ const THEMES = { light: "github-light", dark: "github-dark" } as const;
 const MAX_HIGHLIGHT_CHARS = 100_000;
 const LANGUAGE_ALIASES: Record<string, string> = { gitignore: "ini" };
 
-let highlighterPromise: Promise<Highlighter> | undefined;
-let highlighter: Highlighter | undefined;
+let highlighterPromise: Promise<HighlighterCore> | undefined;
+let highlighter: HighlighterCore | undefined;
 
-function getHighlighter(): Promise<Highlighter> {
+function getHighlighter(): Promise<HighlighterCore> {
   highlighterPromise ??= Promise.all([
-    import("shiki"),
+    import("shiki/core"),
     import("shiki/engine/oniguruma"),
-  ]).then(([{ createHighlighter }, { createOnigurumaEngine }]) => createHighlighter({
-    themes: Object.values(THEMES),
+  ]).then(([{ createHighlighterCore }, { createOnigurumaEngine }]) => createHighlighterCore({
+    themes: [import("shiki/themes/github-light.mjs"), import("shiki/themes/github-dark.mjs")],
     langs: [],
     engine: createOnigurumaEngine(import("shiki/wasm")),
   })).then((h) => (highlighter = h)).catch((error) => {
@@ -39,12 +39,16 @@ async function prepareHighlighting(tokens: Token[]): Promise<void> {
     .map((token) => resolveLang(token.info))
     .filter((lang) => lang && lang !== "mermaid"));
   if (!wanted.size) return;
-  const { bundledLanguages } = await import("shiki");
-  const supported = [...wanted].filter((lang): lang is BundledLanguage => Object.hasOwn(bundledLanguages, lang));
+  const { bundledLanguages } = await import("shiki/langs");
+  const loaders = new Map(Object.entries(bundledLanguages));
+  const supported = [...wanted].flatMap((lang) => {
+    const load = loaders.get(lang);
+    return load ? [{ lang, load }] : [];
+  });
   if (!supported.length) return;
   const h = await getHighlighter();
-  const missing = supported.filter((lang) => !h.getLoadedLanguages().includes(lang));
-  if (missing.length) await h.loadLanguage(...missing);
+  const missing = supported.filter(({ lang }) => !h.getLoadedLanguages().includes(lang));
+  if (missing.length) await h.loadLanguage(...missing.map(({ load }) => load()));
 }
 
 // A file watcher re-renders the same document on every save; most fences are unchanged.
