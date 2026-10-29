@@ -1,3 +1,4 @@
+import { watchWindowTheme } from "./window-theme.js";
 import { readFindText, writeFindText } from "./find-pasteboard.js";
 import { recentFiles, isolatedRecents, jumpList, clearNativeRecents } from "./recents.js";
 import { shareDocument } from "./share.js";
@@ -217,9 +218,7 @@ function createWindow(): BrowserWindow {
     },
   });
   if (!mac) {
-    nativeTheme.on("updated", () => {
-      if (!w.isDestroyed()) w.setTitleBarOverlay(overlayColors());
-    });
+    watchWindowTheme(nativeTheme, w, overlayColors);
   }
   if (!settings.bounds) w.center();
   void w.loadFile(INDEX);
