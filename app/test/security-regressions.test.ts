@@ -142,3 +142,21 @@ test.skipIf(process.platform === "win32")("a FIFO image is skipped without block
   expect(embedded).toEqual([sources[0], "data:image/png;base64,AQID"]);
   expect(warnings[0]).toContain("regular files");
 });
+
+test.skipIf(process.platform === "win32")("an author-controlled Astro public symlink cannot grant an outside root", async () => {
+  const { urlContext } = await import("../src/main/document-urls");
+  const dir = await fixture();
+  const project = path.join(dir, "project");
+  const outside = path.join(dir, "private");
+  await fs.mkdir(project);
+  await fs.mkdir(outside);
+  await fs.writeFile(path.join(project, "astro.config.mjs"), "");
+  await fs.symlink(outside, path.join(project, "public"));
+  const context = urlContext(project);
+  expect(context.rootUrl).toBeUndefined();
+  const source = pathToFileURL(path.join(project, "public/secret.png")).href;
+  await fs.writeFile(path.join(outside, "secret.png"), "PRIVATE");
+  const warnings: string[] = [];
+  expect(await embedLocalImages([source], context, warning => warnings.push(warning))).toEqual([source]);
+  expect(warnings).toHaveLength(1);
+});

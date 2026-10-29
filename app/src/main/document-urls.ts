@@ -19,7 +19,8 @@ export function urlContext(baseDir: string | undefined, _discoverRoot = true): U
   while (true) {
     try {
       const entries = fs.readdirSync(ancestor);
-      if (entries.includes("public") && fs.statSync(path.join(ancestor, "public")).isDirectory() &&
+      // An author-controlled symlink must not redefine the trusted export root.
+      if (entries.includes("public") && fs.lstatSync(path.join(ancestor, "public")).isDirectory() &&
           entries.some((name) => /^astro\.config\./.test(name) && fs.statSync(path.join(ancestor, name)).isFile())) {
         root = path.join(ancestor, "public");
         break;
@@ -35,7 +36,6 @@ export function urlContext(baseDir: string | undefined, _discoverRoot = true): U
   roots.set(baseDir, { expires: Date.now() + ROOT_TTL_MS, context });
   return context;
 }
-
 
 export async function containedLocalFile(url: string, context: UrlContext): Promise<string> {
   if (!isContainedFileUrl(url, context)) throw new Error("Local file is outside the document root.");
