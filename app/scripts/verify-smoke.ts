@@ -429,7 +429,7 @@ $x^2$
     { settings: [evaluate(`await waitFor(() => document.querySelector('#remote-images') && !document.querySelector('#remote-images').disabled, 'Settings did not open.');
       assert((await window.simplemdSettings.get()).settings.remoteImages, 'Remote images are not on by default.');
       await window.simplemdSettings.set({ remoteImages: false });`)] },
-    evaluate(`await waitFor(() => !document.querySelector('#doc img[alt="remote"]').hasAttribute('src'), 'Remote image remains enabled.');
+    evaluate(`await waitFor(() => { const image = document.querySelector('#doc img[alt="remote"]'); return image && !image.hasAttribute('src'); }, 'Remote image remains enabled.');
       assert(!(await window.simplemd.ready()).settings.remoteImages, 'Remote image preference did not persist.');`),
     { pdf },
     { html },
