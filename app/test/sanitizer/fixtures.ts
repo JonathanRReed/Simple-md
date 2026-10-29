@@ -8,7 +8,7 @@ export const fixtures = [
   { name: "duplicate IDs and references", source: '<p id="x">A</p><p id="x">B</p><a href="#x">jump</a>', expected: '<p id="user-content-x">A</p><p id="user-content-x-1">B</p><a href="#user-content-x">jump</a>' },
   { name: "clobbering name doc", source: '<a name="doc" id="location" href="#doc">x</a>', expected: '<a name="user-content-doc" id="user-content-location" href="#user-content-doc">x</a>' },
   { name: "prefix once", source: '<p id="user-content-x">X</p><a href="#user-content-x">jump</a>', expected: '<p id="user-content-x">X</p><a href="#user-content-x">jump</a>' },
-  { name: "figure contents", source: '<figure><img src="a.png"><figcaption>Caption</figcaption></figure>', expected: '<img src="file:///project/docs/a.png">Caption' },
+  { name: "figure contents", source: '<figure><img src="a.png"><figcaption>Caption</figcaption></figure>', expected: '<figure><img src="file:///project/docs/a.png"><figcaption>Caption</figcaption></figure>' },
   { name: "IDREF", source: '<table><tr><th id="a">A</th><td headers="a b">B</td></tr></table><img usemap="#a">', expected: '<table><tbody><tr><th id="user-content-a">A</th><td headers="user-content-a user-content-b">B</td></tr></tbody></table><img usemap="#user-content-a">' },
   { name: "custom elements", source: '<x-widget class="mermaid" data-code="x"><b>Safe</b></x-widget><div is="x-widget">D</div>', expected: '<b>Safe</b>' },
   { name: "data image", source: '<img src="data:image/svg+xml,<svg onload=alert(1)>"><img src="file:///tmp/a.png">', expected: '<img><img>' },

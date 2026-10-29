@@ -237,11 +237,26 @@ export function createRenderCore(services: RenderServices = {}) {
     ]);
   }
 
+  // Unchanged sources are rendered repeatedly (mode switches, cache checks), so reuse recent parses.
+  const mdxCache = new Map<string, ReturnType<typeof findMdxRanges>>();
+  function cachedMdxRanges(src: string): ReturnType<typeof findMdxRanges> {
+    const hit = mdxCache.get(src);
+    if (hit) {
+      mdxCache.delete(src);
+      mdxCache.set(src, hit);
+      return hit;
+    }
+    const ranges = findMdxRanges(src);
+    mdxCache.set(src, ranges);
+    if (mdxCache.size > 4) mdxCache.delete(mdxCache.keys().next().value!);
+    return ranges;
+  }
+
   async function renderBlocks(src: string, filePath: string | null): Promise<RenderedBlocks> {
     const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
     const isMdx = filePath !== null && /\.mdx$/i.test(filePath);
     services.mark?.("mdx-parse-start");
-    const ranges = isMdx ? findMdxRanges(src) : undefined;
+    const ranges = isMdx ? cachedMdxRanges(src) : undefined;
     services.mark?.("mdx-parse-end");
     const mdx: MdxResult | undefined = ranges ? { ranges: [...ranges], error: ranges.error } : undefined;
     const baseDir = filePath ? filePath.replace(/[/\\][^/\\]*$/, "") : undefined;
