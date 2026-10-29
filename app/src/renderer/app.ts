@@ -36,6 +36,9 @@ function syncChrome(): void {
   const tabFocused = strip.contains(document.activeElement);
   const closeFocused = document.activeElement?.classList.contains("tab-close");
   const ids = layout.tabs;
+  const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
+  windowTitle.textContent = ids.length === 1 ? controller?.meta.name ?? "SimpleMD" : "SimpleMD";
+  windowTitle.title = ids.length === 1 ? controller?.meta.path ?? "" : "";
   strip.hidden = ids.length <= 1;
   strip.replaceChildren(...ids.map((id, index) => {
     const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;

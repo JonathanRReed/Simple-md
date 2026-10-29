@@ -76,9 +76,10 @@ body:not([data-platform="darwin"]) .tb-right {
 }
 
 .tb-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  display: block;
+  max-width: min(45vw, 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1153,6 +1154,7 @@ body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; pa
 #stage[data-panes="1"] .pane-toolbar::before { display: none; }
 #stage[data-panes="1"] .pane-controls { position: fixed; inset: 6px 12px auto auto; z-index: 2; }
 #stage[data-panes="1"] [data-element="edit-btn"] { display: none; }
+body:has(#stage[data-panes="1"] .document-pane[data-view="edit"]) .tb-title { max-width: max(0px, min(360px, calc(100vw - 620px))); }
 body:not([data-platform="darwin"]) #stage[data-panes="1"] .pane-controls { inset-inline-end: max(150px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px)); }
 .pane-status { flex: none; padding: 3px 12px; color: var(--muted); font: 11px/1.5 var(--sans); text-align: end; }
 .pane-status:has([hidden]) { display: none; }
