@@ -69,7 +69,9 @@ test("browser bundle runs with only ECMAScript built-ins and in Apple JavaScript
     const built = Bun.spawn([process.execPath, "build", path.join(import.meta.dir, "../src/shared/render-browser.ts"), "--target", "browser", "--format", "iife", "--minify", "--outfile", bundle], { stdout: "pipe", stderr: "pipe" });
     expect(await built.exited, await new Response(built.stderr).text()).toBe(0);
     const code = await Bun.file(bundle).text();
-    const input = "# Bare context\n\n$x^2$\n\n~~~ts\nconst n = 1\n~~~\n\n![local](image.png)\n\n~~~mermaid\ngraph LR\nA-->B\n~~~\n\n<img src='javascript:alert(1)' onerror='alert(1)'>";
+    // A small grammar keeps cold compilation inside Shiki's tokenization deadline.
+    // TypeScript highlighting is covered by the standalone document test above.
+    const input = '# Bare context\n\n$x^2$\n\n~~~json\n{"n":1}\n~~~\n\n![local](image.png)\n\n~~~mermaid\ngraph LR\nA-->B\n~~~\n\n<img src="javascript:alert(1)" onerror="alert(1)">';
     const context = vm.createContext({});
     vm.runInContext(code, context);
     const call = `SimpleMDRenderCore.renderStaticHtml(${JSON.stringify(input)}, "/project/docs/note.md")`;
@@ -82,7 +84,7 @@ test("browser bundle runs with only ECMAScript built-ins and in Apple JavaScript
     expect(html).not.toMatch(/onerror=|javascript:/);
     if (process.platform === "darwin") {
       const script = path.join(temp, "test.js");
-      await Bun.write(script, `load(${JSON.stringify(bundle)});\nif (typeof document !== "undefined" || typeof window !== "undefined" || typeof process !== "undefined") throw Error("Host API leaked");\n${call}.then(html => print(JSON.stringify({ html })), error => print(JSON.stringify({ error: String(error), stack: error.stack })));\n`);
+      await Bun.write(script, `load(${JSON.stringify(bundle)});\nif (typeof document !== "undefined" || typeof window !== "undefined" || typeof process !== "undefined" || typeof Buffer !== "undefined" || typeof fetch !== "undefined") throw Error("Host API leaked");\n${call}.then(html => print(JSON.stringify({ html })), error => print(JSON.stringify({ error: String(error), stack: error.stack })));\n`);
       const child = Bun.spawn(["/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc", script], { stdout: "pipe", stderr: "pipe" });
       const [status, output, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
       expect(status, stderr).toBe(0);
