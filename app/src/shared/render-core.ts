@@ -259,10 +259,9 @@ export function createRenderCore(services: RenderServices = {}) {
     return ranges;
   }
 
-  async function* renderBlockBatches(src: string, filePath: string | null, highlighted = true): AsyncGenerator<RenderedBlocks> {
+  async function* renderBlockBatches(src: string, filePath: string | null, highlighted = true, isMdx = /\.mdx$/i.test(filePath ?? "")): AsyncGenerator<RenderedBlocks> {
     highlighting = highlighted;
     const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
-    const isMdx = filePath !== null && /\.mdx$/i.test(filePath);
     services.mark?.("mdx-parse-start");
     const ranges = isMdx ? await cachedMdxRanges(src) : undefined;
     services.mark?.("mdx-parse-end");
@@ -352,10 +351,10 @@ export function createRenderCore(services: RenderServices = {}) {
     if (blocks.length || !balancedGroups.length) yield result();
   }
 
-  async function renderBlocks(src: string, filePath: string | null, highlighted = true): Promise<RenderedBlocks> {
+  async function renderBlocks(src: string, filePath: string | null, highlighted = true, isMdx = /\.mdx$/i.test(filePath ?? "")): Promise<RenderedBlocks> {
     let result: RenderedBlocks = { title: "Untitled", blocks: [] };
     const blocks: RenderedBlock[] = [];
-    for await (const batch of renderBlockBatches(src, filePath, highlighted)) {
+    for await (const batch of renderBlockBatches(src, filePath, highlighted, isMdx)) {
       result = batch;
       blocks.push(...batch.blocks);
     }

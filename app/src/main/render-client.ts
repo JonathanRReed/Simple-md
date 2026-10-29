@@ -53,8 +53,8 @@ export class RenderClient {
     private readonly timeoutMs = 30_000,
   ) {}
 
-  async renderBlocks(text: string, filePath: string | null): Promise<RenderedBlocks> {
-    const response = await this.request({ kind: "blocks", text, filePath });
+  async renderBlocks(text: string, filePath: string | null, mdx = /\.mdx$/i.test(filePath ?? "")): Promise<RenderedBlocks> {
+    const response = await this.request({ kind: "blocks", text, filePath, mdx });
     if (response?.kind !== "blocks") throw new Error("Invalid block render response");
     return response.value;
   }
@@ -209,7 +209,7 @@ export class RenderClient {
 }
 
 const client = new RenderClient();
-export const renderBlocks = (text: string, filePath: string | null) => client.renderBlocks(text, filePath);
+export const renderBlocks = (text: string, filePath: string | null, mdx?: boolean) => client.renderBlocks(text, filePath, mdx);
 export const renderFragment = (text: string, baseDir: string | undefined) => client.renderFragment(text, baseDir);
 export const prefetchBlocks = (text: string, filePath: string | null) => client.prefetchBlocks(text, filePath);
 export const disposeRenderer = (): Promise<void> => client.dispose();

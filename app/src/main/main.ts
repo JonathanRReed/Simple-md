@@ -423,11 +423,11 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
     if (hit) {
       ({ title, blocks } = hit);
     } else {
-      ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file ?? doc.name)));
+      ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file, isMdx)));
       if (stat && stream === undefined) setCachedRender(file, stat.mtimeMs, stat.size, title, blocks, text);
     }
   } else {
-    ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file ?? doc.name)));
+    ({ title, blocks, mdx, stream } = await (intent === "read" && fromDisk ? startBlocks(text, file) : renderBlocks(text, file, isMdx)));
   }
   return {
     documentId: doc.documentId,
@@ -966,7 +966,7 @@ function registerIpc(): void {
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (doc.text !== text) throw new Error("Render source does not match the document revision.");
-    const out = await doc.render(revisionId, () => renderBlocks(text, doc.path ?? doc.name));
+    const out = await doc.render(revisionId, () => renderBlocks(text, doc.path, /\.mdx$/i.test(doc.name)));
     trace("render-done");
     return documentDelta(doc.documentId, out, known !== true);
   });

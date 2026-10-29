@@ -13,7 +13,7 @@ export const printWaiters = new Map<number, (error?: string) => void>();
 export function createExportJobs(here: string, getSettings: () => Settings) {
   const INDEX = path.join(here, "renderer", "index.html");
   async function withPrintWindow<T>(source: ExportSource, use: (w: BrowserWindow, doc: DocPayload) => Promise<T>): Promise<T> {
-    const rendered = await renderBlocks(source.text, source.path ?? source.name);
+    const rendered = await renderBlocks(source.text, source.path, /\.mdx$/i.test(source.name));
     const doc: DocPayload = { ...rendered, documentId: makeDocumentId(0), paneId: makePaneId(0), revisionId: makeRevisionId(0), path: source.path, name: source.name, text: source.text, intent: "read", baseUrl: null };
     const pw = new BrowserWindow({
       show: false,

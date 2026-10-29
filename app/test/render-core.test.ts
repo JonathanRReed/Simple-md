@@ -26,3 +26,17 @@ test("standalone browser core has no Node imports and renders without Node or a 
     expect(fs.readFileSync(path.resolve(import.meta.dir, "../src/shared", file), "utf8"), file).not.toMatch(/(?:from\s*|import\s*\()\s*["'](?:node:|electron["'])/);
   }
 }, 30_000);
+
+test("stdin MDX mode has no file location or cwd-relative image access", async () => {
+  const { createWorkerRenderCore } = await import("../src/main/markdown");
+  const core = createWorkerRenderCore();
+  const out = await core.renderBlocks('<Widget />\n\n![local](./secret.png)', null, false, true);
+  expect(out.mdx?.ranges.length).toBeGreaterThan(0);
+  for (const block of out.blocks) {
+    expect(block.urls?.baseUrl).toBeUndefined();
+    expect(block.html).not.toContain("file:");
+  }
+  const main = fs.readFileSync(path.resolve(import.meta.dir, "../src/main/main.ts"), "utf8");
+  expect(main).not.toContain("doc.path ?? doc.name");
+  expect(/renderBlocks\([^\n]*file \?\? doc.name/.test(main)).toBe(false);
+});

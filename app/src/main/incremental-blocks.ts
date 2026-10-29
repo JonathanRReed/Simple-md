@@ -35,9 +35,9 @@ export class IncrementalBlocks {
     return { ...result, blocks };
   }
 
-  async render(text: string, filePath: string | null): Promise<{ result: RenderedBlocks; delta: BlockDelta }> {
+  async render(text: string, filePath: string | null, mdx?: boolean): Promise<{ result: RenderedBlocks; delta: BlockDelta }> {
     const old = this.previous?.blocks ?? [];
-    const result = this.identify(text, await renderBlocks(text, filePath));
+    const result = this.identify(text, await renderBlocks(text, filePath, true, mdx));
     return { result, delta: blockDelta(old, result) };
   }
 }
