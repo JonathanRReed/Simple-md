@@ -1349,6 +1349,9 @@ const contextBase = { selectionPresent: false, editable: false, linkURL: "", ima
 await test("native-menu-rebuilds", async () => {
   const a = fixture("native-menu-rebuilds/a.md", note), b = fixture("native-menu-rebuilds/b.md", "# Recent\n");
   await launch("native-menu-rebuilds", a, [
+    // The async Git check legitimately refreshes the menu once; let it settle before capturing.
+    evaluate(`await waitFor(() => document.querySelector('.document-pane[data-active=true]')?.dataset.documentId, 'No active document');
+      await window.simplemd.gitStatus(Number(document.querySelector('.document-pane[data-active=true]').dataset.documentId));`),
     { nativeMenus: "capture" },
     evaluate(`await window.simplemd.setSettings({ bounds: { x: 100, y: 100, width: 850, height: 700 }, zoom: 1.1 });`),
     { nativeMenus: "unchanged" },
