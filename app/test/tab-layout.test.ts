@@ -42,3 +42,19 @@ test("in-place navigation preserves the pane identity and tab position", () => {
   expect(tabs.state.tabs).toEqual([a, c]);
   expect(tabs.active).toEqual({ paneId: pane, documentId: c });
 });
+
+
+test("Open Quickly keeps the active file when opening beside it and focuses existing views", () => {
+  const layout = new TabLayout();
+  const one = makeDocumentId(1), two = makeDocumentId(2), three = makeDocumentId(3);
+  layout.add(one); const firstPane = layout.active!.paneId;
+  layout.openOther(two);
+  expect(layout.state.panes.map(p => p.documentId)).toEqual([one, two]);
+  expect(layout.active?.documentId).toBe(two);
+  layout.focus(firstPane); layout.openOther(three);
+  expect(layout.state.panes.map(p => p.documentId)).toEqual([one, three]);
+  expect(layout.state.tabs).toEqual([one, two, three]);
+  layout.openOther(one);
+  expect(layout.active?.documentId).toBe(one);
+  expect(layout.state.panes).toHaveLength(2);
+});

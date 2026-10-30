@@ -1,4 +1,4 @@
-import { configEntries, validConfigValue } from "../shared/config-schema.js";
+import { configEntries, normalizeConfigValue, validConfigValue } from "../shared/config-schema.js";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -10,12 +10,14 @@ export function sanitizeSettings(raw: unknown): Settings {
   const r = record(raw) ? raw : {};
   const s: Settings = { ...DEFAULT_SETTINGS, recents: [] };
   for (const [, def] of configEntries) {
-    if (validConfigValue(def, r[def.setting])) Object.assign(s, { [def.setting]: r[def.setting] });
+    const value = normalizeConfigValue(def, r[def.setting]);
+    if (validConfigValue(def, value)) Object.assign(s, { [def.setting]: value });
   }
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;
   if (r.typeface === "sans" || r.typeface === "serif") s.typeface = r.typeface;
   if (typeof r.zoom === "number" && Number.isFinite(r.zoom)) s.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, r.zoom));
   if (Array.isArray(r.recents)) s.recents = r.recents.filter((p): p is string => typeof p === "string").slice(0, 12);
+  if (Array.isArray(r.pinnedPaths)) s.pinnedPaths = [...new Set(r.pinnedPaths.filter((p): p is string => typeof p === "string" && path.isAbsolute(p) && !p.includes("\0")))].slice(0, 100);
   const b = r.bounds;
   if (record(b) && typeof b.x === "number" && Number.isFinite(b.x) && typeof b.y === "number" && Number.isFinite(b.y) &&
       typeof b.width === "number" && Number.isFinite(b.width) && typeof b.height === "number" && Number.isFinite(b.height) &&
@@ -48,7 +50,7 @@ export function migrateSettings({ userData, appData, isolated }: { userData: str
 }
 
 let timer: NodeJS.Timeout | undefined;
-let pending: { file: string; settings: Settings | Pick<Settings, "recents" | "bounds" | "zoom"> } | undefined;
+let pending: { file: string; settings: Settings | Pick<Settings, "recents" | "bounds" | "zoom" | "pinnedPaths"> } | undefined;
 
 export function flushSettings(): void {
   clearTimeout(timer);
@@ -74,12 +76,14 @@ export function saveSettings(s: Settings, settingsFile: string): void {
 }
 
 export function patchSettings(current: Settings, patch: unknown): Settings {
-  return sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+  const next = sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+  next.zenMode = record(patch) && typeof patch.zenMode === "boolean" ? patch.zenMode : current.zenMode;
+  return next;
 }
 
 export function saveState(settings: Settings, settingsFile: string): void {
   clearTimeout(timer);
-  pending = { file: settingsFile, settings: { recents: settings.recents, bounds: settings.bounds, zoom: settings.zoom } };
+  pending = { file: settingsFile, settings: { recents: settings.recents, bounds: settings.bounds, zoom: settings.zoom, pinnedPaths: settings.pinnedPaths } };
   timer = setTimeout(flushSettings, 150);
   timer.unref();
 }

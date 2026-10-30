@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="motion.css" />
   </head>
   <body>
+    <button id="chrome-reveal" type="button" aria-label="Show window controls"></button>
+    <div id="zen-hint" role="status" hidden></div>
     <header class="titlebar">
       <div class="tb-side"></div>
       <div class="tb-title">SimpleMD</div>
@@ -20,30 +22,56 @@
 
     <div id="findbar" hidden>
       <input id="find-input" type="search" placeholder="Find in note" aria-label="Find in note" spellcheck="false" />
+      <output id="find-count" role="status" aria-live="polite">0 of 0</output>
+      <button id="find-previous" type="button" aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
+      <button id="find-next" type="button" aria-label="Next match" title="Next match (Enter)">↓</button>
+      <button id="find-close" type="button" aria-label="Close Find">×</button>
     </div>
 
-    <div id="tabs" role="tablist" aria-label="Documents" hidden></div>
-    <main id="stage" data-panes="0">
-      <div id="welcome" class="empty-actions"><button id="welcome-open" type="button" class="pill">Open file</button><button id="welcome-new" type="button" class="pill">New tab</button></div>
-    </main>
+    <div id="workspace">
+      <div id="tab-search">
+        <button id="tab-search-button" type="button" aria-label="Open Quickly" title="Open Quickly (⌘⇧O)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><circle cx="7.5" cy="7.5" r="4.5"/><path d="m11 11 3.5 3.5"/></svg></button>
+        <label id="sidebar-search"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><circle cx="7.5" cy="7.5" r="4.5"/><path d="m11 11 3.5 3.5"/></svg><input id="sidebar-search-input" type="search" placeholder="Search" aria-label="Open Quickly" title="Open Quickly (⌘⇧O)" autocomplete="off" spellcheck="false" maxlength="256" /></label>
+      </div>
+      <div id="tabs" role="tablist" aria-label="Documents" hidden></div>
+      <div id="sidebar-divider" role="separator" aria-label="Tab sidebar width" aria-orientation="vertical" aria-controls="tabs" aria-valuemin="140" aria-valuemax="420" aria-valuenow="180" tabindex="0" hidden></div>
+      <main id="stage" data-panes="0">
+        <div id="welcome" class="empty-actions"><button id="welcome-open" type="button" class="pill">Open file</button><button id="welcome-new" type="button" class="pill">New tab</button></div>
+      </main>
+    </div>
     <template id="pane-template">
       <div class="document-pane">
         <div class="pane-toolbar">
-          <div class="pane-name"><span id="name"></span><span id="dirty" title="Unsaved changes" hidden>●</span></div>
+          <div class="pane-name"><span id="name"></span></div>
           <div class="pane-controls">
-          <div id="modes" class="seg" role="radiogroup" aria-label="Editing mode" hidden>
-            <button type="button" role="radio" data-mode="live" aria-checked="true" title="Live preview">Live</button>
-            <button type="button" role="radio" data-mode="split" aria-checked="false" title="Side by side" aria-label="Side by side">Side</button>
-            <button type="button" role="radio" data-mode="source" aria-checked="false" title="Source">Source</button>
+          <button id="nav-back" type="button" class="pill" title="Go back to the previous document" aria-label="Back" hidden>←</button>
+          <details id="reader-options" class="reader-options" hidden>
+            <summary title="Reading text size and Settings" aria-label="Reading options">Aa</summary>
+            <div class="reader-options-menu">
+              <div class="reader-size"><button id="reading-smaller" type="button" aria-label="Smaller reading text">A−</button><output id="reading-size"></output><button id="reading-larger" type="button" aria-label="Larger reading text">A+</button></div>
+              <p id="reading-override" hidden>GitHub style fixes text at 16px. Use Zoom to enlarge it.</p>
+              <button id="reader-settings" type="button">Settings…</button>
+            </div>
+          </details>
+          <div id="modes" class="seg" role="group" aria-label="Document mode" hidden>
+            <button type="button" data-mode="read" aria-label="Read" aria-pressed="true" title="Read (⌘⌥0)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path d="M9 4.5C7 3 4.5 3 2 3.5v10c2.5-.5 5-.5 7 1 2-1.5 4.5-1.5 7-1v-10c-2.5-.5-5-.5-7 1Zm0 0v10"/></svg></button>
+            <button type="button" data-mode="live" aria-label="Live" aria-pressed="false" title="Live (⌘⌥1)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path d="m3 15 1-4L12.5 2.5a1.4 1.4 0 0 1 2 2L6 13Zm7.5-10.5 3 3M3 15l3-2-2-2"/></svg></button>
+            <button type="button" data-mode="split" aria-label="Side by side" aria-pressed="false" title="Side by side (⌘⌥2)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M9 3v12M5 6h1.5M5 9h1.5m5-2h1.5m-1.5 3h1.5"/></svg></button>
+            <button type="button" data-mode="source" aria-label="Source" aria-pressed="false" title="Source (⌘⌥3)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path d="m6 5-4 4 4 4m6-8 4 4-4 4m-2-10-2 12"/></svg></button>
           </div>
-          <select class="mode-menu" aria-label="Editing mode" title="Editing mode" hidden>
-            <option value="live">Live</option><option value="split">Side by side</option><option value="source">Source</option>
+          <div class="layout-controls" role="group" aria-label="Window layout">
+            <button type="button" data-command="split-panes" aria-label="Split side by side" aria-pressed="false" title="Split side by side (⌘\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="1.5" y="3" width="6.5" height="12" rx="1"/><rect x="10" y="3" width="6.5" height="12" rx="1"/><path d="M1.5 6H8m2 0h6.5"/></svg></button>
+            <button type="button" data-command="stack-panes" aria-label="Split stacked" aria-pressed="false" title="Split stacked (⌘⇧\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="1.5" width="13" height="6.5" rx="1"/><rect x="2.5" y="10" width="13" height="6.5" rx="1"/><path d="M2.5 4h13m-13 8.5h13"/></svg></button>
+            <button type="button" data-command="toggle-tab-sidebar" aria-label="Tab sidebar" aria-pressed="false" title="Tab sidebar (⌃⌘S)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M7 3v12"/></svg></button>
+          </div>
+          <select class="mode-menu" aria-label="Document mode" title="Document mode" hidden>
+            <option value="read" title="Read without editing the text">Read</option><option value="live" title="Edit with formatting shown around the cursor">Live</option><option value="split" title="Edit the text beside a formatted page">Side by side</option><option value="source" title="Edit the text with all Markdown symbols visible">Source</option>
           </select>
-          <button id="edit-btn" type="button" class="pill" title="Edit document (Enter)" hidden>Edit</button>
+          <button id="edit-btn" type="button" class="pill" title="Edit document (⌘E)" hidden>Edit</button>
           </div>
         </div>
         <div id="banner" role="status" hidden></div>
-        <div class="pane-content">
+        <div class="pane-viewport"><div class="pane-content">
       <section id="read" class="pane">
         <div id="read-scroll" class="scroller">
           <article id="doc" class="prose" hidden></article>
@@ -64,11 +92,11 @@
           <div id="preview-scroll" class="scroller"><article id="preview" class="prose"></article></div>
         </div>
       </section>
-        </div>
-        <footer class="pane-status"><span id="hint" hidden></span>
+        </div></div>
+        <footer class="pane-status"><span id="dirty" title="Unsaved changes" role="status" hidden>Edited</span><span id="hint" hidden></span>
           <div class="drag-export-controls">
             <select id="export-format" aria-label="Export format"><option value="html">HTML</option><option value="pdf">PDF</option></select>
-            <button id="drag-export" type="button" title="Prepare a file to drag">Export</button>
+            <button id="drag-export" type="button" title="Save an exported file, or drag it out">Export</button>
           </div>
           <div id="changes" class="change-controls" hidden>
             <span id="change-count"></span>

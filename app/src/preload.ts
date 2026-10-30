@@ -8,16 +8,15 @@ const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
 };
 
 let performanceTracing = false;
+on("smd:performance-tracing", (enabled: unknown) => { performanceTracing = enabled === true; });
 let activeDocumentId = makeDocumentId(0);
 const renderStates = new Map<DocumentId, RenderedBlock[]>();
 const viewGenerations = new Map<DocumentId, number>();
 
 contextBridge.exposeInMainWorld("simplemd", {
-  ready: async () => {
-    const ready = await ipcRenderer.invoke("smd:ready");
-    performanceTracing = ready.performanceTracing === true;
-    return ready;
-  },
+  setChromeVisible: (visible: boolean) => ipcRenderer.send("smd:chrome-visible", visible),
+  moveTab: (id: DocumentId, pinned: boolean, before?: DocumentId) => ipcRenderer.invoke("smd:move-tab", id, pinned, before),
+  ready: () => ipcRenderer.invoke("smd:ready"),
 
   readFindText: () => ipcRenderer.invoke("smd:find-read"),
   writeFindText: (text: string) => ipcRenderer.invoke("smd:find-write", text),
@@ -38,6 +37,7 @@ contextBridge.exposeInMainWorld("simplemd", {
     if (isDocumentId(documentId)) activeDocumentId = documentId;
   },
   closeTab: (id: DocumentId) => ipcRenderer.invoke("smd:close-tab", id),
+  tabContextMenu: (id: DocumentId) => ipcRenderer.invoke("smd:tab-context-menu", id),
   onDoc: (cb: (doc: { documentId: DocumentId }) => void) => on("smd:doc", (doc: { documentId: DocumentId }) => { activeDocumentId = doc.documentId; cb(doc); }),
   onSettings: (cb: (s: unknown) => void) => on("smd:settings", cb),
   onCommand: (cb: (cmd: string, id?: DocumentId) => void) => on("smd:cmd", cb),
@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld("simplemd", {
   },
   renderFragment: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-fragment", text, documentId, revisionId),
   save: (text: string, forceDialog: boolean, documentId: DocumentId) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),
+  saveCopy: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-copy", text, documentId),
   saveImage: (bytes: Uint8Array, ext: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-image", bytes, ext, documentId),
   prepareDragExport: (text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf") => ipcRenderer.invoke("smd:prepare-drag-export", text, documentId, revisionId, format),
   startDragExport: (documentId: DocumentId, revisionId: RevisionId, token: string) => ipcRenderer.send("smd:start-drag-export", documentId, revisionId, token),
@@ -82,6 +83,14 @@ contextBridge.exposeInMainWorld("simplemd", {
   exportHtml: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:export-html", text, documentId),
   print: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:print", text, documentId),
 
+  onQuicklyResults: (cb: (request: number, matches: import("./shared/open-quickly.js").QuicklyMatch[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, request: number, matches: import("./shared/open-quickly.js").QuicklyMatch[]) => cb(request, matches);
+    ipcRenderer.on("smd:quickly-results", listener);
+    return () => ipcRenderer.removeListener("smd:quickly-results", listener);
+  },
+  quicklyQuery: (query: string, scope: string, request: number) => ipcRenderer.invoke("smd:quickly-query", query, scope, request),
+  quicklyClose: () => ipcRenderer.send("smd:quickly-close"),
+  quicklyOpen: (file: string, otherPane: boolean) => ipcRenderer.invoke("smd:quickly-open", file, otherPane),
   openDialog: () => ipcRenderer.invoke("smd:open-dialog"),
   openPath: (p: string, intent?: "read" | "edit", inPlace = false, documentId = activeDocumentId) => ipcRenderer.invoke("smd:open-path", p, intent, documentId, inPlace),
   openLink: (href: string, intent?: "read" | "edit", newTab = false, documentId = activeDocumentId) => ipcRenderer.invoke("smd:open-link", href, intent, documentId, newTab),

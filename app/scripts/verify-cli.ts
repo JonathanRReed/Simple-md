@@ -1,3 +1,4 @@
+import { waitForGuiLoad } from "./host-load";
 import { buildTestCli } from "../build/native.mjs";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -42,6 +43,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, input?: st
 }
 async function session(name: string, steps: DriverStep[], actions: Record<string, (env: NodeJS.ProcessEnv) => Promise<void>>, settings: object = {}) {
   if (filter && !name.includes(filter)) return;
+  await waitForGuiLoad();
   const profile = path.join(root, name); fs.mkdirSync(profile);
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ mode: "source", autosave: false, launchAtLogin: false, ...settings }));
   const drive = path.join(profile, "drive.json"); fs.writeFileSync(drive, JSON.stringify(steps));
@@ -80,8 +82,9 @@ try {
   let waiter: ReturnType<typeof run>; let second: ReturnType<typeof run>;
   await session("open-navigation-wait", [
     { barrier: "open" }, painted(file),
+    evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"]')?.dataset.view === 'read');`),
     { barrier: "line" }, evalStep(`await waitFor(() => document.getSelection()?.anchorNode?.parentElement?.closest('.cm-line')?.textContent === 'Line seven.');`),
-    { barrier: "heading" }, evalStep(`await waitFor(() => document.getSelection()?.anchorNode?.parentElement?.closest('.cm-line')?.textContent === '# Same'); const line = document.getSelection()?.anchorNode?.parentElement?.closest('.cm-line'); assert([...line.parentElement.children].filter(node => node.classList.contains('cm-line')).indexOf(line) === 4, 'Duplicate heading slug did not select line 5');`),
+    { barrier: "heading" }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"]')?.dataset.view === 'read' && document.querySelector('#doc #user-content-same-1')); assert(document.querySelector('#doc #user-content-same-1').textContent === 'Same', 'Duplicate heading slug did not open Read');`),
     { barrier: "wait" }, { save: true }, { barrier: "saved" },
     evalStep(`await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId));`),
     { barrier: "closed" },
@@ -91,6 +94,27 @@ try {
     saved: async () => { assert.equal(waiter.child.exitCode, null); assert.equal(second.child.exitCode, null); },
     closed: async () => { assert.equal(await waiter.done, 0, waiter.errors()); assert.equal(await second.done, 0, second.errors()); },
   });
+  // ux-app: reading defaults, Source editor jobs and specific CLI failures.
+  const missing = path.join(root, "missing.md"), binary = path.join(root, "binary.md"), denied = path.join(root, "denied.md");
+  fs.writeFileSync(binary, Buffer.from([0, 255])); fs.writeFileSync(denied, "Private");
+  if (process.platform !== "win32") fs.chmodSync(denied, 0);
+  await session("ux-open-policy-errors", [
+    { barrier: "normal" }, painted(file),
+    evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"]')?.dataset.view === 'read');`),
+    { barrier: "line" },
+    evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="edit"]')?.dataset.mode === 'source' && document.querySelector('.document-pane[data-active="true"]')?.dataset.view === 'edit');`),
+    { barrier: "commit" }, painted(commitFile),
+    evalStep(`assert(document.querySelector('.document-pane[data-active="true"]').dataset.view === 'edit', 'Extensionless editor job opened Read'); assert(document.querySelector('.document-pane[data-active="true"] [data-element="edit"]').dataset.mode === 'source', 'Commit message did not use Source');`),
+    { barrier: "errors" },
+  ], {
+    normal: env => ok(env, [file]), line: env => ok(env, [file + ":7"]), commit: env => ok(env, [commitFile]),
+    errors: async env => {
+      const cases: [string, string][] = [[missing, "File does not exist"], [root, "Cannot open a directory"], [binary, "Binary or invalid UTF-8"], [file + "#not-a-heading", "Heading not found: #not-a-heading"]];
+      if (process.platform !== "win32") cases.push([denied, "Permission denied"]);
+      for (const [arg, message] of cases) { const invocation = run(cli, [arg], env); assert.equal(await invocation.done, 1, invocation.errors()); assert(invocation.errors().includes(message), invocation.errors()); }
+    },
+  }, { mode: "live" });
+  if (process.platform !== "win32") fs.chmodSync(denied, 0o600);
   const capacityWaiters: ReturnType<typeof run>[] = [];
   await session("waiter-capacity", [
     { barrier: "waiters" }, painted(file),
@@ -108,7 +132,7 @@ try {
   const stdinText = "# Stdin\n\n<Widget />\n\n![local](./secret.png)\n";
   const savedStdin = path.join(root, "stdin-saved.md");
   await session("stdin-save-as-wait", [
-    { barrier: "stdin" }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="name"]')?.textContent === 'pipe.mdx'); assert(!document.documentElement.dataset.documentPath, 'Stdin acquired a disk path');`),
+    { barrier: "stdin" }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="name"]')?.textContent === 'pipe.mdx'); assert(document.querySelector('.document-pane[data-active="true"] [data-element="edit"]').dataset.mode === 'source', '--wait stdin did not use Source'); assert(!document.documentElement.dataset.documentPath, 'Stdin acquired a disk path');`),
     evalStep(`window.simplemd.command('mode-split'); await waitFor(() => document.querySelector('#preview .mdx-component')); assert(![...document.querySelectorAll('#preview img')].some(image => /^file:/i.test(image.getAttribute('src') || '')), 'Piped image acquired a local path');`),
     { savePath: savedStdin },
     { save: true }, evalStep(`await waitFor(() => document.querySelector('.document-pane[data-active="true"] [data-element="name"]')?.textContent === 'stdin-saved.md');`),

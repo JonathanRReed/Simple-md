@@ -29,21 +29,24 @@ export function makeRequestId(value: number): RequestId {
 
 export type ThemeSetting = "system" | "light" | "dark";
 export type EditMode = "live" | "split" | "source";
+export type ViewMode = "read" | EditMode;
 export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
 export interface Settings extends UserSettings {
+  zenMode: boolean;
   systemAccent?: string;
   zoom: number;
   // Legacy layout values remain readable for first-run migration.
   width: ReadingWidth;
   typeface: Typeface;
   recents: string[];
+  pinnedPaths: string[];
   bounds?: { x: number; y: number; width: number; height: number };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  ...configDefaults, zoom: 1, width: "normal", typeface: "serif", recents: [],
+  ...configDefaults, zenMode: false, zoom: 1, width: "normal", typeface: "serif", recents: [], pinnedPaths: [],
 };
 
 export const ZOOM_MIN = 0.7;
@@ -56,6 +59,8 @@ export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
+  firstAutosaveAllowed?: boolean;
+  initialMode?: EditMode;
   savedText?: string;
   dirty?: boolean;
   revisionId: RevisionId;
@@ -92,6 +97,11 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "open-quickly"
+  | "toggle-zen"
+  | "toggle-pin-tab"
+  | "close-pinned-tab"
+  | "toggle-tab-sidebar"
   | "mark-seen"
   | "toggle-head-changes"
   | "next-change"
@@ -108,6 +118,7 @@ export type Command =
   | "save"
   | "save-as"
   | "toggle-edit"
+  | "mode-read"
   | "mode-live"
   | "mode-split"
   | "mode-source"

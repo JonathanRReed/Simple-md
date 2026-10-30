@@ -1,3 +1,4 @@
+import { FirstAutosave } from "../shared/first-autosave.js";
 import type { ChangeBaseline, GitChangesStatus } from "../shared/change-highlights.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -6,6 +7,7 @@ import { DocumentQueue } from "./lifecycle.js";
 import { ENCODING_NOTICE, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
 
 export class DocumentSession {
+  readonly firstAutosave: FirstAutosave;
   readonly saves = new DocumentQueue();
   revisionId = makeRevisionId(0);
   baseline: ChangeBaseline | null = null;
@@ -26,7 +28,10 @@ export class DocumentSession {
     public readOnlyReason?: string,
     public diskText: string | null = path ? text : null,
     public displayName = "Untitled",
-  ) { this.gitStatus = path ? { available: true, active: false } : { available: false, reason: "Save the file in a Git repository first." }; }
+  ) {
+    this.firstAutosave = new FirstAutosave(text, !!path && intent === "read");
+    this.gitStatus = path ? { available: true, active: false } : { available: false, reason: "Save the file in a Git repository first." };
+  }
 
   get name(): string { return this.path ? path.basename(this.path) : this.displayName; }
   get baseUrl(): string | null { return this.path ? pathToFileURL(path.dirname(this.path)).href.replace(/\/?$/, "/") : null; }
@@ -37,8 +42,13 @@ export class DocumentSession {
     return { ...counts, bom: this.text.startsWith("\uFEFF"), dominant: counts.crlf > counts.lf && counts.crlf > counts.cr ? "\r\n" : counts.cr > counts.lf && counts.cr > counts.crlf ? "\r" : "\n" };
   }
 
-  edit(text: string, revisionId: RevisionId): boolean {
+  edit(text: string, revisionId: RevisionId, deliberate = false): boolean {
     if (this.disposed || revisionId < this.revisionId || (revisionId === this.revisionId && text !== this.text)) return false;
+    if (text === this.diskText) this.firstAutosave.baseline(text);
+    else {
+      if (deliberate) this.firstAutosave.confirm();
+      this.firstAutosave.edit(text);
+    }
     this.text = text;
     this.revisionId = revisionId;
     this.dirty = text !== (this.diskText ?? "");
@@ -115,6 +125,7 @@ export class DocumentSession {
         this.gitStatus = { available: true, active: false };
       }
       this.path = target;
+      this.firstAutosave.confirm();
       this.diskText = text;
       this.conflict = false;
       this.dirty = this.text !== text;

@@ -56,7 +56,7 @@ for (const special of ["fifo", "zero", "directory"]) {
     const script = path.join(dir, "read.ts");
     await fs.writeFile(script, `import { readDocument } from ${JSON.stringify(path.resolve(import.meta.dir, "../src/main/files.ts"))};
       try { await readDocument(${JSON.stringify(file)}); process.exit(2); }
-      catch(error) { if (!/regular file/i.test(error.message)) throw error; }
+      catch(error) { if (!/regular file|directory/i.test(error.message)) throw error; }
       if ((await readDocument(${JSON.stringify(regular)})).text !== 'still readable') process.exit(3);`);
     const child = Bun.spawn([process.execPath, script], { stdout: "ignore", stderr: "pipe" });
     const timer = setTimeout(() => child.kill("SIGKILL"), 1500);
@@ -153,7 +153,8 @@ test.skipIf(process.platform === "win32")("an author-controlled Astro public sym
   await fs.writeFile(path.join(project, "astro.config.mjs"), "");
   await fs.symlink(outside, path.join(project, "public"));
   const context = urlContext(project);
-  expect(context.rootUrl).toBeUndefined();
+  expect(context.rootUrl).toBe(pathToFileURL(project + path.sep).href);
+  expect(context.publicUrl).toBeUndefined();
   const source = pathToFileURL(path.join(project, "public/secret.png")).href;
   await fs.writeFile(path.join(outside, "secret.png"), "PRIVATE");
   const warnings: string[] = [];

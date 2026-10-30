@@ -4,6 +4,6 @@ export const runBatch = async (css: string) => {
   const selected = getComputedStyle(document.querySelector(".tab")!);
   const active = getComputedStyle(document.querySelector('[data-active="true"] .pane-toolbar')!, "::before");
   const inactive = getComputedStyle(document.querySelector('[data-active="false"] .pane-toolbar')!, "::before");
-  return { selectedShape: selected.boxShadow !== "none" || selected.borderBottomWidth !== "0px", activeShape: active.visibility !== inactive.visibility || active.content !== inactive.content || active.borderLeftWidth !== inactive.borderLeftWidth };
+  return { selectedShape: parseFloat(selected.borderRadius) > 0 && selected.backgroundColor !== "rgba(0, 0, 0, 0)", activeShape: active.visibility !== inactive.visibility || active.content !== inactive.content || active.borderLeftWidth !== inactive.borderLeftWidth };
 };
 Object.assign(globalThis, { CorpusBrowser: { runBatch } });

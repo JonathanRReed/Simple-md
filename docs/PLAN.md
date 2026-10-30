@@ -21,6 +21,7 @@ It is not a note-taking app, a writing workspace or a vault.
 - **Native where it is cheap, light everywhere.** Use the OS for menus, context menus, dialogs, share, accent color and recents. Draw only what Electron cannot give us natively without a heavy cost.
 - **File-first.** One file is the unit. Sibling files are reachable by link. There is no file tree.
 - **Nothing executes.** MDX, raw HTML and code blocks are displayed, never run.
+- **Subtle chrome motion only.** Document text, reading position and first paint never animate. Reduce Motion disables chrome motion. Config `ui-motion = subtle | off` defaults to `subtle`.
 
 ## Platforms
 
@@ -34,7 +35,7 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, Apple Sil
 | --- | --- |
 | Byte preservation | Lines the user did not touch keep their exact bytes, including CRLF, mixed endings, BOM and the final newline. New line breaks use the file's dominant ending, or LF on a tie. Files that are not valid UTF-8 (UTF-8 with BOM is fine) open read-only with a notice. Safe saves keep extended attributes and Finder tags by copying them to the temporary file before the atomic rename. Document hard-link behavior. |
 | Editing | CodeMirror 6 live preview, Obsidian-style: syntax hides away from the cursor, and images, math and tables render inline. No WYSIWYG document model. |
-| Modes | Live, Source, and Side by side (formerly "Split"). "Split" now means two panes. |
+| Modes | Read, Live, Source, and Side by side. Finder, double-click, `open`, and CLI opens without `:line` start in Read. Editing starts through the mode control, Command/Control-E or the edit command. `COMMIT_EDITMSG`, files without an extension, `--wait` buffers and `:line` targets start in Source. The `mode` setting chooses the editing view. "Split" means two panes. |
 | MDX | Same editor as `.md`. ESM and JSX are highlighted from parser ranges mapped through edits, and are never hidden or rewritten. Use parse-only `micromark-extension-mdxjs` to find MDX ranges. Never use `@mdx-js/mdx` compile or evaluate, and do not write a custom Lezer MDX grammar. The preview renders the Markdown. Lowercase HTML goes through the sanitizer. Capitalized components render as labeled boxes with their children rendered. Expressions render as inert labeled tokens. `<style>` and `<script>` never apply. While MDX is incomplete or invalid, typing, saving and undo keep working, and the preview keeps the last good render and shows the failing range as escaped source. |
 | Astro | Root-relative paths such as `/images/x.png` resolve against the nearest `public/` folder through the shared URL resolver. No schema validation. |
 | Source ranges | Rendered blocks carry source ranges from markdown-it `token.map`. MDX ranges, block identities, scroll sync and change highlights all reuse them. |
@@ -54,11 +55,12 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, Apple Sil
 
 | Area | Decision |
 | --- | --- |
-| Tabs | Drawn by the app inside one window and one renderer, styled to feel native. Planning allowance is 5 to 25 MB per extra open document (inconclusive probe; measure in the real app), versus about 60 to 120 MB for an Electron native tab. Same on all platforms. No tear-off, no cross-window dragging, no session restore. "Move Tab to New Window" exists as a command only. |
+| Tabs | Drawn by the app inside one window and one renderer, styled to feel native. Top tabs are the default; `tab-style = sidebar` lists open documents on the leading edge, with a persisted width and collapsed state. Planning allowance is 5 to 25 MB per extra open document (inconclusive probe; measure in the real app), versus about 60 to 120 MB for an Electron native tab. Same on all platforms. No tear-off, no cross-window dragging, no session restore. "Move Tab to New Window" exists as a command only. |
 | Splits | Up to 2 panes, side by side or stacked. A document appears in at most one pane, because Side by side mode already covers source plus preview. Nested split trees are 1.x. |
 | Opening files | New files open as a tab in the frontmost window. Config `open-in = tab | window`. Opening an already-open file focuses its tab. A plain click on a sibling link navigates in place with back and forward. Command/Control-click opens a new tab. |
 | Closing | Command/Control-W closes the tab. Closing the last tab closes the window. On macOS the app stays resident in the tray. |
-| Native items | Settings in its own window. Modes in the View menu plus a small toggle. Native context menus with spelling and link actions. System accent drives chrome, selection and focus. Native Share on macOS only. Dock menu and Windows Jump List with recents. Mac find pasteboard. No motion after the text is readable. AppKit-native Settings and toolbar are 1.x, and only if the HTML versions feel wrong. |
+| Native items | Settings in its own window. Modes in the View menu plus a small toggle. Native context menus with spelling and link actions. System accent drives chrome, selection and focus. Native Share on macOS only. Dock menu and Windows Jump List with recents. Mac find pasteboard. Subtle chrome motion only, after the first readable paint. Document text, reading position and first paint never animate. Reduce Motion or `ui-motion = off` makes changes instant. AppKit-native Settings and toolbar are 1.x, and only if the HTML versions feel wrong. |
+| Motion | `ui-motion = subtle \| off`, default `subtle`, with a Settings switch. Chrome uses transform and opacity, 120 / 160 / 200 ms tokens, and 100 ms panel exits. FLIP handles bounds changes. Text dimensions stay fixed during pane motion and reflow once at the end. Resizing follows the pointer without animation. Tab switching and first-readable markers never wait for motion. |
 | Reading look | Editorial theme by default, with a one-click GitHub style toggle. Both use one semantic renderer. |
 | Themes | About 8 curated token files that style the document area only, with separate light and dark choices that follow the system. Shiki themes match. |
 | Typography | Separate reading, writing and code fonts. Family, size, line height and content width. No custom CSS. |
@@ -108,7 +110,8 @@ Full method: `docs/specs/perf-harness.md`.
 
 Every implementer and reviewer brief includes this list.
 
-- No vault, file tree, backlinks, graph, tag database or crawler.
+- No vault, file tree, backlinks, graph or tag database.
+- No crawler or persistent index; Open Quickly queries Git and the OS search index on demand
 - No AI chat, completion, rewriting, embeddings or agent features.
 - No WYSIWYG document model or whole-document normalization.
 - No executing MDX, raw HTML, embedded apps or code.

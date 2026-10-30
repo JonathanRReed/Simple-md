@@ -5,9 +5,9 @@ const bridge = window.simplemdSettings;
 const form = document.querySelector<HTMLFormElement>("#settings")!;
 const controls = new Map<keyof UserSettings, HTMLInputElement | HTMLSelectElement>();
 let settings: UserSettings;
-const labelFor = (value: string) => ({ "editorial-light": "Editorial Light", "editorial-dark": "Editorial Dark", "github-light": "GitHub Light", "github-dark": "GitHub Dark", "solarized-light": "Solarized Light", "solarized-dark": "Solarized Dark", "contrast-light": "High Contrast Light", "contrast-dark": "High Contrast Dark", system: "System", light: "Light", dark: "Dark", live: "Live", split: "Side by side", source: "Source", tab: "Tabs", window: "Windows" })[value] ?? value;
+const labelFor = (value: string) => ({ "editorial-light": "Editorial Light", "editorial-dark": "Editorial Dark", "github-light": "GitHub Light", "github-dark": "GitHub Dark", "solarized-light": "Solarized Light", "solarized-dark": "Solarized Dark", "contrast-light": "High Contrast Light", "contrast-dark": "High Contrast Dark", system: "System", light: "Light", dark: "Dark", live: "Live", split: "Side by side", source: "Source", tab: "Tabs", window: "Windows", top: "Horizontal", sidebar: "Sidebar", repo: "Repository", everywhere: "Everywhere" })[value] ?? value;
 function makeControl(def: ConfigDefinition): HTMLInputElement | HTMLSelectElement {
-  if (def.kind === "choice" && def.setting !== "readingStyle" || def.kind === "font") {
+  if (def.kind === "choice" && def.setting !== "readingStyle" && def.setting !== "uiMotion" || def.kind === "font") {
     const select = document.createElement("select");
     if (def.kind === "choice") for (const value of def.options) select.add(new Option(labelFor(value), value));
     return select;
@@ -24,13 +24,16 @@ function sync(snapshot: SettingsSnapshot): void {
   for (const [, def] of configEntries) {
     const input = controls.get(def.setting)!;
     const value = settings[def.setting];
+    input.disabled = def.group === "Reading" && settings.readingStyle === "github";
+    input.title = input.disabled ? "GitHub style fixes reading typography. Switch it off to change these values." : "";
     if (input instanceof HTMLSelectElement && def.kind === "font") {
       const fonts = [...new Set([...snapshot.fonts, String(value)])];
       input.replaceChildren(...fonts.map(font => new Option(font, font)));
     }
-    if (input instanceof HTMLInputElement && input.type === "checkbox") input.checked = def.setting === "readingStyle" ? value === "github" : value === true;
+    if (input instanceof HTMLInputElement && input.type === "checkbox") input.checked = def.setting === "readingStyle" ? value === "github" : def.setting === "uiMotion" ? value === "subtle" : value === true;
     else input.value = String(value);
   }
+  document.querySelector<HTMLElement>("#reading-style-note")!.hidden = settings.readingStyle !== "github";
   document.querySelector("#config-path")!.textContent = snapshot.file;
   const errors = document.querySelector<HTMLElement>("#config-errors")!;
   errors.replaceChildren(...[...snapshot.issues.map(issue => `Line ${issue.line}: ${issue.message}`), ...(snapshot.fontError ? [snapshot.fontError] : [])].map(message => {
@@ -58,20 +61,27 @@ for (const [key, def] of configEntries) {
     unit.textContent = def.label.includes("(px)") ? "px" : "characters";
     input.setAttribute("aria-describedby", unit.id); control.append(unit);
   }
+  if (def.group === "Reading") input.setAttribute("aria-describedby", `${input.getAttribute("aria-describedby") ?? ""} reading-style-note`.trim());
   row.append(label, control); group.append(row);
   input.addEventListener("change", async () => {
     const error = document.querySelector<HTMLElement>("#save-error")!;
+    if (def.group === "Reading" && settings.readingStyle === "github") return;
     if (!input.checkValidity()) { input.reportValidity(); return; }
     const value = def.setting === "readingStyle" && input instanceof HTMLInputElement ? (input.checked ? "github" : "editorial")
+      : def.setting === "uiMotion" && input instanceof HTMLInputElement ? (input.checked ? "subtle" : "off")
       : def.kind === "boolean" && input instanceof HTMLInputElement ? input.checked
       : def.kind === "number" && input instanceof HTMLInputElement ? input.valueAsNumber : input.value;
     const restoreFocus = document.activeElement === input;
     input.disabled = true;
     try { sync(await bridge.set({ [def.setting]: value })); error.hidden = true; }
     catch (cause) { error.textContent = cause instanceof Error ? cause.message : "Could not save settings."; error.hidden = false; sync(await bridge.get()); }
-    finally { input.disabled = false; if (restoreFocus && document.activeElement === document.body) input.focus(); }
+    finally { input.disabled = def.group === "Reading" && settings.readingStyle === "github"; if (restoreFocus && document.activeElement === document.body) input.focus(); }
   });
 }
+const readingNote = document.createElement("p");
+readingNote.id = "reading-style-note";
+readingNote.textContent = "GitHub style fixes reading font, size, line height and width. Switch it off to change them. Zoom still enlarges the page.";
+groups.get("Reading")!.append(readingNote);
 const advanced = document.createElement("fieldset");
 const advancedTitle = document.createElement("legend"); advancedTitle.textContent = "Advanced";
 const advancedGroup = document.createElement("div"); advancedGroup.className = "group advanced";

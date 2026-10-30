@@ -4,6 +4,8 @@ import { type RenderedHtml } from "../shared/render-tree.js";
 import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
+  setChromeVisible(visible: boolean): void;
+  moveTab(id: DocumentId, pinned: boolean, before?: DocumentId): Promise<void>;
   readFindText(): Promise<string>;
   writeFindText(text: string): Promise<void>;
   onContextMenu(cb: (context: import("../shared/native-context.js").NativeContext) => void): void;
@@ -13,9 +15,10 @@ export interface Bridge {
   onClosed(cb: (id: DocumentId) => void): void;
   releaseView(id: DocumentId): void;
   activateTab(id: DocumentId): Promise<void>;
-  paneMode(id: PaneId, mode: import("../shared/types.js").EditMode): void;
+  paneMode(id: PaneId, mode: import("../shared/types.js").ViewMode): void;
   focusPane(id: PaneId): Promise<void>;
   closeTab(id: DocumentId): Promise<boolean>;
+  tabContextMenu(id: DocumentId): Promise<void>;
   ready(): Promise<{ settings: Settings; platform: string; accent: string }>;
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;
@@ -42,12 +45,17 @@ export interface Bridge {
   renderBlocks(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<import("../shared/render-core.js").RenderedBlocks>;
   renderFragment(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<RenderedHtml>;
   save(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null>;
+  saveCopy(text: string, documentId: DocumentId): Promise<string | null>;
   saveImage(bytes: Uint8Array, ext: string, documentId: DocumentId): Promise<string | null>;
   prepareDragExport(text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf"): Promise<{ token: string; name: string; expiresAt: number }>;
   startDragExport(documentId: DocumentId, revisionId: RevisionId, token: string): void;
   exportPdf(text: string, documentId: DocumentId): Promise<void>;
   exportHtml(text: string, documentId: DocumentId): Promise<void>;
   print(text: string, documentId: DocumentId): Promise<void>;
+  onQuicklyResults(cb: (request: number, matches: import("../shared/open-quickly.js").QuicklyMatch[]) => void): () => void;
+  quicklyQuery(query: string, scope: import("../shared/open-quickly.js").QuicklyScope, request: number): Promise<import("../shared/open-quickly.js").QuicklyMatch[]>;
+  quicklyClose(): void;
+  quicklyOpen(path: string, otherPane: boolean): Promise<boolean>;
   openDialog(): Promise<void>;
   openPath(p: string, intent?: "read" | "edit", inPlace?: boolean, documentId?: DocumentId): Promise<boolean>;
   openLink(href: string, intent?: "read" | "edit", newTab?: boolean, documentId?: DocumentId): Promise<boolean>;

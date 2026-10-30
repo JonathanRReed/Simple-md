@@ -63,7 +63,7 @@ test.skipIf(process.platform === "win32")("missing git, timed-out reads, and ove
     expect(await readGitBaseline(file)).toEqual({ available: false, reason: "Git is unavailable." });
     const executable = path.join(dir, "git");
     const root = JSON.stringify(await fs.realpath(dir));
-    const script = (body: string) => `#!${process.execPath}\nif (process.argv.includes('rev-parse')) process.stdout.write(${root}); else { ${body} }\n`;
+    const script = (body: string) => `#!${process.execPath}\nif (process.argv.includes('rev-parse')) process.stdout.write(${root}); else if (process.argv.includes('-s')) process.stdout.write('7'); else { ${body} }\n`;
     await fs.writeFile(executable, script("process.stdout.write('Fixture');"), { mode: 0o700 });
     expect(await readGitBaseline(file)).toEqual({ available: true, text: "Fixture" });
     await fs.writeFile(executable, script("process.stdout.write('x'.repeat(26 * 1024 * 1024));"), { mode: 0o700 });
@@ -74,7 +74,7 @@ test.skipIf(process.platform === "win32")("missing git, timed-out reads, and ove
     expect(performance.now() - start).toBeGreaterThan(1500);
     expect(performance.now() - start).toBeLessThan(5000);
   } finally { process.env.PATH = previous; }
-});
+}, 15_000);
 
 async function repository() {
   const dir = await directory();
@@ -109,7 +109,7 @@ test("a bare repository embedded as ordinary tracked files is refused after clon
 test("Git receives a minimal environment and mandatory no-fetch hardening", async () => {
   const dir = await directory(), file = path.join(dir, "note.md"), output = path.join(dir, "call.json");
   await fs.writeFile(file, "Current");
-  await fakeGit(dir, `import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(output)}, JSON.stringify({argv:process.argv.slice(2),env:process.env}));process.stdout.write(process.argv.includes('rev-parse') ? ${JSON.stringify(await fs.realpath(dir))} : 'HEAD');`);
+  await fakeGit(dir, `import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(output)}, JSON.stringify({argv:process.argv.slice(2),env:process.env}));process.stdout.write(process.argv.includes('rev-parse') ? ${JSON.stringify(await fs.realpath(dir))} : process.argv.includes('-s') ? '4' : 'HEAD');`);
   const saved = { ...process.env };
   try {
     Object.assign(process.env, { PATH: dir, GIT_DIR: "/trap", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.sshCommand", GIT_CONFIG_VALUE_0: "trap", GIT_EXEC_PATH: "/trap", GIT_CEILING_DIRECTORIES: "/", GIT_SSH: "/trap", NODE_OPTIONS: "--no-warnings" });
@@ -148,3 +148,15 @@ test("document mount never requests Git status and status inspection never invok
   const main = await fs.readFile(path.resolve(import.meta.dir, "../src/main/main.ts"), "utf8");
   expect(main.includes('handle("smd:git-status", id => ipcSession(id).gitStatus)')).toBe(true);
 });
+
+test("Git failures name untracked files, missing HEAD, repository absence and the size limit", async () => {
+  const { dir, git } = await repository();
+  const file = path.join(dir, "note.md"); await fs.writeFile(file, "Current");
+  expect(await readGitBaseline(file)).toEqual({ available: false, reason: "This repository has no HEAD commit." });
+  git("commit", "--allow-empty", "-m", "empty");
+  expect(await readGitBaseline(file)).toEqual({ available: false, reason: "This file is untracked." });
+  const outside = path.join(await directory(), "outside.md"); await fs.writeFile(outside, "Outside");
+  expect(await readGitBaseline(outside)).toEqual({ available: false, reason: "This file is not in a Git repository." });
+  await fs.writeFile(file, "x".repeat(25 * 1024 * 1024 + 1)); git("add", "note.md"); git("commit", "-m", "large");
+  expect(await readGitBaseline(file)).toEqual({ available: false, reason: "The HEAD version exceeds the 25 MB Git read limit." });
+}, 15_000);

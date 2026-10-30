@@ -2,9 +2,38 @@ import { expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { configDefaults } from "../src/shared/config-schema";
+import { clampSidebarWidth, configDefaults } from "../src/shared/config-schema";
 import { parseConfig, serializeConfig, validateUserPatch } from "../src/shared/config";
 import { ConfigStore, configPath } from "../src/main/config-store";
+import { sanitizeSettings } from "../src/main/settings-store";
+
+test("chrome motion defaults to subtle and only accepts subtle or off", () => {
+  expect(configDefaults.uiMotion).toBe("subtle");
+  for (const uiMotion of ["subtle", "off"] as const) {
+    expect(parseConfig(serializeConfig("", { uiMotion })).settings.uiMotion).toBe(uiMotion);
+    expect(validateUserPatch({ uiMotion })).toEqual({ uiMotion });
+    expect(sanitizeSettings({ uiMotion }).uiMotion).toBe(uiMotion);
+  }
+  expect(parseConfig("ui-motion = fast").issues).toHaveLength(1);
+  expect(() => validateUserPatch({ uiMotion: true })).toThrow();
+});
+
+test("tab settings round trip and sidebar width clamps at every config boundary", () => {
+  expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(180);
+  const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true } as const;
+  expect(parseConfig(serializeConfig("# Tabs\r\n", patch)).settings).toMatchObject(patch);
+  for (const [input, expected] of [[1, 140], [900, 420], [250.7, 251]]) {
+    expect(clampSidebarWidth(input!)).toBe(expected!);
+    expect(parseConfig(`sidebar-width = ${input}`).settings.sidebarWidth).toBe(expected!);
+    expect(parseConfig(serializeConfig("", { sidebarWidth: input! })).settings.sidebarWidth).toBe(expected!);
+    expect(validateUserPatch({ sidebarWidth: input! }).sidebarWidth).toBe(expected!);
+    expect(sanitizeSettings({ sidebarWidth: input! }).sidebarWidth).toBe(expected!);
+  }
+  expect(clampSidebarWidth(NaN)).toBe(180);
+  expect(parseConfig("tab-style = tree\nsidebar-width = Infinity\nsidebar-collapsed = yes").issues).toHaveLength(3);
+  expect(() => validateUserPatch({ sidebarWidth: Infinity })).toThrow();
+  expect(() => validateUserPatch({ tabStyle: "tree" })).toThrow();
+});
 test("config preserves comments, unknown lines, order, quotes and CRLF", () => {
   const source = '# My setup\r\nreading-font-family = "A # Font" # Keep this\r\nfuture-key = x\r\nautosave = false\r\n';
   expect(serializeConfig(source, {})).toBe(source);
@@ -72,7 +101,7 @@ test("legacy font and width migrate only when explicitly stored", async () => {
   try {
     const file = path.join(dir, "settings.json");
     saveState({ ...sanitizeSettings(raw), recents: ["note.md"], zoom: 1.2 }, file); flushSettings();
-    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ recents: ["note.md"], zoom: 1.2 });
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ recents: ["note.md"], zoom: 1.2, pinnedPaths: [] });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -107,5 +136,24 @@ test.skipIf(process.platform === "win32")("config rejects FIFO reads without blo
     const child = Bun.spawn([process.execPath, "-e", source], { stdout: "ignore", stderr: "pipe" });
     const timer = setTimeout(() => child.kill(), 2000);
     try { expect(await child.exited).toBe(0); } finally { clearTimeout(timer); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("zen is session-only and old config cannot restore it", async () => {
+  const { patchSettings, saveState, flushSettings } = await import("../src/main/settings-store");
+  const current = sanitizeSettings({ zenMode: true });
+  expect(current.zenMode).toBe(false);
+  expect(parseConfig("zen-mode = true\n").issues).toEqual([]);
+  expect(parseConfig("zen-mode = true\n").settings).not.toHaveProperty("zenMode");
+  const zen = patchSettings(current, { zenMode: true });
+  expect(zen.zenMode).toBe(true);
+  expect(patchSettings(zen, { theme: "dark" }).zenMode).toBe(true);
+  expect(serializeConfig("", zen)).not.toContain("zen-mode");
+  expect(() => validateUserPatch({ zenMode: true })).toThrow();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-zen-session-"));
+  try {
+    const file = path.join(dir, "settings.json"); saveState(zen, file); flushSettings();
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).not.toHaveProperty("zenMode");
+    expect(sanitizeSettings(JSON.parse(fs.readFileSync(file, "utf8"))).zenMode).toBe(false);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

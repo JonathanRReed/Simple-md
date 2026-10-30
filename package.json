@@ -10,6 +10,7 @@
     "typecheck": "bun run --cwd app typecheck",
     "lint": "bun run --cwd app lint",
     "test": "bun run --cwd app test",
+    "test:cli": "bun run --cwd app test:cli",
     "test:corpus": "bun run --cwd app test:corpus",
     "test:packaging": "bun run --cwd app test:packaging",
     "test:asar": "bun run --cwd app test:asar",

@@ -26,10 +26,10 @@ describe("basics", () => {
     expect(out).toContain('href="#introduction"');
   });
 
-  test("title comes from frontmatter, then file name", async () => {
+  test("title comes from frontmatter, then H1, then file name", async () => {
     expect((await renderMarkdown("---\ntitle: Trip Notes\n---\n# x", "/a/b.md")).title).toBe("Trip Notes");
-    expect((await renderMarkdown("# x", "/a/trip.md")).title).toBe("trip");
-    expect((await renderMarkdown("# x", null)).title).toBe("Untitled");
+    expect((await renderMarkdown("body", "/a/trip.md")).title).toBe("trip");
+    expect((await renderMarkdown("body", null)).title).toBe("Untitled");
   });
 
   test("frontmatter renders as a metadata table, not a heading or rule", async () => {

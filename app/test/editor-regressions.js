@@ -23,17 +23,16 @@ assert(document.querySelector('#name').textContent === 'b.md', 'late save comple
 assert(document.documentElement.dataset.documentPainted === '/tmp/b.md', 'paint marker names the current document');
 
 const ui = await import('./ui.js');
-let finds = 0;
-window.find = () => {finds++;return true};
-ui.openReadFind(() => {});
-ui.openReadFind(() => {});
+ui.openReadFind(document.querySelector('#doc'), () => {});
+ui.openReadFind(document.querySelector('#doc'), () => {});
 document.querySelector('#find-input').value = 'b';
 document.querySelector('#find-input').dispatchEvent(new Event('input'));
-assert(finds === 1, 'reopening find does not add search handlers');
+assert(document.activeElement === document.querySelector('#find-input'), 'reopening find retains input focus');
 document.querySelector('#find-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-ui.openReadFind(() => {});
+assert(!CSS.highlights.has('read-matches'), 'closing find removes highlights');
+ui.openReadFind(document.querySelector('#doc'), () => {});
 document.querySelector('#find-input').dispatchEvent(new Event('input'));
-assert(finds === 2, 'closing find removes input handlers');
+assert(CSS.highlights.has('read-matches'), 'reopening find restores highlights');
 
 ui.closeOverlays();
 await doc('retained', 'retained.md', 5, 'read', [

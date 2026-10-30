@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-type NativeStep = { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
+type NativeStep = { nativeChrome: true } | { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
 export type DriverStep = NativeStep | { nativeMenuState: { path: string[]; enabled: boolean; checked?: boolean; tooltip?: boolean } } | { dragExport: { format: "html" | "pdf"; target: string; receipt: string } } | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true } | { savePath: string };
 
 export async function runDriver(
@@ -59,7 +59,7 @@ export async function runDriver(
             const format = document.querySelector('[data-active="true"] [data-element="export-format"]');
             const button = document.querySelector('[data-active="true"] [data-element="drag-export"]');
             format.value = ${JSON.stringify(step.dragExport.format)}; format.dispatchEvent(new Event('change'));
-            button.click();
+            button.dispatchEvent(new PointerEvent("pointerenter"));
             const deadline = performance.now() + 15000;
             while (!button.draggable) { if (performance.now() > deadline) throw new Error('Export was not prepared.'); await new Promise(r => setTimeout(r, 25)); }
             button.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true}));
@@ -68,7 +68,7 @@ export async function runDriver(
         } finally { clearTimeout(timer); target.webContents.startDrag = startDrag; }
         continue;
       }
-      if ("nativeMenu" in step || "nativeContext" in step || "nativeIdentity" in step || "nativeFind" in step || "nativeAccent" in step) {
+      if ("nativeChrome" in step || "nativeMenu" in step || "nativeContext" in step || "nativeIdentity" in step || "nativeFind" in step || "nativeAccent" in step) {
         const { BrowserWindow, Menu, clipboard, ClipboardItem, systemPreferences } = await import("electron");
         const target = BrowserWindow.getAllWindows().find(w => w.webContents === win.webContents);
         if (!target) throw new Error("Native driver window is missing.");
@@ -82,6 +82,9 @@ export async function runDriver(
           }
           if (!item?.enabled) throw new Error("Native menu item is disabled.");
           item.click({}, target, target.webContents);
+        } else if ("nativeChrome" in step && process.platform === "darwin") {
+          const position = target.getWindowButtonPosition();
+          if (position?.x !== 12 || position.y !== 10) throw new Error("Traffic lights are not aligned with the tab row.");
         } else if ("nativeIdentity" in step && process.platform === "darwin") {
           if (target.getRepresentedFilename() !== step.nativeIdentity.file || target.isDocumentEdited() !== step.nativeIdentity.edited) throw new Error("Native document identity differs.");
         } else if ("nativeFind" in step && process.platform === "darwin") {
@@ -149,11 +152,16 @@ export async function runDriver(
       }
       if ("selectWindow" in step) {
         const { BrowserWindow } = await import("electron");
-        const all = BrowserWindow.getAllWindows();
         const selection = step.selectWindow;
-        const selected = typeof selection === "number" ? all[selection] : (await Promise.all(all.map(async window => ({
-          window, file: await window.webContents.executeJavaScript("document.documentElement.dataset.documentPath"),
-        })))).find(entry => entry.file === selection)?.window;
+        const deadline = performance.now() + 10000;
+        let selected: BrowserWindow | undefined;
+        do {
+          const all = BrowserWindow.getAllWindows();
+          selected = typeof selection === "number" ? all[selection] : (await Promise.all(all.map(async window => ({
+            window, file: await window.webContents.executeJavaScript("document.documentElement.dataset.documentPath"),
+          })))).find(entry => entry.file === selection)?.window;
+          if (!selected) await new Promise(resolve => setTimeout(resolve, 20));
+        } while (!selected && performance.now() < deadline);
         if (!selected) throw new Error("Driver window is missing.");
         win = selected;
         continue;
@@ -211,6 +219,8 @@ export async function runDriver(
       if ("menuQuit" in step) {
         if (!requestQuit) throw new Error("Menu quit is unavailable.");
         requestQuit();
+        // Quit settles documents asynchronously after this driver returns. Keep its dialog choices alive.
+        restoreDialogs = undefined;
         return "menu-quit";
       }
       if ("settings" in step) {

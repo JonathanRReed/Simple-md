@@ -18,6 +18,7 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
     const doc: DocPayload = { ...rendered, documentId: makeDocumentId(0), paneId: makePaneId(0), revisionId: makeRevisionId(0), path: source.path, name: source.name, text: source.text, intent: "read", baseUrl: null };
     const pw = new BrowserWindow({
       show: false,
+      title: doc.title,
       webPreferences: { preload: path.join(here, "preload.cjs"), sandbox: true, contextIsolation: true },
     });
     pw.webContents.on("will-navigate", (event) => event.preventDefault());
@@ -34,6 +35,11 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
       });
       pw.webContents.send("smd:print-doc", doc, getSettings());
       await ready;
+      pw.setTitle(doc.title);
+      await pw.webContents.executeJavaScript(`(async () => {
+        document.title = ${JSON.stringify(doc.title)};
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      })()`);
       return await use(pw, doc);
     } finally {
       clearTimeout(timer);
@@ -44,7 +50,7 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
 
   function makePdf(source: ExportSource): Promise<Buffer> {
     return withPrintWindow(source, (pw) =>
-      pw.webContents.printToPDF({ printBackground: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
+      pw.webContents.printToPDF({ printBackground: true, generateTaggedPDF: true, generateDocumentOutline: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
     );
   }
 

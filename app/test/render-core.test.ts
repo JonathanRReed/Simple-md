@@ -40,3 +40,18 @@ test("stdin MDX mode has no file location or cwd-relative image access", async (
   expect(main).not.toContain("doc.path ?? doc.name");
   expect(/renderBlocks\([^\n]*file \?\? doc.name/.test(main)).toBe(false);
 });
+
+
+test("a concurrent plain render cannot disable a pending fragment highlighter", async () => {
+  const { createRenderCore } = await import("../src/shared/render-core");
+  let release: (() => void) | undefined;
+  const core = createRenderCore({
+    prepareHighlighting: async () => new Promise<void>(resolve => { release = resolve; }),
+    highlight: () => '<pre class="highlighted"><code>const typed = 1;</code></pre>',
+  });
+  const fragment = core.renderFragment("```js\nconst typed = 1;\n```", undefined);
+  while (!release) await Promise.resolve();
+  await core.renderBlocks("Plain text", null, false);
+  release();
+  expect((await fragment).html).toContain('class="highlighted"');
+});

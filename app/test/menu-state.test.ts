@@ -25,3 +25,11 @@ test("recents rebuild app and OS menus while pane mode only rebuilds the app men
   for (const patch of [{ autosave: false }, { vim: true }, { spellcheck: false }, { theme: "dark" as const }, { readingStyle: "github" as const }]) expect(menuState({ ...DEFAULT_SETTINGS, ...patch }, "live", true).application).not.toBe(before.application);
   expect(menuState(DEFAULT_SETTINGS, "live", false).application).not.toBe(before.application);
 });
+test("tab placement and collapse update the View menu; width does not rebuild it", () => {
+  const before = menuState(DEFAULT_SETTINGS, "read", true);
+  expect(menuState({ ...DEFAULT_SETTINGS, tabStyle: "sidebar" }, "read", true).application).not.toBe(before.application);
+  expect(menuState({ ...DEFAULT_SETTINGS, sidebarCollapsed: true }, "read", true).application).not.toBe(before.application);
+  expect(menuState({ ...DEFAULT_SETTINGS, zenMode: true }, "read", true).application).not.toBe(before.application);
+  expect(menuState(DEFAULT_SETTINGS, "read", true, undefined, true).application).not.toBe(before.application);
+  expect(menuState({ ...DEFAULT_SETTINGS, sidebarWidth: 340 }, "read", true)).toEqual(before);
+});

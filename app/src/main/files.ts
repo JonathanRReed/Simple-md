@@ -36,6 +36,7 @@ export async function readRegularFile(file: string, maxBytes = MAX_DOCUMENT_BYTE
   const handle = await fs.promises.open(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
   try {
     const stat = await handle.stat();
+    if (stat.isDirectory()) throw Object.assign(new Error("Cannot open a directory. Choose a text file."), { code: "EISDIR" });
     if (!stat.isFile()) throw new Error("Only regular files can be opened.");
     if (stat.size > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
     const chunks: Buffer[] = [];

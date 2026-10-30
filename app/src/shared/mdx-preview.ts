@@ -72,7 +72,7 @@ export async function mapMdxPreview(
           const child = await render(await section(end, innerEnd, nested, depth + 1), range.kind === "jsx-text");
           if (range.capitalized) {
             const tag = range.kind === "jsx-text" ? "span" : "div";
-            node = { kind: "app", parts: [`<${tag} class="mdx-component"><span class="mdx-label">${escape(range.name!)}</span>`, ...attributesAsSource, child, `</${tag}>`] };
+            node = { kind: "app", parts: [`<${tag} class="mdx-component"><span class="mdx-label">${escape(range.name!)}</span> `, ...attributesAsSource, child, `</${tag}>`] };
           } else if (range.name === null) {
             node = child;
           } else {

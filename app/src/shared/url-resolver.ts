@@ -3,20 +3,31 @@ import { prefixFragment } from "./sanitizer-policy.js";
 export interface UrlContext {
   baseUrl?: string;
   rootUrl?: string;
+  publicUrl?: string;
 }
 export type UrlKind = "anchor" | "resource";
 
 // Only app-minted file URLs may use this check. Author file: schemes stay forbidden.
-export function isContainedFileUrl(input: string, context: UrlContext): boolean {
+export function containedFileRoot(input: string, context: UrlContext): string | null {
   try {
     const url = new URL(input);
-    const root = new URL(context.rootUrl ?? context.baseUrl ?? "");
-    if (url.protocol !== "file:" || root.protocol !== "file:" || url.host !== root.host || /%2f|%5c|%00/i.test(url.pathname)) return false;
-    const folder = decodeURIComponent(root.pathname).replace(/\/?$/, "/");
-    const target = decodeURIComponent(url.pathname);
-    return target.startsWith(folder);
-  } catch { return false; }
+    if (url.protocol !== "file:" || /%2f|%5c|%00/i.test(url.pathname)) return null;
+    for (const base of [context.rootUrl ?? context.baseUrl, context.publicUrl]) {
+      if (!base) continue;
+      const root = new URL(base);
+      if (root.protocol !== "file:" || url.host !== root.host) continue;
+      const folder = decodeURIComponent(root.pathname).replace(/\/?$/, "/");
+      if (decodeURIComponent(url.pathname).startsWith(folder)) return root.href;
+    }
+  } catch { /* Invalid URLs do not grant file access. */ }
+  return null;
 }
+
+export function isContainedFileUrl(input: string, context: UrlContext): boolean {
+  return containedFileRoot(input, context) !== null;
+}
+
+export const BLOCKED_LINK_TITLE = "Link blocked: unsupported URL or path outside the document root.";
 
 // Input is decoded by the Markdown or HTML parser before reaching this boundary.
 export function resolveAuthorUrl(input: string, kind: UrlKind, context: UrlContext = {}, remoteImages = true): string | null {
@@ -37,7 +48,7 @@ export function resolveAuthorUrl(input: string, kind: UrlKind, context: UrlConte
       return remote(url) || (kind === "anchor" && url.protocol === "mailto:") ? (value.startsWith("//") ? url.href : value) : null;
     } catch { return null; }
   }
-  const base = value.startsWith("/") ? context.rootUrl ?? context.baseUrl : context.baseUrl;
+  const base = value.startsWith("/") ? context.publicUrl ?? context.rootUrl ?? context.baseUrl : context.baseUrl;
   if (!base) return value.startsWith("/") ? null : value;
   try {
     const url = new URL(value.startsWith("/") ? value.slice(1) : value, base);

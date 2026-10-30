@@ -1,12 +1,15 @@
+import { waitForGuiLoad } from "./host-load";
 import { typingProbe, typingInput, typingLetters, typingRecord, calibratedTyping } from "./perf-typing";
 import { summarizeEventTiming } from "./perf-gate";
 import { assertDocument as assertPerfDocument } from "./perf-gate";
 import assert from "node:assert/strict";
+import type { KeyboardInputEvent } from "electron";
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { cliRuntime } from "../src/main/cli-runtime";
+import { configEntries } from "../src/shared/config-schema";
 import type { DriverStep } from "../src/main/driver";
 
 type Step = DriverStep;
@@ -61,7 +64,8 @@ function fixture(name: string, text: string): string {
   return file;
 }
 
-async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source", options: { env?: NodeJS.ProcessEnv; prepare?: (profile: string) => void } = {}): Promise<void> {
+async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" | "default" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source", options: { env?: NodeJS.ProcessEnv; prepare?: (profile: string) => void } = {}): Promise<void> {
+  await waitForGuiLoad();
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
@@ -74,7 +78,7 @@ async function launch(name: string, file: string, steps: Step[], intent: "read" 
   const last = steps.at(-1);
   const sequence = last && "menuQuit" in last ? [...steps.slice(0, -1), { shot: done }, last] : [...steps, { shot: done }];
   fs.writeFileSync(drive, JSON.stringify(sequence, null, 2));
-  const env: NodeJS.ProcessEnv = { ...process.env, ...options.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: intent, SMD_TRACE: "1" };
+  const env: NodeJS.ProcessEnv = { ...process.env, ...options.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: intent === "default" ? undefined : intent, SMD_TRACE: "1" };
   delete env.ELECTRON_RUN_AS_NODE;
   let logs = "";
   let injected = false;
@@ -215,7 +219,7 @@ await test("m6b-watch-highlights", async () => {
       await window.simplemd.openPath(${quote(file)}, 'read');`),
     { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: true, checked: false, tooltip: true } },
     { nativeMenu: ['View', 'Show Changes Since Last Commit'] },
-    evaluate(`await waitFor(() => document.querySelector('#toast').textContent.includes('outside a Git repository'), 'Outside-repo Git action did not explain the failure.');`),
+    evaluate(`await waitFor(() => document.querySelector('#toast').textContent.includes('not in a Git repository'), 'Outside-repo Git action did not explain the failure.');`),
     { nativeMenuState: { path: ['View', 'Show Changes Since Last Commit'], enabled: true, checked: false } },
   ], "read", { marker, file, text: after });
   assert.equal(fs.readFileSync(file, "utf8"), after, "Watch or Mark Seen changed source bytes.");
@@ -379,6 +383,8 @@ await test("live-open-defers-read-render", async () => {
   const logs = fs.readFileSync(path.join(root, "live-open-defers-read-render/electron.log"), "utf8");
   const ready = logs.indexOf('"name":"live-ready"');
   assert(ready >= 0, "Missing Live readiness record.");
+  const firstReadable = logs.indexOf('"marker":"first-readable"');
+  assert(firstReadable >= 0 && logs.indexOf('"marker":"tray-ready"') > firstReadable, "Native tray setup delayed the first document paint.");
   assert(!logs.slice(0, ready).includes('"marker":"parse-start"'), "Live initialized an unused full-document render.");
   assert(!logs.slice(0, ready).includes('"marker":"worker-queue"'), "Live started an unused render worker.");
   assert(logs.slice(ready).includes('"marker":"parse-start"'), "Read did not request its render.");
@@ -634,7 +640,7 @@ $x^2$
     evaluate(`await waitFor(() => document.querySelector('#doc details:not(.frontmatter) strong')?.textContent === 'Inside', 'Raw wrapper lost its Markdown children.');
       const doc = document.querySelector('#doc');
       await waitFor(() => doc.querySelector('details .shiki'), 'Nested Shiki code did not render.');
-      assert(doc.querySelector('details .shiki') && doc.querySelector('details .katex') && doc.querySelector('details input[type="checkbox"][disabled]'), 'Author policy removed generated nodes.');
+      assert(doc.querySelector('details .shiki') && doc.querySelector('details .katex') && doc.querySelector('details input[type="checkbox"]:enabled'), 'Author policy removed generated nodes.');
       assert(!doc.querySelector('script, style, [data-evil], [onerror], .mermaid') && !window.authorExecuted, 'Author content gained generated privileges.');
       assert(doc.querySelector('details').id === 'user-content-more' && doc.querySelector('a[href="#user-content-more"]'), 'Author IDs and fragments disagree.');
       assert(!doc.querySelector('img[alt="blocked"]').hasAttribute('src'), 'Author file URL survived.');
@@ -667,7 +673,7 @@ await test("edit-modes-undo-save", async () => {
   await launch("edit-modes-undo-save", file, [
     evaluate(`await waitFor(() => document.querySelector('.cm-content'), 'CLI edit did not open CodeMirror.');
       for (const mode of ['live', 'split', 'source']) {
-        document.querySelector('[data-mode="' + mode + '"][role="radio"]').click();
+        document.querySelector('[data-mode="' + mode + '"][aria-pressed]').click();
         await waitFor(() => document.querySelector('#edit').dataset.mode === mode, 'Mode did not switch to ' + mode);
         if (mode === 'split') await waitFor(() => document.querySelector('#preview h1')?.textContent === 'Smoke edit note', 'Split preview did not render the current note.');
       }
@@ -705,7 +711,7 @@ await test("settings-menu-quit", async () => {
       await waitFor(() => matchMedia('(prefers-color-scheme: dark)').matches, 'Dark setting did not change appearance.');`),
       { shot: path.join(root, name, "settings.png") },
     ] },
-    evaluate(`await waitFor(() => document.querySelector('[data-mode="split"]').getAttribute('aria-checked') === 'true', 'Editing default did not apply.');
+    evaluate(`await waitFor(() => document.querySelector('[data-mode="split"]').getAttribute('aria-pressed') === 'true', 'Editing default did not apply.');
       await waitFor(() => document.querySelector('#preview h1')?.textContent === 'Smoke edit note', 'Side by side did not render after Settings.');`),
     { menuQuit: true },
   ], "edit");
@@ -813,6 +819,11 @@ await test("tasks-source-mapping", async () => {
   await launch("tasks-source-mapping", file, [
     evaluate(`assert(document.querySelectorAll('#doc .task-list-item-checkbox').length === 3, 'Task fixture did not render three real checkboxes.');
       document.querySelector('#doc .task-list-item').click();
+      await new Promise(resolve => setTimeout(resolve, 180));
+      assert(!document.querySelector('#doc .task-list-item-checkbox').checked, 'Clicking task text toggled the checkbox');
+      const checkbox = document.querySelector('#doc .task-list-item-checkbox');
+      checkbox.focus();
+      checkbox.click();
       await waitFor(() => document.querySelector('#doc .task-list-item-checkbox')?.checked, 'Quoted task did not toggle.');
       window.simplemd.command('save');
       await waitFor(() => document.querySelector('#dirty').hidden, 'Task edit did not save.');`),
@@ -904,7 +915,7 @@ for (const [name, ending] of [["crlf", "\r\n"], ["cr", "\r"], ["mixed", "\r\n"]]
 await test("bytes-table", async () => {
   const original = fs.readFileSync(path.join(byteFixtures, "irregular-table.md"), "utf8");
   const file = fixture("bytes-table/note.md", original);
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } },
     { input: { type: "keyUp", keyCode, modifiers } },
   ];
@@ -925,7 +936,7 @@ await test("bytes-table", async () => {
 await test("bytes-table-new-row", async () => {
   const original = fs.readFileSync(path.join(byteFixtures, "irregular-table.md"), "utf8");
   const file = fixture("bytes-table-new-row/note.md", original);
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } },
     { input: { type: "keyUp", keyCode, modifiers } },
   ];
@@ -967,7 +978,7 @@ await test("bytes-task", async () => {
   const original = "\uFEFF# Tasks\r\n\r\n- [ ] first\r- [X] second\n- [ ] third";
   const file = fixture("bytes-task/note.md", original);
   await launch("bytes-task", file, [
-    evaluate(`document.querySelectorAll('#doc .task-list-item')[1].click();
+    evaluate(`document.querySelectorAll('#doc .task-list-item-checkbox')[1].click();
       await waitFor(() => !document.querySelector('#dirty').hidden, 'Task did not toggle.');`),
     { save: true },
     evaluate(`window.simplemd.command('undo');
@@ -1058,7 +1069,16 @@ await test("settings-config-themes", async () => {
       assert(Object.keys(window.simplemdSettings).sort().join(',') === 'get,set,subscribe', 'Settings preload exposes extra APIs.');
       const snapshot = await window.simplemdSettings.get();
       assert(snapshot.fonts.length > 4 && !snapshot.fontError, 'Installed system fonts were not listed.');
-      assert(document.querySelectorAll('select,input').length === 23, 'Schema controls are missing.');
+      const keys = ${quote(configEntries.map(([key]) => key))};
+      assert(document.querySelectorAll('select,input').length === keys.length && keys.every(key => document.getElementById(key)?.matches('select,input')), 'Schema controls are missing.');
+      const motion = document.querySelector('#ui-motion');
+      assert(motion.type === 'checkbox' && motion.checked, 'Motion switch is missing or off by default');
+      motion.click();
+      await waitFor(() => !motion.disabled, 'Motion switch did not save');
+      assert((await window.simplemdSettings.get()).settings.uiMotion === 'off', 'Motion switch did not disable motion');
+      motion.click();
+      await waitFor(() => !motion.disabled, 'Motion switch did not restore');
+      assert((await window.simplemdSettings.get()).settings.uiMotion === 'subtle', 'Motion switch did not enable motion');
       const choose = async (key, value) => {
         const input = document.getElementById(key); input.value = value; input.dispatchEvent(new Event('change', {bubbles:true}));
         await waitFor(() => !input.disabled, 'Settings did not save.');
@@ -1280,6 +1300,309 @@ await test("tabs-inactive-pane-link", async () => {
   `)], "read");
 });
 
+await test("tabs-diagram-revisit", async () => {
+  const source = "# Diagrams\n\n" + Array.from({ length: 8 }, (_, i) => `\`\`\`mermaid\ngraph LR\nA${i}[Start]-->B${i}[Finish]\n\`\`\`\n\n`).join("");
+  const a = fixture("diagram-revisit/a.md", source), b = fixture("diagram-revisit/b.md", "# Other\n");
+  await launch("tabs-diagram-revisit", a, [
+    assertPerfDocument(a, source),
+    ...Array.from({ length: 4 }, () => [
+      evaluate(`await window.simplemd.openPath(${quote(b)}, 'read');`),
+      assertPerfDocument(b, "# Other\n"),
+      evaluate(`await window.simplemd.openPath(${quote(a)}, 'read');`),
+      assertPerfDocument(a, source),
+    ]).flat(),
+  ]);
+});
+
+await test("tab-design-polish-search-layout", async () => {
+  const shots = path.resolve(appRoot, "../.audit/m6-stabilize/screenshots");
+  fs.mkdirSync(shots, { recursive: true });
+  const file = fixture("tab-polish/README.md", "# A quiet place to read\n\nKeep the document at the center.\n\n## Room for the work\n\nOpen a few notes and keep your place.\n");
+  const draft = fixture("tab-polish/Working draft.md", "# Working draft\n\nA small set of familiar controls and room for the work.\n");
+  await launch("tab-design-polish-search-layout", file, [
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(draft)}, 'edit');`),
+    ...appendCharacter("!"),
+    evaluate(`window.simplemd.command('mode-read');
+      await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read' && document.querySelector('#doc h1'), 'Read did not mount');
+      await window.simplemd.setSettings({ theme: 'light' });
+      await waitFor(() => document.documentElement.style.colorScheme === 'light', 'Light theme did not apply');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const toolbar = document.querySelector('.document-pane[data-active=true] .pane-controls');
+      assert(toolbar.getBoundingClientRect().top === 3, 'Toolbar is not in the title row');
+      assert(document.querySelector('#tabs').getBoundingClientRect().right + 27 <= toolbar.getBoundingClientRect().left, 'Tabs overlap the toolbar or grab space');
+      assert(getComputedStyle(document.querySelector('[data-element=name]')).display === 'none', 'Single pane repeats the filename');
+      assert([...toolbar.querySelectorAll('[data-mode]')].every(button => button.querySelector('svg') && button.getAttribute('aria-label') && button.title), 'Mode icons lack names or tooltips');
+      assert(toolbar.querySelector('[data-mode=read]').getAttribute('aria-pressed') === 'true', 'Read icon is not pressed');
+      const pin = document.querySelector('.tab[data-pinned=true]');
+      const short = pin.querySelector('.tab-short');
+      assert(short.textContent.length >= 3 && 'README'.startsWith(short.textContent) && pin.getBoundingClientRect().width <= 62 && short.getBoundingClientRect().width <= pin.getBoundingClientRect().width, 'Pinned tab is not compact and readable');
+      const name = document.querySelector('.tab[data-dirty=true] .tab-name').getBoundingClientRect();
+      const slot = document.querySelector('.tab[data-dirty=true] .tab-action').getBoundingClientRect();
+      assert(slot.left - name.right <= 6.1, 'Dirty slot is detached from its label');`),
+    { input: { type: "mouseMove", x: 500, y: 300 } },
+    { shot: path.join(shots, "after-top-light.png") },
+    evaluate(`document.querySelector('#tab-search-button').click();
+      await waitFor(() => !document.querySelector('#picker').hidden, 'Search button did not open Open Quickly');`),
+    { input: { type: "keyDown", keyCode: "Escape" } }, { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`await waitFor(() => document.querySelector('#picker').hidden, 'Search picker did not close');
+      await window.simplemd.setSettings({ theme: 'dark' });
+      await waitFor(() => document.documentElement.style.colorScheme === 'dark', 'Dark theme did not apply');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`),
+    { shot: path.join(shots, "after-top-dark.png") },
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });
+      await waitFor(() => document.querySelector('#tabs').getBoundingClientRect().width === 180, 'Sidebar did not use its slim default');
+      assert(document.querySelector('#tabs').getBoundingClientRect().top === 0, 'Sidebar does not reach the window top');
+      assert(document.querySelector('#sidebar-search').getBoundingClientRect().top >= 34, 'Search overlaps traffic lights');
+      assert(document.querySelector('.document-pane[data-active=true] .pane-controls').getBoundingClientRect().top === 3, 'Sidebar moved controls to a second row');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`),
+    { shot: path.join(shots, "after-sidebar-dark.png") },
+    evaluate(`const search = document.querySelector('#sidebar-search-input');
+      search.value = 'Working'; search.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker-input').value === 'Working', 'Sidebar search lost the query');`),
+    { input: { type: "keyDown", keyCode: "Escape" } }, { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`await waitFor(() => document.querySelector('#picker').hidden, 'Sidebar search picker did not close');
+      await window.simplemd.setSettings({ theme: 'light' });
+      await waitFor(() => document.documentElement.style.colorScheme === 'light', 'Sidebar light theme did not apply');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`),
+    { shot: path.join(shots, "after-sidebar-light.png") },
+    evaluate(`document.querySelector('.document-pane[data-active=true] [data-command=split-panes]').click();
+      await waitFor(() => document.querySelectorAll('.document-pane').length === 2, 'Split icon did not open another pane');
+      assert(document.querySelectorAll('.pane-name [data-element=name]').length === 2, 'Split headers lost filenames');
+      assert(document.querySelector('.document-pane[data-active=true] [data-command=split-panes]').getAttribute('aria-pressed') === 'true', 'Split icon is not pressed');
+      document.querySelector('.document-pane[data-active=true] [data-command=stack-panes]').click();
+      await waitFor(() => document.querySelector('#stage').dataset.axis === 'vertical', 'Stacked icon did not change the layout');
+      await window.simplemd.setSettings({ zenMode: true });
+      assert(getComputedStyle(document.querySelector('#tab-search')).display === 'none', 'Zen retained search');`),
+  ]);
+});
+
+await test("tab-design-titlebar-grab-regions", async () => {
+  const file = fixture("tab-design-titlebar/README.md", note), other = fixture("tab-design-titlebar/other.md", "# Other\n");
+  await launch("tab-design-titlebar-grab-regions", file, [
+    evaluate(`await window.simplemd.openPath(${quote(other)}); await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Second tab did not appear');
+      const tabs = document.querySelector('#tabs'), titlebar = document.querySelector('.titlebar');
+      assert(getComputedStyle(tabs).getPropertyValue('-webkit-app-region') === 'drag', 'Empty strip does not drag');
+      assert(getComputedStyle(titlebar).getPropertyValue('-webkit-app-region') === 'drag', 'Titlebar does not drag');
+      assert(getComputedStyle(tabs.querySelector('[role=tab]')).getPropertyValue('-webkit-app-region') === 'no-drag', 'Tabs cannot receive clicks');
+      assert(innerWidth - tabs.getBoundingClientRect().right >= 27, 'Overflow removed the frame grab space');`),
+    { nativeChrome: true },
+    { nativeIdentity: { file: other, edited: false } },
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });`),
+    { nativeChrome: true },
+  ]);
+});
+
+await test("tab-design-zen-native-toggle", async () => {
+  const file = fixture("tab-design-zen/README.md", note);
+  await launch("tab-design-zen-native-toggle", file, [
+    { nativeMenu: ["View", "Zen Mode"] },
+    evaluate(`await waitFor(() => document.body.dataset.zen === 'true', 'Zen menu did not apply');
+      assert(getComputedStyle(document.querySelector('.pane-status')).display === 'none', 'Zen retained footer');
+      assert(document.querySelector('#stage').getBoundingClientRect().top === 0, 'Zen retained titlebar space');`),
+    { nativeIdentity: { file, edited: false } },
+    { input: { type: "mouseMove", x: 200, y: 2 } },
+    evaluate(`await waitFor(() => document.body.dataset.chromeRevealed === 'true', 'Top edge did not reveal controls');`),
+    { input: { type: "keyDown", keyCode: "J", modifiers: [mod, "shift"] } },
+    { input: { type: "keyUp", keyCode: "J", modifiers: [mod, "shift"] } },
+    evaluate(`await waitFor(() => document.body.dataset.zen === 'false', 'Zen shortcut did not exit');`),
+    { nativeMenuState: { path: ["View", "Zen Mode"], enabled: true, checked: false } },
+  ]);
+});
+
+// Round-two native cases are added here for the GUI worker. Do not run in the chrome lane.
+await test("r2-chrome-zen-session", async () => {
+  const name = "r2-chrome-zen-session", file = fixture(name + "/note.md", note);
+  await launch(name, file, [
+    evaluate(`assert(document.body.dataset.zen !== 'true', 'Legacy config restored zen');`),
+    { nativeMenu: ["View", "Zen Mode"] },
+    { input: { type: "mouseMove", x: 200, y: 2 } },
+    evaluate(`await waitFor(() => document.body.dataset.chromeRevealed === 'true', 'Zen reveal failed');
+      assert(!document.querySelector('#zen-hint').hidden, 'No zen exit hint');
+      for (const button of document.querySelectorAll('.pane-controls [data-mode], .reader-options summary')) {
+        const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        assert(hit === button || button.contains(hit), 'Zen toolbar is blocked');
+      }`),
+    { input: { type: "keyDown", keyCode: "Escape" } },
+    { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`await waitFor(() => document.body.dataset.zen === 'false', 'Escape did not exit zen');`),
+    { nativeMenu: ["View", "Zen Mode"] }, { menuQuit: true },
+  ], "read", undefined, 0, "source", { prepare: profile => fs.writeFileSync(path.join(profile, "config"), "zen-mode = true\n") });
+  await launch(name, file, [evaluate(`assert(document.body.dataset.zen !== 'true', 'Zen survived relaunch');`)]);
+});
+
+await test("r2-chrome-tab-focus-and-Aa", async () => {
+  const name = "r2-chrome-tab-focus-and-Aa", a = fixture(name + "/PLAN.md", note), b = fixture(name + "/PLAN_ARCHIVE.md", note);
+  await launch(name, a, [
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(b)});`),
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await waitFor(() => document.querySelectorAll('.tab[data-pinned=true]').length === 2, 'Pins missing');
+      const labels = [...document.querySelectorAll('.tab-short')].map(node => node.textContent);
+      assert(new Set(labels).size === labels.length, 'Pinned labels collide');
+      document.querySelector('[role=tab]').click();`),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPath === ${quote(a)}, 'Pinned tab did not activate'); const mode = document.querySelector('[data-mode=live]'); mode.click();
+      await waitFor(() => document.activeElement?.classList.contains('cm-content'), 'Live lacks typing focus');
+      window.r2ModeX = mode.getBoundingClientRect().x;`),
+    ...appendCharacter("!"),
+    evaluate(`document.querySelector('[data-mode=source]').click();
+      await waitFor(() => document.activeElement?.classList.contains('cm-content'), 'Source lacks typing focus');
+      assert(document.querySelector('[data-mode=live]').getBoundingClientRect().x === window.r2ModeX, 'Toolbar shifted');
+      const options = document.querySelector('.reader-options'); options.open = true; options.querySelector('button').focus();`),
+    { input: { type: "keyDown", keyCode: "Escape" } },
+    { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`assert(!document.querySelector('.reader-options').open && document.activeElement.matches('.reader-options summary'), 'Aa did not dismiss and restore focus');`),
+    { dialog: { response: 1 } }, { menuQuit: true },
+  ]);
+});
+
+await test("r2-chrome-first-autosave-close", async () => {
+  const name = "r2-chrome-first-autosave-close", file = fixture(name + "/note.md", note);
+  await launch(name, file, [
+    evaluate(`await window.simplemd.setSettings({ autosave: true }); document.querySelector('[data-mode=live]').click();`),
+    ...appendCharacter("!"),
+    evaluate(`await new Promise(resolve => setTimeout(resolve, 1400)); assert(!document.querySelector('#dirty').hidden, 'Tiny first burst autosaved');`),
+    { dialog: { response: 2 } },
+    evaluate(`assert(await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId)) === false, 'Cancel closed the guarded tab');
+      assert(editorText().endsWith('!') && !document.querySelector('#dirty').hidden, 'Cancel lost the guarded edit');`),
+    { dialog: { response: 1 } }, { menuQuit: true },
+  ]);
+  assert.equal(fs.readFileSync(file, "utf8"), note, "Guarded first edit overwrote the file");
+});
+
+await test("tabs-pinned-relaunch", async () => {
+  const name = "tabs-pinned-relaunch", a = fixture(name + "/a.md", note), b = fixture(name + "/b.md", "# B\n"), c = fixture(name + "/missing.md", "# Missing\n");
+  await launch(name, a, [
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(b)});`),
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(c)});`),
+    { nativeMenu: ["View", "Pin Tab"] },
+    { input: { type: "keyDown", keyCode: "W", modifiers: [mod] } },
+    { input: { type: "keyUp", keyCode: "W", modifiers: [mod] } },
+    evaluate(`assert(document.querySelectorAll('[role=tab]').length === 3, 'Normal close removed a pin');`),
+    { menuQuit: true },
+  ]);
+  const state = fs.readFileSync(path.join(root, name, "profile/settings.json"), "utf8");
+  assert.deepEqual(JSON.parse(state).pinnedPaths, [a, b, c]);
+  fs.unlinkSync(c);
+  await launch(name, "", [
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Existing pins did not restore');
+      assert([...document.querySelectorAll('[role=tab]')].every(tab => tab.dataset.pinned === 'true'), 'Restored an ordinary tab');
+      assert([...document.querySelectorAll('[role=tab]')].map(tab => tab.title).join('|') === ${quote(a + "|" + b)}, 'Pin order changed');`),
+    { nativeMenu: ["View", "Close Pinned Tab"] },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Explicit close retained the pin');`),
+  ], "read", undefined, 0, "source", { prepare: profile => fs.writeFileSync(path.join(profile, "settings.json"), state) });
+});
+
+await test("tab-sidebar-menu-resize-relaunch", async () => {
+  const name = "tab-sidebar-menu-resize-relaunch";
+  const file = fixture(`${name}/README.md`, note);
+  const modifiers: ("control" | "meta" | "alt")[] = process.platform === "darwin" ? ["control", "meta"] : ["control", "alt"];
+  await launch(name, file, [
+    { nativeMenuState: { path: ["View", "Show Tab Sidebar"], enabled: true } },
+    { nativeMenu: ["View", "Show Tab Sidebar"] },
+    evaluate(`await waitFor(() => document.body.dataset.tabStyle === 'sidebar' && !document.querySelector('#tabs').hidden, 'View did not show the sidebar');
+      assert(document.querySelectorAll('[role=tab]').length === 1, 'Sidebar omitted its only document');
+      assert(document.querySelector('#tabs').getAttribute('aria-orientation') === 'vertical', 'Sidebar is not vertical');`),
+    { nativeIdentity: { file, edited: false } },
+    { input: { type: "keyDown", keyCode: "S", modifiers } },
+    { input: { type: "keyUp", keyCode: "S", modifiers } },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Sidebar shortcut did not collapse');
+      assert(Math.abs(document.querySelector('#stage').getBoundingClientRect().width - innerWidth) < 1, 'Collapsed sidebar retains width');
+      assert(document.querySelector('.tb-title').getBoundingClientRect().width > 30, 'Collapsed sidebar lost the visible filename');`),
+    { nativeMenuState: { path: ["View", "Show Tab Sidebar"], enabled: true } },
+    { nativeMenu: ["View", "Show Tab Sidebar"] },
+    evaluate(`await waitFor(() => !document.querySelector('#sidebar-divider').hidden, 'Sidebar did not reopen');
+      window.resizeEvents = [];
+      for (const type of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','dblclick']) document.querySelector('#sidebar-divider').addEventListener(type, event => window.resizeEvents.push([type, event.clientX, event.pointerId, event.buttons, document.querySelector('#sidebar-divider').getAttribute('aria-valuenow')]));`),
+    { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftbuttondown"] } },
+    evaluate(`assert((await window.simplemd.ready()).settings.sidebarWidth === 180, 'Drag wrote config before release');`),
+    { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Native divider drag failed');
+      const deadline = performance.now() + 10000;
+      while ((await window.simplemd.ready()).settings.sidebarWidth !== 300) {
+        assert(performance.now() < deadline, 'Drag width did not persist: ' + JSON.stringify({ settings: (await window.simplemd.ready()).settings.sidebarWidth, events: window.resizeEvents }));
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }`),
+    { input: { type: "mouseDown", x: 302, y: 110, button: "left", clickCount: 2 } },
+    { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 2 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '180', 'Double click did not reset divider');`),
+    { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftbuttondown"] } },
+    { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Final width did not apply');`),
+    { debug: { method: "Emulation.setEmulatedMedia", params: { features: [{ name: "forced-colors", value: "active" }] } } },
+    evaluate(`const selected = getComputedStyle(document.querySelector('[role=tab][aria-selected=true]'));
+      assert(selected.outlineWidth === '2px' && selected.outlineStyle === 'solid', 'Sidebar selection has no forced-colors cue');`),
+    { nativeMenu: ["View", "Hide Tab Sidebar"] },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Menu did not hide sidebar');`),
+    { menuQuit: true },
+  ]);
+  const config = path.join(root, name, "profile", "config");
+  assert(/sidebar-width = 300/.test(fs.readFileSync(config, "utf8")), "Sidebar width was not written to config.");
+  assert(/sidebar-collapsed = true/.test(fs.readFileSync(config, "utf8")), "Sidebar collapse was not written to config.");
+  await launch(name, file, [
+    evaluate(`const settings = (await window.simplemd.ready()).settings;
+      assert(settings.tabStyle === 'sidebar' && settings.sidebarWidth === 300 && settings.sidebarCollapsed, 'Sidebar settings did not survive relaunch');
+      assert(document.querySelector('#tabs').hidden && document.querySelector('#sidebar-divider').hidden, 'Relaunch lost collapsed state');`),
+    { input: { type: "keyDown", keyCode: "S", modifiers } },
+    { input: { type: "keyUp", keyCode: "S", modifiers } },
+    evaluate(`await waitFor(() => !document.querySelector('#tabs').hidden, 'Shortcut did not reopen after relaunch');
+      assert(document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Reopened sidebar lost width');`),
+    { nativeIdentity: { file, edited: false } },
+  ]);
+});
+
+await test("tab-sidebar-edited-identity", async () => {
+  const file = fixture("tab-sidebar-edited/README.md", note);
+  await launch("tab-sidebar-edited-identity", file, [
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });`),
+    ...appendCharacter("!"),
+    { nativeIdentity: { file, edited: true } },
+    evaluate(`await waitFor(() => document.querySelector('[role=tab]').dataset.dirty === 'true', 'Sidebar did not show dirty state');
+      await window.simplemd.setSettings({ tabStyle: 'top' });
+      await window.simplemd.setSettings({ tabStyle: 'sidebar' });
+      assert(!document.querySelector('#dirty').hidden && document.title === 'README.md', 'Tab style changed Edited or title state');`),
+    { nativeIdentity: { file, edited: true } },
+    { dialog: { response: 1 } }, { menuQuit: true },
+  ], "edit");
+  assert.equal(fs.readFileSync(file, "utf8"), note, "Changing tab style saved the unsaved edit.");
+});
+
+await test("tab-sidebar-native-actions-and-live-windows", async () => {
+  const a = fixture("tab-sidebar-actions/one/README.md", note), b = fixture("tab-sidebar-actions/two/README.md", "# Other\n");
+  const c = fixture("tab-sidebar-actions/third.md", "# Third\n");
+  const context = { selectionPresent: false, editable: false, linkURL: "", imageURL: "", misspelledWord: "", suggestions: [] };
+  await launch("tab-sidebar-native-actions-and-live-windows", a, [
+    evaluate(`await window.simplemd.openPath(${quote(b)}); window.simplemd.command('move-tab-window');`),
+    { windowCount: 2 }, { selectWindow: a },
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar', sidebarWidth: 280 });
+      await waitFor(() => !document.querySelector('#tabs').hidden, 'First window missed sidebar style');`),
+    { selectWindow: b },
+    evaluate(`await waitFor(() => !document.querySelector('#tabs').hidden, 'Second window missed live sidebar style');
+      assert(document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '280', 'Second window missed live width');
+      await window.simplemd.openPath(${quote(c)});
+      await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Second tab did not appear');`),
+    { nativeContext: { selector: "#tabs .tab:first-child", context, labels: ["Close Tab", "Move Tab to New Window", process.platform === "darwin" ? "Reveal in Finder" : "Show in File Manager"], choose: "Close Tab" } },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Sidebar context Close Tab failed');
+      assert(document.documentElement.dataset.documentPath === ${quote(c)}, 'Context close changed the active document');
+      await window.simplemd.setSettings({ sidebarCollapsed: true });`),
+    { selectWindow: a },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Collapse did not apply to every window');
+      await window.simplemd.setSettings({ tabStyle: 'top' });`),
+    { selectWindow: c },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').getAttribute('aria-orientation') === 'horizontal', 'Top style did not apply to every window');
+      await window.simplemd.setSettings({ tabStyle: 'sidebar', sidebarCollapsed: false });
+      await window.simplemd.openPath(${quote(b)});
+      await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Middle click fixture did not open');`),
+    { input: { type: "mouseDown", x: 80, y: 88, button: "middle", clickCount: 1 } },
+    { input: { type: "mouseUp", x: 80, y: 88, button: "middle", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Native middle click did not close sidebar row');`),
+  ]);
+});
+
 await test("tabs-keyboard-focus", async () => {
   const a = fixture("tabs-focus/a.md", note), b = fixture("tabs-focus/b.md", "# B\n"), c = fixture("tabs-focus/c.md", "# C\n");
   await launch("tabs-keyboard-focus", a, [
@@ -1346,10 +1669,47 @@ await test("tabs-windows", async () => {
   assert.deepEqual(fs.readFileSync(a), Buffer.from(note + "!"), "Moving a dirty tab lost unsaved bytes.");
 });
 
+await test("open-quickly-shortcut-scope-tab-pane", async () => {
+  const a = fs.realpathSync(fixture("open-quickly/active.md", "# Active\n"));
+  const b = fs.realpathSync(fixture("open-quickly/unique-quickly-guide.mdx", "# Guide\n"));
+  const c = fs.realpathSync(fixture("open-quickly/unique-quickly-other.markdown", "# Other\n"));
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
+    { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
+  ];
+  await launch("open-quickly", a, [
+    ...key("O", [mod, "shift"]),
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker .picker-scope') && document.activeElement.id === 'picker-input', 'Open Quickly shortcut failed.');
+      assert(document.querySelector('#picker .picker-scope').textContent === 'This repo', 'Initial scope differs.');`),
+    ...key("Tab"),
+    evaluate(`assert(document.querySelector('#picker .picker-scope').textContent === 'Everywhere', 'Tab did not change scope.');`),
+    ...key("Tab"),
+    evaluate(`const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-guide'; input.dispatchEvent(new Event('input'));
+      await waitFor(() => [...document.querySelectorAll('#picker-list [role=option]')].some(row => row.title === ${quote(b)}), 'Folder result missing.');`),
+    ...key("Enter"),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Result did not open.');
+      assert(document.querySelectorAll('[role=tab]').length === 2, 'Result did not open a tab.');`),
+    { nativeMenu: ["File", "Open Quickly…"] },
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker .picker-scope'), 'Native Open Quickly menu failed.');
+      const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-other'; input.dispatchEvent(new Event('input'));
+      await waitFor(() => [...document.querySelectorAll('#picker-list [role=option]')].some(row => row.title === ${quote(c)}), 'Other result missing.');`),
+    ...key("Enter", [mod]),
+    evaluate(`await waitFor(() => document.querySelectorAll('.document-pane').length === 2 && document.documentElement.dataset.documentPainted === ${quote(c)}, 'Other pane did not open.');
+      assert([...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(b)}), 'Opening beside replaced the original pane.');`),
+    ...key("O", [mod, "shift"]),
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker .picker-scope'), 'Finder did not reopen.');
+      assert(document.querySelector('#picker .picker-scope').textContent === 'This repo', 'Scope was not remembered.');
+      const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-guide'; input.dispatchEvent(new Event('input'));`),
+    ...key("Enter"),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Existing result did not focus.');
+      assert(document.querySelectorAll('[role=tab]').length === 3, 'Existing result duplicated a tab.');`),
+    { windowCount: 1 },
+  ], "read", undefined, 0, "source", { prepare: profile => fs.writeFileSync(path.join(profile, "config"), "open-in = window\nopen-quickly-scope = repo\n") });
+});
+
 await test("tabs-scroll-selection-shortcuts", async () => {
   const source = ("# Scroll\n\nA paragraph with enough text to fill the editor.\n\n").repeat(1800).slice(0, 100000);
   const a = fixture("tabs-scroll/a.md", source), b = fixture("tabs-scroll/b.md", "# Next\n");
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
   ];
   await launch("tabs-scroll", a, [
@@ -1368,9 +1728,13 @@ await test("tabs-scroll-selection-shortcuts", async () => {
       const otherId = [...document.querySelectorAll('[role=tab]')].map(tab => Number(tab.dataset.documentId)).find(id => id !== window.scrollId);
       await Promise.all([window.simplemd.activateTab(otherId), window.simplemd.activateTab(window.scrollId), window.simplemd.activateTab(otherId), window.simplemd.activateTab(window.scrollId)]);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelectorAll('.cm-editor').length === 1, 'Rapid activations did not converge.');`),
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelectorAll('.cm-editor').length === 1, 'Rapid activations did not converge.');
+      assert(document.querySelector('[role=tab][aria-selected=true]').dataset.documentId === document.querySelector('.document-pane[data-active=true]').dataset.documentId, 'Rapid activation selected the wrong tab.');`),
     ...key("Tab", ["control"]),
-    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Control-Tab did not cycle.');`),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Control-Tab did not cycle.');
+      window.simplemd.command('mode-read');
+      await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Next', 'Selected tab showed a different document.');
+      assert(document.querySelector('[role=tab][aria-selected=true]').dataset.documentId === document.querySelector('.document-pane[data-active=true]').dataset.documentId, 'Read selected the wrong tab.');`),
     ...key("1", [mod]),
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Tab number did not jump.');`),
     ...key("T", [mod]),
@@ -1418,10 +1782,10 @@ await test("native-menu-rebuilds", async () => {
     { nativeMenus: "capture" },
     evaluate(`await window.simplemd.setSettings({ bounds: { x: 100, y: 100, width: 850, height: 700 }, zoom: 1.1 });`),
     { nativeMenus: "unchanged" },
-    evaluate(`const current = document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-checked=true]')?.dataset.mode;
+    evaluate(`const current = document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-pressed=true]')?.dataset.mode;
       window.nextMenuMode = current === 'live' ? 'source' : 'live';
       window.simplemd.command('mode-' + window.nextMenuMode);
-      await waitFor(() => document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-checked=true]')?.dataset.mode === window.nextMenuMode, 'Mode did not update');`),
+      await waitFor(() => document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-pressed=true]')?.dataset.mode === window.nextMenuMode, 'Mode did not update');`),
     { nativeMenus: "app-only" },
     evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit');`),
     { nativeMenus: "recents" },
@@ -1483,6 +1847,135 @@ if (process.platform === "darwin") await test("native-find-pasteboard", async ()
     evaluate(`await waitFor(() => document.querySelector('#find-input').value === 'find this word', 'Read find did not read system pasteboard'); document.querySelector('#find-input').dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true})); window.simplemd.command('toggle-edit'); await waitFor(() => document.querySelector('.cm-content'), 'Editor did not open');`),
     { nativeMenu: ["Edit", "Find…"] },
     evaluate(`await waitFor(() => document.querySelector('.cm-search input[name=search]')?.value === 'find this word', 'Editor find did not read system pasteboard');`),
+  ]);
+});
+
+// ux-app: native opening policy, active title and edited state. Run only by the owner.
+await test("ux-reader-policy-chrome", async () => {
+  const file = fixture("ux-reader/note.md", "# Reader\n\nKeep these bytes.\n");
+  const second = fixture("ux-reader/other.md", "# Other\n");
+  await launch("ux-reader-policy-chrome", file, [
+    evaluate(`assert(document.querySelector('.document-pane').dataset.view === 'read', 'Normal open did not use Read');
+      const modes = document.querySelector('[data-element=modes]');
+      assert(!modes.hidden && modes.querySelector('[data-mode=read]'), 'Read mode is not visible');
+      const before = (await window.simplemd.ready()).settings.theme;
+      document.querySelector('[data-element=read-scroll]').focus();
+      for (const key of 'hello t') document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles:true}));
+      assert(document.querySelector('.document-pane').dataset.view === 'read', 'Bare letter opened the editor');
+      assert((await window.simplemd.ready()).settings.theme === before, 'Bare letter changed appearance'); const zoom = (await window.simplemd.ready()).settings.zoom; window.simplemd.command('zoom-in'); assert(Math.abs((await window.simplemd.ready()).settings.zoom - zoom - 0.2) < 0.001, 'Zoom step is too small');`),
+    { nativeMenu: ["View", "Read / Edit"] },
+    ...appendCharacter("x"),
+    { nativeIdentity: { file, edited: true } },
+    evaluate(`const edited = document.querySelector('.window-edited'); const r = edited.getBoundingClientRect(); assert(edited.textContent === 'Edited' && r.width > 0 && r.right <= innerWidth, 'Edited is offscreen');
+      assert(edited.parentElement.matches('.tb-title'), 'Edited is detached from the active filename');
+      assert(getComputedStyle(edited).color === (matchMedia('(prefers-color-scheme: dark)').matches ? 'rgb(184, 184, 184)' : 'rgb(96, 96, 96)'), 'Edited is not secondary text');`),
+    { nativeMenu: ["View", "Read"] },
+    evaluate(`await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read', 'Read menu did not work'); await window.simplemd.openPath(${quote(second)});`),
+    { nativeIdentity: { file: second, edited: false } },
+    evaluate(`await waitFor(() => document.querySelector('.tb-title').textContent === 'other.md', 'Active title vanished with two tabs'); assert(document.title === 'other.md', 'Native title differs');`),
+  ], "default");
+});
+
+await test("ux-footer-save", async () => {
+  const file = fixture("ux-footer/note.md", "# Footer save\n\nKeep this text.\n");
+  const html = path.join(root, "footer-saved.html"), pdf = path.join(root, "footer-saved.pdf");
+  await launch("ux-footer-save", file, [
+    { savePath: html },
+    evaluate(`const format = document.querySelector('#export-format'); format.value = 'html'; format.dispatchEvent(new Event('change')); document.querySelector('#drag-export').click(); await waitFor(() => !document.querySelector('#drag-export').disabled, 'HTML Save did not finish'); assert(document.querySelector('#drag-export').textContent === 'Export', 'Export changed to a drag instruction');`),
+    { savePath: pdf },
+    evaluate(`const format = document.querySelector('#export-format'); format.value = 'pdf'; format.dispatchEvent(new Event('change')); document.querySelector('#drag-export').click(); await waitFor(() => !document.querySelector('#drag-export').disabled, 'PDF Save did not finish');`),
+  ]);
+  assert(fs.readFileSync(html, "utf8").includes("Footer save"), "Footer HTML Save did not write the selected path");
+  assert.equal(fs.readFileSync(pdf).subarray(0, 5).toString(), "%PDF-", "Footer PDF Save did not write the selected path");
+});
+await test("ux-conflict-save-copy", async () => {
+  const source = "# Local note\n\nKeep local bytes.\n", incoming = "# Incoming version\n";
+  const file = fixture("ux-conflict-copy/note.md", source), copy = path.join(root, "mine-copy.md");
+  const marker = path.join(root, "copy-dirty.png");
+  await launch("ux-conflict-save-copy", file, [
+    ...appendCharacter("!"), { shot: marker }, { savePath: copy },
+    evaluate(`await waitFor(() => !document.querySelector('#banner').hidden, 'Conflict banner missing'); const button = [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'Save mine as…'); assert(button, 'Save mine as is missing');
+      const view = [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'View incoming changes');
+      assert(view, 'Incoming comparison missing'); view.click();
+      await waitFor(() => document.querySelector('.conflict-comparison')?.open, 'Comparison did not open');
+      const versions = document.querySelectorAll('.conflict-comparison pre');
+      assert(versions[0].textContent.endsWith('!') && versions[1].textContent === ${quote(incoming)}, 'Comparison lost a version');
+      document.querySelector('.conflict-comparison button').click();
+      assert(!document.querySelector('#banner').hidden, 'Comparison resolved the conflict'); button.click(); await waitFor(() => !button.disabled, 'Conflict Save dialog did not finish'); assert(!document.querySelector('#banner').hidden && editorText().endsWith('!'), 'Saving a copy lost the local version or conflict choices');`),
+  ], "edit", { marker, file, text: incoming });
+  assert.equal(fs.readFileSync(file, "utf8"), incoming, "Saving a copy replaced the incoming version");
+  assert.equal(fs.readFileSync(copy, "utf8"), source + "!", "Saving a copy lost local bytes");
+});
+
+await test("outline-rail-click-jump", async () => {
+  const file = fixture("outline-click.md", Array.from({ length: 40 }, (_, i) => `## Chapter ${i + 1}\n\n${"Paragraph. ".repeat(100)}\n\n`).join(""));
+  await launch("outline-rail-click-jump", file, [
+    evaluate(`await waitFor(() => document.querySelectorAll('.outline-strip').length === 40, 'Outline did not build');
+      const button = document.querySelectorAll('.outline-strip')[20]; button.click();
+      await waitFor(() => button.dataset.inView === 'true', 'Jump did not reveal heading');
+      const scroll = document.querySelector('[data-element="read-scroll"]');
+      assert(scroll.scrollTop > 0 && getComputedStyle(scroll).scrollbarWidth === 'none', 'Rail did not replace the scrollbar');`),
+  ]);
+});
+await test("outline-rail-pointer-scrub", async () => {
+  const file = fixture("outline-scrub.md", Array.from({ length: 40 }, (_, i) => `## Chapter ${i + 1}\n\n${"Paragraph. ".repeat(100)}\n\n`).join(""));
+  await launch("outline-rail-pointer-scrub", file, [
+    evaluate(`await waitFor(() => document.querySelectorAll('.outline-strip').length === 40, 'Outline did not build');
+      const rail = document.querySelector('.outline-rail');
+      rail.style.position = 'fixed'; rail.style.inset = '100px auto auto 400px'; rail.style.width = '28px'; rail.style.height = '400px';`),
+    { input: { type: "mouseMove", x: 420, y: 110 } },
+    { input: { type: "mouseDown", x: 420, y: 110, button: "left", clickCount: 1 } },
+    { input: { type: "mouseMove", x: 420, y: 496, button: "left", modifiers: ["leftbuttondown"] } },
+    { input: { type: "mouseUp", x: 420, y: 496, button: "left", clickCount: 1 } },
+    evaluate(`const scroll = document.querySelector('[data-element="read-scroll"]');
+      await waitFor(() => scroll.scrollTop / (scroll.scrollHeight - scroll.clientHeight) > 0.95, 'Pointer scrub did not reach the end');
+      await waitFor(() => document.querySelector('.outline-strip:last-child')?.dataset.inView === 'true', 'Scrub did not reveal the final heading');`),
+  ]);
+});
+
+await test("r2-reading-tab-anchors", async () => {
+  const text = Array.from({ length: 130 }, (_, i) => `## Section ${i}\n\n${"Reading text and source positions. ".repeat(26)}\n\n`).join("");
+  assert(text.length >= 100000, "Anchor fixture is smaller than 100k.");
+  const a = fixture("r2-reading-tabs/a.md", text), b = fixture("r2-reading-tabs/b.md", "# Other\n");
+  await launch("r2-reading-tab-anchors", a, [evaluate(`
+    window.anchorId = Number(document.documentElement.dataset.documentId);
+    const section = [...document.querySelectorAll('#doc h2')].find(h => h.textContent === 'Section 65');
+    section.scrollIntoView({ block: 'start' });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const read = document.querySelector('[data-element="read-scroll"]');
+    const savedTop = section.getBoundingClientRect().top - read.getBoundingClientRect().top;
+    await window.simplemd.openPath(${quote(b)}, 'read');
+    await window.simplemd.activateTab(window.anchorId);
+    await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.documentElement.dataset.renderComplete === ${quote(a)}, 'Reading tab did not finish restoring');
+    const restoredHeading = [...document.querySelectorAll('#doc h2')].find(h => h.textContent === 'Section 65');
+    await waitFor(() => Math.abs(restoredHeading.getBoundingClientRect().top - read.getBoundingClientRect().top - savedTop) < 4, 'Read lost its source block anchor');
+    window.simplemd.command('mode-live');
+    await waitFor(() => document.querySelector('.cm-editor[data-mode="live"]'));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const view = document.querySelector('.cm-content').cmTile.root.view;
+    view.dispatch({ selection: { anchor: 60000 }, scrollIntoView: true });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const snapshot = view.scrollSnapshot().value;
+    await window.simplemd.openPath(${quote(b)}, 'read');
+    await window.simplemd.activateTab(window.anchorId);
+    await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelector('.cm-editor[data-mode="live"]'));
+    const restored = document.querySelector('.cm-content').cmTile.root.view;
+    await waitFor(() => { const next = restored.scrollSnapshot().value; return next.range.head === snapshot.range.head && Math.abs(next.yMargin - snapshot.yMargin) < 4; }, 'Live lost its source anchor');
+  `)]);
+});
+
+await test("r2-astro-source-routes", async () => {
+  const start = fixture("r2-astro/src/content/blog/start.mdx", "# Start\n\n[Prompts](/blog/prompts/)\n");
+  const target = fs.realpathSync(fixture("r2-astro/src/content/blog/prompts.mdx", "# Prompts\n\n[Missing](/blog/missing/)\n"));
+  fixture("r2-astro/astro.config.mjs", 'throw new Error("Configuration must not execute");');
+  fs.mkdirSync(path.join(root, "r2-astro/public"));
+  await launch("r2-astro-source-routes", start, [
+    evaluate(`document.querySelector('#doc a').click();
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(target)}, 'Astro route did not open its collection source.');
+      assert(document.querySelectorAll('[role=tab]').length === 2, 'Astro route did not open in a tab.');
+      await waitFor(() => !document.querySelector('.document-pane[data-active="true"] [data-element="read"]').inert, 'Route tab stayed busy.');
+      document.querySelector('.document-pane[data-active="true"] [data-element="doc"] a').click();
+      await waitFor(() => document.querySelector('#toast').textContent.includes('No local document found'), 'Unresolved route failed silently.');`),
   ]);
 });
 

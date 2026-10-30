@@ -16,7 +16,7 @@ const fixtures = [
   '# Code\n\n```ts\nconst x: number = 1\n```\n',
   '\uFEFF# Astral 🚀\r\n\r\ntext\n\nlast\r',
 ];
-const html = (blocks: RenderedBlock[]) => blocks.map(({ html, content, urls, sourceRange }) => ({ html, content, urls, sourceRange }));
+const html = (blocks: RenderedBlock[]) => blocks.map(({ html, content, urls, sourceRange, itemRanges }) => ({ html, content, urls, sourceRange, itemRanges }));
 
 test('random edit deltas equal a fresh full parse after every edit', async () => {
   let seed = 0x71612;
@@ -52,4 +52,13 @@ test('a shifted unchanged block retains its identity and sends no HTML', async (
   expect(changed.result.blocks.at(-1)!.key).toBe(first.result.blocks.at(-1)!.key);
   expect(changed.delta.changed.map(block => block.html).join('')).toContain('new');
   expect(changed.delta.changed.map(block => block.html).join('')).not.toContain('last');
+});
+
+
+test("retained list item source ranges shift with a delta without resending HTML", async () => {
+  const incremental = new IncrementalBlocks();
+  const before = await incremental.render("# Title\n\n- One\n- Two\n", "/tmp/list.md");
+  const next = await incremental.render("# Title\n\nNew paragraph\n\n- One\n- Two\n", "/tmp/list.md");
+  expect(next.delta.changed.map(block => block.html).join("")).not.toContain("<li>");
+  expect(applyBlockDelta(before.result.blocks, next.delta).blocks.at(-1)?.itemRanges).toEqual([[4, 5], [5, 6]]);
 });

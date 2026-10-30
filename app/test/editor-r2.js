@@ -7,7 +7,7 @@ let finishRender;
 window.simplemd.renderBlocks = text => new Promise(resolve => finishRender = () => resolve({title:'tasks',blocks:taskBlocks(text)}));
 listeners.disk(inserted, 30);
 await until(() => finishRender);
-document.querySelector('#doc .task-list-item').click();
+document.querySelector('#doc .task-list-item-checkbox').click();
 await wait(180);
 listeners.flush(1);
 assert(flushed.text === inserted && !flushed.dirty, 'stale displayed checkbox cannot edit a newer reload while rendering is pending');
@@ -16,7 +16,7 @@ await wait(80);
 
 await doc(initial, 'task-lazy-race.md', 31, 'read', taskBlocks(initial));
 finishRender = null;
-document.querySelector('#doc .task-list-item').click();
+document.querySelector('#doc .task-list-item-checkbox').click();
 listeners.disk(inserted, 31);
 await until(() => finishRender);
 await wait(150);
@@ -25,7 +25,7 @@ assert(flushed.text === inserted && !flushed.dirty, 'task source identity is rec
 finishRender();
 await wait(80);
 window.simplemd.renderBlocks = async text => ({title:'tasks',blocks:taskBlocks(text)});
-document.querySelector('#doc .task-list-item').click();
+document.querySelector('#doc .task-list-item-checkbox').click();
 await wait(150);
 listeners.flush(1);
 assert(flushed.text === '- [x] inserted\n- [ ] original', 'freshly mounted checkbox edits its corresponding source task');

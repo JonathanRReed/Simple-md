@@ -1,7 +1,7 @@
 export const fixtures = [
   { name: "mixed case", source: '<DeTaIlS OpEn OnToggle="alert(1)"><SuMmArY>More</SuMmArY><B>Safe</B></DeTaIlS>', expected: '<details open=""><summary>More</summary><b>Safe</b></details>' },
-  { name: "entity URL scheme", source: '<a href="jav&#x61;script:alert(1)">x</a><img src="&#100;ata:image/png;base64,AAAA">', expected: '<a>x</a><img>' },
-  { name: "control URL scheme", source: '<a href="java&#9;script:alert(1)">x</a><img src="https:&#10;//evil.test/x">', expected: '<a>x</a><img>' },
+  { name: "entity URL scheme", source: '<a href="jav&#x61;script:alert(1)">x</a><img src="&#100;ata:image/png;base64,AAAA">', expected: '<a title="Link blocked: unsupported URL or path outside the document root.">x</a><img>' },
+  { name: "control URL scheme", source: '<a href="java&#9;script:alert(1)">x</a><img src="https:&#10;//evil.test/x">', expected: '<a title="Link blocked: unsupported URL or path outside the document root.">x</a><img>' },
   { name: "malformed table", source: '<table><tr><td>A<td>B</table>', expected: '<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>' },
   { name: "SVG namespace", source: '<svg><a xlink:href="javascript:alert(1)"><text>X</text></a><foreignObject><p>bad</p></foreignObject></svg><p>Safe</p>', expected: '<p>Safe</p>' },
   { name: "MathML namespace", source: '<math><mtext><table><mglyph><style><!--</style><img title="--><img src=x onerror=alert(1)>"></table></mtext></math><p>Safe</p>', expected: '<p>Safe</p>' },

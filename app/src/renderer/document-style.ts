@@ -1,6 +1,6 @@
 import { documentThemes } from "../shared/themes.js";
 import type { Settings } from "../shared/types.js";
-const fontStack = (family: string, fallback: string) => ["system-ui", "serif", "sans-serif", "ui-monospace"].includes(family) ? `${family}, ${fallback}` : `${JSON.stringify(family)}, ${fallback}`;
+const fontStack = (family: string, fallback: string) => family === "New York" ? `"New York", ui-serif, ${fallback}` : ["system-ui", "ui-serif", "serif", "sans-serif", "ui-monospace"].includes(family) ? `${family}, ${fallback}` : `${JSON.stringify(family)}, ${fallback}`;
 const readingFallback = '"Iowan Old Style", "Sitka Text", Constantia, "Noto Serif", "Liberation Serif", Georgia, serif';
 export function applyDocumentStyle(settings: Settings): void {
   const root = document.documentElement;

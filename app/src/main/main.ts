@@ -1,3 +1,5 @@
+import { existingPinnedPaths } from "./pinned-tabs.js";
+import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
 import type { DragExports, ExportFormat } from "./drag-export.js";
 import type { startOptionalCliServer, CliDispatch } from "./cli-server.js";
 import { DocumentWaiters, parseOpenUrl } from "./cli-protocol.js";
@@ -12,6 +14,7 @@ import { contextTemplate, validateContext } from "./context-menu.js";
 import type { ContextResult, NativeContext } from "../shared/native-context.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
+import { sidebarToggle } from "../shared/tab-presentation.js";
 import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
@@ -46,7 +49,8 @@ import type {
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
-import { writeExportAtomic } from "./export-write.js";
+import { writeConflictCopy } from "./conflict-copy.js";
+import { checkExportDestination, writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
 import { blockChanges, startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
@@ -86,9 +90,11 @@ const documents = new DocumentQueue();
 interface WindowContext {
   win: BrowserWindow;
   layout: TabLayout;
-  paneModes: Map<ReturnType<typeof makePaneId>, Settings["mode"]>;
+  paneModes: Map<ReturnType<typeof makePaneId>, import("../shared/types.js").ViewMode>;
   mainPane: { paneId: ReturnType<typeof makePaneId>; documentId: DocumentId };
   rendererReady: boolean;
+  quickly?: import("./open-quickly.js").QuicklySearch;
+  quicklyGeneration?: number;
   nativeContext?: NativeContext;
   loaded: Promise<void>;
   markLoaded(): void;
@@ -99,6 +105,14 @@ let frontmost: WindowContext;
 function context(): WindowContext { return windowScope.getStore() ?? frontmost; }
 const currentSession = (host = context()) => registry.get(host.mainPane.documentId)!;
 function syncLayout(host = context()): void {
+  if (settings.pinnedPaths.length || host.layout.state.pinned?.length) {
+    const order = new Map(settings.pinnedPaths.map((file, index) => [file, index]));
+    const pinned = host.layout.state.tabs.filter(id => order.has(registry.get(id)?.path ?? ""));
+    pinned.sort((a, b) => order.get(registry.get(a)!.path!)! - order.get(registry.get(b)!.path!)!);
+    const ids = new Set(pinned);
+    host.layout.state.pinned = pinned;
+    host.layout.state.tabs = [...pinned, ...host.layout.state.tabs.filter(id => !ids.has(id))];
+  }
   const active = host.layout.active;
   if (active) Object.assign(host.mainPane, active);
   sendTo(host, "smd:layout", host.layout.state);
@@ -139,7 +153,7 @@ function applySettings(patch: unknown, persist = true): void {
   }
   next.systemAccent = systemAccent();
   settings = next;
-  nativeTheme.themeSource = settings.theme;
+  if (settings.theme !== prev.theme) nativeTheme.themeSource = settings.theme;
   if (settings.launchAtLogin !== prev.launchAtLogin) applyLoginItem();
   if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
   saveSettings(settings);
@@ -161,13 +175,14 @@ function refreshMenus(): void {
   const mode = host?.paneModes.get(host.mainPane.paneId) ?? settings.mode;
   const activeDoc = registry.get(host?.mainPane.documentId);
   const gitStatus = activeDoc?.gitStatus ?? { available: false as const, reason: "Open a file first." };
-  const next = menuState(settings, mode, !!activeDoc?.path, gitStatus);
+  const next = menuState(settings, mode, !!activeDoc?.path, gitStatus, !!host && !!activeDoc && host.layout.isPinned(activeDoc.documentId));
   if (next.application !== lastMenuState?.application) buildMenu({
-    settings: () => ({ ...settings, mode }),
+    settings: () => settings,
+    mode: () => mode,
     changesStatus: () => gitStatus,
     command: (cmd) => runCommand(cmd),
     openDialog: () => void openDialog(),
-    openPath: (p) => void openFile(p, "edit"),
+    openPath: (p) => void openFile(p, fileOpenIntent(p)),
     patch: applySettings,
     clearRecents: () => {
       clearNativeRecents(recentOS, process.platform);
@@ -175,6 +190,7 @@ function refreshMenus(): void {
     },
     share: () => { const doc = currentSession(); if (doc?.path) shareDocument(context().win, doc.path); },
     hasDocumentPath: () => !!activeDoc?.path,
+    tabPinned: () => !!host && !!activeDoc && host.layout.isPinned(activeDoc.documentId),
     installCli: () => void installCli(),
     checkUpdates: () => void updates?.check(true),
     installUpdate: () => void updates?.install(),
@@ -184,7 +200,7 @@ function refreshMenus(): void {
   if (next.recents !== lastMenuState?.recents && process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath(), settings.recents));
   if (next.recents !== lastMenuState?.recents && process.platform === "darwin") app.dock?.setMenu(Menu.buildFromTemplate([
     { label: "New Window", click: () => void newDocumentWindow() },
-    ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, "edit") })),
+    ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, fileOpenIntent(file)) })),
   ]));
   lastMenuState = next;
 }
@@ -211,7 +227,7 @@ function overlayColors(): { color: string; symbolColor: string; height: number }
   return {
     color: "#00000000",
     symbolColor: nativeTheme.shouldUseDarkColors ? "#c8c8cc" : "#55555c",
-    height: 38,
+    height: 34,
   };
 }
 
@@ -228,7 +244,7 @@ function createWindow(host: WindowContext): BrowserWindow {
     title: "SimpleMD",
     titleBarStyle: mac ? "hiddenInset" : "hidden",
     titleBarOverlay: mac ? undefined : overlayColors(),
-    trafficLightPosition: mac ? { x: 16, y: 13 } : undefined,
+    trafficLightPosition: mac ? { x: 12, y: 10 } : undefined,
     vibrancy: mac ? "under-window" : undefined,
     backgroundColor: mac ? "#00000000" : nativeTheme.shouldUseDarkColors ? "#161617" : "#fcfcfb",
     autoHideMenuBar: true,
@@ -240,6 +256,7 @@ function createWindow(host: WindowContext): BrowserWindow {
       backgroundThrottling: false,
     },
   });
+  if (mac) w.setWindowButtonVisibility(!settings.zenMode);
   if (!mac) {
     watchWindowTheme(nativeTheme, w, overlayColors);
   }
@@ -275,7 +292,7 @@ function createWindow(host: WindowContext): BrowserWindow {
   };
   w.on("focus", () => { frontmost = windows.get(w.webContents.id) ?? frontmost; trace("win-focus"); if (!quitting) refreshMenus(); });
   w.on("blur", () => trace("win-blur"));
-  w.on("hide", () => trace("win-hide"));
+  w.on("hide", () => { host.quickly?.close(); host.quickly = undefined; host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1; trace("win-hide"); });
   w.on("show", () => trace("win-show"));
   w.on("resize", rememberBounds);
   w.on("move", rememberBounds);
@@ -288,6 +305,7 @@ function createWindow(host: WindowContext): BrowserWindow {
   });
   const webContentsId = w.webContents.id;
   w.on("closed", () => {
+    host.quickly?.close();
     windows.delete(webContentsId);
     if (frontmost?.win === w) frontmost = [...windows.values()].find(host => !host.win.isDestroyed() && host.win.isVisible()) ?? [...windows.values()].at(-1) ?? frontmost;
   });
@@ -309,9 +327,25 @@ async function hideCurrentWindow(): Promise<void> {
   }
 }
 
-async function closeTab(id = currentSession().documentId, host = context()): Promise<boolean> {
+function pinTab(id: DocumentId, pinned: boolean, host = context(), before?: DocumentId): void {
+  const doc = registry.get(id);
+  if (!doc || pinned && !doc.path || !host.layout.has(id)) return;
+  host.layout.pin(id, pinned, before);
+  const local = host.layout.state.pinned?.flatMap(tab => registry.get(tab)?.path ?? []) ?? [];
+  const localPaths = new Set(host.layout.state.tabs.flatMap(tab => registry.get(tab)?.path ?? []));
+  applySettings({ pinnedPaths: [...local, ...settings.pinnedPaths.filter(file => !localPaths.has(file))] });
+  syncLayout(host);
+}
+
+async function closeTab(id = currentSession().documentId, host = context(), pinned?: "keep" | "forget"): Promise<boolean> {
+  if (!pinned && host.layout.leavePinned(id)) {
+    if (host.layout.active?.documentId === id) await windowScope.run(host, () => transition(createNewDocument, host));
+    syncLayout(host);
+    return true;
+  }
   const doc = registry.get(id);
   if (!doc || !(await transition(() => settle(doc, host), host))) return false;
+  if (pinned === "forget" && host.layout.isPinned(id)) pinTab(id, false, host);
   host.layout.remove(id);
   registry.remove(id);
   releaseDocumentDelta(id);
@@ -323,7 +357,7 @@ async function closeTab(id = currentSession().documentId, host = context()): Pro
   return true;
 }
 async function closeDocumentWindow(host = context()): Promise<void> {
-  for (const id of [...host.layout.state.tabs]) if (!(await closeTab(id, host))) return;
+  for (const id of [...host.layout.state.tabs]) if (!(await closeTab(id, host, "keep"))) return;
   if (!host.layout.state.tabs.length) finishClosedWindow(host);
 }
 function finishClosedWindow(host: WindowContext): void {
@@ -380,7 +414,7 @@ async function settle(current = currentSession(), host = context()): Promise<boo
   let discarded = false;
   const settled = await settleDocument({
     documentId: current.documentId,
-    autosave: settings.autosave,
+    autosave: () => settings.autosave && current.firstAutosave.allowed,
     hasPath: current.path !== null,
     flush: () => requestFlush(current, host),
     save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
@@ -432,6 +466,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   }
   return {
     documentId: doc.documentId,
+    firstAutosaveAllowed: doc.firstAutosave.allowed,
     savedText: doc.dirty ? doc.diskText ?? "" : undefined,
     dirty: doc.dirty,
     revisionId: doc.revisionId,
@@ -479,10 +514,12 @@ function waitUntilUsable(id: DocumentId, host = context()): Promise<void> {
     waiters.add(done);
   });
 }
-async function present(payload: DocPayload, host = context()): Promise<void> {
+async function present(payload: DocPayload, host = context(), otherPane = false): Promise<void> {
   await host.loaded;
   const previous = host.mainPane.documentId;
-  host.layout.add(payload.documentId);
+  if (otherPane) host.layout.openOther(payload.documentId);
+  else host.layout.add(payload.documentId);
+  if (payload.path && settings.pinnedPaths.includes(payload.path)) host.layout.pin(payload.documentId, true);
   Object.assign(host.mainPane, host.layout.active);
   payload.paneId = host.mainPane.paneId;
   if (!host.layout.has(previous)) registry.remove(previous);
@@ -499,7 +536,7 @@ async function present(payload: DocPayload, host = context()): Promise<void> {
 
 function reveal(host = context()): void {
   if (!host || host.win.isDestroyed()) host = createDocumentWindow();
-  if (process.platform === "darwin") void app.dock?.show();
+  if (process.platform === "darwin" && !app.dock?.isVisible()) void app.dock?.show();
   if (process.platform === "darwin") app.focus({ steal: true });
   if (!host.win.isVisible()) host.win.show();
   host.win.focus();
@@ -511,12 +548,14 @@ function openFile(file: string | undefined, intent: OpenIntent, inPlace = false,
   return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? ""), quickly?: { otherPane: boolean }, restoringPins = false): Promise<boolean> {
   if (!file) {
     reveal(host);
     return true;
   }
-  if (!cli && !isMarkdown(file)) return false;
+  if (!cli && !isMarkdown(file) && !opensInSource(file)) return false;
+  if (forceSource) intent = "edit";
+  if (inPlace && host.layout.isPinned(documentId ?? host.mainPane.documentId)) inPlace = false;
   const abs = path.resolve(file);
   const canonical = await fs.promises.realpath(abs).catch(() => abs);
   for (const host of windows.values()) {
@@ -528,15 +567,18 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     if (existing !== undefined) return windowScope.run(host, async () => {
       const usable = waitUntilUsable(existing, host);
       perfMark("file-open-arrival", { path: abs });
-      host.layout.activate(existing);
+      if (quickly?.otherPane) host.layout.openOther(existing);
+      else host.layout.activate(existing);
       syncLayout(host); reveal(host);
       await usable;
+      if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
+      else if (intent === "read") sendTo(host, "smd:cmd", "mode-read", existing);
       return true;
     });
   }
-  if (!inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
+  if (!quickly && !restoringPins && !inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
-    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli));
+    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource));
   }
   const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
@@ -563,33 +605,34 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         return payloadFor(prepared, true, prepared.text, intent, host);
       },
       present: async (payload) => {
-        reveal(host);
+        if (!restoringPins) reveal(host);
         if (replaced !== undefined) {
           host.layout.replace(replaced, payload.documentId);
           registry.remove(replaced);
           sendTo(host, "smd:closed", replaced);
         }
-        await present(payload, host);
+        if (forceSource) payload.initialMode = "source";
+        await present(payload, host, quickly?.otherPane);
         addRecent(abs);
       },
     });
   } catch (err) {
     console.error("simple-md: failed to open", abs, err);
-    if (!cli) void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
+    if (cli) { const { cliFileError } = await import("./cli-open.js"); throw cliFileError(abs, err); }
+    void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
   } finally {
     if (prepared && !host.layout.has(prepared.documentId)) registry.remove(prepared.documentId);
   }
 }
 
-function newDoc(): Promise<void> {
-  return documents.run(() => transition(async () => {
-    reveal();
-    const doc = registry.create(null, "", "edit");
-    try { await present(await payloadFor(doc)); }
-    finally { if (!context().layout.has(doc.documentId)) registry.remove(doc.documentId); }
-  }));
+async function createNewDocument(): Promise<void> {
+  reveal();
+  const doc = registry.create(null, "", "edit");
+  try { await present(await payloadFor(doc)); }
+  finally { if (!context().layout.has(doc.documentId)) registry.remove(doc.documentId); }
 }
+function newDoc(): Promise<void> { return documents.run(() => transition(createNewDocument)); }
 
 function openDialog(): Promise<boolean> {
   return documents.run(async () => {
@@ -600,7 +643,7 @@ function openDialog(): Promise<boolean> {
     });
     if (res.canceled || !res.filePaths[0]) return false;
     let opened = true;
-    for (const file of res.filePaths) opened = await openCurrentFile(file, "edit") && opened;
+    for (const file of res.filePaths) opened = await openCurrentFile(file, fileOpenIntent(file)) && opened;
     return opened;
   });
 }
@@ -618,11 +661,15 @@ async function saveText(text: string, forceDialog: boolean, documentId: Document
     if (res.canceled || !res.filePath) return null;
     target = res.filePath;
   }
-  const moved = target !== doc.path;
+  const previousPath = doc.path;
+  const pinned = host.layout.isPinned(documentId);
+  const moved = target !== previousPath;
   try {
     const result = await doc.save(target, revisionId, forceDialog);
     if (!result) return null;
+    if (moved && pinned) applySettings({ pinnedPaths: settings.pinnedPaths.map(file => file === previousPath ? target : file) });
     if (moved) addRecent(target);
+    if (moved) syncLayout(host);
     updateTitle(host);
     sendTo(host, "smd:saved", result);
     return result;
@@ -643,7 +690,11 @@ async function openLink(href: string, intent: OpenIntent = "edit", newTab = fals
   const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
   if (!resolved || !resolved.startsWith("file:")) return false;
   try {
-    const canonical = await containedLocalFile(resolved, urlContext(path.dirname(current.path)));
+    const urls = urlContext(path.dirname(current.path));
+    const { astroRouteFile } = await import("./document-urls.js");
+    const route = await astroRouteFile(resolved, urls);
+    if (route) return openFile(route, intent, false, current.documentId, host);
+    const canonical = await containedLocalFile(resolved, urls);
     const target = fileURLToPath(resolved);
     return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host) : false;
   } catch {
@@ -706,6 +757,14 @@ async function newDocumentWindow(): Promise<void> {
 function runCommand(cmd: Command, target = context().layout.active?.documentId): void {
   const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
+    case "toggle-zen": applySettings({ zenMode: !settings.zenMode }); return;
+    case "toggle-pin-tab": if (target !== undefined) pinTab(target, !context().layout.isPinned(target)); return;
+    case "close-pinned-tab": {
+      const host = context();
+      if (target !== undefined && host.layout.isPinned(target)) void documents.run(() => closeTab(target, host, "forget"));
+      return;
+    }
+    case "toggle-tab-sidebar": applySettings(sidebarToggle(settings)); return;
     case "close-tab": {
       const host = context();
       if (host.layout.state.tabs.length && target !== undefined) void documents.run(() => closeTab(target, host));
@@ -731,6 +790,7 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
     case "reveal":
       if (current?.path) shell.showItemInFolder(current.path);
       return;
+    case "mode-read":
     case "mode-live":
     case "mode-split":
     case "mode-source":
@@ -740,7 +800,7 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
     case "zoom-in":
     case "zoom-out":
     case "zoom-reset":
-      applySettings({ zoom: cmd === "zoom-reset" ? 1 : settings.zoom + (cmd === "zoom-in" ? 0.1 : -0.1) });
+      applySettings({ zoom: cmd === "zoom-reset" ? 1 : settings.zoom + (cmd === "zoom-in" ? 0.2 : -0.2) });
       return;
     default:
       reveal();
@@ -781,10 +841,15 @@ async function exportDocumentBytes(doc: DocumentSession, text: string, format: E
   return format === "pdf" ? makePdf(text, doc) : Buffer.from(await makeHtml(text, doc));
 }
 
+async function exportName(text: string, current: DocumentSession, format: ExportFormat): Promise<string> {
+  const { documentTitle, exportFilename } = await import("../shared/document-title.js");
+  return exportFilename(await documentTitle(text, current.name), format);
+}
+
 async function exportPdf(text: string): Promise<void> {
   const current = currentSession();
   const res = await dialog.showSaveDialog(context().win, {
-    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.pdf`),
+    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), await exportName(text, current, "pdf")),
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (res.canceled || !res.filePath) return;
@@ -795,7 +860,7 @@ async function exportPdf(text: string): Promise<void> {
 async function exportHtml(text: string): Promise<void> {
   const current = currentSession();
   const res = await dialog.showSaveDialog(context().win, {
-    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.html`),
+    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), await exportName(text, current, "html")),
     filters: [{ name: "HTML", extensions: ["html"] }],
   });
   if (res.canceled || !res.filePath) return;
@@ -906,8 +971,8 @@ function ipcRevision(doc: DocumentSession, value: unknown): RevisionId {
 }
 
 function ipcIntent(value: unknown): OpenIntent {
-  if (value === undefined || value === "edit") return "edit";
-  if (value === "read") return "read";
+  if (value === undefined || value === "read") return "read";
+  if (value === "edit") return "edit";
   throw new TypeError("Unsupported open intent.");
 }
 
@@ -925,6 +990,15 @@ function registerIpc(): void {
       if (host && e.senderFrame === e.sender.mainFrame && !quitting) windowScope.run(host, () => use(e, ...args));
     });
   };
+  on("smd:chrome-visible", (_event, visible: unknown) => {
+    if (process.platform === "darwin" && typeof visible === "boolean") context().win.setWindowButtonVisibility(!settings.zenMode || visible);
+  });
+  handle("smd:move-tab", (id, pinned, before) => {
+    const tab = ipcDocument(id);
+    if (typeof pinned !== "boolean" || before !== undefined && !isDocumentId(before)) throw new TypeError("Invalid tab move.");
+    if (before !== undefined) ipcDocument(before);
+    pinTab(tab, pinned, context(), before);
+  });
   handle("smd:activate-tab", id => { context().layout.activate(ipcDocument(id)); syncLayout(); });
   handle("smd:focus-pane", id => {
     if (!isPaneId(id)) throw new TypeError("Invalid pane.");
@@ -932,14 +1006,29 @@ function registerIpc(): void {
     return context().layout.active?.documentId;
   });
   handle("smd:close-tab", id => { const host = context(); const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId, host)); });
+  handle("smd:tab-context-menu", id => {
+    const host = context();
+    const doc = ipcSession(id);
+    const menu = Menu.buildFromTemplate([
+      { label: host.layout.isPinned(doc.documentId) ? "Unpin Tab" : "Pin Tab", enabled: !!doc.path, click: () => windowScope.run(host, () => pinTab(doc.documentId, !host.layout.isPinned(doc.documentId), host)) },
+      { label: host.layout.isPinned(doc.documentId) ? "Close Pinned Tab" : "Close Tab", click: () => { void windowScope.run(host, () => documents.run(async () => host.layout.has(doc.documentId) ? closeTab(doc.documentId, host, "forget") : false)); } },
+      { label: "Move Tab to New Window", click: () => { void windowScope.run(host, () => documents.run(async () => {
+        if (!host.layout.has(doc.documentId)) return;
+        host.layout.activate(doc.documentId); syncLayout(); await moveTabToWindow();
+      })); } },
+      { label: process.platform === "darwin" ? "Reveal in Finder" : "Show in File Manager", enabled: !!doc.path, click: () => { if (doc.path) shell.showItemInFolder(doc.path); } },
+    ]);
+    menu.popup({ window: host.win });
+  });
   handle("smd:ready", () => {
     trace("renderer-ready");
+    sendTo(context(), "smd:performance-tracing", testProfile && process.env.SMD_PERF === "1");
     context().rendererReady = true;
     context().markLoaded();
-    return { settings, platform: process.platform, accent: systemAccent(), performanceTracing: testProfile && process.env.SMD_PERF === "1" };
+    return { settings, platform: process.platform, accent: systemAccent() };
   });
   on("smd:pane-mode", (_e, id, mode) => {
-    if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "live" && mode !== "source" && mode !== "split")) return;
+    if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "read" && mode !== "live" && mode !== "source" && mode !== "split")) return;
     if (context().paneModes.get(id) === mode) return;
     context().paneModes.set(id, mode); refreshMenus();
   });
@@ -948,7 +1037,7 @@ function registerIpc(): void {
     const doc = currentSession();
     if (!mainSender(e) || !doc || id !== doc.documentId) return;
     doc.intent = "edit";
-    if (process.platform === "darwin") void app.dock?.show();
+    if (process.platform === "darwin" && !app.dock?.isVisible()) void app.dock?.show();
   });
   on("smd:perf-marker", (e, id: unknown, marker: unknown, rendererEpochMs: unknown) => {
     const doc = currentSession();
@@ -975,7 +1064,8 @@ function registerIpc(): void {
   });
   on("smd:edit", (e, text: unknown, id: unknown, revision: unknown) => {
     if (!mainSender(e) || !isDocumentId(id) || !context().layout.has(id) || typeof text !== "string" || !isRevisionId(revision)) return;
-    ipcSession(id).edit(text, revision);
+    const owner = context().layout.state.panes.find(pane => pane.documentId === id);
+    ipcSession(id).edit(text, revision, !!owner && context().paneModes.get(owner.paneId) === "read");
   });
   handle("smd:next-blocks", (stream, id) => {
     ipcSession(id);
@@ -1060,7 +1150,44 @@ function registerIpc(): void {
       return doc.path ? saveImageNextTo(doc.path, bytes, ext) : Promise.resolve(null);
     });
   });
+  handle("smd:quickly-query", async (raw, scope, request) => {
+    const host = context();
+    if (typeof raw !== "string" || raw.length > 256 || (scope !== "repo" && scope !== "everywhere") || !Number.isSafeInteger(request)) throw new TypeError("Invalid search.");
+    host.quickly?.cancel();
+    const generation = host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1;
+    const { QuicklySearch } = await import("./open-quickly.js");
+    if (host.win.isDestroyed() || host.quicklyGeneration !== generation) return [];
+    host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null);
+    const tabs = host.layout.state.tabs.flatMap(id => { const file = registry.get(id)?.path; return file ? [{ path: file, source: "tab" as const }] : []; });
+    const matches = await host.quickly.search(raw, scope, [...tabs, ...settings.recents.map(path => ({ path, source: "recent" as const }))], matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
+    return host.quicklyGeneration === generation ? matches : [];
+  });
+  on("smd:quickly-close", () => {
+    const host = context(); host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1;
+    host.quickly?.close(); host.quickly = undefined;
+  });
+  handle("smd:quickly-open", (file, otherPane) => {
+    const host = context();
+    const target = ipcText(file);
+    if (!path.isAbsolute(target) || !/\.(md|mdx|markdown|mdown|mkd)$/i.test(target) || target.includes("\0")) throw new TypeError("Invalid Markdown path.");
+    return documents.run(() => openCurrentFile(target, "read", false, undefined, host, false, false, { otherPane: otherPane === true }));
+  });
   handle("smd:open-dialog", openDialog);
+  handle("smd:save-copy", (value, id) => {
+    const doc = ipcSession(id), text = ipcText(value), host = context();
+    if (text !== doc.text) throw new Error("Stale document text.");
+    return documents.run(async () => {
+      const ext = path.extname(doc.name) || ".md";
+      const name = doc.name.slice(0, doc.name.length - path.extname(doc.name).length);
+      const result = await dialog.showSaveDialog(host.win, {
+        defaultPath: path.join(doc.path ? path.dirname(doc.path) : app.getPath("documents"), `${name} copy${ext}`),
+        buttonLabel: "Save copy",
+      });
+      if (result.canceled || !result.filePath) return null;
+      await writeConflictCopy(doc.path, result.filePath, text);
+      return path.basename(result.filePath);
+    });
+  });
   handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true, inPlace === true ? ipcDocument(id) : undefined, context()); });
   handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id), context()));
   handle("smd:find-read", readFindText);
@@ -1096,7 +1223,7 @@ function registerIpc(): void {
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (text !== doc.text || (format !== "html" && format !== "pdf")) throw new TypeError("Invalid export source or format.");
-    return documents.run(() => doc.render(revisionId, async () => (await getDragExports()).prepare(doc.documentId, revisionId, doc.name, format, () => exportDocumentBytes(doc, text, format))));
+    return documents.run(() => doc.render(revisionId, async () => (await getDragExports()).prepare(doc.documentId, revisionId, await exportName(text, doc, format), format, () => exportDocumentBytes(doc, text, format))));
   });
   on("smd:start-drag-export", (event, id, revision, token) => {
     try {
@@ -1133,7 +1260,7 @@ function registerIpc(): void {
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
     if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
-    const commands: readonly string[] = ["mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
+    const commands: readonly string[] = ["open-quickly", "toggle-zen", "toggle-pin-tab", "close-pinned-tab", "toggle-tab-sidebar", "mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }
@@ -1147,6 +1274,7 @@ function hardenSession(): void {
 
 const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
   if (request.command === "export") {
+    await checkExportDestination(request.output, request.overwrite);
     const { text, readOnlyReason } = await readDocument(request.path);
     if (readOnlyReason === ENCODING_NOTICE) throw new Error(ENCODING_NOTICE);
     const input = await fs.promises.realpath(request.path);
@@ -1169,9 +1297,16 @@ const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
       if (settings.openIn === "window" && host.layout.state.tabs.length) host = createDocumentWindow();
       doc = registry.create(null, stdin, "edit"); doc.displayName = request.name; doc.dirty = stdin.length > 0;
       const payload = await payloadFor(doc, false, doc.text, "edit", host);
+      if (request.wait) payload.initialMode = "source";
       reveal(host); await present(payload, host);
     } else {
-      if (!(await openCurrentFile(request.path, "edit", false, undefined, host, true))) throw new Error("The file could not be opened.");
+      if (request.location.kind === "heading") {
+        const { cliFileError, requireHeading } = await import("./cli-open.js");
+        const source = await readDocument(request.path).catch(error => { throw cliFileError(request.path, error); });
+        if (source.readOnlyReason === ENCODING_NOTICE) throw cliFileError(request.path, new Error(ENCODING_NOTICE));
+        requireHeading((await renderBlocks(source.text, request.path, /\.mdx$/i.test(request.path))).blocks, request.location.heading);
+      }
+      if (!(await openCurrentFile(request.path, fileOpenIntent(request.path, request.wait, request.location), false, undefined, host, true, opensInSource(request.path, request.wait, request.location)))) throw new Error("The file could not be opened.");
       const canonical = await fs.promises.realpath(request.path);
       for (const candidate of windows.values()) {
         for (const id of candidate.layout.state.tabs) {
@@ -1197,7 +1332,10 @@ async function openUrl(value: string): Promise<void> {
 }
 
 function fileArg(argv: string[]): string | undefined {
-  return argv.slice(1).find((a) => !a.startsWith("-") && isMarkdown(a) && fs.existsSync(a));
+  return argv.slice(1).find(a => {
+    if (a.startsWith("-") || (!isMarkdown(a) && !opensInSource(a))) return false;
+    try { return fs.statSync(a).isFile(); } catch { return false; }
+  });
 }
 
 function scheduleCliServer(): void {
@@ -1250,11 +1388,11 @@ if (!app.requestSingleInstanceLock()) {
     const url = argv.find(arg => arg.startsWith("simplemd:"));
     if (url) { if (cliReady) void openUrl(url); else pendingUrl = url; }
     else if (argv.includes("--new-window")) void newDocumentWindow();
-    else void openFile(fileArg(argv), "edit");
+    else void openFile(fileArg(argv), "read");
   });
   app.on("open-file", (e, file) => {
     e.preventDefault();
-    if (context()) void openFile(file, "edit");
+    if (context()) void openFile(file, fileOpenIntent(file));
     else pendingOpen = file;
   });
   let quitRequest: Promise<boolean> | undefined;
@@ -1304,9 +1442,15 @@ if (!app.requestSingleInstanceLock()) {
     if (backgroundLaunch && !pendingOpen && process.platform === "darwin") app.dock?.hide();
     if (!backgroundLaunch || pendingOpen) reveal();
     context().win.webContents.once("did-finish-load", () => trace("page-loaded"));
+    if (settings.pinnedPaths.length) {
+      for (const file of await existingPinnedPaths(settings.pinnedPaths)) {
+        await documents.run(() => openCurrentFile(file, "read", false, undefined, context(), false, false, undefined, true));
+      }
+    }
+    if (pendingOpen) await openFile(pendingOpen, testProfile && process.env.SMD_INTENT === "edit" ? "edit" : fileOpenIntent(pendingOpen));
     createTray();
     refreshMenus();
-    if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
+    trace("tray-ready");
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
     // File and URL opens have painted. Blank and background launches wait for the renderer,

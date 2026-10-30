@@ -30,6 +30,10 @@ export interface MdxRanges extends Array<MdxRange> {
   error?: MdxParseError;
 }
 
+declare module "micromark-util-types" {
+  interface TokenTypeMap { simplemdMath: "simplemdMath" }
+}
+
 type Tokenizer = ReturnType<ReturnType<typeof parse>["text"]>;
 type Token = Tokenizer["events"][number][1];
 type Construct = Exclude<NonNullable<Extension["text"]>[string], unknown[] | undefined>;
@@ -65,6 +69,42 @@ const htmlComment: Construct = {
   },
 };
 
+// Recognize math only in Markdown text, never inside JSX attributes, ESM or code.
+// Consuming the original span leaves UTF-16 offsets and source bytes unchanged.
+function mathText(source: string, flow = false): Construct {
+  return {
+    concrete: true,
+    tokenize(effects, ok, nok) {
+      const start = this.now().offset;
+      if (/[\w$]/.test(source[start - 1] ?? "")) return nok;
+      const match = /^(?:\$\$[\s\S]+?\$\$|\$`[^`\r\n]+`\$|\$(?![\s$])(?:\\.|[^$\r\n])+?(?<![\s\\])\$)(?![\w$])/.exec(source.slice(start));
+      if (!match || (flow && !match[0].startsWith("$$")) || (!flow && /[\r\n]/.test(match[0]))) return nok;
+      const end = start + match[0].length;
+      effects.enter("simplemdMath");
+      effects.enter("data");
+      const consume: State = (code) => {
+        if (this.now().offset >= end) {
+          effects.exit("data");
+          effects.exit("simplemdMath");
+          return ok(code);
+        }
+        if (code === null) return nok(code);
+        if (code === -5 || code === -4 || code === -3) {
+          effects.exit("data");
+          effects.enter("lineEnding");
+          effects.consume(code);
+          effects.exit("lineEnding");
+          effects.enter("data");
+          return consume;
+        }
+        effects.consume(code);
+        return consume;
+      };
+      return consume;
+    },
+  };
+}
+
 function lineStarts(source: string): number[] {
   const starts = [0];
   const endings = /\r\n|[\r\n]/g;
@@ -93,7 +133,7 @@ export function findMdxRanges(source: string): MdxRanges {
   const frontmatter = /^(?:\uFEFF)?---[^\S\r\n]*(?:\r\n|[\r\n])[\s\S]*?(?:\r\n|[\r\n])(?:---|\.\.\.)[^\S\r\n]*(?:(?:\r\n|[\r\n])|$)/.exec(source);
   const bom = !frontmatter && source.startsWith("\uFEFF") ? 1 : 0;
   const input = frontmatter ? frontmatter[0].replace(/[^\r\n]/g, " ") + source.slice(frontmatter[0].length) : source.slice(bom);
-  const parser = parse({ extensions: [mdxjs({ addResult: false }), { flow: { 60: htmlComment }, text: { 60: htmlComment } }] });
+  const parser = parse({ extensions: [mdxjs({ addResult: false }), { flow: { 60: htmlComment, 36: mathText(source, true) }, text: { 60: htmlComment, 36: mathText(source) } }] });
   const contexts: Tokenizer[] = [];
   // Keep child contexts as well as the document context. A tokenizer can throw
   // before postprocess copies its completed tokens into the document events.

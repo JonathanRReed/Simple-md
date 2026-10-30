@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import electron from "electron";
 
-export async function runDom(entrypoint: string, inputs: unknown): Promise<unknown> {
+export async function runDom(entrypoint: string, inputs: unknown, options: { media?: { name: string; value: string }[]; screenshot?: { path: string; width: number; height: number }; frames?: { directory: string; times: number[] } } = {}): Promise<unknown> {
   const temp = await mkdtemp(path.join(os.tmpdir(), "simplemd-dom-"));
   try {
     const bundle = path.join(temp, "browser.js");
@@ -16,6 +16,7 @@ export async function runDom(entrypoint: string, inputs: unknown): Promise<unkno
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_OPTIONS;
+    env.SMD_DOM_OPTIONS = JSON.stringify(options);
     // Hosted Linux runners lack a configured SUID sandbox helper; the DOM harness only loads local fixtures.
     const sandbox = process.platform === "linux" && process.env.CI ? ["--no-sandbox"] : [];
     const child = Bun.spawn([String(electron), ...sandbox, `--user-data-dir=${path.join(temp, "profile")}`, path.join(import.meta.dir, "corpus/dom-driver.cjs"), input, bundle, output], {

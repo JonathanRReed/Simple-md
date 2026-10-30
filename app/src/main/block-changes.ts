@@ -55,11 +55,26 @@ export function diffSourceBlocks(before: string, old: SourceBlock[], after: stri
   return result;
 }
 
+function listFingerprints(text: string, blocks: RenderedBlock[]): Map<string, string | undefined> {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r\n|[\r\n]/);
+  return new Map(blocks.filter(block => block.itemRanges?.length).map(block => [lines.slice(...block.sourceRange).join("\n"), block.fingerprint]));
+}
+function changeBlocks(blocks: RenderedBlock[], text: string, previous?: Map<string, string | undefined>): SourceBlock[] {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r\n|[\r\n]/);
+  return blocks.flatMap(block => {
+    if (!block.itemRanges?.length) return [{ sourceRange: block.sourceRange, fingerprint: block.fingerprint }];
+    const source = lines.slice(...block.sourceRange).join("\n");
+    // Reference definitions can change rendered links without changing any list source.
+    const fingerprint = previous?.has(source) && previous.get(source) !== block.fingerprint ? block.fingerprint : undefined;
+    return Array.from({ length: block.sourceRange[1] - block.sourceRange[0] }, (_, index) => ({ sourceRange: [block.sourceRange[0] + index, block.sourceRange[0] + index + 1] satisfies [number, number], fingerprint: lines[block.sourceRange[0] + index]?.trim() ? fingerprint : undefined }));
+  });
+}
+
 perfMark("block-changes-core-start");
 const core = createWorkerRenderCore();
 perfMark("block-changes-core-ready");
 export class BlockChangeCalculator {
-  private readonly baselines = new ByteCache<{ text: string; blocks: SourceBlock[] }>(cacheBudget);
+  private readonly baselines = new ByteCache<{ text: string; blocks: SourceBlock[]; lists: Map<string, string | undefined> }>(cacheBudget);
   constructor(private readonly render = core.renderBlocks) {}
   async calculate(before: string, after: string, filePath: string | null, baselineKey = ""): Promise<BlockChanges> {
     if (Buffer.byteLength(before) > MAX_CHANGE_BYTES || Buffer.byteLength(after) > MAX_CHANGE_BYTES) return { changed: [], deleted: [], note: CHANGE_SIZE_NOTE };
@@ -68,11 +83,11 @@ export class BlockChangeCalculator {
     let old = baselineKey ? this.baselines.get(key) : undefined;
     if (!old || old.text !== before) {
       const rendered = await this.render(before, filePath, false);
-      old = { text: before, blocks: rendered.blocks.map(({ sourceRange, fingerprint }) => ({ sourceRange, fingerprint })) };
-      if (baselineKey) this.baselines.set(key, old, 2 * Buffer.byteLength(before) + 2 * Buffer.byteLength(JSON.stringify(old.blocks)));
+      old = { text: before, blocks: changeBlocks(rendered.blocks, before), lists: listFingerprints(before, rendered.blocks) };
+      if (baselineKey) this.baselines.set(key, old, 2 * Buffer.byteLength(before) + 2 * Buffer.byteLength(JSON.stringify([old.blocks, [...old.lists]])));
     }
     const current = await this.render(after, filePath, false);
-    return diffSourceBlocks(before, old.blocks, after, current.blocks);
+    return diffSourceBlocks(before, old.blocks, after, changeBlocks(current.blocks, after, old.lists));
   }
 }
 const calculator = new BlockChangeCalculator();

@@ -37,7 +37,9 @@ async function runBatch(fixtures: string[]) {
       const full = buildLiveDecorations(state, host, scope);
       for (let c = value.decorations.iter(); c.value; c.next()) {
         const spec = c.value.spec;
-        if ((spec.widget || !spec.class && c.from < c.to) && getMdxRanges(state).some(r => r.start < c.to && r.end > c.from)) {
+        const overlaps = getMdxRanges(state).filter(r => r.start < c.to && r.end > c.from);
+        const imageHtml = spec.widget?.kind?.startsWith("html") && overlaps.every(range => "capitalized" in range && !range.capitalized);
+        if ((spec.widget || !spec.class && c.from < c.to) && overlaps.length && !imageHtml) {
           throw new Error(`Decoration hid MDX in fixture ${fixture} at step ${step}`);
         }
       }

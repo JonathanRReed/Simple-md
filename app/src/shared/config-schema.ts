@@ -17,6 +17,8 @@ export const configSchema = {
   "reading-font-size": { ...number("readingFontSize", "Size (px)", "Reading", 19, 10, 40, 1), setting: "readingFontSize" },
   "reading-line-height": { ...number("readingLineHeight", "Line height", "Reading", 1.68, 1, 2.5, 0.05), setting: "readingLineHeight" },
   "content-width": { ...number("contentWidth", "Width (characters)", "Reading", 66, 40, 160, 1), setting: "contentWidth" },
+  "outline-rail": { ...boolean("outlineRail", "Outline rail", "Behavior", true), setting: "outlineRail" },
+  "outline-rail-levels": { ...number("outlineRailLevels", "Outline heading levels", "Behavior", 3, 1, 6, 1), setting: "outlineRailLevels" },
   "writing-font-family": { ...font("writingFontFamily", "Font", "Writing", "system-ui"), setting: "writingFontFamily" },
   "writing-font-size": { ...number("writingFontSize", "Size (px)", "Writing", 17, 10, 40, 1), setting: "writingFontSize" },
   "writing-line-height": { ...number("writingLineHeight", "Line height", "Writing", 1.65, 1, 2.5, 0.05), setting: "writingLineHeight" },
@@ -26,7 +28,12 @@ export const configSchema = {
   "code-line-height": { ...number("codeLineHeight", "Line height", "Code", 1.55, 1, 2.5, 0.05), setting: "codeLineHeight" },
   "code-content-width": { ...number("codeContentWidth", "Width (characters)", "Code", 100, 40, 200, 1), setting: "codeContentWidth" },
   "mode": { ...choice("mode", "Editing mode", "Behavior", "live", ["live", "split", "source"]), setting: "mode" },
+  "open-quickly-scope": { ...choice("openQuicklyScope", "Open Quickly scope", "Behavior", "repo", ["repo", "everywhere"]), setting: "openQuicklyScope" },
   "open-in": { ...choice("openIn", "Open files in", "Behavior", "tab", ["tab", "window"]), setting: "openIn" },
+  "tab-style": { ...choice("tabStyle", "Tab style", "Tabs", "top", ["top", "sidebar"]), setting: "tabStyle" },
+  "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 180, 140, 420, 1), setting: "sidebarWidth" },
+  "sidebar-collapsed": { ...boolean("sidebarCollapsed", "Hide tab sidebar", "Tabs", false), setting: "sidebarCollapsed" },
+  "ui-motion": { ...choice("uiMotion", "Subtle chrome motion", "Appearance", "subtle", ["subtle", "off"]), setting: "uiMotion" },
   "autosave": { ...boolean("autosave", "Autosave", "Behavior", true), setting: "autosave" },
   "vim": { ...boolean("vim", "Vim key bindings", "Behavior", false), setting: "vim" },
   "spellcheck": { ...boolean("spellcheck", "Spellcheck", "Behavior", true), setting: "spellcheck" },
@@ -39,11 +46,18 @@ export type ConfigDefinition = (typeof configSchema)[ConfigKey];
 export type UserSettings = { -readonly [K in ConfigKey as (typeof configSchema)[K]["setting"]]: (typeof configSchema)[K]["default"] };
 export const configEntries = Object.entries(configSchema) as [ConfigKey, ConfigDefinition][];
 export const configDefaults = Object.fromEntries(configEntries.map(([, def]) => [def.setting, def.default])) as UserSettings;
+export function clampSidebarWidth(width: number): number {
+  const def = configSchema["sidebar-width"];
+  return Number.isFinite(width) ? Math.min(def.max, Math.max(def.min, Math.round(width))) : def.default;
+}
+export function normalizeConfigValue<T>(def: ConfigDefinition, value: T): T | number {
+  return def.setting === "sidebarWidth" && typeof value === "number" && Number.isFinite(value) ? clampSidebarWidth(value) : value;
+}
 export function isConfigKey(key: string): key is ConfigKey { return Object.hasOwn(configSchema, key); }
 export function validConfigValue(def: ConfigDefinition, value: unknown): boolean {
   switch (def.kind) {
     case "boolean": return typeof value === "boolean";
-    case "number": return typeof value === "number" && Number.isFinite(value) && value >= def.min && value <= def.max;
+    case "number": return typeof value === "number" && Number.isFinite(value) && value >= def.min && value <= def.max && (def.setting !== "outlineRailLevels" || Number.isInteger(value));
     case "choice": return typeof value === "string" && def.options.some(option => option === value);
     case "font": return typeof value === "string" && value.trim().length > 0 && value.length <= 160 && !/[\x00-\x1f\x7f]/.test(value);
   }

@@ -25,6 +25,7 @@
     "scripts/perf*.ts",
     "test/performance.test.ts",
     "scripts/verify-cli.ts",
+    "scripts/verify-smoke.ts",
     "test/cli.test.ts"
   ]
 }

@@ -1,3 +1,6 @@
+import { tabRows } from "../shared/tab-presentation.js";
+import { createTabBar } from "./tab-bar.js";
+import { createWindowChrome } from "./window-chrome.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
@@ -5,11 +8,16 @@ import { createPane, type DormantDocument, type PaneController } from "./pane.js
 import { applyDocumentStyle } from "./document-style.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { renderDiagrams } from "./diagrams.js";
-import { closeOverlays } from "./ui.js";
+import { closeOverlays, openPicker, toast } from "./ui.js";
+import { armMotion, capturePaneBounds, configureMotion, flipPaneBounds } from "./motion.js";
 
 const api = bridge();
+const windowChrome = createWindowChrome(api);
 const stage = document.querySelector<HTMLElement>("#stage")!;
 const strip = document.querySelector<HTMLElement>("#tabs")!;
+const tabBar = createTabBar(strip, document.querySelector<HTMLElement>("#sidebar-divider")!, api);
+let tabFrame = 0;
+let tabTimer: ReturnType<typeof setTimeout> | undefined;
 const template = document.querySelector<HTMLTemplateElement>("#pane-template")!;
 let settings: Settings = DEFAULT_SETTINGS;
 let layout: TabLayoutState | undefined;
@@ -23,7 +31,10 @@ document.addEventListener("contextmenu", event => {
 api.onContextMenu(context => { if (contextTarget) void contextTarget.contextMenu(context).catch(console.error); });
 const active = () => layout ? panes.get(layout.activePane)?.controller : undefined;
 function applyWindowSettings(next: Settings): void {
+  configureMotion(next);
   applyDocumentStyle(next);
+  tabBar.configure(next);
+  windowChrome.configure(next);
   document.documentElement.style.setProperty("--tab-accent", next.systemAccent ?? "Highlight");
   document.documentElement.dataset.theme = next.theme;
   document.documentElement.style.colorScheme = next.theme === "system" ? "light dark" : next.theme;
@@ -33,80 +44,52 @@ function syncChrome(): void {
   if (!layout) return;
   const controller = active();
   const element = panes.get(layout.activePane)?.element;
+  if (element?.dataset.documentPainted !== undefined) armMotion();
   for (const key of ["documentPath", "documentPainted", "firstReadable", "fullyHighlighted", "renderComplete", "documentId", "revisionId"]) {
     if (element?.dataset[key] === undefined) delete document.documentElement.dataset[key];
     else document.documentElement.dataset[key] = element.dataset[key];
   }
-  const tabFocused = strip.contains(document.activeElement);
-  const ids = layout.tabs;
   const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
-  windowTitle.textContent = ids.length === 1 ? controller?.meta.name ?? "SimpleMD" : "SimpleMD";
-  windowTitle.title = ids.length === 1 ? controller?.meta.path ?? "" : "";
-  strip.hidden = ids.length <= 1;
-  for (const node of strip.querySelectorAll<HTMLElement>(".tab")) {
-    if (!ids.some(id => String(id) === node.dataset.documentId)) node.remove();
+  windowTitle.textContent = controller?.meta.name ?? "SimpleMD";
+  if (controller?.meta.dirty) {
+    const edited = document.createElement("span"); edited.className = "window-edited"; edited.textContent = "Edited";
+    windowTitle.append(edited);
   }
-  ids.forEach((id, index) => {
-    const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
-    const tab = documents.get(id);
-    const meta = mounted?.meta ?? tab?.retained?.state.meta ?? tab?.payload;
-    const dirty = !!(mounted?.meta.dirty ?? tab?.retained?.state.dirty ?? tab?.payload.dirty);
-    let button = strip.querySelector<HTMLElement>(`.tab[data-document-id="${id}"]`);
-    if (!button) {
-      button = document.createElement("div");
-      button.className = "tab";
-      button.dataset.documentId = String(id);
-      button.setAttribute("role", "tab");
-      const title = document.createElement("span"); title.className = "tab-name";
-      const close = document.createElement("button");
-      close.type = "button"; close.className = "tab-close";
-      close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
-      button.append(title, close);
-      button.addEventListener("click", () => void api.activateTab(id));
-      button.addEventListener("keydown", e => {
-        if (e.target !== e.currentTarget) return;
-        const tabs = layout?.tabs ?? [];
-        const current = tabs.indexOf(id);
-        let next: DocumentId | undefined;
-        if (e.key === "Enter" || e.key === " ") next = id;
-        else if (e.key === "ArrowRight" || e.key === "ArrowLeft") next = tabs[(current + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
-        else if (e.key === "Home") next = tabs[0];
-        else if (e.key === "End") next = tabs.at(-1);
-        if (e.key === "Delete") { e.preventDefault(); void api.closeTab(id); }
-        if (next !== undefined) { e.preventDefault(); void api.activateTab(next); }
-      });
-    }
-    const title = button.querySelector<HTMLElement>(".tab-name")!;
-    const close = button.querySelector<HTMLButtonElement>(".tab-close")!;
-    title.textContent = meta?.name ?? "Untitled";
-    button.setAttribute("aria-label", `${title.textContent}${dirty ? ", unsaved changes" : ""}`);
-    button.setAttribute("aria-selected", String(controller?.documentId === id));
-    button.setAttribute("aria-controls", `document-${id}`);
-    button.tabIndex = controller?.documentId === id ? 0 : -1;
-    button.title = meta?.path ?? "Untitled";
-    if (button.dataset.dirty !== String(dirty)) {
-      button.dataset.dirty = String(dirty);
-      close.replaceChildren();
-      if (dirty) {
-        const dot = document.createElement("span"); dot.className = "tab-dirty"; dot.setAttribute("aria-hidden", "true"); close.append(dot);
-      } else {
-        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        icon.setAttribute("viewBox", "0 0 12 12"); icon.setAttribute("width", "12"); icon.setAttribute("height", "12"); icon.setAttribute("aria-hidden", "true");
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        for (const [name, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(name, value);
-        icon.append(path); close.append(icon);
-      }
-    }
-    close.tabIndex = -1;
-    button.setAttribute("aria-keyshortcuts", "Delete");
-    close.setAttribute("aria-label", `Close ${title.textContent}`);
-    if (strip.children[index] !== button) strip.insertBefore(button, strip.children[index] ?? null);
-  });
-  if (tabFocused) strip.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus({ preventScroll: true });
+  document.title = controller?.meta.name ?? "SimpleMD";
+  windowTitle.title = controller?.meta.path ?? "";
+  if (settings.tabStyle === "sidebar") {
+    // Let the document paint before populating sidebar rows. Coalesce load and dirty notifications.
+    if (!tabFrame && tabTimer === undefined) tabFrame = requestAnimationFrame(() => {
+      tabFrame = 0;
+      tabTimer = setTimeout(() => { tabTimer = undefined; syncTabs(); }, 0);
+    });
+  } else {
+    cancelAnimationFrame(tabFrame); tabFrame = 0;
+    clearTimeout(tabTimer); tabTimer = undefined;
+    syncTabs();
+  }
   for (const [id, pane] of panes) {
     pane.element.dataset.active = String(id === layout.activePane);
+    for (const button of pane.element.querySelectorAll<HTMLButtonElement>(".layout-controls button")) {
+      const command = button.dataset.command;
+      button.setAttribute("aria-pressed", String(command === "toggle-tab-sidebar" ? settings.tabStyle === "sidebar" && !settings.sidebarCollapsed : layout.panes.length === 2 && layout.axis === (command === "split-panes" ? "horizontal" : "vertical")));
+    }
     pane.controller.activeChanged(id === layout.activePane);
   }
+}
+function syncTabs(): void {
+  if (!layout) return;
+  const names = layout.tabs.map(id => {
+    const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
+    const tab = documents.get(id);
+    const meta = mounted?.meta ?? tab?.retained?.state.meta ?? tab?.payload ?? { name: "Untitled", path: null };
+    return { ...meta, dirty: !!(mounted?.meta.dirty ?? tab?.retained?.state.dirty ?? tab?.payload.dirty) };
+  });
+  tabBar.render(tabRows(layout, names));
+}
+function tabMetaForPalette(id: DocumentId) {
+  return [...panes.values()].find(p => p.controller.documentId === id)?.controller.meta
+    ?? documents.get(id)?.retained?.state.meta ?? documents.get(id)?.payload ?? { name: "Untitled", path: null };
 }
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {
   const tab = documents.get(entry.controller.documentId);
@@ -117,6 +100,7 @@ function stash(entry: { element: HTMLElement; controller: PaneController }): voi
   }
 }
 function mountLayout(next: TabLayoutState): void {
+  const bounds = layout && (layout.axis !== next.axis || layout.panes.length !== next.panes.length) ? capturePaneBounds() : new Map();
   closeOverlays();
   const previousActive = layout?.activePane;
   for (const [id, entry] of panes) entry.controller.activeChanged(next.activePane === id && next.panes.some(slot => slot.paneId === id && slot.documentId === entry.controller.documentId));
@@ -149,6 +133,7 @@ function mountLayout(next: TabLayoutState): void {
       const controller = createPane(element, slot.paneId, {
         active: () => layout?.activePane === slot.paneId,
         changed: syncChrome,
+        tabs: () => (layout?.tabs ?? []).map(id => ({ id, ...tabMetaForPalette(id) })),
       });
       entry = { element, controller }; panes.set(slot.paneId, entry);
       new MutationObserver(syncChrome).observe(element, { attributes: true, attributeFilter: ["data-document-path", "data-document-painted", "data-first-readable", "data-fully-highlighted", "data-render-complete", "data-document-id", "data-revision-id"] });
@@ -184,6 +169,7 @@ function mountLayout(next: TabLayoutState): void {
     }
   }
   syncChrome();
+  flipPaneBounds(bounds);
   if (previousActive !== next.activePane && !strip.contains(document.activeElement)) active()?.focus();
 }
 
@@ -236,7 +222,43 @@ async function boot(): Promise<void> {
     else { const tab = documents.get(id); if (tab) { tab.disk = { text, reason }; if (tab.retained) tab.retained.state.diskConflict = true; } }
   });
   api.onTransition(busy => { for (const pane of panes.values()) pane.controller.transition(busy); });
+  let quicklyLoading = false;
+  function showQuickly(initialQuery = ""): void {
+    if (quicklyLoading) return;
+    quicklyLoading = true;
+    closeOverlays();
+    const tabs = (layout?.tabs ?? []).flatMap(id => { const file = tabMetaForPalette(id).path; return file ? [{ path: file, source: "tab" as const }] : []; });
+    const seen = new Set<string>();
+    const instant = [...tabs, ...settings.recents.map(path => ({ path, source: "recent" as const }))].filter(file => {
+      if (!/\.(md|mdx|markdown|mdown|mkd)$/i.test(file.path) || seen.has(file.path)) return false;
+      seen.add(file.path); return true;
+    });
+    const restore = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    let closed = false;
+    // Paint tabs and recents synchronously, before fetching the lazy search module.
+    openPicker("Open Quickly", instant.slice(0, 200).map(file => {
+      const at = Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\"));
+      return { label: file.path.slice(at + 1), parent: file.path.slice(0, at), run: (otherPane?: boolean) => {
+        void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file."));
+      } };
+    }), () => { closed = true; if (restore?.isConnected) restore.focus({ preventScroll: true }); });
+    const input = document.querySelector<HTMLInputElement>("#picker-input")!;
+    input.value = initialQuery;
+    input.dispatchEvent(new Event("input"));
+    void import("./open-quickly.js").then(({ openQuickly }) => {
+      if (closed) return;
+      const query = document.querySelector<HTMLInputElement>("#picker-input")!.value.slice(0, 256);
+      openQuickly(api, settings.openQuicklyScope, instant, query);
+    }).finally(() => { quicklyLoading = false; });
+  }
+  document.querySelector("#tab-search-button")!.addEventListener("click", () => showQuickly());
+  const search = document.querySelector<HTMLInputElement>("#sidebar-search-input")!;
+  const searchQuickly = () => { const query = search.value; search.value = ""; showQuickly(query); };
+  search.addEventListener("click", searchQuickly);
+  search.addEventListener("input", searchQuickly);
+  search.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); searchQuickly(); } });
   api.onCommand((command, id) => {
+    if (command === "open-quickly") { showQuickly(); return; }
     const target = id === undefined ? active() : [...panes.values()].find(pane => pane.controller.documentId === id)?.controller;
     target?.command(command);
   });
@@ -244,6 +266,7 @@ async function boot(): Promise<void> {
     const modeChanged = settings.mode !== next.mode;
     settings = next;
     applyWindowSettings(next);
+    syncChrome();
     for (const pane of panes.values()) pane.controller.settings(next);
     if (modeChanged) active()?.command(next.mode === "live" ? "mode-live" : next.mode === "source" ? "mode-source" : "mode-split");
   });
@@ -255,6 +278,7 @@ async function boot(): Promise<void> {
     else if (state) api.flushResponse(request, { documentId: id, revisionId: state.revisionId, dirty: state.dirty, conflict: state.diskConflict, text: state.readText });
   });
   const ready = await api.ready();
+  search.title = document.querySelector<HTMLButtonElement>("#tab-search-button")!.title = ready.platform === "darwin" ? "Open Quickly (⌘⇧O)" : "Open Quickly (Ctrl+Shift+O)";
   settings = ready.settings;
   document.body.dataset.platform = ready.platform;
   applyWindowSettings(settings);
@@ -264,7 +288,11 @@ async function boot(): Promise<void> {
     if (e.isComposing) return;
     const mod = ready.platform === "darwin" ? e.metaKey : e.ctrlKey;
     let command: Command | undefined;
-    if (mod && e.key === ",") command = "preferences";
+    const sidebarShortcut = ready.platform === "darwin" ? e.ctrlKey && e.metaKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey;
+    if (mod && e.shiftKey && !e.altKey && (ready.platform !== "darwin" || !e.ctrlKey) && e.key.toLowerCase() === "j") command = "toggle-zen";
+    else if (sidebarShortcut && !e.shiftKey && e.key.toLowerCase() === "s") command = "toggle-tab-sidebar";
+    else if (mod && e.shiftKey && e.key.toLowerCase() === "o") command = e.altKey ? "outline" : "open-quickly";
+    else if (mod && e.key === ",") command = "preferences";
     else if (mod && e.key.toLowerCase() === "t") command = "new";
     else if (mod && e.key.toLowerCase() === "w") command = "close-tab";
     else if (e.ctrlKey && e.key === "Tab") command = e.shiftKey ? "previous-tab" : "next-tab";

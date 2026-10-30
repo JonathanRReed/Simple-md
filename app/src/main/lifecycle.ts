@@ -28,7 +28,7 @@ export async function openPreparedDocument<T>(a: {
 
 interface SettleActions {
   documentId: DocumentId;
-  autosave: boolean;
+  autosave: boolean | (() => boolean);
   hasPath: boolean;
   flush(): Promise<FlushResult | null>;
   save(text: string): Promise<boolean>;
@@ -40,7 +40,8 @@ export async function settleDocument(a: SettleActions): Promise<boolean> {
   if (!before || before.documentId !== a.documentId) return false;
   if (before.conflict) return false;
   if (!before.dirty) return true;
-  const choice = a.autosave && a.hasPath ? "save" : await a.choose();
+  const autosave = typeof a.autosave === "function" ? a.autosave() : a.autosave;
+  const choice = autosave && a.hasPath ? "save" : await a.choose();
   if (choice === "cancel") return false;
   if (choice === "save" && !(await a.save(before.text))) return false;
   const after = await a.flush();
