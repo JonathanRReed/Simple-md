@@ -8,6 +8,7 @@ const on = <T extends unknown[]>(channel: string, cb: (...args: T) => void) => {
 };
 
 let performanceTracing = false;
+on("smd:performance-tracing", (enabled: unknown) => { performanceTracing = enabled === true; });
 let activeDocumentId = makeDocumentId(0);
 const renderStates = new Map<DocumentId, RenderedBlock[]>();
 const viewGenerations = new Map<DocumentId, number>();
@@ -15,11 +16,7 @@ const viewGenerations = new Map<DocumentId, number>();
 contextBridge.exposeInMainWorld("simplemd", {
   setChromeVisible: (visible: boolean) => ipcRenderer.send("smd:chrome-visible", visible),
   moveTab: (id: DocumentId, pinned: boolean, before?: DocumentId) => ipcRenderer.invoke("smd:move-tab", id, pinned, before),
-  ready: async () => {
-    const ready = await ipcRenderer.invoke("smd:ready");
-    performanceTracing = ready.performanceTracing === true;
-    return ready;
-  },
+  ready: () => ipcRenderer.invoke("smd:ready"),
 
   readFindText: () => ipcRenderer.invoke("smd:find-read"),
   writeFindText: (text: string) => ipcRenderer.invoke("smd:find-write", text),

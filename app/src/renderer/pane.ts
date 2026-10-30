@@ -858,7 +858,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     scrollDriver = "editor";
     const owner = pane;
     pane.mode = mode;
-    simplemd.paneMode(pane.paneId, mode);
     retainedEditor = retained?.editor;
     anchors = retained?.anchors ?? {};
     retainedReadBlocks = retained?.readBlocks ?? [];
@@ -892,7 +891,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     mountBlocks(docEl, sourceEdit ? [] : doc.lastGoodBlocks ?? (retained?.readBlocks.length ? retained.readBlocks : payload.blocks));
     pane.mountedReadText = sourceEdit || retained ? null : payload.text;
     readScroll.scrollTop = 0;
-    pane.view = "read";
+    pane.view = sourceEdit ? "edit" : "read";
     updateChrome();
     const readAnchor = navigationAnchor ?? anchors.read;
     if (retained && !sourceEdit) for (const block of docEl.children) {

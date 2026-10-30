@@ -21,11 +21,12 @@ export async function runBatch(input: { html: string; css: string; text: string;
   applyDocumentStyle(DEFAULT_SETTINGS);
   const settings = { ...DEFAULT_SETTINGS, uiMotion: "off" as const, outlineRail: false };
   let saves = 0;
+  const paneModes: string[] = [];
   const commands: string[] = [];
   let disk = input.text;
   const id = makeDocumentId(1), paneId = makePaneId(0);
   const api = {
-    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
+    perfMarker() {}, documentReady() {}, paneMode(_id: unknown, mode: string) { paneModes.push(mode); }, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered, renderFragment: async () => ({ html: "" }),
     setChromeVisible() {}, command: (command: string) => { commands.push(command); },
@@ -153,7 +154,9 @@ export async function runBatch(input: { html: string; css: string; text: string;
   assert(saves === 0 && disk === input.text && pane.flush().dirty, "Tiny edit autosaved");
   const payload = { ...input.rendered, documentId: id, paneId, revisionId: makeRevisionId(0), path: "/tmp/PLAN.md", name: "PLAN.md", baseUrl: "file:///tmp/", text: input.text, intent: "read" as const };
   const retained = pane.suspend(); await paint(); assert(saves === 0, "Tab switch bypassed the first-save guard");
+  paneModes.length = 0;
   await pane.load(payload, retained); await paint();
+  assert(!paneModes.includes("read"), "Restoring an editor published a temporary Read mode");
   pane.command("save"); await until(() => saves === 1, "Explicit save did not release the guard");
   const restored = root.querySelector<HTMLElement>(".cm-content")! as typeof editor;
   restored.cmTile.root.view.dispatch({ changes: { from: 0, insert: "y" } });

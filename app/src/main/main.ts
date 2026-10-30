@@ -1019,9 +1019,10 @@ function registerIpc(): void {
   });
   handle("smd:ready", () => {
     trace("renderer-ready");
+    sendTo(context(), "smd:performance-tracing", testProfile && process.env.SMD_PERF === "1");
     context().rendererReady = true;
     context().markLoaded();
-    return { settings, platform: process.platform, accent: systemAccent(), performanceTracing: testProfile && process.env.SMD_PERF === "1" };
+    return { settings, platform: process.platform, accent: systemAccent() };
   });
   on("smd:pane-mode", (_e, id, mode) => {
     if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "read" && mode !== "live" && mode !== "source" && mode !== "split")) return;
