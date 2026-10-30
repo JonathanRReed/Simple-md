@@ -6,7 +6,32 @@
   ${StrStr}
 !endif
 
+!macro customInstallMode
+  StrCpy $isForceCurrentInstall "1"
+!macroend
+
+!macro customInit
+  StrCpy $hasPerMachineInstallation "0"
+  StrCpy $hasPerUserInstallation "1"
+  !insertmacro setInstallModePerUser
+!macroend
+
 !macro customInstall
+  nsExec::ExecToStack '"$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\native\preview\install.ps1" -CheckRuntime'
+  Pop $0
+  Pop $1
+  FileOpen $2 "$TEMP\SimpleMD-preview-install.log" w
+  FileWrite $2 "Exit: $0$\r$\n$1$\r$\n"
+  FileClose $2
+  ClearErrors
+  ${If} $0 == 10
+    IfSilent previewRuntimeDone
+    MessageBox MB_YESNO|MB_ICONQUESTION "Install the Microsoft Evergreen WebView2 runtime for formatted previews? Source previews work without it." IDNO previewRuntimeDone
+    ExecShell "open" "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+    previewRuntimeDone:
+  ${ElseIf} $0 != 0
+    DetailPrint "Preview registration failed ($0). Run resources\native\preview\install.ps1 to retry."
+  ${EndIf}
   WriteRegStr HKCU "Software\Classes\simplemd" "" "URL:SimpleMD"
   WriteRegStr HKCU "Software\Classes\simplemd" "URL Protocol" ""
   WriteRegStr HKCU "Software\Classes\simplemd\shell\open\command" "" '$\"$INSTDIR\${APP_EXECUTABLE_FILENAME}$\" -- $\"%1$\"'
@@ -24,6 +49,13 @@
 !macroend
 
 !macro customUnInstall
+  nsExec::ExecToStack '"$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\resources\native\preview\uninstall.ps1" -RestartPreviewHost'
+  Pop $0
+  Pop $1
+  FileOpen $2 "$TEMP\SimpleMD-preview-uninstall.log" w
+  FileWrite $2 "Exit: $0$\r$\n$1$\r$\n"
+  FileClose $2
+  ClearErrors
   ReadRegStr $0 HKCU "Environment" "Path"
   ${UnStrRep} $0 ";$0;" ";$INSTDIR\resources\native;" ";"
   StrCpy $0 $0 "" 1

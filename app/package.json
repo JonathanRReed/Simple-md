@@ -193,7 +193,9 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "SimpleMD",
-      "include": "build/cli-installer.nsh"
+      "include": "build/cli-installer.nsh",
+      "allowElevation": false,
+      "runAfterFinish": false
     },
     "linux": {
       "icon": "../resources/icon2.png",

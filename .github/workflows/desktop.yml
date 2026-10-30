@@ -26,70 +26,99 @@ jobs:
       - name: Lint
         run: bun run lint
 
-  windows-preview-spike:
-    name: Windows preview spike
+  windows-preview:
+    name: Windows preview and installer
     runs-on: windows-2025
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
           components: rustfmt, clippy
-      - name: Check spike formatting
+      - name: Install locked dependencies
+        run: bun run setup
+      - name: Bundle shared static renderer
+        working-directory: app
+        run: bun run build/windows-preview.mjs
+      - name: Differential static rendering and Jump List tests without Electron
+        working-directory: app
+        run: bun test test/windows-preview.test.ts test/native-recents.test.ts
+      - name: Check preview formatting
         run: cargo fmt --manifest-path app/native/windows-preview/Cargo.toml --check
-      - name: Lint spike
+      - name: Lint preview
         run: cargo clippy --locked --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc --all-targets -- -D warnings
-      - name: Test inert page and COM lifecycle
-        run: cargo test --locked --manifest-path app/native/windows-preview/Cargo.toml
+      - name: Test bounds, inert content, hidden COM lifecycle and fallback
+        id: preview-tests
+        continue-on-error: true
+        run: cargo test --locked --manifest-path app/native/windows-preview/Cargo.toml -- --test-threads=1
+      - name: Save hidden-window diagnostics before uninstall
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path preview-diagnostics -Force | Out-Null
+          Copy-Item "$env:USERPROFILE/AppData/LocalLow/SimpleMD/Preview/*.log" preview-diagnostics/ -ErrorAction SilentlyContinue
       - name: Build preview DLL
         run: cargo build --locked --release --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc
+      - name: Build NSIS installer
+        run: bun run dist
       - name: Check PowerShell syntax
         shell: pwsh
         run: |
-          foreach ($script in @('install.ps1', 'uninstall.ps1')) {
+          Get-ChildItem app/native/windows-preview/*.ps1 | ForEach-Object {
             $tokens = $null
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile(
-              "$PWD/app/native/windows-preview/$script", [ref]$tokens, [ref]$parseErrors
+              $_.FullName, [ref]$tokens, [ref]$parseErrors
             ) | Out-Null
             if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
           }
-      - name: Stage spike artifact
+      - name: Check standalone and NSIS per-user install/uninstall
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path windows-preview-spike | Out-Null
-          Copy-Item app/native/windows-preview/target/x86_64-pc-windows-msvc/release/simplemd_windows_preview.dll windows-preview-spike/
-          Copy-Item app/native/windows-preview/install.ps1, app/native/windows-preview/uninstall.ps1, app/native/windows-preview/TESTING.md windows-preview-spike/
-          "Source commit: $env:GITHUB_SHA" | Set-Content windows-preview-spike/REVISION.txt
-      - name: Check per-user registration round trip
+          $installer = (Get-ChildItem app/release/*.exe | Select-Object -First 1).FullName
+          ./app/native/windows-preview/verify-install.ps1 -Installer $installer
+      - name: Stage standalone handler
         shell: pwsh
         run: |
-          $association = 'HKEY_CURRENT_USER\Software\Classes\.md\shellex\{8895b1c6-b41f-4c1c-a562-0d564250836f}'
-          $clsid = '{a8b4f9c2-6e75-4eaa-9a1d-e4276f01d937}'
-          $class = "HKEY_CURRENT_USER\Software\Classes\CLSID\$clsid"
-          $previous = [Microsoft.Win32.Registry]::GetValue($association, '', $null)
-          ./windows-preview-spike/install.ps1
-          try {
-            if ([Microsoft.Win32.Registry]::GetValue($association, '', $null) -ne $clsid) {
-              throw 'The .md preview association was not installed.'
-            }
-            if ([Microsoft.Win32.Registry]::GetValue("$class\InprocServer32", 'ThreadingModel', $null) -ne 'Apartment') {
-              throw 'The COM apartment registration is missing.'
-            }
-          } finally { ./windows-preview-spike/uninstall.ps1 }
-          if ([Microsoft.Win32.Registry]::GetValue($association, '', $null) -cne $previous) {
-            throw 'The previous .md preview association was not restored.'
-          }
-          if (Test-Path "Registry::$class") { throw 'The spike CLSID survived uninstall.' }
-          if (Test-Path 'HKCU:\Software\SimpleMD\PreviewSpike') { throw 'The registration backup survived uninstall.' }
-      - name: Upload spike
+          New-Item -ItemType Directory -Path windows-preview | Out-Null
+          Copy-Item app/native/windows-preview/target/x86_64-pc-windows-msvc/release/simplemd_windows_preview.dll windows-preview/
+          Copy-Item app/native/windows-preview/install.ps1, app/native/windows-preview/uninstall.ps1, app/native/windows-preview/paths.ps1, app/native/windows-preview/TESTING.md windows-preview/
+          "Source commit: $env:GITHUB_SHA" | Set-Content windows-preview/REVISION.txt
+      - name: Upload Windows preview and installer
         uses: actions/upload-artifact@v4
         with:
-          name: windows-preview-spike
+          name: SimpleMD-Windows-M7
           if-no-files-found: error
           retention-days: 7
-          path: windows-preview-spike/
+          path: |
+            windows-preview/
+            app/release/*.exe
+      - name: Save installer hook diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path preview-diagnostics -Force | Out-Null
+          Copy-Item "$env:TEMP/SimpleMD-preview-*.log" preview-diagnostics/ -ErrorAction SilentlyContinue
+      - name: Upload preview diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-preview-diagnostics
+          if-no-files-found: ignore
+          path: preview-diagnostics/
+      - name: Require preview tests to pass
+        if: always() && steps.preview-tests.outcome != 'success'
+        run: exit 1
 
   desktop:
     name: ${{ matrix.name }}

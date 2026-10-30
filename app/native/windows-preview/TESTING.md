@@ -1,89 +1,94 @@
-# Windows preview spike
+# M7 Windows owner checks
 
-This is the M2 feasibility spike for Windows x64. It shows a fixed HTML page and at most the first 2,048 bytes of a stream as escaped text. It does not render Markdown yet. It does not install SimpleMD or change the default application for `.md`.
-
-The owner must establish whether Evergreen WebView2 can render inside the low-integrity Explorer preview host. Compilation alone does not answer that question. Never disable the preview sandbox or add `--no-sandbox` to make it work.
+CI checks compilation, hidden-window COM behavior and per-user installation.
+Only this test establishes whether WebView2 works in Explorer's low-integrity host.
+Never change the preview sandbox or add browser sandbox flags.
 
 ## Install
 
-1. On Windows x64, download `windows-preview-spike` from the desktop workflow's artifacts. Extract it to a local folder you can keep until uninstall. Keep the DLL, both scripts, `TESTING.md`, and `REVISION.txt` together. Record the source commit from `REVISION.txt`.
-2. Install the [Evergreen WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if it is missing. The spike logs startup failures but does not install the runtime.
-3. Close existing preview panes. Open a normal, non-administrator 64-bit Windows PowerShell session in the extracted folder. Run:
+1. On Windows x64, download `SimpleMD-Windows-M7` from the linked Actions run.
+   Record the run URL and `windows-preview/REVISION.txt`. Extract the artifact.
+2. Run the unsigned SimpleMD installer from `app/release` as your normal user.
+   Windows may warn about the unsigned build. Install for the current user.
+   If offered, download and run the Microsoft Evergreen WebView2 bootstrapper.
+   Installation completes without it; source preview works without WebView2.
+3. Close existing preview panes. If an older preview handler remains loaded,
+   close `prevhost.exe` in Task Manager once. This also closes other previews.
+4. Confirm SimpleMD appears in Open With for `.md`, `.markdown`, `.mdown`, `.mkd`
+   and `.mdx`. Open a document in SimpleMD, then check its taskbar Jump List for
+   Recent and New Window. Clearing SimpleMD recents must preserve other apps' history.
 
-   ```powershell
-   Get-ChildItem -File | Unblock-File
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-   ```
-
-   The execution policy override applies only to this process. The script writes HKCU, creates `%USERPROFILE%\AppData\LocalLow\SimpleMD\PreviewSpike`, and marks it low integrity. It does not write HKLM or use `regsvr32`. Both scripts and the DLL resolve the `LocalAppDataLow` known folder, including redirected profiles. The log records the actual user data path.
-4. The DLL must stay at the registered path. To change builds or move the folder, uninstall first. A second install refuses to overwrite the saved association.
+For development instead, keep the standalone DLL and scripts together and run
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1` from a
+normal 64-bit PowerShell. Keep `paths.ps1` beside both entry scripts. Use its matching `uninstall.ps1` before deleting it.
+Do not install both copies at once. On ARM64 and other non-x64 Windows systems,
+preview registration is skipped. Check the installer hook log for the reason;
+the app installer still succeeds.
 
 ## Exercise Explorer
 
-1. Create a local `.md` file. Use a locally created file so Windows' Internet-file preview restrictions do not obscure the result:
+1. Create local files, avoiding Internet-file preview restrictions. Include:
+   - A README with headings, lists, a table and code.
+   - Math, a Mermaid fence and an MDX file with imports, JSX and expressions.
+   - Raw `<script>`, an `onerror` image and a `javascript:` link.
+   - Remote and neighboring images, an empty file and a file larger than 4 MB.
+2. In File Explorer, press Alt+P and select each file. If needed, enable
+   "Show preview handlers in preview pane" in Folder Options, View.
+   For nonempty files, expect formatted Markdown or readable literal source.
+   An empty file may have an empty pane.
+   Math may be formatted; Mermaid stays code. MDX never runs. Images from the
+   network or neighboring files must not load. No alerts, browser windows or network requests.
+3. Resize the pane and scroll. Check that the right and bottom edges are visible
+   and that the native source scroll bars disappear when formatted content appears.
+   Move Explorer between monitors with different scale factors. Native source
+   should keep its 11-point monospace size, and formatted content should fit the pane.
+   Ctrl+P, F5 and Ctrl+F must not open browser UI or reload the document. Switch Windows between light and dark appearance.
+   Tab into and out of the pane. It must remain read-only and must not take focus
+   when the selected file changes.
+4. Change selections rapidly, including non-Markdown files. Close and reopen the
+   pane and Explorer. Check for stale text, hangs and crashes. Large input reads
+   stop at 4 MB; native source display stops at 128 Ki characters with a notice.
+   Inputs above 1,900,000 decoded UTF-8 bytes stay on source without starting
+   WebView2. Smaller inputs can also stay on source if rendered HTML exceeds that limit.
+5. Test Explorer Alt+P, not PowerToys Peek, which has its own Markdown previewer.
 
-   ```powershell
-   @'
-   # Preview spike
-   This should be visible as text.
-   <script>alert("must not execute")</script>
-   <img src="https://example.com/must-not-load.png">
-   '@ | Set-Content -Encoding utf8 "$env:USERPROFILE\Desktop\simplemd-spike.md"
-   "# Second file`nDifferent preview text" | Set-Content -Encoding utf8 "$env:USERPROFILE\Desktop\simplemd-spike-second.md"
-   ```
+## Check the log and report
 
-2. Open File Explorer on the Desktop. Press **Alt+P** to show the preview pane. Select `simplemd-spike.md`. If needed, enable "Show preview handlers in preview pane" in Folder Options, View.
-3. Expect a heading, "SimpleMD preview spike", and the file's literal text. The script and image markup must remain text. There must be no alert or image request from the document. Resize the pane. Use Tab and Shift+Tab to move focus into and out of it.
-4. Switch between the two Markdown files rapidly, select a non-Markdown file, then switch back. Close the preview pane and Explorer window. Repeat once. Check for old text appearing after a selection change, a blank pane, a hung Explorer, crashes, or a WebView2 error.
-5. If the old handler stays loaded, close preview panes and stop `prevhost.exe` in Task Manager. Explorer starts a new host on the next selection. You can instead use `-RestartPreviewHost` on install or uninstall. This stops all preview hosts in your session, including previews for other file types. It does not restart Explorer itself.
-6. PowerToys Peek has its own Markdown previewer. Test Explorer's Alt+P pane, not Peek.
+1. Before uninstalling, copy
+   `%USERPROFILE%\AppData\LocalLow\SimpleMD\Preview\preview.log`.
+   With redirected profiles, use the location printed by standalone installation.
+2. Find `Process integrity RID=0x1000`. A `0x2000` result is medium integrity and
+   does not establish Explorer sandbox compatibility.
+3. For formatted preview, find `Static preview visible NavigationCompleted success=true`.
+   For source preview, find `Native fallback:` with its reason or HRESULT.
+   Startup or render deadlines expire after 15 seconds. Source remains visible
+   during startup. Find `Unload complete`. Under `Preview\UserData`, each active
+   host PID should have one folder, even after repeated selections. Profiles stay
+   until the host exits; a later host startup removes profiles for dead PIDs.
+   The log is capped near 1 MiB and retains one integrity line per process until
+   that line ages out at truncation.
+4. Send the source commit, Actions run URL, Windows version/architecture,
+   WebView2 version from the log, screenshots, log, and the results of each step.
+   Note other installed Markdown previewers. Logs contain byte limits, process/thread
+   IDs and generations, not document contents. If no log exists, send installation
+   output, `%TEMP%\SimpleMD-preview-install.log` and a screenshot of the pane.
 
-## Send back the result
-
-Copy `%USERPROFILE%\AppData\LocalLow\SimpleMD\PreviewSpike\preview.log` before cleanup. If the profile is redirected, use the location printed by install and the user data path recorded in the log.
-
-Report:
-
-- The source commit, Windows version and architecture, WebView2 runtime version, and whether PowerToys or another Markdown previewer is installed.
-- Whether the fixed heading and each file's text appeared. Include a screenshot and any visible error.
-- Whether resizing, focus, rapid selection changes, pane closure, and reopening worked.
-- The log file, including the process integrity RID, user data path, `NavigationCompleted`, `Unload complete`, and HRESULT failures. Low integrity is `0x1000`. A result at medium integrity, `0x2000`, does not establish sandbox feasibility.
-- Whether `User data removed` appears or cleanup was deferred. Check that uninstall can remove any remaining `UserData` directories after closing the host.
-
-The log uses UTC timestamps, process and thread IDs, handler IDs and generations. It records byte counts, not document text or source paths. WebView2 may leave locked profile files until its browser process exits. `Unload` attempts cleanup; uninstall retries. The diagnostic log remains so you can send it back. If there is no log, send the install output and describe the preview pane. The DLL may not have loaded, or the low-integrity directory may not be writable.
+If formatted preview works at RID `0x1000`, qualify the WebView2 path. If startup
+fails there while literal source works, select the built-in native source fallback
+for that environment. A blank pane, stale selection, hang or crash fails M7.
+Do not weaken the sandbox to obtain a formatted preview.
 
 ## Remove
 
-1. Close all Explorer preview panes. From the extracted folder, run in the same normal 64-bit PowerShell session:
-
-   ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1 -RestartPreviewHost
-   ```
-
-2. Reopen Explorer and select the test file. The spike must no longer appear. The previous preview association should work again if one existed. The script preserves registry values another application changed after installation and prints what it kept.
-3. Save the log. If the script reports locked data files, wait for the WebView2 processes belonging to the preview host to exit, then delete the spike's `UserData` folder. Delete the extracted artifact folder and the two Desktop test files. Finally, remove `LocalLow\SimpleMD\PreviewSpike` if you no longer need its log. Do not remove other SimpleMD data.
-
-## Scope and fallback
-
-The handler uses `IPreviewHandler`, `IInitializeWithStream`, `IObjectWithSite`, `IOleWindow`, and a COM class factory. `ThreadingModel=Apartment`, non-agile COM objects, and an STA check keep window and WebView2 work on the host thread. Startup is asynchronous. Each startup callback checks the generation; a controller arriving after `Unload` is closed. `Unload` releases the input stream, site, controller and child HWND. DLL unload accounting includes factories, server locks, pending startup and registered callbacks.
-
-Document scripting, web messages, host objects, developer tools and context menus are disabled. A content security policy forbids external content and scripts. Web resource requests receive a synthetic 403 response, navigation is restricted to `about:blank`, and new windows are blocked. No browser arguments or sandbox overrides are supplied. This is stream-only, with no neighboring file access or remote images.
-
-The scripts use the dedicated CLSID `{a8b4f9c2-6e75-4eaa-9a1d-e4276f01d937}`, the existing x64 preview host AppID `{6d2b5079-2f0b-48dd-ab7f-97cec514d30b}`, the per-user PreviewHandlers value, and `.md\shellex\{8895b1c6-b41f-4c1c-a562-0d564250836f}`. They save the previous per-user association under `HKCU\Software\SimpleMD\PreviewSpike`. Uninstall restores it only while the association still points to this spike, removes owned values, and removes newly created keys only when empty. Machine-wide registrations remain untouched. See Microsoft's [preview handler registration guidance](https://learn.microsoft.com/en-us/windows/win32/shell/how-to-register-a-preview-handler).
-
-If WebView2 cannot render inside `prevhost.exe` without disabling the sandbox, Windows v1.0 ships Open With plus Jump List. The preview handler moves to 1.x. A successful spike is the base for milestone 7, where shared Markdown rendering, runtime installation and NSIS integration belong.
-
-## Build checks
-
-From the repository root:
-
-```sh
-cargo fmt --manifest-path app/native/windows-preview/Cargo.toml --check
-cargo check --locked --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc
-cargo clippy --locked --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc --all-targets -- -D warnings
-cargo test --locked --manifest-path app/native/windows-preview/Cargo.toml
-bun run check:rust
-actionlint .github/workflows/desktop.yml
-```
-
-On a Mac, the Windows target checks types but does not link or execute the DLL. The portable tests check escaped, bounded text and malformed UTF-8. CI uses an independent Windows x64 job to lint, run the content tests and a COM interface and stream lifecycle test, link the release DLL, parse the PowerShell scripts, check an HKCU install/uninstall round trip, and upload the artifact. The existing packaging jobs do not depend on it. CI does not establish that WebView2 renders in low-integrity Explorer. That is the owner test above.
+1. Save the log, close preview panes, then uninstall SimpleMD in Windows Settings.
+   For the standalone copy, run
+   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1 -RestartPreviewHost`.
+2. Confirm SimpleMD's preview association disappears for all five extensions.
+   Previous per-user handlers should return. Changes made by other apps after
+   installation must survive. The `HKCU\Software\SimpleMD\Preview` backup and
+   LocalLow `SimpleMD\Preview` folder should disappear. Both scripts must refuse
+   a junction at `SimpleMD`, `Preview` or an ancestor. Resolve the junction manually
+   before retrying; the scripts must never relabel or delete its target.
+3. If WebView2 still holds files, wait for its preview processes to exit and remove
+   only that Preview folder. Report the deferred cleanup. Delete the test files
+   and extracted standalone artifact after uninstall.

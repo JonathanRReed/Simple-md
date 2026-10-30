@@ -257,3 +257,25 @@ test("release CLI contains no test-only environment overrides", () => {
   const binary = readFileSync(currentNativePlan().cliBinary);
   for (const name of ["SMD_CLI_RUNTIME", "SMD_CLI_APP", "SMD_CLI_APP_ROOT"]) expect(binary.includes(Buffer.from(name))).toBe(false);
 });
+
+
+describe("Windows preview packaging", () => {
+  test("ships the embedded renderer DLL and per-user scripts with NSIS", () => {
+    const plan = nativePlan("x86_64-pc-windows-msvc", "win32", "x64");
+    const resources = unsignedConfig(plan).extraResources;
+    expect(resources).toContainEqual({
+      from: path.join(appDir, "native/windows-preview/target", plan.host, "release/simplemd_windows_preview.dll"),
+      to: "native/preview/simplemd_windows_preview.dll",
+    });
+    for (const name of ["install.ps1", "uninstall.ps1", "paths.ps1"]) {
+      expect(resources).toContainEqual({ from: path.join(appDir, "native/windows-preview", name), to: `native/preview/${name}` });
+    }
+    const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
+    expect(pkg.build.nsis.perMachine).toBe(false);
+    expect(pkg.build.nsis.allowElevation).toBe(false);
+    expect(pkg.build.nsis.runAfterFinish).toBe(false);
+    expect(pkg.build.nsis.include).toBe("build/cli-installer.nsh");
+    const install = readFileSync(path.join(appDir, "native/windows-preview/install.ps1"), "utf8");
+    for (const ext of pkg.build.fileAssociations.flatMap(item => item.ext)) expect(install).toContain(`'.${ext}'`);
+  });
+});
