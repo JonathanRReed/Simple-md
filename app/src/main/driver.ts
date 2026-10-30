@@ -59,7 +59,7 @@ export async function runDriver(
             const format = document.querySelector('[data-active="true"] [data-element="export-format"]');
             const button = document.querySelector('[data-active="true"] [data-element="drag-export"]');
             format.value = ${JSON.stringify(step.dragExport.format)}; format.dispatchEvent(new Event('change'));
-            button.click();
+            button.dispatchEvent(new PointerEvent("pointerenter"));
             const deadline = performance.now() + 15000;
             while (!button.draggable) { if (performance.now() > deadline) throw new Error('Export was not prepared.'); await new Promise(r => setTimeout(r, 25)); }
             button.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true}));

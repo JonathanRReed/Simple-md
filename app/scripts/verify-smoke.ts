@@ -61,7 +61,7 @@ function fixture(name: string, text: string): string {
   return file;
 }
 
-async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source", options: { env?: NodeJS.ProcessEnv; prepare?: (profile: string) => void } = {}): Promise<void> {
+async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" | "default" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source", options: { env?: NodeJS.ProcessEnv; prepare?: (profile: string) => void } = {}): Promise<void> {
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
@@ -74,7 +74,7 @@ async function launch(name: string, file: string, steps: Step[], intent: "read" 
   const last = steps.at(-1);
   const sequence = last && "menuQuit" in last ? [...steps.slice(0, -1), { shot: done }, last] : [...steps, { shot: done }];
   fs.writeFileSync(drive, JSON.stringify(sequence, null, 2));
-  const env: NodeJS.ProcessEnv = { ...process.env, ...options.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: intent, SMD_TRACE: "1" };
+  const env: NodeJS.ProcessEnv = { ...process.env, ...options.env, SMD_USER_DATA: profile, SMD_DRIVE: drive, SMD_INTENT: intent === "default" ? undefined : intent, SMD_TRACE: "1" };
   delete env.ELECTRON_RUN_AS_NODE;
   let logs = "";
   let injected = false;
@@ -1498,7 +1498,7 @@ await test("ux-reader-policy-chrome", async () => {
       document.querySelector('[data-element=read-scroll]').focus();
       for (const key of 'hello t') document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles:true}));
       assert(document.querySelector('.document-pane').dataset.view === 'read', 'Bare letter opened the editor');
-      assert((await window.simplemd.ready()).settings.theme === before, 'Bare letter changed appearance');`),
+      assert((await window.simplemd.ready()).settings.theme === before, 'Bare letter changed appearance'); const zoom = (await window.simplemd.ready()).settings.zoom; window.simplemd.command('zoom-in'); assert(Math.abs((await window.simplemd.ready()).settings.zoom - zoom - 0.2) < 0.001, 'Zoom step is too small');`),
     { nativeMenu: ["View", "Read / Edit"] },
     ...appendCharacter("x"),
     { nativeIdentity: { file, edited: true } },
@@ -1507,7 +1507,31 @@ await test("ux-reader-policy-chrome", async () => {
     evaluate(`await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read', 'Read menu did not work'); await window.simplemd.openPath(${quote(second)});`),
     { nativeIdentity: { file: second, edited: false } },
     evaluate(`await waitFor(() => document.querySelector('.tb-title').textContent === 'other.md', 'Active title vanished with two tabs'); assert(document.title === 'other.md', 'Native title differs');`),
+  ], "default");
+});
+
+await test("ux-footer-save", async () => {
+  const file = fixture("ux-footer/note.md", "# Footer save\n\nKeep this text.\n");
+  const html = path.join(root, "footer-saved.html"), pdf = path.join(root, "footer-saved.pdf");
+  await launch("ux-footer-save", file, [
+    { savePath: html },
+    evaluate(`const format = document.querySelector('#export-format'); format.value = 'html'; format.dispatchEvent(new Event('change')); document.querySelector('#drag-export').click(); await waitFor(() => !document.querySelector('#drag-export').disabled, 'HTML Save did not finish'); assert(document.querySelector('#drag-export').textContent === 'Export', 'Export changed to a drag instruction');`),
+    { savePath: pdf },
+    evaluate(`const format = document.querySelector('#export-format'); format.value = 'pdf'; format.dispatchEvent(new Event('change')); document.querySelector('#drag-export').click(); await waitFor(() => !document.querySelector('#drag-export').disabled, 'PDF Save did not finish');`),
   ]);
+  assert(fs.readFileSync(html, "utf8").includes("Footer save"), "Footer HTML Save did not write the selected path");
+  assert.equal(fs.readFileSync(pdf).subarray(0, 5).toString(), "%PDF-", "Footer PDF Save did not write the selected path");
+});
+await test("ux-conflict-save-copy", async () => {
+  const source = "# Local note\n\nKeep local bytes.\n", incoming = "# Incoming version\n";
+  const file = fixture("ux-conflict-copy/note.md", source), copy = path.join(root, "mine-copy.md");
+  const marker = path.join(root, "copy-dirty.png");
+  await launch("ux-conflict-save-copy", file, [
+    ...appendCharacter("!"), { shot: marker }, { savePath: copy },
+    evaluate(`await waitFor(() => !document.querySelector('#banner').hidden, 'Conflict banner missing'); const button = [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'Save mine as…'); assert(button, 'Save mine as is missing'); button.click(); await waitFor(() => !button.disabled, 'Conflict Save dialog did not finish'); assert(!document.querySelector('#banner').hidden && editorText().endsWith('!'), 'Saving a copy lost the local version or conflict choices');`),
+  ], "edit", { marker, file, text: incoming });
+  assert.equal(fs.readFileSync(file, "utf8"), incoming, "Saving a copy replaced the incoming version");
+  assert.equal(fs.readFileSync(copy, "utf8"), source + "!", "Saving a copy lost local bytes");
 });
 
 const blog = process.env.SMD_BYTE_BLOG_DIR;

@@ -1,3 +1,4 @@
+import type { SourceAnchor } from "./scroll-sync.js";
 import { changeMarks, setChangeMarks } from "./change-marks.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
 import { retainEditorState } from "./editor-history.js";
@@ -69,6 +70,8 @@ export interface EditorHandle {
   headings(): Heading[];
   goTo(pos: number): void;
   scrollFraction(): number;
+  sourceAnchor(): SourceAnchor;
+  restoreAnchor(anchor: SourceAnchor): void;
   scroller: HTMLElement;
   destroy(): void;
 }
@@ -394,6 +397,30 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     goTo(pos) {
       view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 24 }) });
       view.focus();
+    },
+    sourceAnchor() {
+      const scroller = view.scrollDOM;
+      if (scroller.scrollTop <= 1) return { kind: "start" };
+      if (scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1) return { kind: "end" };
+      const top = scroller.getBoundingClientRect().top - view.documentTop;
+      const block = view.lineBlockAtHeight(top);
+      return { kind: "line", line: view.state.doc.lineAt(block.from).number - 1, offset: Math.max(0, Math.min(1, (top - block.top) / Math.max(1, block.height))) };
+    },
+    restoreAnchor(anchor) {
+      if (anchor.kind !== "line") {
+        view.requestMeasure({ read: () => anchor.kind, write: kind => { view.scrollDOM.scrollTop = kind === "start" ? 0 : view.scrollDOM.scrollHeight; } });
+        return;
+      }
+      const pos = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, anchor.line + 1))).from;
+      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 0 }) });
+      view.requestMeasure({
+        read: () => {
+          const block = view.lineBlockAt(pos);
+          const base = view.documentTop - view.scrollDOM.getBoundingClientRect().top + view.scrollDOM.scrollTop;
+          return base + block.top + anchor.offset * block.height;
+        },
+        write: top => { view.scrollDOM.scrollTop = top; },
+      });
     },
     scrollFraction() {
       const s = view.scrollDOM;

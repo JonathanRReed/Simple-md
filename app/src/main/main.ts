@@ -47,6 +47,7 @@ import type {
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
+import { writeConflictCopy } from "./conflict-copy.js";
 import { writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
@@ -532,6 +533,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       syncLayout(host); reveal(host);
       await usable;
       if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
+      else if (intent === "read") sendTo(host, "smd:cmd", "mode-read", existing);
       return true;
     });
   }
@@ -1065,6 +1067,21 @@ function registerIpc(): void {
     });
   });
   handle("smd:open-dialog", openDialog);
+  handle("smd:save-copy", (value, id) => {
+    const doc = ipcSession(id), text = ipcText(value), host = context();
+    if (text !== doc.text) throw new Error("Stale document text.");
+    return documents.run(async () => {
+      const ext = path.extname(doc.name) || ".md";
+      const name = doc.name.slice(0, doc.name.length - path.extname(doc.name).length);
+      const result = await dialog.showSaveDialog(host.win, {
+        defaultPath: path.join(doc.path ? path.dirname(doc.path) : app.getPath("documents"), `${name} copy${ext}`),
+        buttonLabel: "Save copy",
+      });
+      if (result.canceled || !result.filePath) return null;
+      await writeConflictCopy(doc.path, result.filePath, text);
+      return path.basename(result.filePath);
+    });
+  });
   handle("smd:open-path", (p, intent, id, inPlace) => { if (inPlace === true) ipcDocument(id); return openFile(ipcText(p), ipcIntent(intent), inPlace === true, inPlace === true ? ipcDocument(id) : undefined, context()); });
   handle("smd:open-link", (href, intent, id, newTab) => openLink(ipcText(href), ipcIntent(intent), newTab === true, ipcSession(id), context()));
   handle("smd:find-read", readFindText);
@@ -1202,7 +1219,10 @@ async function openUrl(value: string): Promise<void> {
 }
 
 function fileArg(argv: string[]): string | undefined {
-  return argv.slice(1).find((a) => !a.startsWith("-") && isMarkdown(a) && fs.existsSync(a));
+  return argv.slice(1).find(a => {
+    if (a.startsWith("-") || (!isMarkdown(a) && !opensInSource(a))) return false;
+    try { return fs.statSync(a).isFile(); } catch { return false; }
+  });
 }
 
 function scheduleCliServer(): void {

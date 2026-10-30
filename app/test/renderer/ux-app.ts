@@ -109,6 +109,9 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   root.querySelector<HTMLButtonElement>('.cm-search [name="close"]')!.click();
   root.querySelector<HTMLButtonElement>('[data-mode="read"]')!.click();
   await until(() => root.dataset.view === "read", "Visible Read action did not work");
+  pane.command("mode-source");
+  await pane.navigate({ kind: "line", line: 3 }); await wait();
+  assert(document.getSelection()?.anchorNode?.parentElement?.closest(".cm-line")?.textContent?.startsWith("A test"), "A line target racing with editor mount lost its caret");
   pane.suspend();
 
   document.body.innerHTML = '<form id="settings"></form><p id="save-error" hidden></p><footer><span id="config-path"></span><div id="config-errors"></div></footer>';
