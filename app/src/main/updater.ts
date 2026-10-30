@@ -11,7 +11,7 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
   try {
     const value: unknown = JSON.parse(fs.readFileSync(stateFile, "utf8"));
     if (typeof value === "number" && Number.isFinite(value) && value >= 0) lastCheck = value;
-  } catch {}
+  } catch { /* no saved check time yet */ }
   let signed = false;
   let busy = false;
   let stopped = false;
@@ -30,7 +30,7 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
           await promisify(execFile)("/usr/bin/codesign", ["--verify", "--strict", "-R",
             'anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', path.resolve(process.execPath, "../../..")]);
           signed = true;
-        } catch {}
+        } catch { /* unsigned: updates stay off */ }
       }
       const decision = updateDecision({ ...gate, signed });
       if (decision !== "check") {
