@@ -38,6 +38,9 @@ export function createOutlineRail<T>(options: {
   let destroyed = false;
   let gesture: { id: number; y: number; top: number; height: number; dragging: boolean } | null = null;
   let suppressedClick = false;
+  let navigation: { kind: "heading"; key: string } | { kind: "scrub"; progress: number } | null = null;
+  let ownedTop: number | null = null;
+  const writeTop = (top: number) => { scroller.scrollTop = top; ownedTop = scroller.scrollTop; };
   const observed = new Map<Element, number>();
   const intersection = options.element ? new IntersectionObserver(entries => {
     for (const entry of entries) {
@@ -82,18 +85,30 @@ export function createOutlineRail<T>(options: {
     if (!frame) frame = requestAnimationFrame(paintViewport);
   }
   function stopAnimation(): void { cancelAnimationFrame(animation); animation = 0; }
+  function restoreNavigation(): void {
+    if (!navigation) return;
+    const intent = navigation;
+    const index = intent.kind === "heading" ? items.findIndex(item => item.key === intent.key) : -1;
+    if (intent.kind === "heading" && index < 0) { navigation = null; return; }
+    stopAnimation();
+    writeTop(intent.kind === "scrub" ? outlineScroll(intent.progress, scroller.scrollHeight, scroller.clientHeight)
+      : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, offsets[index]! - 16)));
+  }
+  function stopNavigation(): void { navigation = null; ownedTop = null; stopAnimation(); }
   function jump(index: number): void {
-    const target = offsets[index];
-    if (target === undefined) return;
+    const item = items[index];
+    if (!item) return;
+    const target = options.offset(item.target);
+    navigation = { kind: "heading", key: item.key };
     options.navigate();
     stopAnimation();
     const start = scroller.scrollTop;
     const end = Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, target - 16));
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { scroller.scrollTop = end; return; }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { writeTop(end); return; }
     const since = performance.now();
     const step = (now: number) => {
       const progress = Math.min(1, (now - since) / 160);
-      scroller.scrollTop = start + (end - start) * (1 - (1 - progress) ** 3);
+      writeTop(start + (end - start) * (1 - (1 - progress) ** 3));
       if (progress < 1) animation = requestAnimationFrame(step);
       else animation = 0;
     };
@@ -103,31 +118,40 @@ export function createOutlineRail<T>(options: {
   function build(): void {
     buildTimer = 0;
     if (destroyed) return;
-    items = options.items();
-    // Read all positions before writing any DOM. Scroll events use these cached offsets.
+    const next = options.items();
+    const changed = next.length !== items.length || next.some((item, index) => {
+      const before = items[index]!;
+      return item.key !== before.key || item.text !== before.text || item.level !== before.level;
+    });
+    items = next;
+    // Apply the gutter before measuring. Scroll events use these cached offsets.
+    scroller.classList.toggle("outline-scroll", !!items.length);
+    host.classList.toggle("outline-present", !!items.length);
     offsets = items.map(item => options.offset(item.target));
     const focus = buttons.findIndex(button => button === document.activeElement);
-    active = null;
-    tooltip.hidden = true;
-    buttons = items.map((item, index) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "outline-strip";
-      button.tabIndex = index === Math.max(0, Math.min(focus, items.length - 1)) ? 0 : -1;
-      button.setAttribute("aria-label", item.level ? `Heading level ${item.level}: ${item.text}` : item.text);
-      button.dataset.level = String(item.level);
-      const strip = document.createElement("span");
-      strip.style.transform = `scaleX(${outlineScale(index, null)})`;
-      button.append(strip);
-      button.addEventListener("focus", () => activate(index));
-      button.addEventListener("pointerenter", () => activate(index));
-      button.addEventListener("click", event => {
-        if (suppressedClick && event.detail > 0) { suppressedClick = false; return; }
-        jump(index);
+    if (changed) {
+      active = null;
+      tooltip.hidden = true;
+      buttons = items.map((item, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "outline-strip";
+        button.tabIndex = index === Math.max(0, Math.min(focus, items.length - 1)) ? 0 : -1;
+        button.setAttribute("aria-label", item.level ? `Heading level ${item.level}: ${item.text}` : item.text);
+        button.dataset.level = String(item.level);
+        const strip = document.createElement("span");
+        strip.style.transform = `scaleX(${outlineScale(index, null)})`;
+        button.append(strip);
+        button.addEventListener("focus", () => activate(index));
+        button.addEventListener("pointerenter", () => activate(index));
+        button.addEventListener("click", event => {
+          if (suppressedClick && event.detail > 0) { suppressedClick = false; return; }
+          jump(index);
+        });
+        return button;
       });
-      return button;
-    });
-    track.replaceChildren(...buttons);
+      track.replaceChildren(...buttons);
+    }
     intersection?.disconnect();
     observed.clear();
     if (intersection && options.element) items.forEach((item, index) => {
@@ -136,9 +160,7 @@ export function createOutlineRail<T>(options: {
       intersection.observe(element);
     });
     rail.hidden = !items.length;
-    scroller.classList.toggle("outline-scroll", !!items.length);
-    host.classList.toggle("outline-present", !!items.length);
-    if (focus >= 0) buttons[Math.min(focus, buttons.length - 1)]?.focus({ preventScroll: true });
+    if (changed && focus >= 0) buttons[Math.min(focus, buttons.length - 1)]?.focus({ preventScroll: true });
     paintViewport();
   }
   function refresh(): void {
@@ -150,16 +172,20 @@ export function createOutlineRail<T>(options: {
     if (!measureFrame) measureFrame = requestAnimationFrame(() => {
       measureFrame = 0;
       offsets = items.map(item => options.offset(item.target));
+      restoreNavigation();
       paintViewport();
     });
   });
   observer.observe(content);
   observer.observe(scroller);
-  scroller.addEventListener("scroll", scheduleViewport, { passive: true, signal });
-  for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) scroller.addEventListener(event, stopAnimation, { passive: true, signal });
+  scroller.addEventListener("scroll", () => {
+    if (ownedTop !== null && Math.abs(scroller.scrollTop - ownedTop) > 1) { navigation = null; ownedTop = null; }
+    scheduleViewport();
+  }, { passive: true, signal });
+  for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) scroller.addEventListener(event, stopNavigation, { passive: true, signal });
   rail.addEventListener("wheel", event => {
     if (event.ctrlKey) return;
-    options.navigate(); stopAnimation();
+    options.navigate(); stopNavigation();
     const unit = event.deltaMode === 1 ? 24 : event.deltaMode === 2 ? scroller.clientHeight : 1;
     scroller.scrollTop += event.deltaY * unit;
     event.preventDefault();
@@ -187,7 +213,7 @@ export function createOutlineRail<T>(options: {
     suppressedClick = false;
     // Capture on the pressed button so a stationary press still produces its normal click.
     (event.target instanceof Element ? event.target : rail).setPointerCapture(event.pointerId);
-    options.navigate(); stopAnimation();
+    options.navigate(); stopNavigation();
   }, { signal });
   rail.addEventListener("pointermove", event => {
     const progress = outlineProgress(event.clientY, gesture?.top ?? rail.getBoundingClientRect().top, gesture?.height ?? rail.clientHeight);
@@ -195,11 +221,15 @@ export function createOutlineRail<T>(options: {
     activate(outlineIndex(progress, items.length));
     if (!gesture || gesture.id !== event.pointerId) return;
     if (Math.abs(event.clientY - gesture.y) > 3) gesture.dragging = true;
-    if (gesture.dragging) { suppressedClick = true; scroller.scrollTop = scrubTop; }
+    if (gesture.dragging) { suppressedClick = true; navigation = { kind: "scrub", progress }; writeTop(scrubTop); }
   }, { signal });
   rail.addEventListener("pointerup", event => {
     if (!gesture || gesture.id !== event.pointerId) return;
-    if (!gesture.dragging && event.target === rail) scroller.scrollTop = outlineScroll(outlineProgress(event.clientY, gesture.top, gesture.height), scroller.scrollHeight, scroller.clientHeight);
+    if (!gesture.dragging && event.target === rail) {
+      const progress = outlineProgress(event.clientY, gesture.top, gesture.height);
+      navigation = { kind: "scrub", progress };
+      writeTop(outlineScroll(progress, scroller.scrollHeight, scroller.clientHeight));
+    }
     gesture = null;
   }, { signal });
   for (const event of ["pointercancel", "lostpointercapture"]) rail.addEventListener(event, () => { gesture = null; }, { signal });

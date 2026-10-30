@@ -52,6 +52,11 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   const heading = root.querySelectorAll<HTMLElement>('[data-element="doc"] :is(h1,h2,h3)')[20]!;
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Click did not jump to heading");
   await until(() => buttons()[20]!.dataset.inView === "true" && buttons()[0]!.dataset.inView === "false", "In-view strip state did not follow scrolling");
+  const articleForReflow = root.querySelector<HTMLElement>('[data-element="doc"]')!;
+  articleForReflow.style.fontSize = "23px";
+  await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Reflow lost the selected heading");
+  articleForReflow.style.removeProperty("font-size");
+  await pause();
   assert(rail.querySelector<HTMLElement>(".outline-viewport")!.style.transform.includes("scaleY("), "Viewport indicator missing");
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
@@ -60,6 +65,9 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   assert(document.activeElement === buttons().at(-1), "End navigation failed");
   buttons().at(-1)!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" }));
   assert(document.activeElement === buttons()[0], "Home navigation failed");
+  const focusedButton = document.activeElement;
+  pane.settings(settings); await pause(100);
+  assert(document.activeElement === focusedButton && focusedButton?.isConnected, "Outline refresh lost keyboard focus");
   // Synthetic PointerEvents have no active native pointer. The smoke cases cover real capture.
   rail.setPointerCapture = () => {};
   const rect = rail.getBoundingClientRect();
@@ -67,6 +75,9 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   rail.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientY: rect.bottom - 1, buttons: 1 }));
   rail.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, clientY: rect.bottom - 1 }));
   assert(scroll.scrollTop > (scroll.scrollHeight - scroll.clientHeight) * 0.98, "Scrub did not reach document end");
+  articleForReflow.style.fontSize = "25px";
+  await until(() => scroll.scrollTop > (scroll.scrollHeight - scroll.clientHeight) * 0.98, "Reflow lost the scrub fraction");
+  articleForReflow.style.removeProperty("font-size"); await pause();
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }));
   await until(() => scroll.scrollTop === 0, "Keyboard activation after scrubbing failed");

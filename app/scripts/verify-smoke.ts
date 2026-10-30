@@ -1839,7 +1839,7 @@ await test("outline-rail-pointer-scrub", async () => {
     { input: { type: "mouseUp", x: 420, y: 496, button: "left", clickCount: 1 } },
     evaluate(`const scroll = document.querySelector('[data-element="read-scroll"]');
       await waitFor(() => scroll.scrollTop / (scroll.scrollHeight - scroll.clientHeight) > 0.95, 'Pointer scrub did not reach the end');
-      assert([...document.querySelectorAll('.outline-strip')].some(button => button.dataset.inView === 'true'), 'Scrub did not update the visible headings');`),
+      await waitFor(() => document.querySelector('.outline-strip:last-child')?.dataset.inView === 'true', 'Scrub did not reveal the final heading');`),
   ]);
 });
 
