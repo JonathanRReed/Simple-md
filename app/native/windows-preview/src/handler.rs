@@ -529,11 +529,18 @@ impl Resources {
         if let Some(controller) = self.controller.take() {
             let _ = record("Controller.Close", unsafe { controller.Close() });
         }
+        if !self.source.is_invalid() {
+            unsafe {
+                SendMessageW(self.source, WM_SETFONT, None, None);
+            }
+        }
         if !self.child.is_invalid() {
             let _ = record("DestroyWindow", unsafe { DestroyWindow(self.child) });
         }
         if !self.font.is_invalid() {
-            let _ = unsafe { DeleteObject(self.font.into()) };
+            let _ = record("Delete preview font", unsafe {
+                DeleteObject(self.font.into()).ok()
+            });
         }
         // All COM references, including the input stream and site, drop here.
     }
@@ -1739,7 +1746,15 @@ mod tests {
             let font = state.resources.borrow().font;
             preview.Unload()?;
             assert!(state.resources.borrow().input.is_none());
-            assert_eq!(GetObjectW(font.into(), 0, None), 0);
+            let mut deleted_font = LOGFONTW::default();
+            assert_eq!(
+                GetObjectW(
+                    font.into(),
+                    size_of::<LOGFONTW>() as i32,
+                    Some((&mut deleted_font as *mut LOGFONTW).cast())
+                ),
+                0
+            );
             // Select and unload repeatedly in one host. The shared browser must
             // survive and the number of process profiles must remain bounded.
             for _ in 0..4 {
