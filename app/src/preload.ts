@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld("simplemd", {
   },
   renderFragment: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-fragment", text, documentId, revisionId),
   save: (text: string, forceDialog: boolean, documentId: DocumentId) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),
+  saveCopy: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-copy", text, documentId),
   saveImage: (bytes: Uint8Array, ext: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-image", bytes, ext, documentId),
   prepareDragExport: (text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf") => ipcRenderer.invoke("smd:prepare-drag-export", text, documentId, revisionId, format),
   startDragExport: (documentId: DocumentId, revisionId: RevisionId, token: string) => ipcRenderer.send("smd:start-drag-export", documentId, revisionId, token),

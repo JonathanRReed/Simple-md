@@ -1,8 +1,9 @@
+import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-sync.js";
 import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 
@@ -44,15 +45,18 @@ export interface DormantDocument {
   state: DocumentState;
   editor?: EditorSnapshot;
   view: "read" | "edit";
+  mode: EditMode;
   scroll: number;
-  back: string[];
-  forward: string[];
+  back: NavigationEntry[];
+  forward: NavigationEntry[];
   disk?: { text: string; reason?: string };
   seenOnReturn?: RevisionId;
 }
+interface NavigationEntry { path: string; anchor: SourceAnchor }
 export function createPane(container: HTMLElement, paneId: PaneId, options: {
   active(): boolean;
   changed(): void;
+  tabs(): { id: DocumentId; name: string; path: string | null }[];
 }) {
   const simplemd = bridge();
   const hideBanner = () => hidePaneBanner(container);
@@ -75,7 +79,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const modesEl = $("modes");
   const editBtn = $("edit-btn");
   const modeMenu = container.querySelector<HTMLSelectElement>(".mode-menu")!;
-  readScroll.title = "Enter to edit";
+  readScroll.title = "Read document";
 
   const root = container;
 
@@ -95,6 +99,35 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let visibleSince = 0;
   let seenOnReturn: RevisionId | undefined;
   let active = options.active();
+  let syncAnchor: SourceAnchor = { kind: "start" };
+  let scrollDriver: "editor" | "preview" = "editor";
+  let readRestoreAnchor: SourceAnchor | undefined;
+  let layoutFrame = 0;
+  const visibleAnchor = () => pane.view === "read" ? blockAnchor(docEl, readScroll) : pane.editor?.sourceAnchor() ?? syncAnchor;
+  function resyncPreview(): void {
+    cancelAnimationFrame(layoutFrame);
+    layoutFrame = requestAnimationFrame(() => {
+      if (disposed) return;
+      if (pane.view === "read" && readRestoreAnchor) restoreBlockAnchor(docEl, readScroll, readRestoreAnchor);
+      else if (pane.view === "edit" && pane.mode === "split") restoreBlockAnchor(previewEl, previewScroll, syncAnchor);
+    });
+  }
+  const layoutObserver = new ResizeObserver(resyncPreview);
+  layoutObserver.observe(previewEl);
+  layoutObserver.observe(docEl);
+  // ResizeObserver covers images, fonts, math and diagram replacement without timers.
+  previewEl.addEventListener("load", resyncPreview, true);
+  docEl.addEventListener("load", resyncPreview, true);
+  for (const event of ["wheel", "pointerdown", "touchstart", "keydown"]) {
+    readScroll.addEventListener(event, () => { readRestoreAnchor = undefined; }, { capture: true, passive: true });
+    editorHost.addEventListener(event, () => { scrollDriver = "editor"; }, { capture: true, passive: true });
+    previewScroll.addEventListener(event, () => { scrollDriver = "preview"; }, { capture: true, passive: true });
+  }
+  previewScroll.addEventListener("scroll", () => {
+    if (disposed || pane.view !== "edit" || pane.mode !== "split" || scrollDriver !== "preview") return;
+    syncAnchor = blockAnchor(previewEl, previewScroll);
+    pane.editor?.restoreAnchor(syncAnchor);
+  });
   const exportButton = $<HTMLButtonElement>("drag-export");
   const exportFormat = $<HTMLSelectElement>("export-format");
   let preparedExport: { token: string; name: string; revision: RevisionId } | undefined;
@@ -103,33 +136,33 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function invalidateExport(): void {
     ++exportSequence;
     clearTimeout(exportExpiryTimer);
-    if (!preparedExport && !exportButton.disabled && !exportButton.draggable) return;
     preparedExport = undefined;
     exportButton.draggable = false;
-    exportButton.disabled = false;
-    exportButton.textContent = "Export";
-    exportButton.title = "Prepare a file to drag";
+    exportButton.title = "Save an exported file, or drag it out";
   }
-  exportFormat.addEventListener("change", invalidateExport);
-  exportButton.addEventListener("click", () => {
-    if (preparedExport) return;
+  let preparingExport = false;
+  async function prepareExport(): Promise<void> {
+    if (preparedExport || preparingExport || disposed || !doc.hasDoc) return;
+    preparingExport = true;
     const id = pane.documentId, revision = doc.revisionId, sequence = ++exportSequence;
     const format = exportFormat.value === "pdf" ? "pdf" : "html";
-    exportButton.disabled = true;
-    exportButton.textContent = "Preparing...";
-    void simplemd.prepareDragExport(currentText(), id, revision, format).then(result => {
+    try {
+      const result = await simplemd.prepareDragExport(currentText(), id, revision, format);
       if (disposed || id !== pane.documentId || revision !== doc.revisionId || sequence !== exportSequence) return;
       preparedExport = { ...result, revision };
       exportExpiryTimer = window.setTimeout(invalidateExport, Math.max(0, result.expiresAt - Date.now()));
-      exportButton.disabled = false;
       exportButton.draggable = true;
-      exportButton.textContent = `Drag ${format.toUpperCase()}`;
-      exportButton.title = `Drag ${result.name}`;
-    }).catch(error => {
-      if (disposed || id !== pane.documentId || sequence !== exportSequence) return;
-      invalidateExport();
-      toast(`Export failed: ${String(error)}`);
-    });
+      exportButton.title = `Save ${format.toUpperCase()}, or drag ${result.name}`;
+    } catch (error) { console.warn("simplemd: drag export unavailable", error); }
+    finally { preparingExport = false; }
+  }
+  exportFormat.addEventListener("change", () => { invalidateExport(); if (exportButton.matches(":hover, :focus")) void prepareExport(); });
+  exportButton.addEventListener("pointerenter", () => void prepareExport());
+  exportButton.addEventListener("focus", () => void prepareExport());
+  exportButton.addEventListener("click", () => {
+    const save = exportFormat.value === "pdf" ? simplemd.exportPdf : simplemd.exportHtml;
+    exportButton.disabled = true;
+    void save(currentText(), pane.documentId).catch(error => toast(`Export failed: ${String(error)}`)).finally(() => { exportButton.disabled = false; });
   });
   exportButton.addEventListener("dragstart", event => {
     event.preventDefault();
@@ -186,9 +219,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let transitioning = false;
   // In-place navigation history for sibling link clicks. `navigating` marks the next doc as
   // history-driven so onDoc doesn't push it as a fresh entry.
-  const navBack: string[] = [];
-  const navForward: string[] = [];
-  let navigating: { target: string; direction: "back" | "forward" } | null = null;
+  const navBack: NavigationEntry[] = [];
+  const navForward: NavigationEntry[] = [];
+  let navigating: { target: NavigationEntry; direction: "back" | "forward" } | null = null;
 
   const isMdx = () => /\.mdx$/i.test(doc.meta.path ?? doc.meta.name);
   const isReadOnly = () => !!doc.readOnlyReason;
@@ -250,7 +283,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         article.insertBefore(marker, bySource[lo] ?? null);
       }
     }
-    $("changes").hidden = !changed.length && !deleted.length && !highlights.changes.note;
+    $("changes").hidden = (pane.view === "read" && !highlights.kind) || (!changed.length && !deleted.length && !highlights.changes.note);
     const count = changed.length + deleted.length;
     $("change-count").textContent = highlights.changes.note ?? `${count} ${count === 1 ? "change" : "changes"}`;
     $("change-count").title = highlights.kind === "head" ? "Since last commit" : "Since last seen";
@@ -336,6 +369,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         node.className = "block";
         mountRenderedHtml(node, block, settings.remoteImages);
       }
+      node.dataset.blockKey = block.key;
       node.dataset.fingerprint = block.fingerprint ?? block.key;
       node.dataset.sourceStart = String(block.sourceRange[0]);
       node.dataset.sourceEnd = String(block.sourceRange[1]);
@@ -357,7 +391,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     // renderDiagrams is idempotent per block, so retained blocks only rejoin the readiness wait.
     const id = pane.documentId;
     void Promise.all([...next.values()].map((node) => renderDiagrams(node))).then(() => {
-      if (!disposed && id === pane.documentId && blockEls.get(el) === next && blocks.length) simplemd.perfMarker(id, "diagrams-ready");
+      if (!disposed && id === pane.documentId && blockEls.get(el) === next && blocks.length) { simplemd.perfMarker(id, "diagrams-ready"); resyncPreview(); }
     });
   }
 
@@ -405,7 +439,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
             if (request.seq !== targetPane.readRenderSeq || disposed || request.id !== activeDocumentId() || request.revisionId !== state.revisionId) continue;
             mountBlocks(docEl, acceptRender(result, request.text));
             targetPane.mountedReadText = request.text;
-            document.title = result.title;
             if (top !== undefined) readScroll.scrollTop = top;
             updateHint();
           } catch {
@@ -433,7 +466,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           const seq = ++targetPane.previewRenderSeq;
           const id = targetPane.documentId;
           const revisionId = state.revisionId;
-          const fraction = scrollFraction(previewScroll);
           try {
             const source = targetPane.editor.getText();
             if (pane.mode !== "split") {
@@ -446,7 +478,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
               if (disposed || seq !== targetPane.previewRenderSeq || id !== activeDocumentId() || revisionId !== state.revisionId || targetPane.view !== "edit" || targetPane.editor?.getText() !== source) continue;
               mountBlocks(previewEl, acceptRender(result, source));
             }
-            setScrollFraction(previewScroll, fraction);
+            resyncPreview();
           } catch {
             if (seq === targetPane.previewRenderSeq && id === activeDocumentId() && revisionId === state.revisionId) toast("Couldn't render this preview.");
           }
@@ -463,14 +495,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     clearTimeout(pane.previewTimer);
     pane.previewTimer = window.setTimeout(() => void renderPreview(), isMdx() ? 200 : 110);
   }
-
-  const scrollFraction = (el: HTMLElement) => {
-    const room = el.scrollHeight - el.clientHeight;
-    return room > 0 ? el.scrollTop / room : 0;
-  };
-  const setScrollFraction = (el: HTMLElement, f: number) => {
-    el.scrollTop = f * Math.max(0, el.scrollHeight - el.clientHeight);
-  };
 
   // ───────── chrome ─────────
 
@@ -489,21 +513,31 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     nameEl.textContent = doc.meta.name;
     root.dataset.view = pane.view;
     container.querySelector<HTMLElement>(".pane-toolbar")!.title = doc.meta.path ?? doc.meta.name;
-    readScroll.title = isReadOnly() ? "Read only" : "Enter to edit";
-    modeMenu.hidden = pane.view !== "edit";
-    modeMenu.value = pane.mode;
+    readScroll.title = isReadOnly() ? "Read only" : "Read document";
+    const viewMode = pane.view === "read" ? "read" : pane.mode;
+    simplemd.paneMode(pane.paneId, viewMode);
+    modeMenu.hidden = !doc.hasDoc || isReadOnly();
+    modeMenu.value = viewMode;
     dirtyEl.hidden = !doc.dirty;
-    modesEl.hidden = pane.view !== "edit";
-    editBtn.hidden = pane.view !== "read" || !doc.hasDoc || isReadOnly();
+    modesEl.hidden = !doc.hasDoc || isReadOnly();
+    editBtn.hidden = true;
+    $("reader-options").hidden = pane.view !== "read" || !doc.hasDoc;
+    $("nav-back").hidden = !navBack.length;
+    const overridden = settings.readingStyle === "github";
+    $("reading-size").textContent = `${overridden ? 16 : settings.readingFontSize}px`;
+    $<HTMLButtonElement>("reading-smaller").disabled = overridden || settings.readingFontSize <= 10;
+    $<HTMLButtonElement>("reading-larger").disabled = overridden || settings.readingFontSize >= 40;
+    $("reading-override").hidden = !overridden;
     for (const b of modesEl.querySelectorAll<HTMLButtonElement>("button")) {
-      b.setAttribute("aria-checked", String(b.dataset.mode === pane.mode));
-      b.tabIndex = b.dataset.mode === pane.mode ? 0 : -1;
+      b.setAttribute("aria-checked", String(b.dataset.mode === viewMode));
+      b.tabIndex = b.dataset.mode === viewMode ? 0 : -1;
     }
     readPane.hidden = pane.view !== "read";
     editPane.hidden = pane.view !== "edit";
     editPane.dataset.mode = pane.mode;
     previewPane.hidden = pane.mode !== "split";
     updateHint();
+    paintChanges();
     options.changed();
   }
 
@@ -577,7 +611,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           scheduleAutosave();
         },
         onScroll() {
-          if (pane.mode === "split" && pane.editor) setScrollFraction(previewScroll, pane.editor.scrollFraction());
+          if (pane.view === "edit" && pane.mode === "split" && pane.editor && scrollDriver === "editor") {
+            syncAnchor = pane.editor.sourceAnchor(); resyncPreview();
+          }
         },
         onImages: (files) => insertImages(files).catch(() => {
           toast("Couldn’t add images.");
@@ -605,7 +641,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const id = pane.documentId;
     const owner = pane;
     const seq = ++pane.viewSeq;
-    const fraction = scrollFraction(readScroll);
+    const anchor = blockAnchor(docEl, readScroll);
+    syncAnchor = anchor;
+    readRestoreAnchor = undefined;
+    scrollDriver = "editor";
     const restoring = !!retainedEditor;
     const ed = await ensureEditor();
     if (!ed || pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
@@ -622,7 +661,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     }
     requestAnimationFrame(() => {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
-      if (!restoring) ed.scroller.scrollTop = retainedScroll ?? fraction * Math.max(0, ed.scroller.scrollHeight - ed.scroller.clientHeight);
+      if (!restoring) {
+        if (retainedScroll !== undefined) ed.scroller.scrollTop = retainedScroll;
+        else ed.restoreAnchor(anchor);
+      }
+      if (pane.mode === "split") { syncAnchor = restoring ? ed.sourceAnchor() : anchor; resyncPreview(); }
       retainedScroll = undefined;
       if (options.active() && !document.activeElement?.closest("#tabs")) ed.focus();
     });
@@ -634,13 +677,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     ++pane.previewRenderSeq;
     const id = pane.documentId;
     const owner = pane;
-    const fraction = pane.editor ? pane.editor.scrollFraction() : scrollFraction(readScroll);
+    const anchor = visibleAnchor();
     doc.readText = currentText();
     pane.view = "read";
     updateChrome();
     await renderRead(doc.readText, false);
     if (pane !== owner || id !== pane.documentId || pane.view !== "read") return;
-    setScrollFraction(readScroll, fraction);
+    readRestoreAnchor = anchor;
+    restoreBlockAnchor(docEl, readScroll, anchor);
     if (settings.autosave) void saveNow(false, true);
   }
 
@@ -648,6 +692,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
     disposed = false;
+    layoutObserver.observe(previewEl);
+    layoutObserver.observe(docEl);
+    readRestoreAnchor = undefined;
     invalidateExport();
     clearTimeout(changeTimer);
     ++changeSequence;
@@ -659,7 +706,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     visibleRevision = undefined;
     pendingDisk = undefined;
     const id = payload.documentId;
-    const mode = doc.hasDoc ? pane.mode : settings.mode;
+    const mode = retained?.mode ?? payload.initialMode ?? (doc.hasDoc ? pane.mode : settings.mode);
     simplemd.perfMarker(id, "renderer-receive");
     ++pane.readRenderSeq;
     ++pane.previewRenderSeq;
@@ -669,15 +716,17 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     pane.readPending = null;
     pane.previewPending = false;
     closeOverlays();
+    const previousAnchor = visibleAnchor();
     const navigation = navigating;
+    const navigationAnchor = navigation?.target.anchor;
     if (!navigation && !navigatingLink && !retained) { navBack.length = 0; navForward.length = 0; }
-    if (navigation?.target === payload.path && doc.meta.path) {
+    if (navigation?.target.path === payload.path && doc.meta.path) {
       const from = navigation.direction === "back" ? navBack : navForward;
       const to = navigation.direction === "back" ? navForward : navBack;
       from.pop();
-      to.push(doc.meta.path);
+      to.push({ path: doc.meta.path, anchor: previousAnchor });
     } else if (navigatingLink && doc.meta.path !== null && payload.path !== doc.meta.path) {
-      navBack.push(doc.meta.path);
+      navBack.push({ path: doc.meta.path, anchor: previousAnchor });
       navForward.length = 0;
     }
     navigating = null;
@@ -688,6 +737,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (!retained) doc.revisionId = payload.revisionId;
     root.dataset.revisionId = String(doc.revisionId);
     pane = createPaneState(paneId, id);
+    syncAnchor = { kind: "start" };
+    scrollDriver = "editor";
     const owner = pane;
     pane.mode = mode;
     simplemd.paneMode(pane.paneId, mode);
@@ -716,7 +767,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (doc.readOnlyReason) showBanner(doc.readOnlyReason, []);
     emptyEl.hidden = true;
     docEl.hidden = false;
-    document.title = payload.title;
     mountBlocks(previewEl, []);
     const sourceEdit = (retained ? retained.view === "edit" : payload.intent === "edit") && !isReadOnly();
     mountBlocks(docEl, sourceEdit ? [] : doc.lastGoodBlocks ?? payload.blocks);
@@ -748,6 +798,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         if (payload.intent === "read" || isReadOnly() || pane.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
       }
     }));
+    if (navigationAnchor) {
+      if (pane.view === "read") { readRestoreAnchor = navigationAnchor; restoreBlockAnchor(docEl, readScroll, navigationAnchor); }
+      else pane.editor?.restoreAnchor(navigationAnchor);
+      syncAnchor = navigationAnchor;
+      resyncPreview();
+    }
     const sourceOnly = payload.intent === "edit" && !isReadOnly() && pane.mode === "source";
     const visibleRoot = payload.intent === "edit" && !isReadOnly() ? pane.mode === "split" ? previewEl : editorHost : docEl;
     if (!sourceOnly && visibleRoot.querySelector(".katex")) {
@@ -821,6 +877,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     pendingDisk = { text, reason };
     if (disposed || id !== pane.documentId) return;
     const seq = ++doc.diskSeq;
+    const saveCopy = { label: "Save mine as…", run: async () => {
+      const copy = await simplemd.saveCopy(currentText(), id);
+      if (copy && id === pane.documentId && seq === doc.diskSeq) toast(`Saved ${copy}`);
+      return false;
+    } };
     if (reason) {
       doc.readOnlyReason = reason;
       doc.diskConflict = true;
@@ -833,7 +894,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         applyDiskText(text);
         showBanner(reason, []);
       };
-      if (doc.dirty) showBanner(reason, [{ label: "Reload", run: reload }]);
+      if (doc.dirty) showBanner(reason, [{ label: "Reload", run: reload }, saveCopy]);
       else void reload();
       updateChrome();
       return;
@@ -844,6 +905,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const offerChoice = () => showBanner("This note changed on disk.", [
       { label: "Reload", run: () => accept(true) },
       { label: "Keep mine", run: () => accept(false) },
+      saveCopy,
     ]);
     const accept = async (reload: boolean, automatic = false) => {
       if (!(await simplemd.acceptDisk(text, id, automatic)) || id !== pane.documentId || seq !== doc.diskSeq) return false;
@@ -935,10 +997,20 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     }
     if (navigating || transitioning) return;
     const target = from.at(-1)!;
+    if (target.path === doc.meta.path) {
+      const to = direction === "back" ? navForward : navBack;
+      to.push({ path: doc.meta.path, anchor: visibleAnchor() });
+      from.pop();
+      if (pane.view === "read") { readRestoreAnchor = target.anchor; restoreBlockAnchor(docEl, readScroll, target.anchor); }
+      else pane.editor?.restoreAnchor(target.anchor);
+      syncAnchor = target.anchor;
+      resyncPreview(); updateChrome();
+      return;
+    }
     const navigation = { target, direction };
     navigating = navigation;
     try {
-      await simplemd.openPath(target, pane.view === "read" ? "read" : "edit", true, pane.documentId);
+      await simplemd.openPath(target.path, pane.view === "read" ? "read" : "edit", true, pane.documentId);
     } finally {
       if (navigating === navigation) navigating = null;
     }
@@ -954,7 +1026,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const text = await simplemd.readFindText();
     if (disposed || pane.documentId !== id) return;
     if (pane.view === "edit") pane.editor?.find(text);
-    else openReadFind(() => undefined, text);
+    else openReadFind(docEl, () => readScroll.focus({ preventScroll: true }), text);
   }
 
   function openOutline(): void {
@@ -976,14 +1048,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function openPalette(): void {
-    const set = (patch: Partial<Settings>) => () => { if (patch.mode) setMode(patch.mode); else void simplemd.setSettings(patch); };
+    const set = (patch: Partial<Settings>) => () => { if (patch.mode) selectMode(patch.mode); else void simplemd.setSettings(patch); };
     const cmd = (c: Command) => () => handleCommand(c);
     const items: PickerItem[] = [
       { label: "Mark Seen", run: cmd("mark-seen") },
       { label: "Next Change", run: cmd("next-change") },
       { label: "Previous Change", run: cmd("previous-change") },
       ...(doc.meta.path ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
-      { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
+      { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘E", run: cmd("toggle-edit") },
       { label: "Settings…", run: () => handleCommand("preferences") },
       { label: "New note", hint: "⌘N", run: cmd("new") },
       { label: "Open…", hint: "⌘O", run: () => void simplemd.openDialog() },
@@ -991,6 +1063,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       { label: "Save as…", hint: "⇧⌘S", run: cmd("save-as") },
       { label: "Go to heading…", hint: "⇧⌘O", run: openOutline },
       { label: "Find in note", hint: "⌘F", run: findInView },
+      { label: "Mode: Read", run: cmd("mode-read") },
       { label: "Mode: Live preview", hint: "⌥⌘1", run: set({ mode: "live" }) },
       { label: "Mode: Side by side", hint: "⌥⌘2", run: set({ mode: "split" }) },
       { label: "Mode: Source", hint: "⌥⌘3", run: set({ mode: "source" }) },
@@ -1010,9 +1083,18 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       { label: "Export as PDF…", run: cmd("export-pdf") },
       { label: "Print…", hint: "⌘P", run: cmd("print") },
       { label: "Reveal in file manager", run: cmd("reveal") },
-      ...settings.recents.map((p): PickerItem => ({ label: `Open ${p.split(/[\\/]/).pop()}`, hint: p.split(/[\\/]/).slice(-2, -1)[0], run: () => void simplemd.openPath(p) })),
+      ...settings.recents.map((p): PickerItem => ({ label: p.split(/[\\/]/).pop() ?? p, hint: `Recent · ${p}`, run: () => void simplemd.openPath(p) })),
     ];
-    openPicker("Type a command…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
+    const tabs = options.tabs();
+    items.unshift(...tabs.map(tab => ({ label: tab.name, hint: `Tab · ${tab.path ?? "Untitled"}`, run: () => void simplemd.activateTab(tab.id) })));
+    if (pane.view === "edit" && pane.editor) {
+      items.push(...pane.editor.headings().map(heading => ({ label: heading.text, hint: "Heading", run: () => pane.editor?.goTo(heading.pos) })));
+    } else {
+      for (const heading of docEl.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")) {
+        items.push({ label: heading.textContent ?? "", hint: "Heading", run: () => heading.scrollIntoView({ block: "start" }) });
+      }
+    }
+    openPicker("Search commands, tabs, recent files and headings…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
   }
 
   function handleCommand(cmd: Command): void {
@@ -1030,6 +1112,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         break;
       case "toggle-edit":
         void (pane.view === "read" ? showEdit() : showRead());
+        break;
+      case "mode-read":
+        void showRead();
         break;
       case "mode-live":
       case "mode-split":
@@ -1121,11 +1206,21 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   async function navigateLink(href: string, newTab = false): Promise<void> {
-    if (href.startsWith("#")) { scrollToFragment(href); return; }
+    if (href.startsWith("#")) {
+      if (!newTab && doc.meta.path) { navBack.push({ path: doc.meta.path, anchor: visibleAnchor() }); navForward.length = 0; }
+      readRestoreAnchor = undefined;
+      scrollToFragment(href); updateChrome(); return;
+    }
     const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
+    const from = doc.meta.path ? { path: doc.meta.path, anchor: visibleAnchor() } : undefined;
+    const id = pane.documentId;
     navigatingLink = !newTab;
     try {
-      if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, pane.documentId) && fragment && !newTab) scrollToFragment(fragment);
+      if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, id) && fragment && !newTab) {
+        if (pane.documentId === id && from) { navBack.push(from); navForward.length = 0; }
+        readRestoreAnchor = undefined;
+        scrollToFragment(fragment); updateChrome();
+      }
     } finally { navigatingLink = false; }
   }
 
@@ -1162,45 +1257,53 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   container.addEventListener("keydown", (e) => {
     if (isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
     const mod = e.metaKey || e.ctrlKey;
-    if (pane.view === "read") {
-      if (!mod && !e.altKey && (e.key === "Enter" || e.key === "e")) {
-        e.preventDefault();
-        void showEdit();
-      } else if (!mod && !e.altKey && e.key === "t") {
-        const order = ["system", "light", "dark"] as const;
-        void simplemd.setSettings({ theme: order[(order.indexOf(settings.theme) + 1) % order.length]! });
-      }
-    } else if (e.key === "Escape") {
+    if (mod && !e.altKey && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      void (pane.view === "read" ? showEdit() : showRead());
+    } else if (pane.view === "edit" && e.key === "Escape") {
       e.preventDefault();
       void showRead();
     }
   });
 
   modesEl.addEventListener("click", (e) => {
-    const mode = (e.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset.mode as EditMode | undefined;
-    if (mode) setMode(mode);
+    const mode = (e.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset.mode;
+    if (mode === "read" || mode === "live" || mode === "split" || mode === "source") selectMode(mode);
   });
   modesEl.addEventListener("keydown", e => {
-    const modes: EditMode[] = ["live", "split", "source"];
-    const index = modes.indexOf(pane.mode);
-    const next = e.key === "Home" ? modes[0] : e.key === "End" ? modes[2]
+    const modes: ViewMode[] = ["read", "live", "split", "source"];
+    const index = modes.indexOf(pane.view === "read" ? "read" : pane.mode);
+    const next = e.key === "Home" ? modes[0] : e.key === "End" ? modes[3]
       : ["ArrowRight", "ArrowDown"].includes(e.key) ? modes[(index + 1) % modes.length]
       : ["ArrowLeft", "ArrowUp"].includes(e.key) ? modes[(index + modes.length - 1) % modes.length] : undefined;
-    if (next) { e.preventDefault(); setMode(next); modesEl.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus(); }
+    if (next) { e.preventDefault(); selectMode(next); modesEl.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus(); }
   });
   modeMenu.addEventListener("change", () => {
     const mode = modeMenu.value;
-    if (mode === "live" || mode === "split" || mode === "source") setMode(mode);
+    if (mode === "read" || mode === "live" || mode === "split" || mode === "source") selectMode(mode);
   });
+  function selectMode(mode: ViewMode): void {
+    if (mode === "read") void showRead();
+    else { setMode(mode); if (pane.view === "read") void showEdit(); }
+  }
+  $("nav-back").addEventListener("click", () => void navigate("back"));
+  for (const [id, delta] of [["reading-smaller", -2], ["reading-larger", 2]] as const) {
+    $(id).addEventListener("click", () => { if (settings.readingStyle !== "github") void simplemd.setSettings({ readingFontSize: Math.max(10, Math.min(40, settings.readingFontSize + delta)) }); });
+  }
+  $("reader-settings").addEventListener("click", () => { $<HTMLDetailsElement>("reader-options").open = false; handleCommand("preferences"); });
   editBtn.addEventListener("click", () => void showEdit());
   $("mark-seen").addEventListener("click", () => void markSeen());
   $("next-change").addEventListener("click", () => navigateChange(1));
   $("previous-change").addEventListener("click", () => navigateChange(-1));
 
   function setMode(mode: EditMode): void {
+    const anchor = visibleAnchor();
+    syncAnchor = anchor;
+    scrollDriver = "editor";
     pane.mode = mode;
     simplemd.paneMode(pane.paneId, mode);
     pane.editor?.setMode(mode);
+    if (pane.view === "edit") pane.editor?.restoreAnchor(anchor);
     ++pane.previewRenderSeq;
     if (mode === "split") void renderPreview();
     updateChrome();
@@ -1224,11 +1327,13 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     }
     const snapshot: DormantDocument = {
       state: doc, editor: pane.editor?.snapshot() ?? retainedEditor,
-      view: pane.view,
+      view: pane.view, mode: pane.mode,
       scroll: pane.view === "edit" ? pane.editor?.scroller.scrollTop ?? 0 : readScroll.scrollTop,
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
+    cancelAnimationFrame(layoutFrame);
+    layoutObserver.disconnect();
     clearTimeout(changeTimer); ++changeSequence;
     simplemd.releaseView(pane.documentId);
     if (!doc.mdx?.error) doc.lastGoodBlocks = null;
@@ -1257,11 +1362,21 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     async navigate(target: import("../shared/types.js").DocumentLocation) {
       const id = pane.documentId;
       if (target.kind === "start") return;
+      if (target.kind === "line") {
+        if (pane.mode !== "source") setMode("source");
+        if (pane.view === "read" || !pane.editor) await showEdit();
+        // An earlier mode command may still be mounting CodeMirror and restoring its anchor.
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        if (pane.documentId !== id || disposed) return;
+      }
       if (target.kind === "heading") {
-        if (!doc.lastGoodBlocks) {
+        const scope = pane.view === "read" ? docEl : previewEl;
+        if (!fragmentTarget(scope, "#" + encodeURIComponent(target.heading)) || (pane.view === "edit" && pane.mode !== "split")) {
           const rendered = await simplemd.renderBlocks(currentText(), id, doc.revisionId);
           if (pane.documentId !== id) return;
           doc.lastGoodBlocks = rendered.blocks;
+          if (pane.view === "read") { ++pane.readRenderSeq; mountBlocks(docEl, rendered.blocks); }
+          else if (pane.mode === "split") mountBlocks(previewEl, rendered.blocks);
         }
         scrollToFragment("#" + encodeURIComponent(target.heading));
       } else if (pane.editor && pane.view === "edit") {

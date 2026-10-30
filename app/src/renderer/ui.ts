@@ -1,3 +1,4 @@
+import { readSearchRanges } from "./read-search.js";
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 let toastTimer: number | undefined;
@@ -100,7 +101,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
     const q = input.value.trim();
     shown = q
       ? items
-          .map((item) => ({ item, s: score(q, item.label) }))
+          .map((item) => ({ item, s: score(q, `${item.label} ${item.hint ?? ""}`) }))
           .filter((x) => x.s > 0)
           .sort((a, b) => b.s - a.s)
           .map((x) => x.item)
@@ -195,47 +196,73 @@ export function closeOverlays(): void {
   closeFind?.();
 }
 
-export function openReadFind(onClose: () => void, text = ""): void {
-  if (text) $<HTMLInputElement>("find-input").value = text;
-  if (findOpen) {
-    $<HTMLInputElement>("find-input").select();
-    $<HTMLInputElement>("find-input").focus();
-    return;
-  }
+export function openReadFind(scope: HTMLElement, onClose: () => void, text = ""): void {
+  closeFind?.();
+  const restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
   const bar = $("findbar");
   const input = $<HTMLInputElement>("find-input");
+  const count = $("find-count");
+  const previous = $<HTMLButtonElement>("find-previous");
+  const next = $<HTMLButtonElement>("find-next");
+  const closeButton = $("find-close");
+  if (text) input.value = text;
+  let ranges: Range[] = [];
+  let current = 0;
   findOpen = true;
   bar.hidden = false;
-  input.select();
-  input.focus();
 
-  const search = (backwards: boolean) => {
-    if (input.value) (window as unknown as { find(q: string, c: boolean, b: boolean, w: boolean): boolean }).find(input.value, false, backwards, true);
-  };
+  function paint(scroll = true): void {
+    const all = new Highlight();
+    for (const range of ranges) all.add(range);
+    CSS.highlights.set("read-matches", all);
+    const range = ranges[current];
+    CSS.highlights.set("read-current", new Highlight(...(range ? [range] : [])));
+    count.textContent = `${range ? current + 1 : 0} of ${ranges.length}`;
+    previous.disabled = next.disabled = !ranges.length;
+    if (range && scroll) {
+      const scroller = scope.closest<HTMLElement>(".scroller");
+      const rect = range.getBoundingClientRect();
+      if (scroller) {
+        const bounds = scroller.getBoundingClientRect();
+        if (rect.top < bounds.top || rect.bottom > bounds.bottom) scroller.scrollTop += rect.top - bounds.top - bounds.height / 2;
+      }
+    }
+  }
+  function search(): void { ranges = readSearchRanges(scope, input.value); current = 0; paint(); }
+  function move(backwards = false): void {
+    current = (current + (backwards ? -1 : 1) + ranges.length) % (ranges.length || 1);
+    paint();
+  }
+  const observer = new MutationObserver(search);
+  observer.observe(scope, { subtree: true, childList: true, characterData: true });
   const close = () => {
     closeFind = undefined;
     findOpen = false;
     bar.hidden = true;
+    observer.disconnect();
     input.removeEventListener("keydown", onKey);
-    input.removeEventListener("input", onInput);
-    window.getSelection()?.removeAllRanges();
+    input.removeEventListener("input", search);
+    previous.removeEventListener("click", backwards);
+    next.removeEventListener("click", forwards);
+    closeButton.removeEventListener("click", close);
+    CSS.highlights.delete("read-matches");
+    CSS.highlights.delete("read-current");
+    if (restoreFocus?.isConnected) restoreFocus.focus({ preventScroll: true });
     onClose();
   };
   function onKey(e: KeyboardEvent): void {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      search(e.shiftKey);
-    }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+    else if (e.key === "Enter") { e.preventDefault(); move(e.shiftKey); }
   }
+  const backwards = () => move(true);
+  const forwards = () => move();
   input.addEventListener("keydown", onKey);
-  function onInput(): void {
-    window.getSelection()?.removeAllRanges();
-    search(false);
-  }
+  input.addEventListener("input", search);
+  previous.addEventListener("click", backwards);
+  next.addEventListener("click", forwards);
+  closeButton.addEventListener("click", close);
   closeFind = close;
-  input.addEventListener("input", onInput);
+  search();
+  input.focus();
+  input.select();
 }

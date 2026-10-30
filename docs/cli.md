@@ -22,7 +22,7 @@ simplemd -- -starts-with-a-dash.md
 simplemd --help
 ```
 
-The CLI resolves paths against the caller's working directory. Files must exist and contain UTF-8 text. Explicit CLI opens accept text files with any extension or no extension. Directories, devices, FIFOs and binary input are rejected. Existing tabs are focused. New tabs or windows follow the `open-in` setting.
+The CLI resolves paths against the caller's working directory. Files must exist and contain UTF-8 text. Explicit CLI opens accept text files with any extension or no extension. Directories, devices, FIFOs and binary input are rejected. Existing tabs are focused. New tabs or windows follow the `open-in` setting. Files open in Read. Use the mode control or Command/Control-E to edit. `COMMIT_EDITMSG`, files without an extension and `--wait` buffers open in Source.
 
 ## Open at a line or heading
 
@@ -32,9 +32,9 @@ simplemd 'file.md#my-heading'
 simplemd 'file.md#my-heading-1'
 ```
 
-Lines start at 1. The CLI treats a trailing `:N` as a line only if the literal filename does not exist. An existing filename containing `#` also opens literally. For an ambiguous filename, use its full existing path.
+Line targets open editable in Source. Heading targets open in Read. Lines start at 1. The CLI treats a trailing `:N` as a line only if the literal filename does not exist. An existing filename containing `#` also opens literally. For an ambiguous filename, use its full existing path.
 
-Heading arguments are GitHub slugs, using the renderer's `github-slugger` behavior. Duplicate headings receive suffixes such as `-1`. Pass the slug itself, not a heading title. Quote shell arguments that contain `#`, spaces or shell metacharacters.
+Heading arguments are GitHub slugs, using the renderer's `github-slugger` behavior. Duplicate headings receive suffixes such as `-1`. Pass the slug itself, not a heading title. An unknown slug returns code 1 and names the missing heading on stderr. Quote shell arguments that contain `#`, spaces or shell metacharacters.
 
 ## Read stdin
 
@@ -87,7 +87,7 @@ Both formats use the shared export pipeline. PDF uses Electron's print pipeline 
 | 1 | An operational failure, such as a missing file, rejected text, IPC failure, output conflict or Ctrl-C. |
 | 2 | Invalid arguments or options. |
 
-Errors go to stderr. `--help` writes usage to stdout.
+Errors go to stderr and distinguish missing files, directories, binary or invalid UTF-8 files, and permission failures. `--help` writes usage to stdout.
 
 ## URL scheme
 

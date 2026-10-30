@@ -1,3 +1,4 @@
+import type { SourceAnchor } from "./scroll-sync.js";
 import { changeMarks, setChangeMarks } from "./change-marks.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
 import { retainEditorState } from "./editor-history.js";
@@ -12,7 +13,7 @@ import { html } from "@codemirror/lang-html";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { SearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
+import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
@@ -70,6 +71,8 @@ export interface EditorHandle {
   headings(): Heading[];
   goTo(pos: number): void;
   scrollFraction(): number;
+  sourceAnchor(): SourceAnchor;
+  restoreAnchor(anchor: SourceAnchor): void;
   scroller: HTMLElement;
   destroy(): void;
 }
@@ -139,6 +142,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   let destroyed = false;
   let vimSeq = 0;
   let contextPosition: number | null = null;
+  let countedDoc: EditorState["doc"] | undefined;
+  let countedQuery: SearchQuery | undefined;
+  let searchMatches: { from: number; to: number }[] = [];
+  let countFrame = 0;
   const insertions = new Set<{ from: number; to: number }>();
 
   const liveFor = (m: EditMode, length: number) => (m === "live" && length <= LIVE_MAX_CHARS ? liveExtension(opts.host) : []);
@@ -173,6 +180,28 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.text.length)),
         EditorView.updateListener.of((update) => {
+          cancelAnimationFrame(countFrame);
+          countFrame = requestAnimationFrame(() => {
+            if (destroyed) return;
+            const panel = view.dom.querySelector(".cm-search");
+            if (!panel) return;
+            const query = getSearchQuery(view.state);
+            if (countedDoc !== view.state.doc || !countedQuery?.eq(query)) {
+              countedDoc = view.state.doc; countedQuery = query; searchMatches = [];
+              if (query.valid) {
+                const cursor = query.getCursor(view.state);
+                for (let match = cursor.next(); !match.done; match = cursor.next()) searchMatches.push(match.value);
+              }
+            }
+            let count = panel.querySelector<HTMLOutputElement>(".search-count");
+            if (!count) {
+              count = document.createElement("output"); count.className = "search-count"; count.setAttribute("role", "status");
+              panel.querySelector('[name="search"]')?.after(count);
+            }
+            const selection = view.state.selection.main;
+            const current = searchMatches.findIndex(match => match.from === selection.from && match.to === selection.to);
+            count.textContent = `${current + 1} of ${searchMatches.length}`;
+          });
           if (update.docChanged) for (const range of insertions) {
             const empty = range.from === range.to;
             range.from = update.changes.mapPos(range.from, 1);
@@ -370,6 +399,30 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 24 }) });
       view.focus();
     },
+    sourceAnchor() {
+      const scroller = view.scrollDOM;
+      if (scroller.scrollTop <= 1) return { kind: "start" };
+      if (scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1) return { kind: "end" };
+      const top = scroller.getBoundingClientRect().top - view.documentTop;
+      const block = view.lineBlockAtHeight(top);
+      return { kind: "line", line: view.state.doc.lineAt(block.from).number - 1, offset: Math.max(0, Math.min(1, (top - block.top) / Math.max(1, block.height))) };
+    },
+    restoreAnchor(anchor) {
+      if (anchor.kind !== "line") {
+        view.requestMeasure({ read: () => anchor.kind, write: kind => { view.scrollDOM.scrollTop = kind === "start" ? 0 : view.scrollDOM.scrollHeight; } });
+        return;
+      }
+      const pos = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, anchor.line + 1))).from;
+      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 0 }) });
+      view.requestMeasure({
+        read: () => {
+          const block = view.lineBlockAt(pos);
+          const base = view.documentTop - view.scrollDOM.getBoundingClientRect().top + view.scrollDOM.scrollTop;
+          return base + block.top + anchor.offset * block.height;
+        },
+        write: top => { view.scrollDOM.scrollTop = top; },
+      });
+    },
     scrollFraction() {
       const s = view.scrollDOM;
       const room = s.scrollHeight - s.clientHeight;
@@ -377,6 +430,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     },
     destroy: () => {
       destroyed = true;
+      cancelAnimationFrame(countFrame);
       ++vimSeq;
       view.destroy();
     },

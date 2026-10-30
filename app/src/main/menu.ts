@@ -2,10 +2,11 @@ import type { GitChangesStatus } from "../shared/change-highlights.js";
 import { changesMenuState } from "./menu-state.js";
 import path from "node:path";
 import { Menu, app, type MenuItemConstructorOptions } from "electron";
-import type { Command, EditMode, Settings, ThemeSetting } from "../shared/types.js";
+import type { Command, ViewMode, Settings, ThemeSetting } from "../shared/types.js";
 
 export interface MenuActions {
   settings(): Settings;
+  mode(): ViewMode;
   changesStatus(): GitChangesStatus;
   command(cmd: Command): void;
   openDialog(): void;
@@ -98,12 +99,12 @@ export function buildMenu(a: MenuActions): void {
         { role: "selectAll" },
         { type: "separator" },
         cmd("Find…", "find", "CommandOrControl+F"),
-        ...(mac ? [cmd("Use Selection for Find", "use-selection-find", "Command+E")] : []),
+        ...(mac ? [cmd("Use Selection for Find", "use-selection-find", "Command+Alt+E")] : []),
         { type: "separator" },
         cmd("Bold", "format-bold", "CommandOrControl+B"),
         cmd("Italic", "format-italic", "CommandOrControl+I"),
         cmd("Strikethrough", "format-strike", "CommandOrControl+Shift+X"),
-        cmd("Code", "format-code", mac ? undefined : "Control+E"),
+        cmd("Code", "format-code"),
         cmd("Link", "format-link", "CommandOrControl+K"),
         { type: "separator" },
         {
@@ -133,16 +134,17 @@ export function buildMenu(a: MenuActions): void {
         cmd("Next Change", "next-change", "CommandOrControl+Alt+Down"),
         cmd("Previous Change", "previous-change", "CommandOrControl+Alt+Up"),
         { type: "separator" },
-        cmd("Read / Edit", "toggle-edit", "CommandOrControl+Return"),
+        cmd("Read / Edit", "toggle-edit", "CommandOrControl+E"),
+        cmd("Read", "mode-read", "CommandOrControl+Alt+0"),
         cmd("Back", "nav-back", mac ? "Cmd+[" : "Alt+Left"),
         cmd("Forward", "nav-forward", mac ? "Cmd+]" : "Alt+Right"),
         { type: "separator" },
         {
-          label: "Editing Mode",
+          label: "Document Mode",
           submenu: (["live", "split", "source"] as const).map((m, i) =>
-            radio<EditMode>(
+            radio<ViewMode>(
               { live: "Live Preview", split: "Side by side", source: "Source" }[m],
-              s.mode,
+              a.mode(),
               m,
               (v) => a.command(v === "live" ? "mode-live" : v === "source" ? "mode-source" : "mode-split"),
               `CommandOrControl+Alt+${i + 1}`,

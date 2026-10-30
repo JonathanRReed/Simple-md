@@ -1,3 +1,4 @@
+import { tabLabel } from "../shared/tab-labels.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
@@ -40,12 +41,16 @@ function syncChrome(): void {
   const tabFocused = strip.contains(document.activeElement);
   const ids = layout.tabs;
   const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
-  windowTitle.textContent = ids.length === 1 ? controller?.meta.name ?? "SimpleMD" : "SimpleMD";
-  windowTitle.title = ids.length === 1 ? controller?.meta.path ?? "" : "";
+  windowTitle.textContent = controller?.meta.name ?? "SimpleMD";
+  document.title = controller?.meta.name ?? "SimpleMD";
+  windowTitle.title = controller?.meta.path ?? "";
   strip.hidden = ids.length <= 1;
   for (const node of strip.querySelectorAll<HTMLElement>(".tab")) {
     if (!ids.some(id => String(id) === node.dataset.documentId)) node.remove();
   }
+  const tabMeta = (id: DocumentId) => [...panes.values()].find(p => p.controller.documentId === id)?.controller.meta
+    ?? documents.get(id)?.retained?.state.meta ?? documents.get(id)?.payload ?? { name: "Untitled", path: null };
+  const names = ids.map(tabMeta);
   ids.forEach((id, index) => {
     const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
     const tab = documents.get(id);
@@ -78,7 +83,11 @@ function syncChrome(): void {
     }
     const title = button.querySelector<HTMLElement>(".tab-name")!;
     const close = button.querySelector<HTMLButtonElement>(".tab-close")!;
-    title.textContent = meta?.name ?? "Untitled";
+    const label = tabLabel(names[index]!, names);
+    const midpoint = Math.ceil(label.length / 2);
+    const start = document.createElement("span"); start.className = "tab-name-start"; start.textContent = label.slice(0, midpoint);
+    const end = document.createElement("span"); end.className = "tab-name-end"; end.textContent = label.slice(midpoint);
+    title.replaceChildren(start, end);
     button.setAttribute("aria-label", `${title.textContent}${dirty ? ", unsaved changes" : ""}`);
     button.setAttribute("aria-selected", String(controller?.documentId === id));
     button.setAttribute("aria-controls", `document-${id}`);
@@ -107,6 +116,10 @@ function syncChrome(): void {
     pane.element.dataset.active = String(id === layout.activePane);
     pane.controller.activeChanged(id === layout.activePane);
   }
+}
+function tabMetaForPalette(id: DocumentId) {
+  return [...panes.values()].find(p => p.controller.documentId === id)?.controller.meta
+    ?? documents.get(id)?.retained?.state.meta ?? documents.get(id)?.payload ?? { name: "Untitled", path: null };
 }
 function stash(entry: { element: HTMLElement; controller: PaneController }): void {
   const tab = documents.get(entry.controller.documentId);
@@ -149,6 +162,7 @@ function mountLayout(next: TabLayoutState): void {
       const controller = createPane(element, slot.paneId, {
         active: () => layout?.activePane === slot.paneId,
         changed: syncChrome,
+        tabs: () => (layout?.tabs ?? []).map(id => ({ id, ...tabMetaForPalette(id) })),
       });
       entry = { element, controller }; panes.set(slot.paneId, entry);
       new MutationObserver(syncChrome).observe(element, { attributes: true, attributeFilter: ["data-document-path", "data-document-painted", "data-first-readable", "data-fully-highlighted", "data-render-complete", "data-document-id", "data-revision-id"] });
