@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { urlContext, renderBlocks } from "../src/main/markdown";
-import { invalidateUrlContext } from "../src/main/document-urls";
+import { containedLocalFile, invalidateUrlContext } from "../src/main/document-urls";
 import { resolveAuthorUrl, resolveSrcset, parseSrcset } from "../src/shared/url-resolver";
 
 const context = { baseUrl: "file:///project/docs/", rootUrl: "file:///project/" };
@@ -37,7 +37,7 @@ describe("shared author URL resolver", () => {
     ]);
     expect(parseSrcset("a.png -1x, b.png 0w, c.png 1w 2x, d.png 1h, e.png 1X, f.png 1.x")).toEqual([]);
   });
-  test("Astro ancestor wins over nearer git; otherwise nearest git, otherwise unresolved", () => {
+  test("nearest project contains siblings; public only resolves root-relative paths", () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), "simplemd-url-"));
     try {
       const base = path.join(temp, "site/nested/docs");
@@ -52,12 +52,22 @@ describe("shared author URL resolver", () => {
       expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/nested")));
       fs.mkdirSync(path.join(temp, "site/public"));
       invalidateUrlContext(base);
-      expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/public")));
-      fs.rmSync(path.join(temp, "site/astro.config.mjs"));
+      expect(urlContext(base).rootUrl).toBe(folder(path.join(temp, "site/nested")));
       fs.rmSync(path.join(temp, "site/nested/.git"));
+      invalidateUrlContext(base);
+      const astro = urlContext(base);
+      expect(astro.rootUrl).toBe(folder(path.join(temp, "site")));
+      expect(astro.publicUrl).toBe(folder(path.join(temp, "site/public")));
+      expect(resolveAuthorUrl("./prompts.mdx", "anchor", astro)).toBe(folder(base) + "prompts.mdx");
+      expect(resolveAuthorUrl("./img.png", "resource", astro)).toBe(folder(base) + "img.png");
+      expect(resolveAuthorUrl("/images/x", "resource", astro)).toBe(folder(path.join(temp, "site/public")) + "images/x");
+      fs.rmSync(path.join(temp, "site/astro.config.mjs"));
       fs.rmSync(path.join(temp, ".git"), { recursive: true });
       invalidateUrlContext(base);
       expect(urlContext(base).rootUrl).toBeUndefined();
+      expect(resolveAuthorUrl("/images/x", "resource", urlContext(base))).toBe(folder(path.join(temp, "site/public")) + "images/x");
+      expect(resolveAuthorUrl("../../../../escape", "anchor", astro)).toBeNull();
+      expect(resolveAuthorUrl("file:///etc/passwd", "anchor", astro)).toBeNull();
     } finally { fs.rmSync(temp, { recursive: true, force: true }); }
   });
   test("source ranges move without changing content keys, including frontmatter and MDX", async () => {
@@ -80,4 +90,25 @@ test("folder root lookup is reused until explicitly invalidated", () => {
     invalidateUrlContext(temp);
     expect(urlContext(temp).rootUrl).toBe(pathToFileURL(temp + path.sep).href);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test("Astro sibling links and images resolve through the real project containment check", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-astro-siblings-"));
+  try {
+    const base = path.join(dir, "src/content/blog");
+    fs.mkdirSync(base, { recursive: true });
+    fs.mkdirSync(path.join(dir, "public/images"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "astro.config.ts"), "");
+    for (const file of ["src/content/blog/prompts.mdx", "src/content/blog/img.png", "public/images/x.png"]) fs.writeFileSync(path.join(dir, file), "fixture");
+    const context = urlContext(base);
+    for (const [source, expected, kind] of [["./prompts.mdx", "src/content/blog/prompts.mdx", "anchor"], ["./img.png", "src/content/blog/img.png", "resource"], ["/images/x.png", "public/images/x.png", "resource"]] as const) {
+      const url = resolveAuthorUrl(source, kind, context)!;
+      expect(await containedLocalFile(url, context)).toBe(fs.realpathSync(path.join(dir, expected)));
+    }
+    const rendered = await renderBlocks("[Sibling](./prompts.mdx)\n\n[Blocked](../../../../secret.md)", path.join(base, "post.mdx"));
+    const html = rendered.blocks.map(block => block.html).join("");
+    expect(html).toContain('href="' + pathToFileURL(path.join(base, "prompts.mdx")).href + '"');
+    expect(html).toContain('title="Link blocked:');
+    expect(html).not.toContain('href="../../../../secret.md"');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

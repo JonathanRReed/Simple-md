@@ -1,10 +1,57 @@
 import { ensureSyntaxTree } from "@codemirror/language";
-import type { ChangeDesc, EditorState, Transaction } from "@codemirror/state";
+import type { ChangeDesc, EditorState, Transaction, Text } from "@codemirror/state";
 import type { Tree } from "@lezer/common";
 import { getMdxRanges } from "./mdx-syntax.js";
 
 export interface Region { from: number; to: number }
 interface MathLine extends Region { open: boolean; close: boolean; single: boolean }
+
+/** This scanner chooses widget boundaries only. The author sanitizer grants HTML privileges. */
+function imageHtmlEnd(source: string, from: number): number | null {
+  const tags = /<!--[\s\S]*?(?:-->|$)|<\/?([a-z][a-z0-9:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/g;
+  tags.lastIndex = from;
+  const first = tags.exec(source);
+  if (!first || first.index !== from || !["img", "picture", "figure", "figcaption", "a"].includes(first[1] ?? "")) return null;
+  if (first[1] === "img") return tags.lastIndex;
+  const stack = [first[1]];
+  let image = false;
+  for (let tag = tags.exec(source); tag; tag = tags.exec(source)) {
+    const name = tag[1];
+    if (!name) continue;
+    if (name === "img") image = true;
+    if (tag[0].startsWith("</")) {
+      if (stack.at(-1) !== name) return null;
+      stack.pop();
+      if (!stack.length) return first[1] !== "a" || image ? tags.lastIndex : null;
+    } else if (!["img", "source", "br", "hr", "wbr"].includes(name) && !tag[0].endsWith("/>")) stack.push(name);
+  }
+  return null;
+}
+
+const htmlRegions = new WeakMap<Tree, { doc: Text; ranges: Region[] }>();
+
+export function imageHtmlRegions(state: EditorState, tree: Tree): Region[] {
+  const cached = htmlRegions.get(tree);
+  if (cached?.doc === state.doc) return cached.ranges;
+  const ranges: Region[] = [];
+  const source = state.doc.toString();
+  tree.iterate({ enter(ref) {
+    if (["FencedCode", "CodeBlock", "InlineCode", "CommentBlock"].includes(ref.name)) return false;
+    if (ref.name !== "HTMLBlock" && ref.name !== "HTMLTag") return;
+    if ((ranges.at(-1)?.to ?? -1) > ref.from) return false;
+    let from = ref.from;
+    while (from < ref.to) {
+      const to = imageHtmlEnd(source, from);
+      if (to === null) break;
+      ranges.push({ from, to });
+      from = to;
+      while (from < ref.to && /\s/.test(source[from]!)) from++;
+    }
+    return false;
+  } });
+  htmlRegions.set(tree, { doc: state.doc, ranges });
+  return ranges;
+}
 
 export function mergeRegions(regions: readonly Region[]): Region[] {
   const result: Region[] = [];
@@ -29,6 +76,7 @@ export function expandRegion(state: EditorState, tree: Tree, range: Region, math
   const doc = state.doc;
   let from = doc.lineAt(range.from).from;
   let to = doc.lineAt(range.to).to;
+  const html = imageHtmlRegions(state, tree);
   for (;;) {
     const before = from, after = to;
     for (const [position, side] of [[from, 1], [to, -1]] as const) {
@@ -39,7 +87,7 @@ export function expandRegion(state: EditorState, tree: Tree, range: Region, math
         to = Math.max(to, doc.lineAt(node.to).to);
       }
     }
-    for (const block of math) if (block.from <= to && block.to >= from) {
+    for (const block of [...math, ...html]) if (block.from <= to && block.to >= from) {
       from = Math.min(from, block.from);
       to = Math.max(to, block.to);
     }

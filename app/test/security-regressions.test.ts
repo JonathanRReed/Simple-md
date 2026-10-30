@@ -153,7 +153,8 @@ test.skipIf(process.platform === "win32")("an author-controlled Astro public sym
   await fs.writeFile(path.join(project, "astro.config.mjs"), "");
   await fs.symlink(outside, path.join(project, "public"));
   const context = urlContext(project);
-  expect(context.rootUrl).toBeUndefined();
+  expect(context.rootUrl).toBe(pathToFileURL(project + path.sep).href);
+  expect(context.publicUrl).toBeUndefined();
   const source = pathToFileURL(path.join(project, "public/secret.png")).href;
   await fs.writeFile(path.join(outside, "secret.png"), "PRIVATE");
   const warnings: string[] = [];

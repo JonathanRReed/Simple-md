@@ -188,6 +188,8 @@ export function normalizeHtml(html: string, context: Context): SemanticNode {
       const src = img.getAttribute("data-canonical-src") ?? img.getAttribute("src") ?? "";
       if (url(node.getAttribute("href") ?? "", "src") === url(src, "src")) return children(node, preserve);
     }
+    if (node.matches("details.frontmatter")) return children(node.querySelector(".frontmatter-body")!, preserve);
+    if (node.matches(".frontmatter-value")) return children(node, preserve);
     if (tag === "article" || tag === "markdown-accessiblity-table" || tag === "themed-picture" || node.matches(".markdown-heading, .highlight, .snippet-clipboard-content, .code-block")) return children(node, preserve);
     const attrs: Record<string, string> = {};
     for (const attr of node.attributes) {

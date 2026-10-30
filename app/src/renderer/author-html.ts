@@ -1,6 +1,6 @@
 import createDOMPurify from "dompurify";
 import { authorPolicy, globalAttrs, perTag, prefixFragment } from "../shared/sanitizer-policy.js";
-import { resolveAuthorUrl, resolveSrcset, resolveFragment, type UrlContext } from "../shared/url-resolver.js";
+import { BLOCKED_LINK_TITLE, resolveAuthorUrl, resolveSrcset, resolveFragment, type UrlContext } from "../shared/url-resolver.js";
 import type { RenderedHtml, RenderNode } from "../shared/render-tree.js";
 import GithubSlugger from "github-slugger";
 
@@ -12,6 +12,7 @@ interface AuthorOptions { urls?: UrlContext; remoteImages?: boolean }
 
 // One dedicated instance. The hook closes over one synchronous sanitize call.
 export function sanitizeAuthorHtml(html: string, options: AuthorOptions = {}, slots: string[] = []): DocumentFragment {
+  const blocked = new WeakSet<Node>();
   const resolved = new WeakMap<Node, Map<string, string>>();
   purifier.addHook("uponSanitizeAttribute", (node, data) => {
     const tag = node.nodeName.toLowerCase();
@@ -30,6 +31,7 @@ export function sanitizeAuthorHtml(html: string, options: AuthorOptions = {}, sl
         ? resolveSrcset(data.attrValue, options.urls, options.remoteImages)
         : resolveAuthorUrl(data.attrValue, tag === "a" && attr === "href" ? "anchor" : "resource", options.urls, options.remoteImages);
       data.keepAttr = false;
+      if (value === null && tag === "a" && attr === "href") blocked.add(node);
       if (value !== null) {
         const attrs = resolved.get(node) ?? new Map<string, string>();
         attrs.set(attr, value);
@@ -39,6 +41,7 @@ export function sanitizeAuthorHtml(html: string, options: AuthorOptions = {}, sl
   });
   purifier.addHook("afterSanitizeAttributes", (node) => {
     for (const [attr, value] of resolved.get(node) ?? []) node.setAttribute(attr, value);
+    if (blocked.has(node)) node.setAttribute("title", BLOCKED_LINK_TITLE);
   });
   try {
     // Slot tag names are minted here, never accepted from source or IPC.

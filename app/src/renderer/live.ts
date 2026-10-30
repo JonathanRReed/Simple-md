@@ -2,7 +2,7 @@ import { getMdxRanges, isInMdxRange, setMdxRanges } from "./mdx-syntax.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { syntaxTree } from "@codemirror/language";
-import { displayMath, expandRegion, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
+import { displayMath, expandRegion, imageHtmlRegions, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
 import { type EditorState, type Extension, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
@@ -49,7 +49,7 @@ class RenderedBlock extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const el = document.createElement(this.kind === "image" ? "span" : "div");
+    const el = document.createElement(this.kind === "image" || this.kind === "html-inline" ? "span" : "div");
     el.className = this.kind === "image" ? "cm-image" : `cm-rendered cm-rendered-${this.kind} prose`;
     const key = this.key();
     const show = (html: RenderedHtml) => {
@@ -57,6 +57,9 @@ class RenderedBlock extends WidgetType {
       destroyDiagrams(el);
       mountRenderedHtml(el, html, this.host.remoteImages?.() ?? true);
       updateFragments(el);
+      if (this.kind === "html-inline" && el.firstElementChild?.tagName === "P" && el.children.length === 1) {
+        el.replaceChildren(...el.firstElementChild.childNodes);
+      }
       if (this.kind === "image") {
         const image = el.querySelector("img");
         if (image?.getAttribute("src")) {
@@ -73,6 +76,9 @@ class RenderedBlock extends WidgetType {
           el.textContent = image?.alt || "Image";
           el.className = "cm-image-missing";
         }
+      }
+      if (this.kind.startsWith("html")) for (const image of el.querySelectorAll("img")) {
+        image.addEventListener("load", () => { if (!disposed.has(el)) view.requestMeasure(); });
       }
       el.style.minHeight = "";
       if (blockCache.size >= BLOCK_CACHE_LIMIT && !blockCache.has(key)) blockCache.delete(blockCache.keys().next().value!);
@@ -240,6 +246,17 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
   };
 
   if (fmEnd) blocked.push([0, fmEnd]);
+
+  for (const range of imageHtmlRegions(state, tree)) {
+    const { from, to } = range;
+    if (to < scope.from || from > scope.to || from < fmEnd || getMdxRanges(state).some(range => "capitalized" in range && range.capitalized && range.start < to && range.end > from)) continue;
+    blocked.push([from, to]);
+    if (!touches(from, to)) {
+      const standalone = !doc.lineAt(from).text.slice(0, from - doc.lineAt(from).from).trim() &&
+        !doc.lineAt(to).text.slice(to - doc.lineAt(to).from).trim();
+      out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), standalone ? "html" : "html-inline", host), block: standalone }).range(from, to));
+    }
+  }
 
   const block = (from: number, to: number, kind: string, source: string) => {
     blocked.push([from, to]);
