@@ -1,4 +1,4 @@
-import { configEntries, validConfigValue } from "../shared/config-schema.js";
+import { configEntries, normalizeConfigValue, validConfigValue } from "../shared/config-schema.js";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -10,7 +10,8 @@ export function sanitizeSettings(raw: unknown): Settings {
   const r = record(raw) ? raw : {};
   const s: Settings = { ...DEFAULT_SETTINGS, recents: [] };
   for (const [, def] of configEntries) {
-    if (validConfigValue(def, r[def.setting])) Object.assign(s, { [def.setting]: r[def.setting] });
+    const value = normalizeConfigValue(def, r[def.setting]);
+    if (validConfigValue(def, value)) Object.assign(s, { [def.setting]: value });
   }
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;
   if (r.typeface === "sans" || r.typeface === "serif") s.typeface = r.typeface;

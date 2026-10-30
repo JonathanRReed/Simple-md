@@ -27,6 +27,9 @@ export const configSchema = {
   "code-content-width": { ...number("codeContentWidth", "Width (characters)", "Code", 100, 40, 200, 1), setting: "codeContentWidth" },
   "mode": { ...choice("mode", "Editing mode", "Behavior", "live", ["live", "split", "source"]), setting: "mode" },
   "open-in": { ...choice("openIn", "Open files in", "Behavior", "tab", ["tab", "window"]), setting: "openIn" },
+  "tab-style": { ...choice("tabStyle", "Tab style", "Tabs", "top", ["top", "sidebar"]), setting: "tabStyle" },
+  "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 220, 160, 420, 1), setting: "sidebarWidth" },
+  "sidebar-collapsed": { ...boolean("sidebarCollapsed", "Hide tab sidebar", "Tabs", false), setting: "sidebarCollapsed" },
   "autosave": { ...boolean("autosave", "Autosave", "Behavior", true), setting: "autosave" },
   "vim": { ...boolean("vim", "Vim key bindings", "Behavior", false), setting: "vim" },
   "spellcheck": { ...boolean("spellcheck", "Spellcheck", "Behavior", true), setting: "spellcheck" },
@@ -38,6 +41,13 @@ export type ConfigDefinition = (typeof configSchema)[ConfigKey];
 export type UserSettings = { -readonly [K in ConfigKey as (typeof configSchema)[K]["setting"]]: (typeof configSchema)[K]["default"] };
 export const configEntries = Object.entries(configSchema) as [ConfigKey, ConfigDefinition][];
 export const configDefaults = Object.fromEntries(configEntries.map(([, def]) => [def.setting, def.default])) as UserSettings;
+export function clampSidebarWidth(width: number): number {
+  const def = configSchema["sidebar-width"];
+  return Number.isFinite(width) ? Math.min(def.max, Math.max(def.min, Math.round(width))) : def.default;
+}
+export function normalizeConfigValue<T>(def: ConfigDefinition, value: T): T | number {
+  return def.setting === "sidebarWidth" && typeof value === "number" && Number.isFinite(value) ? clampSidebarWidth(value) : value;
+}
 export function isConfigKey(key: string): key is ConfigKey { return Object.hasOwn(configSchema, key); }
 export function validConfigValue(def: ConfigDefinition, value: unknown): boolean {
   switch (def.kind) {

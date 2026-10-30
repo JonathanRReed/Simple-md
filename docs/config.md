@@ -30,6 +30,9 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `code-content-width` | `100` | 40 to 200 |
 | `mode` | `live` | live, split, source |
 | `open-in` | `tab` | tab, window |
+| `tab-style` | `top` | top, sidebar |
+| `sidebar-width` | `220` | 160 to 420 |
+| `sidebar-collapsed` | `false` | true, false |
 | `autosave` | `true` | true, false |
 | `vim` | `false` | true, false |
 | `spellcheck` | `true` | true, false |
@@ -37,6 +40,8 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `launch-at-login` | `false` | true, false |
 
 The default appearance follows the system and selects the configured light or dark theme. Theme colors apply only to the document. Chrome, focus and selection use the system accent. GitHub style fixes reading typography at 16px system UI, line height 1.5 and a maximum width of 980px. Settings disables the reading font, size, line height and width controls while GitHub style is active, since those values have no effect. Config values remain saved and apply again when you switch back. Zoom still enlarges GitHub pages. Writing and code typography remain independent. Widths use characters of the selected font; code blocks scroll horizontally when needed. No fonts are bundled for these roles. KaTeX retains its math fonts.
+
+Tabs appear across the top by default. Set tab-style = sidebar for a list of open documents on the leading edge. Drag its divider to resize, use Left and Right when the divider has focus, or double-click to reset to 220 px. sidebar-width clamps to 160 through 420 px. View > Show/Hide Tab Sidebar uses Control-Command-S on macOS and Control-Alt-S elsewhere, where Control-Shift-S remains Save As. sidebar-collapsed saves the hidden state. These settings apply to every open window without reloading documents.
 
 Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
 
@@ -64,6 +69,9 @@ code-line-height = 1.55
 code-content-width = 100
 mode = live
 open-in = tab
+tab-style = top
+sidebar-width = 220
+sidebar-collapsed = false
 autosave = true
 vim = false
 spellcheck = true

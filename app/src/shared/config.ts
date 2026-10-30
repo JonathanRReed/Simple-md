@@ -1,4 +1,4 @@
-import { configDefaults, configEntries, configSchema, isConfigKey, validConfigValue, type ConfigKey, type UserSettings } from "./config-schema.js";
+import { configDefaults, configEntries, configSchema, isConfigKey, normalizeConfigValue, validConfigValue, type ConfigKey, type UserSettings } from "./config-schema.js";
 export interface ConfigIssue { line: number; key: string; message: string }
 export interface ConfigDocument { source: string; settings: UserSettings; issues: ConfigIssue[] }
 function valueAndComment(raw: string): { value: string; comment: string } {
@@ -35,7 +35,7 @@ export function parseConfig(source: string): ConfigDocument {
     if (!isConfigKey(key)) { issue(`Unknown key: ${key}.`); return; }
     const def = configSchema[key];
     try {
-      const value: unknown = decode(valueAndComment(match[2]!).value);
+      const value = normalizeConfigValue(def, decode(valueAndComment(match[2]!).value));
       if (!validConfigValue(def, value)) { issue(`Invalid value for ${key}.`); return; }
       Object.assign(settings, { [def.setting]: value });
     } catch { issue(`Invalid value for ${key}.`); }
@@ -49,7 +49,7 @@ export function encodeConfigValue(value: UserSettings[keyof UserSettings]): stri
 export function serializeConfig(source: string, patch: Partial<UserSettings>): string {
   const changed = new Map<ConfigKey, UserSettings[keyof UserSettings]>();
   for (const [key, def] of configEntries) {
-    const value = patch[def.setting];
+    const value = normalizeConfigValue(def, patch[def.setting]);
     if (value === undefined) continue;
     if (!validConfigValue(def, value)) throw new TypeError(`Invalid value for ${key}.`);
     changed.set(key, value);
@@ -76,8 +76,10 @@ export function validateUserPatch(raw: unknown): Partial<UserSettings> {
   const patch: Partial<UserSettings> = {};
   for (const [setting, value] of Object.entries(raw)) {
     const entry = configEntries.find(([, def]) => def.setting === setting);
-    if (!entry || !validConfigValue(entry[1], value)) throw new TypeError(`Invalid setting: ${setting}.`);
-    Object.assign(patch, { [setting]: value });
+    if (!entry) throw new TypeError(`Invalid setting: ${setting}.`);
+    const normalized = normalizeConfigValue(entry[1], value);
+    if (!validConfigValue(entry[1], normalized)) throw new TypeError(`Invalid setting: ${setting}.`);
+    Object.assign(patch, { [setting]: normalized });
   }
   return patch;
 }

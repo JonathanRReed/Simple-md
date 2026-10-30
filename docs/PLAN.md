@@ -54,7 +54,7 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 
 | Area | Decision |
 | --- | --- |
-| Tabs | Drawn by the app inside one window and one renderer, styled to feel native. Planning allowance is 5 to 25 MB per extra open document (inconclusive probe; measure in the real app), versus about 60 to 120 MB for an Electron native tab. Same on all platforms. No tear-off, no cross-window dragging, no session restore. "Move Tab to New Window" exists as a command only. |
+| Tabs | Drawn by the app inside one window and one renderer, styled to feel native. Top tabs are the default; `tab-style = sidebar` lists open documents on the leading edge, with a persisted width and collapsed state. Planning allowance is 5 to 25 MB per extra open document (inconclusive probe; measure in the real app), versus about 60 to 120 MB for an Electron native tab. Same on all platforms. No tear-off, no cross-window dragging, no session restore. "Move Tab to New Window" exists as a command only. |
 | Splits | Up to 2 panes, side by side or stacked. A document appears in at most one pane, because Side by side mode already covers source plus preview. Nested split trees are 1.x. |
 | Opening files | New files open as a tab in the frontmost window. Config `open-in = tab | window`. Opening an already-open file focuses its tab. A plain click on a sibling link navigates in place with back and forward. Command/Control-click opens a new tab. |
 | Closing | Command/Control-W closes the tab. Closing the last tab closes the window. On macOS the app stays resident in the tray. |

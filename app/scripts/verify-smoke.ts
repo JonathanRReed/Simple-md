@@ -1280,6 +1280,107 @@ await test("tabs-inactive-pane-link", async () => {
   `)], "read");
 });
 
+await test("tab-sidebar-menu-resize-relaunch", async () => {
+  const name = "tab-sidebar-menu-resize-relaunch";
+  const file = fixture(`${name}/README.md`, note);
+  const modifiers: ("control" | "meta" | "alt")[] = process.platform === "darwin" ? ["control", "meta"] : ["control", "alt"];
+  await launch(name, file, [
+    { nativeMenuState: { path: ["View", "Show Tab Sidebar"], enabled: true } },
+    { nativeMenu: ["View", "Show Tab Sidebar"] },
+    evaluate(`await waitFor(() => document.body.dataset.tabStyle === 'sidebar' && !document.querySelector('#tabs').hidden, 'View did not show the sidebar');
+      assert(document.querySelectorAll('[role=tab]').length === 1, 'Sidebar omitted its only document');
+      assert(document.querySelector('#tabs').getAttribute('aria-orientation') === 'vertical', 'Sidebar is not vertical');`),
+    { nativeIdentity: { file, edited: false } },
+    { input: { type: "keyDown", keyCode: "S", modifiers } },
+    { input: { type: "keyUp", keyCode: "S", modifiers } },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Sidebar shortcut did not collapse');
+      assert(Math.abs(document.querySelector('#stage').getBoundingClientRect().width - innerWidth) < 1, 'Collapsed sidebar retains width');`),
+    { nativeMenuState: { path: ["View", "Show Tab Sidebar"], enabled: true } },
+    { nativeMenu: ["View", "Show Tab Sidebar"] },
+    evaluate(`await waitFor(() => !document.querySelector('#sidebar-divider').hidden, 'Sidebar did not reopen');`),
+    { input: { type: "mouseDown", x: 222, y: 110, button: "left", clickCount: 1 } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left" } },
+    evaluate(`assert((await window.simplemd.ready()).settings.sidebarWidth === 220, 'Drag wrote config before release');`),
+    { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Native divider drag failed');
+      assert((await window.simplemd.ready()).settings.sidebarWidth === 300, 'Drag width did not persist');`),
+    { input: { type: "mouseDown", x: 302, y: 110, button: "left", clickCount: 2 } },
+    { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 2 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '220', 'Double click did not reset divider');`),
+    { input: { type: "mouseDown", x: 222, y: 110, button: "left", clickCount: 1 } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left" } },
+    { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Final width did not apply');`),
+    { debug: { method: "Emulation.setEmulatedMedia", params: { features: [{ name: "forced-colors", value: "active" }] } } },
+    evaluate(`const selected = getComputedStyle(document.querySelector('[role=tab][aria-selected=true]'));
+      assert(selected.outlineWidth === '2px' && selected.outlineStyle === 'solid', 'Sidebar selection has no forced-colors cue');`),
+    { nativeMenu: ["View", "Hide Tab Sidebar"] },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Menu did not hide sidebar');`),
+    { menuQuit: true },
+  ]);
+  const config = path.join(root, name, "profile", "config");
+  assert(/sidebar-width = 300/.test(fs.readFileSync(config, "utf8")), "Sidebar width was not written to config.");
+  assert(/sidebar-collapsed = true/.test(fs.readFileSync(config, "utf8")), "Sidebar collapse was not written to config.");
+  await launch(name, file, [
+    evaluate(`const settings = (await window.simplemd.ready()).settings;
+      assert(settings.tabStyle === 'sidebar' && settings.sidebarWidth === 300 && settings.sidebarCollapsed, 'Sidebar settings did not survive relaunch');
+      assert(document.querySelector('#tabs').hidden && document.querySelector('#sidebar-divider').hidden, 'Relaunch lost collapsed state');`),
+    { input: { type: "keyDown", keyCode: "S", modifiers } },
+    { input: { type: "keyUp", keyCode: "S", modifiers } },
+    evaluate(`await waitFor(() => !document.querySelector('#tabs').hidden, 'Shortcut did not reopen after relaunch');
+      assert(document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Reopened sidebar lost width');`),
+    { nativeIdentity: { file, edited: false } },
+  ]);
+});
+
+await test("tab-sidebar-edited-identity", async () => {
+  const file = fixture("tab-sidebar-edited/README.md", note);
+  await launch("tab-sidebar-edited-identity", file, [
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });`),
+    ...appendCharacter("!"),
+    { nativeIdentity: { file, edited: true } },
+    evaluate(`await waitFor(() => document.querySelector('[role=tab]').dataset.dirty === 'true', 'Sidebar did not show dirty state');
+      await window.simplemd.setSettings({ tabStyle: 'top' });
+      await window.simplemd.setSettings({ tabStyle: 'sidebar' });
+      assert(!document.querySelector('#dirty').hidden && document.title === 'README.md', 'Tab style changed Edited or title state');`),
+    { nativeIdentity: { file, edited: true } },
+    { dialog: { response: 1 } }, { menuQuit: true },
+  ], "edit");
+  assert.equal(fs.readFileSync(file, "utf8"), note, "Changing tab style saved the unsaved edit.");
+});
+
+await test("tab-sidebar-native-actions-and-live-windows", async () => {
+  const a = fixture("tab-sidebar-actions/one/README.md", note), b = fixture("tab-sidebar-actions/two/README.md", "# Other\n");
+  const c = fixture("tab-sidebar-actions/third.md", "# Third\n");
+  const context = { selectionPresent: false, editable: false, linkURL: "", imageURL: "", misspelledWord: "", suggestions: [] };
+  await launch("tab-sidebar-native-actions-and-live-windows", a, [
+    evaluate(`await window.simplemd.openPath(${quote(b)}); window.simplemd.command('move-tab-window');`),
+    { windowCount: 2 }, { selectWindow: a },
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar', sidebarWidth: 280 });
+      await waitFor(() => !document.querySelector('#tabs').hidden, 'First window missed sidebar style');`),
+    { selectWindow: b },
+    evaluate(`await waitFor(() => !document.querySelector('#tabs').hidden, 'Second window missed live sidebar style');
+      assert(document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '280', 'Second window missed live width');
+      await window.simplemd.openPath(${quote(c)});
+      await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Second tab did not appear');`),
+    { nativeContext: { selector: "#tabs .tab:first-child", context, labels: ["Close Tab", "Move Tab to New Window", process.platform === "darwin" ? "Reveal in Finder" : "Show in File Manager"], choose: "Close Tab" } },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Sidebar context Close Tab failed');
+      assert(document.documentElement.dataset.documentPath === ${quote(c)}, 'Context close changed the active document');
+      await window.simplemd.setSettings({ sidebarCollapsed: true });`),
+    { selectWindow: a },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Collapse did not apply to every window');
+      await window.simplemd.setSettings({ tabStyle: 'top' });`),
+    { selectWindow: c },
+    evaluate(`await waitFor(() => document.querySelector('#tabs').getAttribute('aria-orientation') === 'horizontal', 'Top style did not apply to every window');
+      await window.simplemd.setSettings({ tabStyle: 'sidebar', sidebarCollapsed: false });
+      await window.simplemd.openPath(${quote(b)});
+      await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Middle click fixture did not open');`),
+    { input: { type: "mouseDown", x: 80, y: 62, button: "middle", clickCount: 1 } },
+    { input: { type: "mouseUp", x: 80, y: 62, button: "middle", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Native middle click did not close sidebar row');`),
+  ]);
+});
+
 await test("tabs-keyboard-focus", async () => {
   const a = fixture("tabs-focus/a.md", note), b = fixture("tabs-focus/b.md", "# B\n"), c = fixture("tabs-focus/c.md", "# C\n");
   await launch("tabs-keyboard-focus", a, [

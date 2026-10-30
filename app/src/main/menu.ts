@@ -124,6 +124,7 @@ export function buildMenu(a: MenuActions): void {
     {
       label: "View",
       submenu: [
+        cmd(s.tabStyle === "sidebar" && !s.sidebarCollapsed ? "Hide Tab Sidebar" : "Show Tab Sidebar", "toggle-tab-sidebar", mac ? "Control+Command+S" : "Control+Alt+S"),
         cmd("Split Side by Side", "split-panes", "CommandOrControl+\\"),
         cmd("Split Stacked", "stack-panes", "CommandOrControl+Shift+\\"),
         cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+Right"),
