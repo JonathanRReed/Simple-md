@@ -1,0 +1,7 @@
+[lint]
+# typeAware = true   # also run the rules that need types
+
+[lint.rules]
+# Security code (sanitizer, URL resolver, config and CLI parsing) matches
+# control characters on purpose.
+"no-control-regex" = "off"

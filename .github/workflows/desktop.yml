@@ -103,7 +103,7 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version: "1.4.4"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -111,6 +111,8 @@ jobs:
         run: bun run setup
       - name: Typecheck
         run: bun run typecheck
+      - name: Lint
+        run: bun run lint
       - name: Build release CLI and native helper before tests
         run: bun run build:native
       - name: Test

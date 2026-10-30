@@ -80,6 +80,6 @@ export async function prepareCliRuntime(binary: string, profile?: string): Promi
       if (!state || typeof state !== "object" || !("secret" in state) || state.secret !== secret) return;
       fs.unlinkSync(stateFile); stateRemoved = true;
     } catch { if (!stateRemoved) return; }
-    try { fs.rmdirSync(directory); } catch {}
+    try { fs.rmdirSync(directory); } catch { /* best effort: another instance may still use it */ }
   } };
 }

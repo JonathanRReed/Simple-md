@@ -1,3 +1,4 @@
+/* global calls, command, fixture -- provided by the editor test harness */
 assert(!document.querySelector('#preferences, #preferences-btn, #empty-preferences'), 'document UI has no Preferences dialog or buttons');
 await command('preferences');
 assert(calls.command === 'preferences', 'Settings command goes to the main process');

@@ -1,3 +1,4 @@
+/* global doc, flushed, listeners, pending, until, wait -- provided by the editor test harness */
 const taskBlocks = text => [{key:text,html:'<ul>'+text.split('\n').map(line=>'<li class="task-list-item"><input class="task-list-item-checkbox" disabled type="checkbox">'+line.slice(6)+'</li>').join('')+'</ul>'}];
 const initial = '- [ ] original';
 const inserted = '- [ ] inserted\n- [ ] original';
