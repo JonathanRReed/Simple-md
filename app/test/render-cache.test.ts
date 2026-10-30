@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { RenderCache, RENDER_CACHE_VERSION } from "../src/main/render-cache";
@@ -81,4 +82,20 @@ describe("disk render cache", () => {
     expect(cache.get("/note-1.md", 1, 1, "a")).toBeNull();
     cache.flush();
   });
+});
+
+
+test("upgrade discards cached lists without item ranges and persists current ranges", async () => {
+  const text = "- One\n- Two\n";
+  const rendered = await renderBlocks(text, "/list.md");
+  const legacyBlocks = rendered.blocks.map(block => { const copy = { ...block }; delete copy.itemRanges; return copy; });
+  const target = file();
+  fs.writeFileSync(target, JSON.stringify({ version: 5, entries: { "/list.md": {
+    ...rendered, blocks: legacyBlocks, mtimeMs: 1, size: text.length,
+    sourceHash: createHash("sha256").update(text).digest("hex"),
+  } } }));
+  const cache = new RenderCache(target);
+  expect(cache.get("/list.md", 1, text.length, text)).toBeNull();
+  cache.set("/list.md", 1, text.length, rendered.title, rendered.blocks, text); cache.flush();
+  expect(new RenderCache(target).get("/list.md", 1, text.length, text)?.blocks[0]?.itemRanges).toEqual([[0, 1], [1, 2]]);
 });
