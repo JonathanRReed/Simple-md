@@ -9,7 +9,7 @@ import { verifyQuickLook } from "./quicklook-verify.mjs";
 import { releaseConfig, releaseVersion, repository } from "./release-config.mjs";
 import { refreshUpdateMetadata, writeChecksums } from "./release-metadata.mjs";
 
-export function macReleasePlan({ version, expected, dirty, platform, arch, identity }) {
+export function macReleasePlan({ version, expected, dirty, platform, arch, identity, keychainProfile = "simplemd-notary" }) {
   releaseVersion(expected);
   if (version !== expected) throw new Error(`Version mismatch: package is ${version}, requested ${expected}.`);
   if (dirty.trim()) throw new Error("Release requires a clean git tree, including untracked files.");
@@ -17,10 +17,10 @@ export function macReleasePlan({ version, expected, dirty, platform, arch, ident
   if (identity && (!identity.startsWith("Developer ID Application: ") || !identity.endsWith("(AJ9VWBRNZN)"))) throw new Error("Use a Developer ID Application identity for team AJ9VWBRNZN.");
   return {
     version, arch, identity: identity || "Developer ID Application: <owner identity> (AJ9VWBRNZN)",
-    keychainProfile: "simplemd-notary", team: "AJ9VWBRNZN",
+    keychainProfile, team: "AJ9VWBRNZN",
     output: path.join(appDir, "release", `mac-${version}-${arch}`),
     steps: ["Build app, Rust helper and CLI", "Sign Quick Look extensions and app with Developer ID",
-      "Notarize app ZIP with --keychain-profile simplemd-notary --wait", "Staple app and verify with spctl and stapler validate",
+      `Notarize app ZIP with --keychain-profile ${keychainProfile} --wait`, "Staple app and verify with spctl and stapler validate",
       "Create DMG and ZIP of stapled app plus latest-mac.yml", "Notarize and staple DMG, verify, refresh hashes and write SHA256SUMS"],
     upload: `gh release upload v${version} --repo ${repository} <output>/*.dmg <output>/*.zip <output>/*.blockmap <output>/latest-mac.yml <output>/SHA256SUMS-mac-${arch}`,
   };
@@ -32,7 +32,8 @@ export async function releaseMac(args) {
   const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
   const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: appDir, encoding: "utf8" });
   const plan = macReleasePlan({ version: pkg.version, expected: args[args.indexOf("--version") + 1], dirty,
-    platform: process.platform, arch: process.arch, identity: process.env.SIMPLEMD_SIGN_IDENTITY });
+    platform: process.platform, arch: process.arch, identity: process.env.SIMPLEMD_SIGN_IDENTITY,
+    keychainProfile: process.env.SIMPLEMD_NOTARY_PROFILE || undefined });
   if (!pkg.build.mac.target.includes("zip") || !pkg.build.mac.target.includes("dmg") || !pkg.build.mac.hardenedRuntime) throw new Error("Release needs DMG, ZIP and hardened runtime.");
   const config = { ...releaseConfig(currentNativePlan(), plan.output), forceCodeSigning: true,
     mac: { identity: plan.identity.slice("Developer ID Application: ".length), notarize: false }, dmg: { sign: true, writeUpdateInfo: false } };

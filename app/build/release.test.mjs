@@ -80,3 +80,9 @@ test("generates winget and Homebrew from a fake release without publishing", () 
   release.assets[0].digest = "sha256:nope";
   expect(() => generateManifests(release)).toThrow("SHA-256");
 });
+
+test("the notary keychain profile can be overridden", () => {
+  const base = { version: "1.0.0", expected: "1.0.0", dirty: "", platform: "darwin", arch: "arm64" };
+  expect(macReleasePlan(base).keychainProfile).toBe("simplemd-notary");
+  expect(macReleasePlan({ ...base, keychainProfile: "jrbar-notary" }).keychainProfile).toBe("jrbar-notary");
+});

@@ -5,7 +5,7 @@ Releases come from this repository. macOS signing stays on the owner's Mac. Wind
 ## One-time setup
 
 - Install the Developer ID Application certificate for team `AJ9VWBRNZN` locally. Set `SIMPLEMD_SIGN_IDENTITY` to its full `Developer ID Application: ... (AJ9VWBRNZN)` name. Keep it out of CI.
-- Store notarization credentials yourself with `xcrun notarytool store-credentials simplemd-notary --team-id AJ9VWBRNZN`. Enter the account and app-specific password at the prompts. Do not commit either.
+- Store notarization credentials yourself with `xcrun notarytool store-credentials simplemd-notary --team-id AJ9VWBRNZN`. Enter the account and app-specific password at the prompts. Do not commit either. To reuse an existing profile for the same team, set `SIMPLEMD_NOTARY_PROFILE` to its name.
 - After SignPath Foundation approval, configure secrets `SIGNPATH_API_TOKEN` and `SIGNPATH_ORGANIZATION_ID`, and repository variables `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG`, and `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG`. The artifact configuration must sign the NSIS installer and its embedded executables. Missing configuration produces unsigned artifacts. A configured signing failure stops that build.
 - Create a personal `homebrew-tap` repository when ready. Manifest generation does not write to that repository.
 
