@@ -3,7 +3,7 @@ import { parse, parseFragment, serialize, defaultTreeAdapter as tree, html as ht
   type DefaultTreeAdapterTypes as P } from "parse5";
 import GithubSlugger from "github-slugger";
 import { authorPolicy, globalAttrs, perTag, prefixFragment } from "./sanitizer-policy.js";
-import { resolveAuthorUrl, resolveSrcset, resolveFragment, type UrlContext } from "./url-resolver.js";
+import { BLOCKED_LINK_TITLE, resolveAuthorUrl, resolveSrcset, resolveFragment, type UrlContext } from "./url-resolver.js";
 import type { RenderNode, RenderedHtml } from "./render-tree.js";
 
 export interface StaticAuthorOptions { urls?: UrlContext; remoteImages?: boolean }
@@ -150,6 +150,7 @@ function sanitizeTree(html: string, options: StaticAuthorOptions, originals: Ori
       continue;
     }
     const original = new Map<string, string>();
+    let blocked = false;
     node.attrs = node.attrs.flatMap((entry) => {
       const name = entry.name;
       if (entry.namespace || forbiddenAttrs.has(name) || (!globals.has(name) && !perTag[tag]?.includes(name))) return [];
@@ -158,6 +159,7 @@ function sanitizeTree(html: string, options: StaticAuthorOptions, originals: Ori
       if (urlAttrs.has(name)) {
         const resolved = name === "srcset" ? resolveSrcset(value, options.urls, options.remoteImages)
           : resolveAuthorUrl(value, tag === "a" && name === "href" ? "anchor" : "resource", options.urls, options.remoteImages);
+        if (resolved === null && tag === "a" && name === "href") blocked = true;
         return resolved === null ? [] : [{ name, value: resolved }];
       }
       if (name === "id" || name === "name") value = prefixFragment(value);
@@ -166,6 +168,7 @@ function sanitizeTree(html: string, options: StaticAuthorOptions, originals: Ori
       if (unsafeAttribute.test(value) || (value && !uriSafeAttrs.has(name) && !uriPattern.test(value.replace(attrWhitespace, "")))) return [];
       return [{ name, value }];
     });
+    if (blocked) setAttr(node, "title", BLOCKED_LINK_TITLE);
     originals.set(node, original);
     for (let i = node.childNodes.length - 1; i >= 0; i--) stack.push(node.childNodes[i]!);
   }

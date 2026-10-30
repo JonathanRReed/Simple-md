@@ -1,0 +1,40 @@
+:root {
+  --bg: #fcfcfb;
+  --fg: #26262a;
+  --muted: #8a8a92;
+  --rule: rgba(0, 0, 0, 0.07);
+  --code-bg: rgba(20, 20, 30, 0.04);
+  --accent: #3b6df0;
+  --selection: rgba(59, 109, 240, 0.2);
+  --tok-keyword: #cf222e;
+  --tok-string: #0a3069;
+  --tok-number: #0550ae;
+  --tok-comment: #6e7781;
+  --tok-name: #8250df;
+  --tok-type: #953800;
+  --sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+  --serif: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  --prose-font: var(--sans);
+  --measure: 44rem;
+  --zoom: 1;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161617;
+    --fg: #e6e6ea;
+    --muted: #7d7d86;
+    --rule: rgba(255, 255, 255, 0.08);
+    --code-bg: rgba(255, 255, 255, 0.05);
+    --accent: #7ea2ff;
+    --selection: rgba(126, 162, 255, 0.28);
+    --tok-keyword: #ff7b72;
+    --tok-string: #a5d6ff;
+    --tok-number: #79c0ff;
+    --tok-comment: #8b949e;
+    --tok-name: #d2a8ff;
+    --tok-type: #ffa657;
+  }
+}

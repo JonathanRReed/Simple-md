@@ -404,6 +404,7 @@ body[data-platform="darwin"] .picker-card {
 
 .prose img {
   max-width: 100%;
+  height: auto;
   border-radius: 8px;
 }
 
@@ -544,13 +545,28 @@ body[data-platform="darwin"] .picker-card {
 details.frontmatter {
   font-size: 0.85em;
   color: var(--muted);
+  min-width: 0;
+  margin-bottom: 1em;
 }
 details.frontmatter summary {
-  cursor: default;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.frontmatter-body {
+  max-height: 60vh;
+  overflow: auto;
+  margin-top: .5em;
+}
+.frontmatter-body > table { table-layout: fixed; }
+.frontmatter-body > table > tbody > tr > th { width: 8em; }
+.frontmatter-value { max-height: 20em; overflow: auto; }
+.frontmatter-value table { width: auto; }
+.frontmatter-value th, .frontmatter-value td { border: 0; }
 details.frontmatter pre {
-  margin-top: 0.5em;
-  font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .katex-display {
@@ -863,6 +879,7 @@ details.frontmatter pre {
 }
 .cm-image {
   max-width: 100%;
+  height: auto;
   border-radius: 8px;
   vertical-align: bottom;
 }
@@ -979,6 +996,7 @@ code,
   border-radius: 6px;
 }
 .prose span.mdx-component { display: inline; margin: 0; padding: .15em .4em; }
+.prose .mdx-component > .mdx-label { margin-inline-end: .5em; }
 .prose .mdx-label { color: var(--muted); font: .75em var(--mono); }
 .prose div.mdx-component > .mdx-label { display: block; margin-bottom: .4em; }
 .prose .mdx-component > :last-child { margin-bottom: 0; }

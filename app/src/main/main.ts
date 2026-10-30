@@ -46,7 +46,7 @@ import type {
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
 import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
-import { writeExportAtomic } from "./export-write.js";
+import { checkExportDestination, writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
 import { perfMark } from "./perf.js";
 import { blockChanges, startBlocks, nextBlocks, disposeRenderer, mdxRanges, renderBlocks, renderFragment } from "./render-client.js";
@@ -778,10 +778,15 @@ async function exportDocumentBytes(doc: DocumentSession, text: string, format: E
   return format === "pdf" ? makePdf(text, doc) : Buffer.from(await makeHtml(text, doc));
 }
 
+async function exportName(text: string, current: DocumentSession, format: ExportFormat): Promise<string> {
+  const { documentTitle, exportFilename } = await import("../shared/document-title.js");
+  return exportFilename(documentTitle(text, current.name), format);
+}
+
 async function exportPdf(text: string): Promise<void> {
   const current = currentSession();
   const res = await dialog.showSaveDialog(context().win, {
-    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.pdf`),
+    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), await exportName(text, current, "pdf")),
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (res.canceled || !res.filePath) return;
@@ -792,7 +797,7 @@ async function exportPdf(text: string): Promise<void> {
 async function exportHtml(text: string): Promise<void> {
   const current = currentSession();
   const res = await dialog.showSaveDialog(context().win, {
-    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), `${current.name.replace(/\.[^.]+$/, "")}.html`),
+    defaultPath: path.join(current.path ? path.dirname(current.path) : app.getPath("documents"), await exportName(text, current, "html")),
     filters: [{ name: "HTML", extensions: ["html"] }],
   });
   if (res.canceled || !res.filePath) return;
@@ -1093,7 +1098,7 @@ function registerIpc(): void {
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (text !== doc.text || (format !== "html" && format !== "pdf")) throw new TypeError("Invalid export source or format.");
-    return documents.run(() => doc.render(revisionId, async () => (await getDragExports()).prepare(doc.documentId, revisionId, doc.name, format, () => exportDocumentBytes(doc, text, format))));
+    return documents.run(() => doc.render(revisionId, async () => (await getDragExports()).prepare(doc.documentId, revisionId, await exportName(text, doc, format), format, () => exportDocumentBytes(doc, text, format))));
   });
   on("smd:start-drag-export", (event, id, revision, token) => {
     try {
@@ -1144,6 +1149,7 @@ function hardenSession(): void {
 
 const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
   if (request.command === "export") {
+    await checkExportDestination(request.output, request.overwrite);
     const { text, readOnlyReason } = await readDocument(request.path);
     if (readOnlyReason === ENCODING_NOTICE) throw new Error(ENCODING_NOTICE);
     const input = await fs.promises.realpath(request.path);

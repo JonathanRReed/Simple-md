@@ -8,6 +8,7 @@ import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
 import { editorMdxRanges } from "./mdx-positions.js";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { html } from "@codemirror/lang-html";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
@@ -160,7 +161,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         closeBrackets(),
         EditorState.allowMultipleSelections.of(true),
         search({ top: true }),
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        markdown({ base: markdownLanguage, codeLanguages: languages, htmlTagLanguage: html({ autoCloseTags: false, matchClosingTags: false }) }),
         syntaxHighlighting(classHighlighter),
         ...(opts.mdx ? [mdxSyntax(editorMdxRanges(opts.text, opts.mdx))] : []),
         frontmatterExtension,

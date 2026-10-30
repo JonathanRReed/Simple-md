@@ -37,6 +37,7 @@ export function isRenderedHtml(value: unknown): value is RenderedHtml {
     "urls" in value && typeof value.urls === "object" && value.urls !== null &&
     (!("baseUrl" in value.urls) || typeof value.urls.baseUrl === "string") &&
     (!("rootUrl" in value.urls) || typeof value.urls.rootUrl === "string") &&
+    (!("publicUrl" in value.urls) || typeof value.urls.publicUrl === "string") &&
     (!("content" in value) || isRenderNode(value.content));
 }
 

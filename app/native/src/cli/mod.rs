@@ -252,7 +252,30 @@ fn launch() -> Result<(), String> {
         Err("Could not launch SimpleMD".into())
     }
 }
+fn check_export_destination(action: &Action) -> Result<(), String> {
+    if let Action::Export {
+        output, overwrite, ..
+    } = action
+    {
+        match std::fs::symlink_metadata(output) {
+            Ok(_) if !overwrite => {
+                return Err(format!(
+                    "Export destination already exists: {}. Use --force to replace it.",
+                    output.display()
+                ));
+            }
+            Ok(stat) if !stat.is_file() => {
+                return Err("Export can replace only a regular file.".into());
+            }
+            Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error.to_string()),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn execute(action: Action) -> Result<(), String> {
+    check_export_destination(&action)?;
     let dir = runtime_dir()?;
     let mut stdin = Vec::new();
     if matches!(action, Action::Stdin { .. }) {
@@ -409,6 +432,39 @@ mod tests {
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|v| (*v).into()).collect()
     }
+    #[test]
+    fn existing_export_preflight() {
+        let dir = env::temp_dir().join(format!("smd-export-preflight-{}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        let output = dir.join("out.html");
+        let mut action = Action::Export {
+            path: dir.join("input.md"),
+            output: output.clone(),
+            format: "html".into(),
+            overwrite: false,
+        };
+        assert!(check_export_destination(&action).is_ok());
+        std::fs::write(&output, "Original").unwrap();
+        assert!(
+            check_export_destination(&action)
+                .unwrap_err()
+                .contains("Use --force")
+        );
+        if let Action::Export { overwrite, .. } = &mut action {
+            *overwrite = true;
+        }
+        assert!(check_export_destination(&action).is_ok());
+        assert_eq!(std::fs::read_to_string(&output).unwrap(), "Original");
+        std::fs::remove_file(&output).unwrap();
+        std::fs::create_dir(&output).unwrap();
+        assert!(
+            check_export_destination(&action)
+                .unwrap_err()
+                .contains("regular file")
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn path_suffixes_and_literals() {
         let cwd = Path::new("/tmp");

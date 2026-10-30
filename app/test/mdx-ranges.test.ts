@@ -79,6 +79,20 @@ describe("findMdxRanges", () => {
     expect(ranges.map((range) => source.slice(range.start, range.end))).toEqual(["<Real />"]);
   });
 
+  test("math keeps exact offsets without consuming JSX attributes, ESM, escapes or code", () => {
+    for (const newline of ["\n", "\r\n", "\r"]) {
+      const source = `\uFEFF$$${newline}\\sum_{i=1}^{3}\\theta_i = 2\\pi${newline}$$${newline}${newline}<X value={"$x$"} />${newline}${newline}$\\frac{1}{2}$ {real}`;
+      const ranges = findMdxRanges(source);
+      expect(ranges.error).toBeUndefined();
+      expect(ranges.map(range => source.slice(range.start, range.end))).toEqual(['<X value={"$x$"} />', '{real}']);
+      expect(reconstruct(source, ranges)).toBe(source);
+    }
+    const source = 'import x from "$x$"\n\n`$x$ {code}` and \\$5 {real}';
+    const ranges = findMdxRanges(source);
+    expect(ranges.error).toBeUndefined();
+    expect(ranges.map(range => range.kind)).toEqual(["esm", "expression-text"]);
+  });
+
   test("comments preserve content and do not confuse strings, code, or JSX attributes", () => {
     const source = '<!-- hi\n<Fake /> {broken --> after <B />\n\n{/* block */ /* next */}\n\ninline {/* text */} end\n\n<X title="<!-- literal -->" value={"<!-- string -->"} />\n\n`<!-- code -->`';
     const ranges = findMdxRanges(source);

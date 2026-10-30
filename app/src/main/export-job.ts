@@ -34,6 +34,8 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
       });
       pw.webContents.send("smd:print-doc", doc, getSettings());
       await ready;
+      await pw.webContents.executeJavaScript(`document.title = ${JSON.stringify(doc.title)}`);
+      pw.setTitle(doc.title);
       return await use(pw, doc);
     } finally {
       clearTimeout(timer);
@@ -44,7 +46,7 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
 
   function makePdf(source: ExportSource): Promise<Buffer> {
     return withPrintWindow(source, (pw) =>
-      pw.webContents.printToPDF({ printBackground: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
+      pw.webContents.printToPDF({ printBackground: true, generateTaggedPDF: true, generateDocumentOutline: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
     );
   }
 

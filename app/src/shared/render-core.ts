@@ -4,9 +4,10 @@ import { mapMdxPreview, type MdxPreview } from "./mdx-preview.js";
 import type { Token } from "markdown-it";
 import { createMarkdownParser } from "./markdown-parser.js";
 import { prepareMath } from "./github-math.js";
-import { resolveAuthorUrl, type UrlContext } from "./url-resolver.js";
+import { BLOCKED_LINK_TITLE, resolveAuthorUrl, type UrlContext } from "./url-resolver.js";
 import { type RenderedHtml, type RenderNode } from "./render-tree.js";
 import GithubSlugger from "github-slugger";
+import { documentTitle, splitFrontmatter } from "./document-title.js";
 import { renderFrontmatter } from "./frontmatter.js";
 export type { RenderedHtml } from "./render-tree.js";
 
@@ -32,13 +33,6 @@ function utf8ByteLength(text: string): number {
   }
   return bytes;
 }
-function splitFrontmatter(src: string): { body: string; title?: string; raw?: string } {
-  const m = /^---(?:\r\n|[\r\n])([\s\S]*?)(?:\r\n|[\r\n])---(?:(?:\r\n|[\r\n])|$)/.exec(src);
-  if (!m) return { body: src };
-  const title = /^title:\s*["']?(.+?)["']?\s*$/m.exec(m[1]!)?.[1];
-  return { body: src.slice(m[0].length), title, raw: m[1] };
-}
-
 // This scanner only decides cache/block boundaries. It grants no HTML privileges;
 // the DOM parser and DOMPurify still parse and sanitize the entire author unit.
 function groupRawWrappers(groups: Token[][]): Token[][] {
@@ -207,7 +201,10 @@ export function createRenderCore(services: RenderServices = {}) {
           if (/^\/(?!\/)/.test(original)) rootContext();
           const resolved = resolveAuthorUrl(original, attr === "src" ? "resource" : "anchor", context);
           if (resolved !== null) tok.attrSet(attr, resolved);
-          else tok.attrs = tok.attrs?.filter(([name]) => name !== attr) ?? null;
+          else {
+            tok.attrs = tok.attrs?.filter(([name]) => name !== attr) ?? null;
+            if (attr === "href") tok.attrSet("title", BLOCKED_LINK_TITLE);
+          }
         }
         if (tok.children) visit(tok.children);
       }
@@ -261,7 +258,7 @@ export function createRenderCore(services: RenderServices = {}) {
 
   async function* renderBlockBatches(src: string, filePath: string | null, highlighted = true, isMdx = /\.mdx$/i.test(filePath ?? "")): AsyncGenerator<RenderedBlocks> {
     highlighting = highlighted;
-    const { body, title, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
+    const { body, raw } = splitFrontmatter(src.replace(/^\uFEFF/, ""));
     services.mark?.("mdx-parse-start");
     const ranges = isMdx ? await cachedMdxRanges(src) : undefined;
     services.mark?.("mdx-parse-end");
@@ -313,7 +310,8 @@ export function createRenderCore(services: RenderServices = {}) {
     services.mark?.("html-serialize-start");
     let blocks: RenderedBlock[] = [];
     let batchBytes = 0;
-    const result = (): RenderedBlocks => ({ ...(mdx ? { mdx } : {}), title: title ?? (filePath ? filePath.split(/[/\\]/).pop()!.replace(/\.[^.]*$/, "") : "Untitled"), blocks });
+    const title = documentTitle(src, filePath, tokens);
+    const result = (): RenderedBlocks => ({ ...(mdx ? { mdx } : {}), title, blocks });
     const seenKeys = new Map<string, number>();
     if (raw !== undefined) {
       const html = await renderFrontmatter(raw);
