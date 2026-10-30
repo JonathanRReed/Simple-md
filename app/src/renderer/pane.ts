@@ -1212,9 +1212,15 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       scrollToFragment(href); updateChrome(); return;
     }
     const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
+    const from = doc.meta.path ? { path: doc.meta.path, anchor: visibleAnchor() } : undefined;
+    const id = pane.documentId;
     navigatingLink = !newTab;
     try {
-      if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, pane.documentId) && fragment && !newTab) scrollToFragment(fragment);
+      if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, id) && fragment && !newTab) {
+        if (pane.documentId === id && from) { navBack.push(from); navForward.length = 0; }
+        readRestoreAnchor = undefined;
+        scrollToFragment(fragment); updateChrome();
+      }
     } finally { navigatingLink = false; }
   }
 

@@ -579,7 +579,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     });
   } catch (err) {
     console.error("simple-md: failed to open", abs, err);
-    if (cli) throw err;
+    if (cli) { const { cliFileError } = await import("./cli-open.js"); throw cliFileError(abs, err); }
     void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
   } finally {
@@ -1193,6 +1193,12 @@ const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
       if (request.wait) payload.initialMode = "source";
       reveal(host); await present(payload, host);
     } else {
+      if (request.location.kind === "heading") {
+        const { cliFileError, requireHeading } = await import("./cli-open.js");
+        const source = await readDocument(request.path).catch(error => { throw cliFileError(request.path, error); });
+        if (source.readOnlyReason === ENCODING_NOTICE) throw cliFileError(request.path, new Error(ENCODING_NOTICE));
+        requireHeading((await renderBlocks(source.text, request.path, /\.mdx$/i.test(request.path))).blocks, request.location.heading);
+      }
       if (!(await openCurrentFile(request.path, fileOpenIntent(request.path, request.wait, request.location), false, undefined, host, true, opensInSource(request.path, request.wait, request.location)))) throw new Error("The file could not be opened.");
       const canonical = await fs.promises.realpath(request.path);
       for (const candidate of windows.values()) {

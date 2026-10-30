@@ -24,7 +24,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
-    openLink: async (href: string) => { await pane.load(payload(href, "read")); return true; },
+    openLink: async (href: string) => { const file = href.split("#")[0]!; if (file !== pane.meta.path) await pane.load(payload(file, "read")); return true; },
     openPath: async (file: string) => { calls.opened.push(file); await pane.load(payload(file, "read")); return true; },
     prepareDragExport: async (_text: string, _id: number, _rev: number, format: string) => ({ token: format, name: `long.${format}`, expiresAt: Date.now() + 30000 }),
     exportPdf: async () => { calls.saves.push("pdf"); }, exportHtml: async () => { calls.saves.push("html"); },
@@ -76,6 +76,9 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert(!back.hidden && read.scrollTop > 0, "Heading link did not expose Back"); back.click(); await settle();
   const afterFragment = blockAnchor(readArticle, read);
   assert(beforeFragment.kind === "line" && afterFragment.kind === "line" && Math.abs(beforeFragment.line - afterFragment.line) <= 1, "Back from a heading link lost the scroll position");
+  fragment.href = "/tmp/long.md#part-80"; fragment.click(); await settle(); back.click(); await settle();
+  const afterFileFragment = blockAnchor(readArticle, read);
+  assert(beforeFragment.kind === "line" && afterFileFragment.kind === "line" && Math.abs(beforeFragment.line - afterFileFragment.line) <= 1, "Back from a same-file heading link lost position");
   const format = root.querySelector<HTMLSelectElement>("#export-format")!;
   const exportButton = root.querySelector<HTMLButtonElement>("#drag-export")!;
   for (const value of ["html", "pdf"]) {

@@ -212,9 +212,11 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
   bar.hidden = false;
 
   function paint(scroll = true): void {
-    CSS.highlights.set("read-matches", new Highlight(...ranges));
+    const all = new Highlight();
+    for (const range of ranges) all.add(range);
+    CSS.highlights.set("read-matches", all);
     const range = ranges[current];
-    CSS.highlights.set("read-current", new Highlight(...range ? [range] : []));
+    CSS.highlights.set("read-current", new Highlight(...(range ? [range] : [])));
     count.textContent = `${range ? current + 1 : 0} of ${ranges.length}`;
     previous.disabled = next.disabled = !ranges.length;
     if (range && scroll) {
