@@ -66,7 +66,7 @@ export async function releaseMac(args) {
     } finally { rmSync(scratch, { recursive: true, force: true }); }
   };
   const { build, createTargets, Platform } = await import("electron-builder");
-  await build({ projectDir: appDir, targets: createTargets([Platform.MAC], ["dmg", "zip"], process.arch), config, publish: "never" });
+  await build({ projectDir: appDir, targets: createTargets([Platform.MAC], null, process.arch), config, publish: "never" });
   for (const name of readdirSync(plan.output).filter(name => name.endsWith(".dmg"))) {
     const dmg = path.join(plan.output, name);
     notarize(dmg); staple(dmg);
