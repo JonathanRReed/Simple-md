@@ -152,7 +152,7 @@ function applySettings(patch: unknown, persist = true): void {
   }
   next.systemAccent = systemAccent();
   settings = next;
-  nativeTheme.themeSource = settings.theme;
+  if (settings.theme !== prev.theme) nativeTheme.themeSource = settings.theme;
   if (settings.launchAtLogin !== prev.launchAtLogin) applyLoginItem();
   if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
   saveSettings(settings);
@@ -533,7 +533,7 @@ async function present(payload: DocPayload, host = context(), otherPane = false)
 
 function reveal(host = context()): void {
   if (!host || host.win.isDestroyed()) host = createDocumentWindow();
-  if (process.platform === "darwin") void app.dock?.show();
+  if (process.platform === "darwin" && !app.dock?.isVisible()) void app.dock?.show();
   if (process.platform === "darwin") app.focus({ steal: true });
   if (!host.win.isVisible()) host.win.show();
   host.win.focus();
@@ -1034,7 +1034,7 @@ function registerIpc(): void {
     const doc = currentSession();
     if (!mainSender(e) || !doc || id !== doc.documentId) return;
     doc.intent = "edit";
-    if (process.platform === "darwin") void app.dock?.show();
+    if (process.platform === "darwin" && !app.dock?.isVisible()) void app.dock?.show();
   });
   on("smd:perf-marker", (e, id: unknown, marker: unknown, rendererEpochMs: unknown) => {
     const doc = currentSession();
