@@ -1136,7 +1136,7 @@ code,
 #workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
 body[data-platform="darwin"] { background: light-dark(#f5f5f5b3, #242424b3); }
 body:not([data-platform="darwin"]) { --chrome-radius: 6px; }
-body[data-tab-style="sidebar"] .tb-title,
+body[data-tab-style="sidebar"]:not([data-sidebar-collapsed="true"]) .tb-title,
 body[data-multiple-tabs="true"][data-tab-style="top"] .tb-title {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
 }

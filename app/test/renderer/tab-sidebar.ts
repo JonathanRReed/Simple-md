@@ -114,6 +114,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   document.documentElement.dir = "ltr";
   await setSettings({ sidebarCollapsed: true }); await paint();
   assert(strip.hidden && divider.hidden && document.querySelector(".document-pane") === pane, "Collapse replaced the document");
+  assert(document.querySelector(".tb-title")!.getBoundingClientRect().width > 30, "Collapsed sidebar lost the visible filename");
   assert(Math.abs(document.querySelector("#stage")!.getBoundingClientRect().width - innerWidth) < 1, "Collapsed sidebar still takes space");
   await setSettings({ sidebarCollapsed: false });
 

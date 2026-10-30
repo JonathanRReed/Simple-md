@@ -1422,7 +1422,8 @@ await test("tab-sidebar-menu-resize-relaunch", async () => {
     { input: { type: "keyDown", keyCode: "S", modifiers } },
     { input: { type: "keyUp", keyCode: "S", modifiers } },
     evaluate(`await waitFor(() => document.querySelector('#tabs').hidden, 'Sidebar shortcut did not collapse');
-      assert(Math.abs(document.querySelector('#stage').getBoundingClientRect().width - innerWidth) < 1, 'Collapsed sidebar retains width');`),
+      assert(Math.abs(document.querySelector('#stage').getBoundingClientRect().width - innerWidth) < 1, 'Collapsed sidebar retains width');
+      assert(document.querySelector('.tb-title').getBoundingClientRect().width > 30, 'Collapsed sidebar lost the visible filename');`),
     { nativeMenuState: { path: ["View", "Show Tab Sidebar"], enabled: true } },
     { nativeMenu: ["View", "Show Tab Sidebar"] },
     evaluate(`await waitFor(() => !document.querySelector('#sidebar-divider').hidden, 'Sidebar did not reopen');
