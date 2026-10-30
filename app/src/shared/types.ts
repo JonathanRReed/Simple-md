@@ -34,6 +34,7 @@ export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
 export interface Settings extends UserSettings {
+  zenMode: boolean;
   systemAccent?: string;
   zoom: number;
   // Legacy layout values remain readable for first-run migration.
@@ -45,7 +46,7 @@ export interface Settings extends UserSettings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  ...configDefaults, zoom: 1, width: "normal", typeface: "serif", recents: [], pinnedPaths: [],
+  ...configDefaults, zenMode: false, zoom: 1, width: "normal", typeface: "serif", recents: [], pinnedPaths: [],
 };
 
 export const ZOOM_MIN = 0.7;
@@ -58,6 +59,7 @@ export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
+  firstAutosaveAllowed?: boolean;
   initialMode?: EditMode;
   savedText?: string;
   dirty?: boolean;

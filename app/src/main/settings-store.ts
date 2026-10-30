@@ -76,7 +76,9 @@ export function saveSettings(s: Settings, settingsFile: string): void {
 }
 
 export function patchSettings(current: Settings, patch: unknown): Settings {
-  return sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+  const next = sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+  next.zenMode = record(patch) && typeof patch.zenMode === "boolean" ? patch.zenMode : current.zenMode;
+  return next;
 }
 
 export function saveState(settings: Settings, settingsFile: string): void {

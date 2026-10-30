@@ -159,3 +159,35 @@ test("Save As clears the baseline associated with the previous file", async () =
   expect(doc.baseline).toBeNull();
   expect(doc.gitStatus).toEqual({ available: true, active: false });
 });
+
+test("a read-opened file prompts on immediate close, and explicit save releases the session guard", async () => {
+  const { settleDocument } = await import("../src/main/lifecycle");
+  const dir = await directory(), file = path.join(dir, "read-first.md");
+  await fs.writeFile(file, "Original\r\n");
+  const doc = registry().create(file, "Original\r\n", "read");
+  let prompts = 0;
+  const close = () => settleDocument({
+    documentId: doc.documentId, autosave: () => doc.firstAutosave.allowed, hasPath: true,
+    flush: async () => ({ documentId: doc.documentId, revisionId: doc.revisionId, dirty: doc.dirty, conflict: doc.conflict, text: doc.text }),
+    save: async () => !!await doc.save(file, doc.revisionId),
+    choose: async () => { prompts++; return "cancel"; },
+  });
+  // The edit may arrive only with the close flush. Eligibility is read after it.
+  doc.edit("xOriginal\r\n", makeRevisionId(1));
+  expect(await close()).toBe(false); expect(prompts).toBe(1);
+  expect(await fs.readFile(file, "utf8")).toBe("Original\r\n");
+  expect(await doc.save(file, doc.revisionId)).not.toBeNull();
+  doc.edit("xyOriginal\r\n", makeRevisionId(2));
+  expect(await close()).toBe(true); expect(prompts).toBe(1);
+  expect(await fs.readFile(file, "utf8")).toBe("xyOriginal\r\n");
+});
+
+test("explicit reading actions keep normal autosave", async () => {
+  const dir = await directory(), file = path.join(dir, "tasks.md");
+  const source = "- [ ] Review\n"; await fs.writeFile(file, source);
+  const doc = registry().create(file, source, "read");
+  doc.edit("- [x] Review\n", makeRevisionId(1), true);
+  expect(doc.firstAutosave.allowed).toBe(true);
+  expect(await doc.save(file, doc.revisionId)).not.toBeNull();
+  expect(await fs.readFile(file, "utf8")).toBe("- [x] Review\n");
+});

@@ -32,6 +32,7 @@ export function parseConfig(source: string): ConfigDocument {
     const key = match?.[1] ?? "";
     const issue = (message: string) => issues.push({ line: index + 1, key, message });
     if (!match) { issue("Expected key = value."); return; }
+    if (key === "zen-mode") return; // Retired session toggle. Old config files remain valid.
     if (!isConfigKey(key)) { issue(`Unknown key: ${key}.`); return; }
     const def = configSchema[key];
     try {

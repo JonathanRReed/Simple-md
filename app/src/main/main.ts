@@ -411,7 +411,7 @@ async function settle(current = currentSession(), host = context()): Promise<boo
   let discarded = false;
   const settled = await settleDocument({
     documentId: current.documentId,
-    autosave: settings.autosave,
+    autosave: () => settings.autosave && current.firstAutosave.allowed,
     hasPath: current.path !== null,
     flush: () => requestFlush(current, host),
     save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
@@ -463,6 +463,7 @@ async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.tex
   }
   return {
     documentId: doc.documentId,
+    firstAutosaveAllowed: doc.firstAutosave.allowed,
     savedText: doc.dirty ? doc.diskText ?? "" : undefined,
     dirty: doc.dirty,
     revisionId: doc.revisionId,
@@ -1055,7 +1056,8 @@ function registerIpc(): void {
   });
   on("smd:edit", (e, text: unknown, id: unknown, revision: unknown) => {
     if (!mainSender(e) || !isDocumentId(id) || !context().layout.has(id) || typeof text !== "string" || !isRevisionId(revision)) return;
-    ipcSession(id).edit(text, revision);
+    const owner = context().layout.state.panes.find(pane => pane.documentId === id);
+    ipcSession(id).edit(text, revision, !!owner && context().paneModes.get(owner.paneId) === "read");
   });
   handle("smd:next-blocks", (stream, id) => {
     ipcSession(id);

@@ -20,7 +20,7 @@ test("chrome motion defaults to subtle and only accepts subtle or off", () => {
 
 test("tab settings round trip and sidebar width clamps at every config boundary", () => {
   expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(180);
-  const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true, zenMode: true } as const;
+  const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true } as const;
   expect(parseConfig(serializeConfig("# Tabs\r\n", patch)).settings).toMatchObject(patch);
   for (const [input, expected] of [[1, 140], [900, 420], [250.7, 251]]) {
     expect(clampSidebarWidth(input!)).toBe(expected!);
@@ -136,5 +136,24 @@ test.skipIf(process.platform === "win32")("config rejects FIFO reads without blo
     const child = Bun.spawn([process.execPath, "-e", source], { stdout: "ignore", stderr: "pipe" });
     const timer = setTimeout(() => child.kill(), 2000);
     try { expect(await child.exited).toBe(0); } finally { clearTimeout(timer); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("zen is session-only and old config cannot restore it", async () => {
+  const { patchSettings, saveState, flushSettings } = await import("../src/main/settings-store");
+  const current = sanitizeSettings({ zenMode: true });
+  expect(current.zenMode).toBe(false);
+  expect(parseConfig("zen-mode = true\n").issues).toEqual([]);
+  expect(parseConfig("zen-mode = true\n").settings).not.toHaveProperty("zenMode");
+  const zen = patchSettings(current, { zenMode: true });
+  expect(zen.zenMode).toBe(true);
+  expect(patchSettings(zen, { theme: "dark" }).zenMode).toBe(true);
+  expect(serializeConfig("", zen)).not.toContain("zen-mode");
+  expect(() => validateUserPatch({ zenMode: true })).toThrow();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-zen-session-"));
+  try {
+    const file = path.join(dir, "settings.json"); saveState(zen, file); flushSettings();
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).not.toHaveProperty("zenMode");
+    expect(sanitizeSettings(JSON.parse(fs.readFileSync(file, "utf8"))).zenMode).toBe(false);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

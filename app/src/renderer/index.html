@@ -13,6 +13,7 @@
   </head>
   <body>
     <button id="chrome-reveal" type="button" aria-label="Show window controls"></button>
+    <div id="zen-hint" role="status" hidden></div>
     <header class="titlebar">
       <div class="tb-side"></div>
       <div class="tb-title">SimpleMD</div>
@@ -53,14 +54,14 @@
             </div>
           </details>
           <div id="modes" class="seg" role="group" aria-label="Document mode" hidden>
-            <button type="button" data-mode="read" aria-label="Read" aria-pressed="true" title="Read (⌘⌥0)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="4" y="2.5" width="10" height="13" rx="1.5"/><path d="M6.5 6h5m-5 3h5m-5 3h5"/></svg></button>
-            <button type="button" data-mode="live" aria-label="Live" aria-pressed="false" title="Live (⌘⌥1)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="4" y="2.5" width="10" height="13" rx="1.5"/><path d="m7 11 4-4m-5 5 2-.5L12 7l-1-1-4.5 4.5z"/></svg></button>
+            <button type="button" data-mode="read" aria-label="Read" aria-pressed="true" title="Read (⌘⌥0)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path d="M9 4.5C7 3 4.5 3 2 3.5v10c2.5-.5 5-.5 7 1 2-1.5 4.5-1.5 7-1v-10c-2.5-.5-5-.5-7 1Zm0 0v10"/></svg></button>
+            <button type="button" data-mode="live" aria-label="Live" aria-pressed="false" title="Live (⌘⌥1)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path d="m3 15 1-4L12.5 2.5a1.4 1.4 0 0 1 2 2L6 13Zm7.5-10.5 3 3M3 15l3-2-2-2"/></svg></button>
             <button type="button" data-mode="split" aria-label="Side by side" aria-pressed="false" title="Side by side (⌘⌥2)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M9 3v12M5 6h1.5M5 9h1.5m5-2h1.5m-1.5 3h1.5"/></svg></button>
-            <button type="button" data-mode="source" aria-label="Source" aria-pressed="false" title="Source (⌘⌥3)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="m6.5 7-2 2 2 2m5-4 2 2-2 2"/></svg></button>
+            <button type="button" data-mode="source" aria-label="Source" aria-pressed="false" title="Source (⌘⌥3)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path d="m6 5-4 4 4 4m6-8 4 4-4 4m-2-10-2 12"/></svg></button>
           </div>
           <div class="layout-controls" role="group" aria-label="Window layout">
-            <button type="button" data-command="split-panes" aria-label="Split side by side" aria-pressed="false" title="Split side by side (⌘\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M11 3v12"/></svg></button>
-            <button type="button" data-command="stack-panes" aria-label="Split stacked" aria-pressed="false" title="Split stacked (⌘⇧\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M2.5 11h13"/></svg></button>
+            <button type="button" data-command="split-panes" aria-label="Split side by side" aria-pressed="false" title="Split side by side (⌘\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="1.5" y="3" width="6.5" height="12" rx="1"/><rect x="10" y="3" width="6.5" height="12" rx="1"/><path d="M1.5 6H8m2 0h6.5"/></svg></button>
+            <button type="button" data-command="stack-panes" aria-label="Split stacked" aria-pressed="false" title="Split stacked (⌘⇧\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="1.5" width="13" height="6.5" rx="1"/><rect x="2.5" y="10" width="13" height="6.5" rx="1"/><path d="M2.5 4h13m-13 8.5h13"/></svg></button>
             <button type="button" data-command="toggle-tab-sidebar" aria-label="Tab sidebar" aria-pressed="false" title="Tab sidebar (⌃⌘S)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M7 3v12"/></svg></button>
           </div>
           <select class="mode-menu" aria-label="Document mode" title="Document mode" hidden>

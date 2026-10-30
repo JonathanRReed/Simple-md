@@ -17,3 +17,16 @@ export function tabLabel(tab: TabName, tabs: TabName[]): string {
   }
   return `${tab.name} · ${parts.join("/")}`;
 }
+
+/** Short filenames stay readable; long shared prefixes fall back to numbered fragments. */
+export function pinnedTabLabels(labels: string[]): string[] {
+  const stems = labels.map(label => label.replace(/\.(?:md|mdx|markdown|mdown|mkd)(?= · |$)/i, ""));
+  return stems.map((stem, index) => {
+    for (let length = Math.min(3, stem.length); length <= 6; length++) {
+      const fragment = Array.from(stem).slice(0, length).join("");
+      if (/[_ .-]$/.test(fragment) && fragment.length < stem.length) continue;
+      if (stems.every((other, peer) => peer === index || Array.from(other).slice(0, length).join("").toLocaleLowerCase() !== fragment.toLocaleLowerCase())) return fragment;
+    }
+    return `${Array.from(stem).slice(0, 3).join("")}·${index + 1}`;
+  });
+}
