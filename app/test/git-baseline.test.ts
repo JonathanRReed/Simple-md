@@ -7,10 +7,23 @@ import { readGitBaseline } from "../src/main/git-baseline";
 const dirs: string[] = [];
 afterEach(async () => { for (const dir of dirs.splice(0)) await fs.rm(dir, { recursive: true, force: true }); });
 async function directory() { const dir = await fs.mkdtemp(path.join(os.tmpdir(), "smd-git-")); dirs.push(dir); return dir; }
+async function fakeGit(dir: string, source: string) {
+  if (process.platform === "win32") {
+    // execFile with shell:false needs a native executable, not a shebang or .cmd.
+    const script = path.join(dir, "git.ts");
+    await fs.writeFile(script, source);
+    const build = Bun.spawn([process.execPath, "build", "--compile", script, "--outfile", path.join(dir, "git.exe")], { stdout: "ignore", stderr: "pipe" });
+    const errors = await new Response(build.stderr).text();
+    expect(await build.exited, errors).toBe(0);
+  } else {
+    await fs.writeFile(path.join(dir, "git"), `#!${process.execPath}\n${source}`, { mode: 0o700 });
+  }
+}
 test("HEAD uses repository-relative literal paths, including spaces and shell characters", async () => {
   const dir = await directory();
   const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
   git("init"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.invalid");
+  git("config", "core.autocrlf", "false");
   const file = path.join(dir, 'nested', 'a $(echo bad); plan.md');
   await fs.mkdir(path.dirname(file)); await fs.writeFile(file, "Committed\r\n");
   git("add", "--", file); git("commit", "-m", "fixture");
@@ -23,6 +36,22 @@ test("outside a repository and unsaved files are unavailable", async () => {
   const file = path.join(await directory(), "note.md"); await fs.writeFile(file, "Hello");
   expect((await readGitBaseline(file)).available).toBe(false);
   expect((await readGitBaseline(null)).available).toBe(false);
+});
+
+test("Git ignores global configuration when reading HEAD", async () => {
+  const { dir, git } = await repository();
+  const file = path.join(dir, "note.md");
+  await fs.writeFile(file, "Committed"); git("add", "."); git("commit", "-m", "fixture");
+  const home = await directory();
+  await fs.writeFile(path.join(home, ".gitconfig"), "[invalid global configuration\n");
+  const saved = { ...process.env };
+  try {
+    Object.assign(process.env, { HOME: home, GIT_CONFIG_GLOBAL: path.join(home, ".gitconfig"), GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.bare", GIT_CONFIG_VALUE_0: "true" });
+    expect(await readGitBaseline(file)).toEqual({ available: true, text: "Committed" });
+  } finally {
+    for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+    Object.assign(process.env, saved);
+  }
 });
 
 test.skipIf(process.platform === "win32")("missing git, timed-out reads, and oversized output disable HEAD", async () => {
@@ -80,7 +109,7 @@ test("a bare repository embedded as ordinary tracked files is refused after clon
 test("Git receives a minimal environment and mandatory no-fetch hardening", async () => {
   const dir = await directory(), file = path.join(dir, "note.md"), output = path.join(dir, "call.json");
   await fs.writeFile(file, "Current");
-  await fs.writeFile(path.join(dir, "git"), `#!${process.execPath}\nimport fs from 'node:fs';fs.writeFileSync(${JSON.stringify(output)}, JSON.stringify({argv:process.argv.slice(2),env:process.env}));process.stdout.write(process.argv.includes('rev-parse') ? ${JSON.stringify(await fs.realpath(dir))} : 'HEAD');`, { mode: 0o700 });
+  await fakeGit(dir, `import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(output)}, JSON.stringify({argv:process.argv.slice(2),env:process.env}));process.stdout.write(process.argv.includes('rev-parse') ? ${JSON.stringify(await fs.realpath(dir))} : 'HEAD');`);
   const saved = { ...process.env };
   try {
     Object.assign(process.env, { PATH: dir, GIT_DIR: "/trap", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.sshCommand", GIT_CONFIG_VALUE_0: "trap", GIT_EXEC_PATH: "/trap", GIT_CEILING_DIRECTORIES: "/", GIT_SSH: "/trap", NODE_OPTIONS: "--no-warnings" });
@@ -88,9 +117,10 @@ test("Git receives a minimal environment and mandatory no-fetch hardening", asyn
     const call = JSON.parse(await fs.readFile(output, "utf8"));
     expect(call.argv.slice(0, 12)).toEqual(["--no-pager", "--no-lazy-fetch", "-c", "safe.bareRepository=explicit", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "protocol.allow=never", "-c", "core.attributesFile=/dev/null"]);
     expect(call.env.GIT_NO_LAZY_FETCH).toBe("1");
+    expect(call.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
     for (const key of ["GIT_DIR", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_EXEC_PATH", "GIT_CEILING_DIRECTORIES", "GIT_SSH", "NODE_OPTIONS"]) expect(call.env[key]).toBeUndefined();
   } finally { for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]; Object.assign(process.env, saved); }
-});
+}, 30_000);
 
 test("ext transport cannot run its command while reading a missing object", async () => {
   const { dir, git } = await repository();
@@ -105,13 +135,13 @@ test("ext transport cannot run its command while reading a missing object", asyn
 });
 test("older Git without no-lazy-fetch fails closed", async () => {
   const dir = await directory(), file = path.join(dir, "note.md"); await fs.writeFile(file, "Note");
-  await fs.writeFile(path.join(dir, "git"), `#!${process.execPath}\nprocess.stderr.write('unknown option: --no-lazy-fetch'); process.exit(129);`, { mode: 0o700 });
+  await fakeGit(dir, "process.stderr.write('unknown option: --no-lazy-fetch'); process.exit(129);");
   const previous = process.env.PATH;
   try {
     process.env.PATH = dir;
     expect(await readGitBaseline(file)).toEqual({ available: false, reason: "This Git version cannot safely read HEAD. Update Git to use change highlights." });
   } finally { process.env.PATH = previous; }
-});
+}, 30_000);
 test("document mount never requests Git status and status inspection never invokes Git", async () => {
   const pane = await fs.readFile(path.resolve(import.meta.dir, "../src/renderer/pane.ts"), "utf8");
   expect(pane.includes("simplemd.gitStatus(")).toBe(false);

@@ -33,10 +33,13 @@ export function packagingConfig(plan, identity) {
   return config;
 }
 
-export function localEnvironment(env) {
+export function localEnvironment(env, identity = "-") {
   return {
     ...Object.fromEntries(Object.entries(env).filter(([key]) => !/^(?:CSC_|WIN_CSC_|APPLE_|AZURE_|GH_TOKEN$|GITHUB_TOKEN$)/i.test(key))),
     CSC_IDENTITY_AUTO_DISCOVERY: "false",
+    // PR builds still need complete ad-hoc signatures. Credentials are stripped
+    // above, and certificate signing keeps electron-builder's PR restriction.
+    ...(identity === "-" ? { CSC_FOR_PULL_REQUEST: "true" } : {}),
   };
 }
 
@@ -66,7 +69,7 @@ if (import.meta.main) {
     const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));
     console.log(JSON.stringify({ productName: pkg.build.productName, platform: process.platform, arch: process.arch, mode, native: plan, config, publish: "never" }, null, 2));
   } else {
-    const clean = localEnvironment(process.env);
+    const clean = localEnvironment(process.env, identity);
     for (const key of Object.keys(process.env)) if (!(key in clean)) delete process.env[key];
     Object.assign(process.env, clean);
     run(process.execPath, ["run", "build"]);
