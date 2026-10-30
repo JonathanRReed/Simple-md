@@ -11,7 +11,7 @@ import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, iso
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { SearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
+import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
@@ -138,6 +138,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   let destroyed = false;
   let vimSeq = 0;
   let contextPosition: number | null = null;
+  let countedDoc: EditorState["doc"] | undefined;
+  let countedQuery: SearchQuery | undefined;
+  let searchMatches: { from: number; to: number }[] = [];
+  let countFrame = 0;
   const insertions = new Set<{ from: number; to: number }>();
 
   const liveFor = (m: EditMode, length: number) => (m === "live" && length <= LIVE_MAX_CHARS ? liveExtension(opts.host) : []);
@@ -172,6 +176,28 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.text.length)),
         EditorView.updateListener.of((update) => {
+          cancelAnimationFrame(countFrame);
+          countFrame = requestAnimationFrame(() => {
+            if (destroyed) return;
+            const panel = view.dom.querySelector(".cm-search");
+            if (!panel) return;
+            const query = getSearchQuery(view.state);
+            if (countedDoc !== view.state.doc || !countedQuery?.eq(query)) {
+              countedDoc = view.state.doc; countedQuery = query; searchMatches = [];
+              if (query.valid) {
+                const cursor = query.getCursor(view.state);
+                for (let match = cursor.next(); !match.done; match = cursor.next()) searchMatches.push(match.value);
+              }
+            }
+            let count = panel.querySelector<HTMLOutputElement>(".search-count");
+            if (!count) {
+              count = document.createElement("output"); count.className = "search-count"; count.setAttribute("role", "status");
+              panel.querySelector('[name="search"]')?.after(count);
+            }
+            const selection = view.state.selection.main;
+            const current = searchMatches.findIndex(match => match.from === selection.from && match.to === selection.to);
+            count.textContent = `${current + 1} of ${searchMatches.length}`;
+          });
           if (update.docChanged) for (const range of insertions) {
             const empty = range.from === range.to;
             range.from = update.changes.mapPos(range.from, 1);
@@ -376,6 +402,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     },
     destroy: () => {
       destroyed = true;
+      cancelAnimationFrame(countFrame);
       ++vimSeq;
       view.destroy();
     },

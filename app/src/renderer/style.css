@@ -1215,4 +1215,22 @@ body.print .document-pane, body.print .pane-content { display: block; position: 
 .reader-options-menu > button { margin-top: 8px; width: 100%; }
 .reader-options button:disabled { opacity: .5; }
 .document-pane[data-view="read"] [data-element="read-scroll"] { padding-top: 16px; }
-.document-pane[data-view="read"] [data-element="doc"] > .block:first-child > :first-child { margin-top: 0; }
+#stage .document-pane[data-view="read"] [data-element="doc"] > .block:first-child > :first-child { margin-top: 0; }
+
+#findbar { display: flex; align-items: center; gap: 6px; }
+#find-count { min-width: 44px; font: 12px var(--sans); color: var(--muted); }
+#findbar button { border: 1px solid var(--rule); border-radius: 5px; background: var(--code-bg); padding: 2px 7px; font: 13px var(--sans); }
+::highlight(read-matches) { background-color: light-dark(#ffe69c, #725c20); color: light-dark(#27221a, #fff2c2); }
+::highlight(read-current) { background-color: Highlight; color: HighlightText; text-decoration: underline; }
+/* CodeMirror's own theme has more specificity than a plain .cm-panels rule. */
+.cm-editor .cm-panels { background: light-dark(#f5f5f5, #242424); color: CanvasText; border-color: light-dark(#dedede, #484848); font: 12px/1.5 var(--sans); }
+.cm-editor .cm-panel.cm-search { padding: 8px 12px; }
+.cm-editor .cm-search .cm-textfield { color: CanvasText; background: light-dark(#fff, #303030); border: 1px solid light-dark(#cfcfcf, #555); border-radius: 5px; padding: 4px 8px; font: 13px var(--sans); }
+.cm-editor .cm-search .cm-button { color: CanvasText; background: light-dark(#e9e9e9, #383838); border: 1px solid light-dark(#cfcfcf, #555); border-radius: 5px; padding: 3px 8px; font: 12px var(--sans); text-transform: none; }
+.cm-editor .cm-search :is(input, button):focus-visible { outline: 2px solid var(--system-accent); outline-offset: 1px; }
+.cm-editor .cm-search input[type="checkbox"] { accent-color: var(--system-accent); }
+.cm-editor .cm-search label { display: inline-flex; align-items: center; gap: 3px; }
+.cm-editor .cm-search [name="close"] { color: CanvasText; }
+.cm-editor .search-count { display: inline-block; margin-inline: 6px; min-width: 44px; color: GrayText; font: 12px var(--sans); }
+.cm-editor .cm-searchMatch { background: color-mix(in srgb, var(--system-accent) 22%, transparent); }
+.cm-editor .cm-searchMatch-selected { background: color-mix(in srgb, var(--system-accent) 42%, transparent); outline: 1px solid var(--system-accent); }

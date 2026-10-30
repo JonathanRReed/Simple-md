@@ -963,7 +963,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const text = await simplemd.readFindText();
     if (disposed || pane.documentId !== id) return;
     if (pane.view === "edit") pane.editor?.find(text);
-    else openReadFind(() => undefined, text);
+    else openReadFind(docEl, () => readScroll.focus({ preventScroll: true }), text);
   }
 
   function openOutline(): void {
@@ -985,14 +985,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function openPalette(): void {
-    const set = (patch: Partial<Settings>) => () => { if (patch.mode) setMode(patch.mode); else void simplemd.setSettings(patch); };
+    const set = (patch: Partial<Settings>) => () => { if (patch.mode) selectMode(patch.mode); else void simplemd.setSettings(patch); };
     const cmd = (c: Command) => () => handleCommand(c);
     const items: PickerItem[] = [
       { label: "Mark Seen", run: cmd("mark-seen") },
       { label: "Next Change", run: cmd("next-change") },
       { label: "Previous Change", run: cmd("previous-change") },
       ...(doc.meta.path ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
-      { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘⏎", run: cmd("toggle-edit") },
+      { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘E", run: cmd("toggle-edit") },
       { label: "Settings…", run: () => handleCommand("preferences") },
       { label: "New note", hint: "⌘N", run: cmd("new") },
       { label: "Open…", hint: "⌘O", run: () => void simplemd.openDialog() },
@@ -1000,6 +1000,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       { label: "Save as…", hint: "⇧⌘S", run: cmd("save-as") },
       { label: "Go to heading…", hint: "⇧⌘O", run: openOutline },
       { label: "Find in note", hint: "⌘F", run: findInView },
+      { label: "Mode: Read", run: cmd("mode-read") },
       { label: "Mode: Live preview", hint: "⌥⌘1", run: set({ mode: "live" }) },
       { label: "Mode: Side by side", hint: "⌥⌘2", run: set({ mode: "split" }) },
       { label: "Mode: Source", hint: "⌥⌘3", run: set({ mode: "source" }) },
@@ -1019,9 +1020,18 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       { label: "Export as PDF…", run: cmd("export-pdf") },
       { label: "Print…", hint: "⌘P", run: cmd("print") },
       { label: "Reveal in file manager", run: cmd("reveal") },
-      ...settings.recents.map((p): PickerItem => ({ label: `Open ${p.split(/[\\/]/).pop()}`, hint: p.split(/[\\/]/).slice(-2, -1)[0], run: () => void simplemd.openPath(p) })),
+      ...settings.recents.map((p): PickerItem => ({ label: p.split(/[\\/]/).pop() ?? p, hint: `Recent · ${p}`, run: () => void simplemd.openPath(p) })),
     ];
-    openPicker("Type a command…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
+    const tabs = options.tabs();
+    items.unshift(...tabs.map(tab => ({ label: tab.name, hint: `Tab · ${tab.path ?? "Untitled"}`, run: () => void simplemd.activateTab(tab.id) })));
+    if (pane.view === "edit" && pane.editor) {
+      items.push(...pane.editor.headings().map(heading => ({ label: heading.text, hint: "Heading", run: () => pane.editor?.goTo(heading.pos) })));
+    } else {
+      for (const heading of docEl.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")) {
+        items.push({ label: heading.textContent ?? "", hint: "Heading", run: () => heading.scrollIntoView({ block: "start" }) });
+      }
+    }
+    openPicker("Search commands, tabs, recent files and headings…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
   }
 
   function handleCommand(cmd: Command): void {
