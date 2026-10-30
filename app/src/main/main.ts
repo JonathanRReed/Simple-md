@@ -1438,14 +1438,15 @@ if (!app.requestSingleInstanceLock()) {
     if (backgroundLaunch && !pendingOpen && process.platform === "darwin") app.dock?.hide();
     if (!backgroundLaunch || pendingOpen) reveal();
     context().win.webContents.once("did-finish-load", () => trace("page-loaded"));
-    createTray();
-    refreshMenus();
     if (settings.pinnedPaths.length) {
       for (const file of await existingPinnedPaths(settings.pinnedPaths)) {
         await documents.run(() => openCurrentFile(file, "read", false, undefined, context(), false, false, undefined, true));
       }
     }
     if (pendingOpen) await openFile(pendingOpen, testProfile && process.env.SMD_INTENT === "edit" ? "edit" : fileOpenIntent(pendingOpen));
+    createTray();
+    refreshMenus();
+    trace("tray-ready");
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
     // File and URL opens have painted. Blank and background launches wait for the renderer,

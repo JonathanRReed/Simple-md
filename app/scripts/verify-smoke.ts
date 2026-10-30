@@ -383,6 +383,8 @@ await test("live-open-defers-read-render", async () => {
   const logs = fs.readFileSync(path.join(root, "live-open-defers-read-render/electron.log"), "utf8");
   const ready = logs.indexOf('"name":"live-ready"');
   assert(ready >= 0, "Missing Live readiness record.");
+  const firstReadable = logs.indexOf('"marker":"first-readable"');
+  assert(firstReadable >= 0 && logs.indexOf('"marker":"tray-ready"') > firstReadable, "Native tray setup delayed the first document paint.");
   assert(!logs.slice(0, ready).includes('"marker":"parse-start"'), "Live initialized an unused full-document render.");
   assert(!logs.slice(0, ready).includes('"marker":"worker-queue"'), "Live started an unused render worker.");
   assert(logs.slice(ready).includes('"marker":"parse-start"'), "Read did not request its render.");
