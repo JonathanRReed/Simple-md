@@ -29,7 +29,7 @@ export const configSchema = {
   "open-quickly-scope": { ...choice("openQuicklyScope", "Open Quickly scope", "Behavior", "repo", ["repo", "everywhere"]), setting: "openQuicklyScope" },
   "open-in": { ...choice("openIn", "Open files in", "Behavior", "tab", ["tab", "window"]), setting: "openIn" },
   "tab-style": { ...choice("tabStyle", "Tab style", "Tabs", "top", ["top", "sidebar"]), setting: "tabStyle" },
-  "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 220, 160, 420, 1), setting: "sidebarWidth" },
+  "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 180, 140, 420, 1), setting: "sidebarWidth" },
   "sidebar-collapsed": { ...boolean("sidebarCollapsed", "Hide tab sidebar", "Tabs", false), setting: "sidebarCollapsed" },
   "zen-mode": { ...boolean("zenMode", "Zen mode", "Tabs", false), setting: "zenMode" },
   "autosave": { ...boolean("autosave", "Autosave", "Behavior", true), setting: "autosave" },

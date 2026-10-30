@@ -63,6 +63,10 @@ function syncChrome(): void {
   }
   for (const [id, pane] of panes) {
     pane.element.dataset.active = String(id === layout.activePane);
+    for (const button of pane.element.querySelectorAll<HTMLButtonElement>(".layout-controls button")) {
+      const command = button.dataset.command;
+      button.setAttribute("aria-pressed", String(command === "toggle-tab-sidebar" ? settings.tabStyle === "sidebar" && !settings.sidebarCollapsed : layout.panes.length === 2 && layout.axis === (command === "split-panes" ? "horizontal" : "vertical")));
+    }
     pane.controller.activeChanged(id === layout.activePane);
   }
 }
@@ -210,34 +214,43 @@ async function boot(): Promise<void> {
   });
   api.onTransition(busy => { for (const pane of panes.values()) pane.controller.transition(busy); });
   let quicklyLoading = false;
-  api.onCommand((command, id) => {
-    if (command === "open-quickly") {
-      if (quicklyLoading) return;
-      quicklyLoading = true;
+  function showQuickly(initialQuery = ""): void {
+    if (quicklyLoading) return;
+    quicklyLoading = true;
+    closeOverlays();
+    const tabs = (layout?.tabs ?? []).flatMap(id => { const file = tabMetaForPalette(id).path; return file ? [{ path: file, source: "tab" as const }] : []; });
+    const seen = new Set<string>();
+    const instant = [...tabs, ...settings.recents.map(path => ({ path, source: "recent" as const }))].filter(file => {
+      if (!/\.(md|mdx|markdown|mdown|mkd)$/i.test(file.path) || seen.has(file.path)) return false;
+      seen.add(file.path); return true;
+    });
+    const restore = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    let closed = false;
+    // Paint tabs and recents synchronously, before fetching the lazy search module.
+    openPicker("Open Quickly", instant.slice(0, 200).map(file => {
+      const at = Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\"));
+      return { label: file.path.slice(at + 1), parent: file.path.slice(0, at), run: (otherPane?: boolean) => {
+        void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file."));
+      } };
+    }), () => { closed = true; if (restore?.isConnected) restore.focus({ preventScroll: true }); });
+    const input = document.querySelector<HTMLInputElement>("#picker-input")!;
+    input.value = initialQuery;
+    input.dispatchEvent(new Event("input"));
+    void import("./open-quickly.js").then(({ openQuickly }) => {
+      if (closed) return;
+      const query = document.querySelector<HTMLInputElement>("#picker-input")!.value.slice(0, 256);
       closeOverlays();
-      const tabs = (layout?.tabs ?? []).flatMap(id => { const file = tabMetaForPalette(id).path; return file ? [{ path: file, source: "tab" as const }] : []; });
-      const seen = new Set<string>();
-      const instant = [...tabs, ...settings.recents.map(path => ({ path, source: "recent" as const }))].filter(file => {
-        if (!/\.(md|mdx|markdown|mdown|mkd)$/i.test(file.path) || seen.has(file.path)) return false;
-        seen.add(file.path); return true;
-      });
-      const restore = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-      let closed = false;
-      // Paint tabs and recents synchronously, before fetching the lazy search module.
-      openPicker("Open Quickly", instant.slice(0, 200).map(file => {
-        const at = Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\"));
-        return { label: file.path.slice(at + 1), parent: file.path.slice(0, at), run: (otherPane?: boolean) => {
-          void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file."));
-        } };
-      }), () => { closed = true; if (restore?.isConnected) restore.focus({ preventScroll: true }); });
-      void import("./open-quickly.js").then(({ openQuickly }) => {
-        if (closed) return;
-        const query = document.querySelector<HTMLInputElement>("#picker-input")!.value.slice(0, 256);
-        closeOverlays();
-        openQuickly(api, settings.openQuicklyScope, instant, query);
-      }).finally(() => { quicklyLoading = false; });
-      return;
-    }
+      openQuickly(api, settings.openQuicklyScope, instant, query);
+    }).finally(() => { quicklyLoading = false; });
+  }
+  document.querySelector("#tab-search-button")!.addEventListener("click", () => showQuickly());
+  const search = document.querySelector<HTMLInputElement>("#sidebar-search-input")!;
+  const searchQuickly = () => { const query = search.value; search.value = ""; showQuickly(query); };
+  search.addEventListener("click", searchQuickly);
+  search.addEventListener("input", searchQuickly);
+  search.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); searchQuickly(); } });
+  api.onCommand((command, id) => {
+    if (command === "open-quickly") { showQuickly(); return; }
     const target = id === undefined ? active() : [...panes.values()].find(pane => pane.controller.documentId === id)?.controller;
     target?.command(command);
   });
@@ -257,6 +270,7 @@ async function boot(): Promise<void> {
     else if (state) api.flushResponse(request, { documentId: id, revisionId: state.revisionId, dirty: state.dirty, conflict: state.diskConflict, text: state.readText });
   });
   const ready = await api.ready();
+  search.title = document.querySelector<HTMLButtonElement>("#tab-search-button")!.title = ready.platform === "darwin" ? "Open Quickly (⌘⇧O)" : "Open Quickly (Ctrl+Shift+O)";
   settings = ready.settings;
   document.body.dataset.platform = ready.platform;
   applyWindowSettings(settings);

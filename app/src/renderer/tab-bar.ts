@@ -11,6 +11,8 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
   let width = configSchema["sidebar-width"].default;
   let drag: { pointer: number; x: number; width: number; direction: number } | undefined;
   let frame = 0;
+  const pendingWidths: number[] = [];
+  const saveWidth = () => { pendingWidths.push(width); void api.setSettings({ sidebarWidth: width }); };
   const nodes = new Map<TabRow["id"], HTMLElement>();
   let dragged: TabRow["id"] | undefined;
   const clearDrop = () => { for (const node of nodes.values()) delete node.dataset.dropBefore; };
@@ -44,7 +46,7 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
     paintWidth();
     document.body.classList.remove("resizing-sidebar");
     if (divider.hasPointerCapture(previous.pointer)) divider.releasePointerCapture(previous.pointer);
-    if (persist && width !== previous.width) void api.setSettings({ sidebarWidth: width });
+    if (persist && width !== previous.width) saveWidth();
   };
   divider.addEventListener("pointerdown", event => {
     if (event.button !== 0 || drag) return;
@@ -66,7 +68,7 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
   divider.addEventListener("lostpointercapture", () => finishDrag(false));
   divider.addEventListener("dblclick", () => {
     finishDrag(false); cancelFrame(); width = configSchema["sidebar-width"].default; paintWidth();
-    void api.setSettings({ sidebarWidth: width });
+    saveWidth();
   });
   divider.addEventListener("keydown", event => {
     if (event.key === "Escape" && drag) { event.preventDefault(); finishDrag(false); return; }
@@ -77,12 +79,14 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
       : event.key === "Home" ? def.min : event.key === "End" ? def.max : undefined;
     if (next === undefined) return;
     event.preventDefault(); finishDrag(false); cancelFrame(); width = clampSidebarWidth(next); paintWidth();
-    void api.setSettings({ sidebarWidth: width });
+    saveWidth();
   });
   function configure(next: Settings): void {
-    if (drag && (settings.sidebarWidth !== next.sidebarWidth || settings.tabStyle !== next.tabStyle || settings.sidebarCollapsed !== next.sidebarCollapsed)) finishDrag(false);
+    const ownWidth = pendingWidths.indexOf(next.sidebarWidth);
+    if (ownWidth >= 0) pendingWidths.splice(0, ownWidth + 1);
+    if (drag && ((ownWidth < 0 && settings.sidebarWidth !== next.sidebarWidth) || settings.tabStyle !== next.tabStyle || settings.sidebarCollapsed !== next.sidebarCollapsed)) finishDrag(false);
     settings = next;
-    if (!drag) { width = clampSidebarWidth(next.sidebarWidth); cancelFrame(); paintWidth(); }
+    if (!drag && (ownWidth < 0 || !pendingWidths.length)) { width = clampSidebarWidth(next.sidebarWidth); cancelFrame(); paintWidth(); }
     document.body.dataset.tabStyle = next.tabStyle;
     document.body.dataset.sidebarCollapsed = String(next.sidebarCollapsed);
     strip.setAttribute("aria-orientation", next.tabStyle === "sidebar" ? "vertical" : "horizontal");
@@ -158,7 +162,7 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
       node.setAttribute("aria-keyshortcuts", "Delete"); node.tabIndex = row.selected ? 0 : -1;
       node.title = row.title; node.dataset.dirty = String(row.dirty); node.dataset.pane = row.pane ?? "";
       node.dataset.pinned = String(row.pinned);
-      node.querySelector<HTMLElement>(".tab-short")!.textContent = Array.from(row.label).slice(0, 2).join("");
+      node.querySelector<HTMLElement>(".tab-short")!.textContent = Array.from(row.label)[0] ?? "";
       node.querySelector<HTMLButtonElement>(".tab-close")!.hidden = row.pinned;
       node.querySelector<HTMLElement>(".tab-pane")!.title = row.pane ? `${row.pane} pane` : "";
       node.querySelector<HTMLElement>(".tab-dirty")!.hidden = !row.dirty;

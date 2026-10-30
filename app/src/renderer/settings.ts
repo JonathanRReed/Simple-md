@@ -5,7 +5,7 @@ const bridge = window.simplemdSettings;
 const form = document.querySelector<HTMLFormElement>("#settings")!;
 const controls = new Map<keyof UserSettings, HTMLInputElement | HTMLSelectElement>();
 let settings: UserSettings;
-const labelFor = (value: string) => ({ "editorial-light": "Editorial Light", "editorial-dark": "Editorial Dark", "github-light": "GitHub Light", "github-dark": "GitHub Dark", "solarized-light": "Solarized Light", "solarized-dark": "Solarized Dark", "contrast-light": "High Contrast Light", "contrast-dark": "High Contrast Dark", system: "System", light: "Light", dark: "Dark", live: "Live", split: "Side by side", source: "Source", tab: "Tabs", window: "Windows" })[value] ?? value;
+const labelFor = (value: string) => ({ "editorial-light": "Editorial Light", "editorial-dark": "Editorial Dark", "github-light": "GitHub Light", "github-dark": "GitHub Dark", "solarized-light": "Solarized Light", "solarized-dark": "Solarized Dark", "contrast-light": "High Contrast Light", "contrast-dark": "High Contrast Dark", system: "System", light: "Light", dark: "Dark", live: "Live", split: "Side by side", source: "Source", tab: "Tabs", window: "Windows", top: "Horizontal", sidebar: "Sidebar", repo: "Repository", everywhere: "Everywhere" })[value] ?? value;
 function makeControl(def: ConfigDefinition): HTMLInputElement | HTMLSelectElement {
   if (def.kind === "choice" && def.setting !== "readingStyle" || def.kind === "font") {
     const select = document.createElement("select");

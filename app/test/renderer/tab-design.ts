@@ -33,7 +33,7 @@ export async function runBatch(input: { html: string; css: string }) {
   assert(name.getBoundingClientRect().height >= metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent, "Label clips glyph height");
   assert(parseFloat(font.lineHeight) >= parseFloat(font.fontSize) * 1.4, "Label line height clips descenders");
   assert(strip.scrollWidth > strip.clientWidth && getComputedStyle(strip).overflowX === "auto", "Tabs cannot overflow horizontally");
-  assert([...strip.children].slice(1).every(node => node.getBoundingClientRect().width >= 108), "Overflow compressed tabs below readable width");
+  assert([...strip.children].slice(1).every(node => node.getBoundingClientRect().width > 108 && node.getBoundingClientRect().width <= 225), "Overflow changed long-label tab widths");
   strip.scrollLeft = 400; await paint(); assert(strip.scrollLeft > 0, "Overflow does not scroll");
   assert(row.getBoundingClientRect().top < 34 && strip.getBoundingClientRect().left >= 84, "Horizontal tabs do not share the titlebar safely");
   const fill = getComputedStyle(row).backgroundColor;
@@ -55,6 +55,17 @@ export async function runBatch(input: { html: string; css: string }) {
   assert(pin.querySelector<HTMLElement>(".tab-name")!.getBoundingClientRect().width > 0, "Sidebar pin lost full label");
   assert(getComputedStyle(row).marginBlockStart === "9px", "Pin section has no spacing");
   assert(getComputedStyle(divider, "::after").backgroundColor === "rgba(0, 0, 0, 0)", "Divider is visible at rest");
+  // Delayed echoes of our own writes must not undo a newer reset or cancel the next drag.
+  divider.setPointerCapture = () => {};
+  divider.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 7, button: 0, clientX: 180 }));
+  divider.dispatchEvent(new PointerEvent("pointerup", { pointerId: 7, button: 0, clientX: 300 }));
+  divider.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  bar.configure({ ...DEFAULT_SETTINGS, tabStyle: "sidebar", sidebarWidth: 300 });
+  assert(divider.getAttribute("aria-valuenow") === "180", "An old drag echo undid a newer reset");
+  divider.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 7, button: 0, clientX: 180 }));
+  bar.configure({ ...DEFAULT_SETTINGS, tabStyle: "sidebar" });
+  divider.dispatchEvent(new PointerEvent("pointerup", { pointerId: 7, button: 0, clientX: 300 }));
+  assert(divider.getAttribute("aria-valuenow") === "300", "A reset echo canceled the next drag");
   const transfer = new DataTransfer();
   row.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: transfer }));
   pin.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }));
@@ -78,7 +89,7 @@ export async function runBatch(input: { html: string; css: string }) {
   edge.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
   assert(document.body.dataset.chromeRevealed === "true", "Keyboard cannot reveal controls"); edge.blur(); await paint();
   chrome.configure(DEFAULT_SETTINGS); await paint();
-  assert(nativeVisibility.at(-1) === true && stage.getBoundingClientRect().top === 34, "Leaving zen did not restore the frame");
+  assert(nativeVisibility.at(-1) === true && stage.getBoundingClientRect().top === 0, "Leaving zen did not restore the full-height sidebar");
   if (matchMedia("(forced-colors: active)").matches) assert(getComputedStyle(row).outlineStyle === "solid" && getComputedStyle(row).outlineWidth === "2px", "Forced colors lost the selection outline");
   return { labels: true, overflow: true, pins: true, zen: true, themes: 8 };
 }

@@ -152,11 +152,16 @@ export async function runDriver(
       }
       if ("selectWindow" in step) {
         const { BrowserWindow } = await import("electron");
-        const all = BrowserWindow.getAllWindows();
         const selection = step.selectWindow;
-        const selected = typeof selection === "number" ? all[selection] : (await Promise.all(all.map(async window => ({
-          window, file: await window.webContents.executeJavaScript("document.documentElement.dataset.documentPath"),
-        })))).find(entry => entry.file === selection)?.window;
+        const deadline = performance.now() + 10000;
+        let selected: BrowserWindow | undefined;
+        do {
+          const all = BrowserWindow.getAllWindows();
+          selected = typeof selection === "number" ? all[selection] : (await Promise.all(all.map(async window => ({
+            window, file: await window.webContents.executeJavaScript("document.documentElement.dataset.documentPath"),
+          })))).find(entry => entry.file === selection)?.window;
+          if (!selected) await new Promise(resolve => setTimeout(resolve, 20));
+        } while (!selected && performance.now() < deadline);
         if (!selected) throw new Error("Driver window is missing.");
         win = selected;
         continue;
@@ -214,6 +219,8 @@ export async function runDriver(
       if ("menuQuit" in step) {
         if (!requestQuit) throw new Error("Menu quit is unavailable.");
         requestQuit();
+        // Quit settles documents asynchronously after this driver returns. Keep its dialog choices alive.
+        restoreDialogs = undefined;
         return "menu-quit";
       }
       if ("settings" in step) {

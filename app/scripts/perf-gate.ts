@@ -172,7 +172,7 @@ export async function perfGate(): Promise<void> {
   const samples: { state: State; fixture: string; sample: number; ms: number; externalMs: number; deliveryMs: number; afterArrivalMs: number | null; cache: object; loadAverage: number[]; run: string }[] = [];
   const memory: { run: string; at: number; processes: { metrics: unknown; measured: ProcessMemory[] }; physicalBytes: number; rssBytes: number; loadAverage: number[] }[] = [];
   const typing: { panes: number; method: InputMethod; controls: { kind: string; eventTiming: ReturnType<typeof summarizeEventTiming>; raw: unknown }[]; frameMs: number; displayFrameMs: number; mode: string; position: string; eventTiming: ReturnType<typeof summarizeEventTiming>; rawEventTiming: unknown; lowerBound: unknown; finalSha256: string; expectedSha256: string }[] = [];
-  const tabSwitch: number[] = [];
+  const tabSwitch: Record<"read" | "live", number[]> = { read: [], live: [] };
   const runs: object[] = [];
   const failures: string[] = [];
   const failedSamples: { state: State; fixture: string; sample: number; run: string; error: string }[] = [];
@@ -295,7 +295,7 @@ export async function perfGate(): Promise<void> {
   try {
     if (!receipt.dist) throw new Error("Build dist before running perf:gate");
     if (process.platform !== "darwin" && process.platform !== "win32") throw new Error("Absolute memory gate requires macOS or Windows");
-    execFileSync("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(appRoot, "native/Cargo.toml"), "--bin", "perf-memory", "--target-dir", targetDirectory], { stdio: "inherit" });
+    execFileSync(process.platform === "win32" ? "cargo" : "nice", [...(process.platform === "win32" ? [] : ["-n", "19", "cargo"]), "build", "--locked", "--release", "--manifest-path", path.join(appRoot, "native/Cargo.toml"), "--bin", "perf-memory", "--target-dir", targetDirectory], { stdio: "inherit" });
     receipt.memoryHelper.sha256 = sha256(fs.readFileSync(helper));
     const smallFile = path.join(fixtureDirectory, "small.md");
     const coldFiles = ["small.md", "medium.md"];
@@ -381,13 +381,13 @@ export async function perfGate(): Promise<void> {
         { wait: 5000 }, ...Array.from({ length: 30 }, (_, i): DriverStep[] => [{ memory: `observation-${i}` }, { wait: 1000 }]).flat(),
       ], "edit");
     });
-    if (includes("tab-switch-100k")) await attempt("tab-switch-100k", async () => {
+    if (includes("tab-switch-100k")) for (const mode of ["read", "live"] as const) await attempt(`tab-switch-100k-${mode}`, async () => {
       const text = fixtureText["typing-100k.md"]!;
-      const a = path.join(fixtureDirectory, "tab-a.md"), b = path.join(fixtureDirectory, "tab-b.md");
-      fs.writeFileSync(a, text); fs.writeFileSync(b, text.replace('Typing', 'Tab B '));
+      const a = path.join(fixtureDirectory, `tab-${mode}-a.md`), b = path.join(fixtureDirectory, `tab-${mode}-b.md`);
+      fs.writeFileSync(a, text); fs.writeFileSync(b, text.replace('typing', 'tab-B!'));
       const steps: DriverStep[] = [{ diagnostics: "environment" }, evaluate(`${waitFor}
         window.tabA = Number(document.documentElement.dataset.documentId);
-        await window.simplemd.openPath(${quote(b)}, 'edit');
+        await window.simplemd.openPath(${quote(b)}, ${quote(mode === 'read' ? 'read' : 'edit')});
         await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)});
         window.tabB = Number(document.documentElement.dataset.documentId);
       `)];
@@ -396,18 +396,22 @@ export async function perfGate(): Promise<void> {
         steps.push({ barrier: `tab-switch-${i}` }, evaluate(`${waitFor}
           await window.simplemd.activateTab(${i % 2 === 0 ? 'window.tabA' : 'window.tabB'});
           await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(file)});
-          if (document.querySelectorAll('.cm-editor').length !== 1 || document.querySelector('.cm-content').cmTile.root.view.state.doc.length !== 100000) throw new Error('Tab mount mismatch');
+          if (${quote(mode)} === 'live') {
+            if (document.querySelectorAll('.cm-editor').length !== 1 || document.querySelector('.cm-content').cmTile.root.view.state.doc.toString() !== ${quote(file === a ? text : text.replace('typing', 'tab-B!'))}) throw new Error('Live tab mount mismatch');
+          } else {
+            if (document.querySelector('.document-pane').dataset.view !== 'read' || document.querySelectorAll('.cm-editor').length || document.querySelector('#doc h1')?.textContent !== ${quote(file === a ? 'Perf typing' : 'Perf tab-B!')}) throw new Error('Read tab mount mismatch');
+          }
           if (document.documentElement.dataset.documentPath !== ${quote(file)}) throw new Error('Wrong tab');
         `));
       }
-      const result = await launch("tab-switch-100k", a, profile("tab-switch-profile", "live"), steps, "edit");
+      const result = await launch(`tab-switch-100k-${mode}`, a, profile(`tab-switch-${mode}-profile`, "live"), steps, mode === "read" ? "read" : "edit");
       for (let i = 0; i < count; i++) {
         const start = result.barriers[`tab-switch-${i}`];
         if (start === undefined) throw new Error('Missing tab switch barrier');
         const file = i % 2 === 0 ? a : b;
         const readable = result.events.find(event => event.elapsedMs >= start && event.data.marker === 'first-readable' && event.data.path === file);
         if (!readable) throw new Error('Missing matching tab readable marker');
-        tabSwitch.push(readable.elapsedMs - start);
+        tabSwitch[mode].push(readable.elapsedMs - start);
       }
       assert.equal(fs.readFileSync(a, 'utf8'), text);
     });
@@ -572,7 +576,7 @@ export async function perfGate(): Promise<void> {
     const group = name.startsWith("process-cold") ? "cold" : name.startsWith("first-screen/") ? "resident-new-file-miss" : name.split("/")[0]!;
     if (!includes(group) || fixtureFilter && name.includes("/") && !name.startsWith("typing/") && !fixtureFilter.includes(name.split("/")[1]!)) delete receipt.gates[name];
   }
-  if (includes("tab-switch-100k")) receipt.gates["tab-switch-100k"] = summarizeGate(tabSwitch, 50, smoke ? 2 : 20);
+  if (includes("tab-switch-100k")) for (const mode of ["read", "live"] as const) receipt.gates[`tab-switch-100k/${mode}`] = { ...summarizeGate(tabSwitch[mode], 50, smoke ? 2 : 20), mode };
   if (includes("typing")) receipt.gates["typing-two-panes"] = {
     status: typing.filter(sample => sample.panes === 2).length > 0 && Object.entries(receipt.gates).filter(([name]) => name.startsWith("typing/2/")).every(([, gate]) => (gate as { status: string }).status === "pass") ? "pass" : "fail",
     cases: typing.filter(sample => sample.panes === 2).length,

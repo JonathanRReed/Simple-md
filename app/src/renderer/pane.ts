@@ -80,6 +80,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const modesEl = $("modes");
   const editBtn = $("edit-btn");
   const modeMenu = container.querySelector<HTMLSelectElement>(".mode-menu")!;
+  const mac = document.body.dataset.platform === "darwin";
+  for (const [index, button] of [...modesEl.querySelectorAll<HTMLButtonElement>("button")].entries()) {
+    button.title = `${button.getAttribute("aria-label")} (${mac ? "⌘⌥" : "Ctrl+Alt+"}${index})`;
+  }
+  const shortcuts = mac ? ["⌘\\", "⌘⇧\\", "⌃⌘S"] : ["Ctrl+\\", "Ctrl+Shift+\\", "Ctrl+Alt+S"];
+  for (const [index, button] of [...container.querySelectorAll<HTMLButtonElement>(".layout-controls button")].entries()) {
+    button.title = `${button.getAttribute("aria-label")} (${shortcuts[index]})`;
+  }
   readScroll.title = "Read document";
 
   const root = container;
@@ -530,7 +538,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     $<HTMLButtonElement>("reading-larger").disabled = overridden || settings.readingFontSize >= 40;
     $("reading-override").hidden = !overridden;
     for (const b of modesEl.querySelectorAll<HTMLButtonElement>("button")) {
-      b.setAttribute("aria-checked", String(b.dataset.mode === viewMode));
+      b.setAttribute("aria-pressed", String(b.dataset.mode === viewMode));
       b.tabIndex = b.dataset.mode === viewMode ? 0 : -1;
     }
     readPane.hidden = pane.view !== "read";
@@ -673,7 +681,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   async function showRead(): Promise<void> {
-    if (!doc.hasDoc || transitioning) return;
+    if (!doc.hasDoc || transitioning || (pane.view === "read" && pane.mountedReadText === currentText())) return;
     ++pane.viewSeq;
     ++pane.previewRenderSeq;
     const id = pane.documentId;
@@ -1281,6 +1289,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       : ["ArrowLeft", "ArrowUp"].includes(e.key) ? modes[(index + modes.length - 1) % modes.length] : undefined;
     if (next) { e.preventDefault(); selectMode(next); modesEl.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus(); }
   });
+  for (const button of container.querySelectorAll<HTMLButtonElement>(".layout-controls button")) {
+    button.addEventListener("click", () => {
+      const command = button.dataset.command;
+      if (command === "split-panes" || command === "stack-panes" || command === "toggle-tab-sidebar") simplemd.command(command);
+    });
+  }
   modeMenu.addEventListener("change", () => {
     const mode = modeMenu.value;
     if (mode === "read" || mode === "live" || mode === "split" || mode === "source") selectMode(mode);

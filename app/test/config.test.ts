@@ -8,17 +8,17 @@ import { ConfigStore, configPath } from "../src/main/config-store";
 import { sanitizeSettings } from "../src/main/settings-store";
 
 test("tab settings round trip and sidebar width clamps at every config boundary", () => {
-  expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(220);
+  expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(180);
   const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true, zenMode: true } as const;
   expect(parseConfig(serializeConfig("# Tabs\r\n", patch)).settings).toMatchObject(patch);
-  for (const [input, expected] of [[1, 160], [900, 420], [250.7, 251]]) {
+  for (const [input, expected] of [[1, 140], [900, 420], [250.7, 251]]) {
     expect(clampSidebarWidth(input!)).toBe(expected!);
     expect(parseConfig(`sidebar-width = ${input}`).settings.sidebarWidth).toBe(expected!);
     expect(parseConfig(serializeConfig("", { sidebarWidth: input! })).settings.sidebarWidth).toBe(expected!);
     expect(validateUserPatch({ sidebarWidth: input! }).sidebarWidth).toBe(expected!);
     expect(sanitizeSettings({ sidebarWidth: input! }).sidebarWidth).toBe(expected!);
   }
-  expect(clampSidebarWidth(NaN)).toBe(220);
+  expect(clampSidebarWidth(NaN)).toBe(180);
   expect(parseConfig("tab-style = tree\nsidebar-width = Infinity\nsidebar-collapsed = yes").issues).toHaveLength(3);
   expect(() => validateUserPatch({ sidebarWidth: Infinity })).toThrow();
   expect(() => validateUserPatch({ tabStyle: "tree" })).toThrow();

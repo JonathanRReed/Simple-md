@@ -237,7 +237,8 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   closePicker = close;
   pickerOpen = true;
   input.value = search?.initialQuery ?? "";
-  input.maxLength = search ? 256 : -1;
+  if (search) input.maxLength = 256;
+  else input.removeAttribute("maxlength");
   input.placeholder = placeholder;
   input.setAttribute("aria-label", placeholder);
   input.setAttribute("aria-expanded", "true");

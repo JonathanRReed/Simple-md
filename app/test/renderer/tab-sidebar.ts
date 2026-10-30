@@ -87,19 +87,19 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert([...strip.querySelectorAll<HTMLButtonElement>(".tab-close")].every(node => node.tabIndex === -1), "Close buttons break roving focus");
 
   divider.focus(); key(divider, "ArrowRight");
-  assert(divider.getAttribute("aria-valuenow") === "221" && Number(settings.sidebarWidth) === 221, "Keyboard separator did not resize");
-  key(divider, "ArrowRight", true); assert(Number(settings.sidebarWidth) === 231, "Shift arrow resize is wrong");
-  key(divider, "Home"); assert(Number(settings.sidebarWidth) === 160, "Separator did not clamp to minimum");
-  key(divider, "ArrowLeft"); assert(Number(settings.sidebarWidth) === 160, "Separator escaped its minimum");
+  assert(divider.getAttribute("aria-valuenow") === "181" && Number(settings.sidebarWidth) === 181, "Keyboard separator did not resize");
+  key(divider, "ArrowRight", true); assert(Number(settings.sidebarWidth) === 191, "Shift arrow resize is wrong");
+  key(divider, "Home"); assert(Number(settings.sidebarWidth) === 140, "Separator did not clamp to minimum");
+  key(divider, "ArrowLeft"); assert(Number(settings.sidebarWidth) === 140, "Separator escaped its minimum");
   key(divider, "End"); assert(Number(settings.sidebarWidth) === 420, "Separator did not clamp to maximum");
-  divider.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); assert(Number(settings.sidebarWidth) === 220, "Double click did not reset width");
+  divider.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); assert(Number(settings.sidebarWidth) === 180, "Double click did not reset width");
   // Synthetic pointer events have no OS pointer capture. The native smoke case covers capture.
   divider.setPointerCapture = () => {};
   const pointer = (type: string, x: number) => divider.dispatchEvent(new PointerEvent(type, { pointerId: 7, button: 0, clientX: x, bubbles: true, cancelable: true }));
   const count = writes.length;
-  pointer("pointerdown", 220); pointer("pointermove", 260); pointer("pointermove", 300);
+  pointer("pointerdown", 180); pointer("pointermove", 260); pointer("pointermove", 300);
   assert(writes.length === count, "Dragging writes config before release");
-  assert(divider.getAttribute("aria-valuenow") === "220", "Pointer moves bypass frame throttling");
+  assert(divider.getAttribute("aria-valuenow") === "180", "Pointer moves bypass frame throttling");
   await paint(); assert(divider.getAttribute("aria-valuenow") === "300", "Drag frame did not apply its latest width");
   pointer("pointerup", 310);
   assert(writes.length === count + 1 && Number(settings.sidebarWidth) === 310, "Drag end did not persist exactly once");

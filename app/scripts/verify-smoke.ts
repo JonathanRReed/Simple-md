@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { cliRuntime } from "../src/main/cli-runtime";
+import { configEntries } from "../src/shared/config-schema";
 import type { DriverStep } from "../src/main/driver";
 
 type Step = DriverStep;
@@ -667,7 +668,7 @@ await test("edit-modes-undo-save", async () => {
   await launch("edit-modes-undo-save", file, [
     evaluate(`await waitFor(() => document.querySelector('.cm-content'), 'CLI edit did not open CodeMirror.');
       for (const mode of ['live', 'split', 'source']) {
-        document.querySelector('[data-mode="' + mode + '"][role="radio"]').click();
+        document.querySelector('[data-mode="' + mode + '"][aria-pressed]').click();
         await waitFor(() => document.querySelector('#edit').dataset.mode === mode, 'Mode did not switch to ' + mode);
         if (mode === 'split') await waitFor(() => document.querySelector('#preview h1')?.textContent === 'Smoke edit note', 'Split preview did not render the current note.');
       }
@@ -705,7 +706,7 @@ await test("settings-menu-quit", async () => {
       await waitFor(() => matchMedia('(prefers-color-scheme: dark)').matches, 'Dark setting did not change appearance.');`),
       { shot: path.join(root, name, "settings.png") },
     ] },
-    evaluate(`await waitFor(() => document.querySelector('[data-mode="split"]').getAttribute('aria-checked') === 'true', 'Editing default did not apply.');
+    evaluate(`await waitFor(() => document.querySelector('[data-mode="split"]').getAttribute('aria-pressed') === 'true', 'Editing default did not apply.');
       await waitFor(() => document.querySelector('#preview h1')?.textContent === 'Smoke edit note', 'Side by side did not render after Settings.');`),
     { menuQuit: true },
   ], "edit");
@@ -1058,7 +1059,8 @@ await test("settings-config-themes", async () => {
       assert(Object.keys(window.simplemdSettings).sort().join(',') === 'get,set,subscribe', 'Settings preload exposes extra APIs.');
       const snapshot = await window.simplemdSettings.get();
       assert(snapshot.fonts.length > 4 && !snapshot.fontError, 'Installed system fonts were not listed.');
-      assert(document.querySelectorAll('select,input').length === 23, 'Schema controls are missing.');
+      const keys = ${quote(configEntries.map(([key]) => key))};
+      assert(document.querySelectorAll('select,input').length === keys.length && keys.every(key => document.getElementById(key)?.matches('select,input')), 'Schema controls are missing.');
       const choose = async (key, value) => {
         const input = document.getElementById(key); input.value = value; input.dispatchEvent(new Event('change', {bubbles:true}));
         await waitFor(() => !input.disabled, 'Settings did not save.');
@@ -1280,6 +1282,72 @@ await test("tabs-inactive-pane-link", async () => {
   `)], "read");
 });
 
+await test("tabs-diagram-revisit", async () => {
+  const source = "# Diagrams\n\n" + Array.from({ length: 8 }, (_, i) => `\`\`\`mermaid\ngraph LR\nA${i}[Start]-->B${i}[Finish]\n\`\`\`\n\n`).join("");
+  const a = fixture("diagram-revisit/a.md", source), b = fixture("diagram-revisit/b.md", "# Other\n");
+  await launch("tabs-diagram-revisit", a, [
+    assertPerfDocument(a, source),
+    ...Array.from({ length: 4 }, () => [
+      evaluate(`await window.simplemd.openPath(${quote(b)}, 'read');`),
+      assertPerfDocument(b, "# Other\n"),
+      evaluate(`await window.simplemd.openPath(${quote(a)}, 'read');`),
+      assertPerfDocument(a, source),
+    ]).flat(),
+  ]);
+});
+
+await test("tab-design-polish-search-layout", async () => {
+  const shots = path.resolve(appRoot, "../.audit/m6-stabilize/screenshots");
+  fs.mkdirSync(shots, { recursive: true });
+  const file = fixture("tab-polish/README.md", "# A quiet place to read\n\nKeep the document at the center.\n\n## Room for the work\n\nOpen a few notes and keep your place.\n");
+  const draft = fixture("tab-polish/Working draft.md", "# Working draft\n\nA small set of familiar controls and room for the work.\n");
+  await launch("tab-design-polish-search-layout", file, [
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(draft)}, 'edit');`),
+    ...appendCharacter("!"),
+    evaluate(`window.simplemd.command('mode-read');
+      await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read' && document.querySelector('#doc h1'), 'Read did not mount');
+      await window.simplemd.setSettings({ theme: 'light' });
+      const toolbar = document.querySelector('.document-pane[data-active=true] .pane-controls');
+      assert(toolbar.getBoundingClientRect().top === 3, 'Toolbar is not in the title row');
+      assert(document.querySelector('#tabs').getBoundingClientRect().right + 27 <= toolbar.getBoundingClientRect().left, 'Tabs overlap the toolbar or grab space');
+      assert(getComputedStyle(document.querySelector('[data-element=name]')).display === 'none', 'Single pane repeats the filename');
+      assert([...toolbar.querySelectorAll('[data-mode]')].every(button => button.querySelector('svg') && button.getAttribute('aria-label') && button.title), 'Mode icons lack names or tooltips');
+      assert(toolbar.querySelector('[data-mode=read]').getAttribute('aria-pressed') === 'true', 'Read icon is not pressed');
+      assert(document.querySelector('.tab[data-pinned=true] .tab-short').textContent === 'R', 'Pinned tab is not compact');
+      const name = document.querySelector('.tab[data-dirty=true] .tab-name').getBoundingClientRect();
+      const slot = document.querySelector('.tab[data-dirty=true] .tab-action').getBoundingClientRect();
+      assert(slot.left - name.right <= 6.1, 'Dirty slot is detached from its label');`),
+    { input: { type: "mouseMove", x: 500, y: 300 } },
+    { shot: path.join(shots, "after-top-light.png") },
+    evaluate(`document.querySelector('#tab-search-button').click();
+      await waitFor(() => !document.querySelector('#picker').hidden, 'Search button did not open Open Quickly');`),
+    { input: { type: "keyDown", keyCode: "Escape" } }, { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`await window.simplemd.setSettings({ theme: 'dark' });`),
+    { shot: path.join(shots, "after-top-dark.png") },
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });
+      await waitFor(() => document.querySelector('#tabs').getBoundingClientRect().width === 180, 'Sidebar did not use its slim default');
+      assert(document.querySelector('#tabs').getBoundingClientRect().top === 0, 'Sidebar does not reach the window top');
+      assert(document.querySelector('#sidebar-search').getBoundingClientRect().top >= 34, 'Search overlaps traffic lights');
+      assert(document.querySelector('.document-pane[data-active=true] .pane-controls').getBoundingClientRect().top === 3, 'Sidebar moved controls to a second row');`),
+    { shot: path.join(shots, "after-sidebar-dark.png") },
+    evaluate(`const search = document.querySelector('#sidebar-search-input');
+      search.value = 'Working'; search.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker-input').value === 'Working', 'Sidebar search lost the query');`),
+    { input: { type: "keyDown", keyCode: "Escape" } }, { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`await window.simplemd.setSettings({ theme: 'light' });`),
+    { shot: path.join(shots, "after-sidebar-light.png") },
+    evaluate(`document.querySelector('.document-pane[data-active=true] [data-command=split-panes]').click();
+      await waitFor(() => document.querySelectorAll('.document-pane').length === 2, 'Split icon did not open another pane');
+      assert(document.querySelectorAll('.pane-name [data-element=name]').length === 2, 'Split headers lost filenames');
+      assert(document.querySelector('.document-pane[data-active=true] [data-command=split-panes]').getAttribute('aria-pressed') === 'true', 'Split icon is not pressed');
+      document.querySelector('.document-pane[data-active=true] [data-command=stack-panes]').click();
+      await waitFor(() => document.querySelector('#stage').dataset.axis === 'vertical', 'Stacked icon did not change the layout');
+      await window.simplemd.setSettings({ zenMode: true });
+      assert(getComputedStyle(document.querySelector('#tab-search')).display === 'none', 'Zen retained search');`),
+  ]);
+});
+
 await test("tab-design-titlebar-grab-regions", async () => {
   const file = fixture("tab-design-titlebar/README.md", note), other = fixture("tab-design-titlebar/other.md", "# Other\n");
   await launch("tab-design-titlebar-grab-regions", file, [
@@ -1355,17 +1423,23 @@ await test("tab-sidebar-menu-resize-relaunch", async () => {
       assert(Math.abs(document.querySelector('#stage').getBoundingClientRect().width - innerWidth) < 1, 'Collapsed sidebar retains width');`),
     { nativeMenuState: { path: ["View", "Show Tab Sidebar"], enabled: true } },
     { nativeMenu: ["View", "Show Tab Sidebar"] },
-    evaluate(`await waitFor(() => !document.querySelector('#sidebar-divider').hidden, 'Sidebar did not reopen');`),
-    { input: { type: "mouseDown", x: 222, y: 110, button: "left", clickCount: 1 } },
+    evaluate(`await waitFor(() => !document.querySelector('#sidebar-divider').hidden, 'Sidebar did not reopen');
+      window.resizeEvents = [];
+      for (const type of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','dblclick']) document.querySelector('#sidebar-divider').addEventListener(type, event => window.resizeEvents.push([type, event.clientX, event.pointerId, document.querySelector('#sidebar-divider').getAttribute('aria-valuenow')]));`),
+    { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
     { input: { type: "mouseMove", x: 302, y: 110, button: "left" } },
-    evaluate(`assert((await window.simplemd.ready()).settings.sidebarWidth === 220, 'Drag wrote config before release');`),
+    evaluate(`assert((await window.simplemd.ready()).settings.sidebarWidth === 180, 'Drag wrote config before release');`),
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Native divider drag failed');
-      assert((await window.simplemd.ready()).settings.sidebarWidth === 300, 'Drag width did not persist');`),
+      const deadline = performance.now() + 10000;
+      while ((await window.simplemd.ready()).settings.sidebarWidth !== 300) {
+        assert(performance.now() < deadline, 'Drag width did not persist: ' + JSON.stringify({ settings: (await window.simplemd.ready()).settings.sidebarWidth, events: window.resizeEvents }));
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }`),
     { input: { type: "mouseDown", x: 302, y: 110, button: "left", clickCount: 2 } },
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 2 } },
-    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '220', 'Double click did not reset divider');`),
-    { input: { type: "mouseDown", x: 222, y: 110, button: "left", clickCount: 1 } },
+    evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '180', 'Double click did not reset divider');`),
+    { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
     { input: { type: "mouseMove", x: 302, y: 110, button: "left" } },
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Final width did not apply');`),
@@ -1433,8 +1507,8 @@ await test("tab-sidebar-native-actions-and-live-windows", async () => {
       await window.simplemd.setSettings({ tabStyle: 'sidebar', sidebarCollapsed: false });
       await window.simplemd.openPath(${quote(b)});
       await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Middle click fixture did not open');`),
-    { input: { type: "mouseDown", x: 80, y: 62, button: "middle", clickCount: 1 } },
-    { input: { type: "mouseUp", x: 80, y: 62, button: "middle", clickCount: 1 } },
+    { input: { type: "mouseDown", x: 80, y: 88, button: "middle", clickCount: 1 } },
+    { input: { type: "mouseUp", x: 80, y: 88, button: "middle", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Native middle click did not close sidebar row');`),
   ]);
 });
@@ -1614,10 +1688,10 @@ await test("native-menu-rebuilds", async () => {
     { nativeMenus: "capture" },
     evaluate(`await window.simplemd.setSettings({ bounds: { x: 100, y: 100, width: 850, height: 700 }, zoom: 1.1 });`),
     { nativeMenus: "unchanged" },
-    evaluate(`const current = document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-checked=true]')?.dataset.mode;
+    evaluate(`const current = document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-pressed=true]')?.dataset.mode;
       window.nextMenuMode = current === 'live' ? 'source' : 'live';
       window.simplemd.command('mode-' + window.nextMenuMode);
-      await waitFor(() => document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-checked=true]')?.dataset.mode === window.nextMenuMode, 'Mode did not update');`),
+      await waitFor(() => document.querySelector('.document-pane[data-active=true] [data-element=modes] button[aria-pressed=true]')?.dataset.mode === window.nextMenuMode, 'Mode did not update');`),
     { nativeMenus: "app-only" },
     evaluate(`await window.simplemd.openPath(${quote(b)}, 'edit');`),
     { nativeMenus: "recents" },

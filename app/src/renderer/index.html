@@ -28,8 +28,12 @@
     </div>
 
     <div id="workspace">
+      <div id="tab-search">
+        <button id="tab-search-button" type="button" aria-label="Open Quickly" title="Open Quickly (⌘⇧O)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><circle cx="7.5" cy="7.5" r="4.5"/><path d="m11 11 3.5 3.5"/></svg></button>
+        <label id="sidebar-search"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><circle cx="7.5" cy="7.5" r="4.5"/><path d="m11 11 3.5 3.5"/></svg><input id="sidebar-search-input" type="search" placeholder="Search" aria-label="Open Quickly" title="Open Quickly (⌘⇧O)" autocomplete="off" spellcheck="false" maxlength="256" /></label>
+      </div>
       <div id="tabs" role="tablist" aria-label="Documents" hidden></div>
-      <div id="sidebar-divider" role="separator" aria-label="Tab sidebar width" aria-orientation="vertical" aria-controls="tabs" aria-valuemin="160" aria-valuemax="420" aria-valuenow="220" tabindex="0" hidden></div>
+      <div id="sidebar-divider" role="separator" aria-label="Tab sidebar width" aria-orientation="vertical" aria-controls="tabs" aria-valuemin="140" aria-valuemax="420" aria-valuenow="180" tabindex="0" hidden></div>
       <main id="stage" data-panes="0">
         <div id="welcome" class="empty-actions"><button id="welcome-open" type="button" class="pill">Open file</button><button id="welcome-new" type="button" class="pill">New tab</button></div>
       </main>
@@ -48,11 +52,16 @@
               <button id="reader-settings" type="button">Settings…</button>
             </div>
           </details>
-          <div id="modes" class="seg" role="radiogroup" aria-label="Document mode" hidden>
-            <button type="button" role="radio" data-mode="read" aria-checked="true" title="Read without editing the text">Read</button>
-            <button type="button" role="radio" data-mode="live" aria-checked="false" title="Edit with formatting shown around the cursor">Live</button>
-            <button type="button" role="radio" data-mode="split" aria-checked="false" title="Edit the text beside a formatted page" aria-label="Side by side">Side</button>
-            <button type="button" role="radio" data-mode="source" aria-checked="false" title="Edit the text with all Markdown symbols visible">Source</button>
+          <div id="modes" class="seg" role="group" aria-label="Document mode" hidden>
+            <button type="button" data-mode="read" aria-label="Read" aria-pressed="true" title="Read (⌘⌥0)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="4" y="2.5" width="10" height="13" rx="1.5"/><path d="M6.5 6h5m-5 3h5m-5 3h5"/></svg></button>
+            <button type="button" data-mode="live" aria-label="Live" aria-pressed="false" title="Live (⌘⌥1)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="4" y="2.5" width="10" height="13" rx="1.5"/><path d="m7 11 4-4m-5 5 2-.5L12 7l-1-1-4.5 4.5z"/></svg></button>
+            <button type="button" data-mode="split" aria-label="Side by side" aria-pressed="false" title="Side by side (⌘⌥2)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M9 3v12M5 6h1.5M5 9h1.5m5-2h1.5m-1.5 3h1.5"/></svg></button>
+            <button type="button" data-mode="source" aria-label="Source" aria-pressed="false" title="Source (⌘⌥3)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="m6.5 7-2 2 2 2m5-4 2 2-2 2"/></svg></button>
+          </div>
+          <div class="layout-controls" role="group" aria-label="Window layout">
+            <button type="button" data-command="split-panes" aria-label="Split side by side" aria-pressed="false" title="Split side by side (⌘\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M11 3v12"/></svg></button>
+            <button type="button" data-command="stack-panes" aria-label="Split stacked" aria-pressed="false" title="Split stacked (⌘⇧\)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M2.5 11h13"/></svg></button>
+            <button type="button" data-command="toggle-tab-sidebar" aria-label="Tab sidebar" aria-pressed="false" title="Tab sidebar (⌃⌘S)"><svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M7 3v12"/></svg></button>
           </div>
           <select class="mode-menu" aria-label="Document mode" title="Document mode" hidden>
             <option value="read" title="Read without editing the text">Read</option><option value="live" title="Edit with formatting shown around the cursor">Live</option><option value="split" title="Edit the text beside a formatted page">Side by side</option><option value="source" title="Edit the text with all Markdown symbols visible">Source</option>
