@@ -385,12 +385,13 @@ export async function perfGate(): Promise<void> {
       const text = fixtureText["typing-100k.md"]!;
       const a = path.join(fixtureDirectory, `tab-${mode}-a.md`), b = path.join(fixtureDirectory, `tab-${mode}-b.md`);
       fs.writeFileSync(a, text); fs.writeFileSync(b, text.replace('typing', 'tab-B!'));
-      const steps: DriverStep[] = [{ diagnostics: "environment" }, evaluate(`${waitFor}
+      const steps: DriverStep[] = [{ diagnostics: "environment" }, ...(mode === "read" ? [assertDocument(a, text)] : []), evaluate(`${waitFor}
         window.tabA = Number(document.documentElement.dataset.documentId);
         await window.simplemd.openPath(${quote(b)}, ${quote(mode === 'read' ? 'read' : 'edit')});
         await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)});
         window.tabB = Number(document.documentElement.dataset.documentId);
       `)];
+      if (mode === "read") steps.push(assertDocument(b, text.replace('typing', 'tab-B!')));
       for (let i = 0; i < count; i++) {
         const file = i % 2 === 0 ? a : b;
         steps.push({ barrier: `tab-switch-${i}` }, evaluate(`${waitFor}
