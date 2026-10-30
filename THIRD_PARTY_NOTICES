@@ -1,7 +1,10 @@
-T3 Code search ranking
+T3 Code search ranking and timeline minimap
 https://github.com/pingdotgg/t3code
 
 Used in app/src/shared/search-ranking.ts and adapted ranking tests.
+TimelineMinimap.tsx and MessagesTimeline.logic.ts informed the outline rail
+in app/src/renderer/outline-model.ts and outline-rail.ts, including the
+Dock-style scale factors, pointer mapping and transform-only strip animation.
 
 MIT License
 

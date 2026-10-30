@@ -1817,6 +1817,32 @@ await test("ux-conflict-save-copy", async () => {
   assert.equal(fs.readFileSync(copy, "utf8"), source + "!", "Saving a copy lost local bytes");
 });
 
+await test("outline-rail-click-jump", async () => {
+  const file = fixture("outline-click.md", Array.from({ length: 40 }, (_, i) => `## Chapter ${i + 1}\n\n${"Paragraph. ".repeat(100)}\n\n`).join(""));
+  await launch("outline-rail-click-jump", file, [
+    evaluate(`await waitFor(() => document.querySelectorAll('.outline-strip').length === 40, 'Outline did not build');
+      const button = document.querySelectorAll('.outline-strip')[20]; button.click();
+      await waitFor(() => button.dataset.inView === 'true', 'Jump did not reveal heading');
+      const scroll = document.querySelector('[data-element="read-scroll"]');
+      assert(scroll.scrollTop > 0 && getComputedStyle(scroll).scrollbarWidth === 'none', 'Rail did not replace the scrollbar');`),
+  ]);
+});
+await test("outline-rail-pointer-scrub", async () => {
+  const file = fixture("outline-scrub.md", Array.from({ length: 40 }, (_, i) => `## Chapter ${i + 1}\n\n${"Paragraph. ".repeat(100)}\n\n`).join(""));
+  await launch("outline-rail-pointer-scrub", file, [
+    evaluate(`await waitFor(() => document.querySelectorAll('.outline-strip').length === 40, 'Outline did not build');
+      const rail = document.querySelector('.outline-rail');
+      rail.style.position = 'fixed'; rail.style.inset = '100px auto auto 400px'; rail.style.width = '28px'; rail.style.height = '400px';`),
+    { input: { type: "mouseMove", x: 420, y: 110 } },
+    { input: { type: "mouseDown", x: 420, y: 110, button: "left", clickCount: 1 } },
+    { input: { type: "mouseMove", x: 420, y: 496, button: "left", modifiers: ["leftbuttondown"] } },
+    { input: { type: "mouseUp", x: 420, y: 496, button: "left", clickCount: 1 } },
+    evaluate(`const scroll = document.querySelector('[data-element="read-scroll"]');
+      await waitFor(() => scroll.scrollTop / (scroll.scrollHeight - scroll.clientHeight) > 0.95, 'Pointer scrub did not reach the end');
+      assert([...document.querySelectorAll('.outline-strip')].some(button => button.dataset.inView === 'true'), 'Scrub did not update the visible headings');`),
+  ]);
+});
+
 const blog = process.env.SMD_BYTE_BLOG_DIR;
 if (blog) for (const name of fs.readdirSync(blog).filter((name) => name.endsWith(".mdx")).sort()) {
   await test(`bytes-blog-${name}`, async () => {

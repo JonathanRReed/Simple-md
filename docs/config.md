@@ -20,6 +20,8 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `reading-font-size` | `19` | 10 to 40 |
 | `reading-line-height` | `1.68` | 1 to 2.5 |
 | `content-width` | `66` | 40 to 160 |
+| `outline-rail` | `true` | true, false |
+| `outline-rail-levels` | `3` | 1 to 6 |
 | `writing-font-family` | `system-ui` | Installed font family or CSS generic family |
 | `writing-font-size` | `17` | 10 to 40 |
 | `writing-line-height` | `1.65` | 1 to 2.5 |
@@ -67,6 +69,8 @@ reading-font-family = Charter
 reading-font-size = 19
 reading-line-height = 1.68
 content-width = 66
+outline-rail = true
+outline-rail-levels = 3
 writing-font-family = system-ui
 writing-font-size = 17
 writing-line-height = 1.65
