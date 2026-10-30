@@ -13,6 +13,7 @@ import { contextTemplate, validateContext } from "./context-menu.js";
 import type { ContextResult, NativeContext } from "../shared/native-context.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
+import { sidebarToggle } from "../shared/tab-presentation.js";
 import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
 import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
@@ -711,6 +712,7 @@ async function newDocumentWindow(): Promise<void> {
 function runCommand(cmd: Command, target = context().layout.active?.documentId): void {
   const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
+    case "toggle-tab-sidebar": applySettings(sidebarToggle(settings)); return;
     case "close-tab": {
       const host = context();
       if (host.layout.state.tabs.length && target !== undefined) void documents.run(() => closeTab(target, host));
@@ -943,6 +945,19 @@ function registerIpc(): void {
     return context().layout.active?.documentId;
   });
   handle("smd:close-tab", id => { const host = context(); const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId, host)); });
+  handle("smd:tab-context-menu", id => {
+    const host = context();
+    const doc = ipcSession(id);
+    const menu = Menu.buildFromTemplate([
+      { label: "Close Tab", click: () => { void windowScope.run(host, () => documents.run(async () => host.layout.has(doc.documentId) ? closeTab(doc.documentId, host) : false)); } },
+      { label: "Move Tab to New Window", click: () => { void windowScope.run(host, () => documents.run(async () => {
+        if (!host.layout.has(doc.documentId)) return;
+        host.layout.activate(doc.documentId); syncLayout(); await moveTabToWindow();
+      })); } },
+      { label: process.platform === "darwin" ? "Reveal in Finder" : "Show in File Manager", enabled: !!doc.path, click: () => { if (doc.path) shell.showItemInFolder(doc.path); } },
+    ]);
+    menu.popup({ window: host.win });
+  });
   handle("smd:ready", () => {
     trace("renderer-ready");
     context().rendererReady = true;
@@ -1159,7 +1174,7 @@ function registerIpc(): void {
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
     if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
-    const commands: readonly string[] = ["mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
+    const commands: readonly string[] = ["toggle-tab-sidebar", "mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }

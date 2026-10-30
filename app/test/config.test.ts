@@ -2,9 +2,27 @@ import { expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { configDefaults } from "../src/shared/config-schema";
+import { clampSidebarWidth, configDefaults } from "../src/shared/config-schema";
 import { parseConfig, serializeConfig, validateUserPatch } from "../src/shared/config";
 import { ConfigStore, configPath } from "../src/main/config-store";
+import { sanitizeSettings } from "../src/main/settings-store";
+
+test("tab settings round trip and sidebar width clamps at every config boundary", () => {
+  expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(220);
+  const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true } as const;
+  expect(parseConfig(serializeConfig("# Tabs\r\n", patch)).settings).toMatchObject(patch);
+  for (const [input, expected] of [[1, 160], [900, 420], [250.7, 251]]) {
+    expect(clampSidebarWidth(input!)).toBe(expected!);
+    expect(parseConfig(`sidebar-width = ${input}`).settings.sidebarWidth).toBe(expected!);
+    expect(parseConfig(serializeConfig("", { sidebarWidth: input! })).settings.sidebarWidth).toBe(expected!);
+    expect(validateUserPatch({ sidebarWidth: input! }).sidebarWidth).toBe(expected!);
+    expect(sanitizeSettings({ sidebarWidth: input! }).sidebarWidth).toBe(expected!);
+  }
+  expect(clampSidebarWidth(NaN)).toBe(220);
+  expect(parseConfig("tab-style = tree\nsidebar-width = Infinity\nsidebar-collapsed = yes").issues).toHaveLength(3);
+  expect(() => validateUserPatch({ sidebarWidth: Infinity })).toThrow();
+  expect(() => validateUserPatch({ tabStyle: "tree" })).toThrow();
+});
 test("config preserves comments, unknown lines, order, quotes and CRLF", () => {
   const source = '# My setup\r\nreading-font-family = "A # Font" # Keep this\r\nfuture-key = x\r\nautosave = false\r\n';
   expect(serializeConfig(source, {})).toBe(source);

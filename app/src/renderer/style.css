@@ -931,6 +931,7 @@ details.frontmatter pre {
   .pane-status,
   .pane-toolbar,
   #tabs,
+  #sidebar-divider,
   #banner,
   #findbar,
   #picker,
@@ -940,6 +941,7 @@ details.frontmatter pre {
   #edit {
     display: none !important;
   }
+  #workspace { display: block !important; }
   #stage,
   .pane,
   .scroller {
@@ -1118,6 +1120,7 @@ code,
 }
 
 /* M5a tab strip and pane layout. Keep document theme rules above independent. */
+#workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
 #tabs {
   display: flex;
   flex: none;
@@ -1153,11 +1156,53 @@ body:not([data-platform="darwin"]) #tabs { height: 34px; font-size: 13px; }
 .tab-name-start { overflow: hidden; text-overflow: ellipsis; }
 .tab-name-end { flex: none; max-width: 50%; overflow: hidden; }
 .tab-close { display: grid; place-items: center; flex: none; border: 0; padding: 0; width: 18px; height: 18px; border-radius: 4px; background: transparent; color: inherit; opacity: 0; }
-.tab:is(:hover, :focus-within, [aria-selected="true"], [data-dirty="true"]) .tab-close { opacity: 1; }
+.tab:is(:hover, :focus-within) .tab-close { opacity: 1; }
 .tab-close:hover { background: color-mix(in srgb, CanvasText 12%, transparent); }
-.tab-dirty { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tab-dirty { flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tab-pane { display: none; }
 body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; padding-inline: 12px 8px; }
-#stage { display: flex; gap: 1px; }
+body[data-tab-style="sidebar"] #workspace { flex-direction: row; }
+body[data-platform="darwin"][data-tab-style="sidebar"][data-sidebar-collapsed="false"] { background: transparent; }
+body[data-tab-style="sidebar"] #tabs {
+  flex: 0 0 var(--sidebar-width, 220px); width: var(--sidebar-width, 220px); height: auto;
+  min-height: 0; flex-direction: column; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
+  border: 0; padding: 8px 6px; gap: 2px; background: light-dark(#ededed, #292929); font-size: 13px;
+}
+body[data-platform="darwin"][data-tab-style="sidebar"] #tabs { background: light-dark(#f1f1f1b3, #242424b3); }
+body[data-tab-style="sidebar"] .tab {
+  flex: none; min-width: 0; max-width: none; width: 100%; min-height: 32px;
+  border: 0; border-radius: 6px; padding-inline: 8px 5px; gap: 6px;
+}
+body[data-tab-style="sidebar"] .tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--tab-accent, Highlight) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--tab-accent, Highlight);
+}
+body[data-tab-style="sidebar"] .tab-pane {
+  display: block; flex: none; width: 8px; height: 10px; border: 1px solid currentColor;
+  border-radius: 1px; opacity: .6; visibility: hidden;
+}
+body[data-tab-style="sidebar"] .tab[data-pane]:not([data-pane=""]) .tab-pane { visibility: visible; }
+.tab[data-pane="left"] .tab-pane { box-shadow: inset 3px 0 currentColor; }
+.tab[data-pane="right"] .tab-pane { box-shadow: inset -3px 0 currentColor; }
+.tab[data-pane="top"] .tab-pane { box-shadow: inset 0 3px currentColor; }
+.tab[data-pane="bottom"] .tab-pane { box-shadow: inset 0 -3px currentColor; }
+#sidebar-divider {
+  flex: 0 0 5px; position: relative; cursor: col-resize; touch-action: none;
+  background: color-mix(in srgb, CanvasText 8%, transparent); -webkit-app-region: no-drag;
+}
+#sidebar-divider:is(:hover, :focus-visible), .resizing-sidebar #sidebar-divider { background: var(--tab-accent, Highlight); }
+#sidebar-divider:focus-visible { outline-offset: -2px; }
+.resizing-sidebar, .resizing-sidebar * { cursor: col-resize !important; user-select: none !important; }
+@media (forced-colors: active) {
+  body[data-tab-style="sidebar"] #tabs { background: Canvas; }
+  body[data-tab-style="sidebar"] .tab[aria-selected="true"] { background: Canvas; outline: 2px solid Highlight; outline-offset: -2px; }
+  .tab[data-pane="left"] .tab-pane { border-left-width: 3px; }
+  .tab[data-pane="right"] .tab-pane { border-right-width: 3px; }
+  .tab[data-pane="top"] .tab-pane { border-top-width: 3px; }
+  .tab[data-pane="bottom"] .tab-pane { border-bottom-width: 3px; }
+  #sidebar-divider { background: CanvasText; }
+}
+#stage { display: flex; gap: 1px; min-width: 0; }
 #stage[data-axis="vertical"] { flex-direction: column; }
 .document-pane { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; background: var(--bg); overflow: hidden; }
 .pane-toolbar {
@@ -1195,7 +1240,8 @@ body:not([data-platform="darwin"]) .tab { min-width: 100px; max-width: 240px; pa
 .document-pane [data-element="empty"] { height: 100%; display: flex; align-items: center; justify-content: center; }
 #welcome { display: flex; align-items: center; justify-content: center; flex: 1; background: var(--bg); margin: 0; }
 #stage:not([data-panes="0"]) #welcome { display: none; }
-body.print .pane-toolbar, body.print .pane-status, body.print #tabs, body.print #welcome { display: none !important; }
+body.print .pane-toolbar, body.print .pane-status, body.print #tabs, body.print #sidebar-divider, body.print #welcome { display: none !important; }
+body.print #workspace { display: block; }
 body.print #stage { display: block; }
 body.print .document-pane, body.print .pane-content { display: block; position: static; overflow: visible; }
 

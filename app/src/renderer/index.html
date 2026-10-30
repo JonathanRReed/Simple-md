@@ -26,10 +26,13 @@
       <button id="find-close" type="button" aria-label="Close Find">×</button>
     </div>
 
-    <div id="tabs" role="tablist" aria-label="Documents" hidden></div>
-    <main id="stage" data-panes="0">
-      <div id="welcome" class="empty-actions"><button id="welcome-open" type="button" class="pill">Open file</button><button id="welcome-new" type="button" class="pill">New tab</button></div>
-    </main>
+    <div id="workspace">
+      <div id="tabs" role="tablist" aria-label="Documents" hidden></div>
+      <div id="sidebar-divider" role="separator" aria-label="Tab sidebar width" aria-orientation="vertical" aria-controls="tabs" aria-valuemin="160" aria-valuemax="420" aria-valuenow="220" tabindex="0" hidden></div>
+      <main id="stage" data-panes="0">
+        <div id="welcome" class="empty-actions"><button id="welcome-open" type="button" class="pill">Open file</button><button id="welcome-new" type="button" class="pill">New tab</button></div>
+      </main>
+    </div>
     <template id="pane-template">
       <div class="document-pane">
         <div class="pane-toolbar">

@@ -94,6 +94,7 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "toggle-tab-sidebar"
   | "mark-seen"
   | "toggle-head-changes"
   | "next-change"

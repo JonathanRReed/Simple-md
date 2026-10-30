@@ -16,6 +16,7 @@ export interface Bridge {
   paneMode(id: PaneId, mode: import("../shared/types.js").ViewMode): void;
   focusPane(id: PaneId): Promise<void>;
   closeTab(id: DocumentId): Promise<boolean>;
+  tabContextMenu(id: DocumentId): Promise<void>;
   ready(): Promise<{ settings: Settings; platform: string; accent: string }>;
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;

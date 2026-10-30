@@ -1,4 +1,5 @@
-import { tabLabel } from "../shared/tab-labels.js";
+import { tabRows } from "../shared/tab-presentation.js";
+import { createTabBar } from "./tab-bar.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
@@ -11,6 +12,9 @@ import { closeOverlays } from "./ui.js";
 const api = bridge();
 const stage = document.querySelector<HTMLElement>("#stage")!;
 const strip = document.querySelector<HTMLElement>("#tabs")!;
+const tabBar = createTabBar(strip, document.querySelector<HTMLElement>("#sidebar-divider")!, api);
+let tabFrame = 0;
+let tabTimer: ReturnType<typeof setTimeout> | undefined;
 const template = document.querySelector<HTMLTemplateElement>("#pane-template")!;
 let settings: Settings = DEFAULT_SETTINGS;
 let layout: TabLayoutState | undefined;
@@ -25,6 +29,7 @@ api.onContextMenu(context => { if (contextTarget) void contextTarget.contextMenu
 const active = () => layout ? panes.get(layout.activePane)?.controller : undefined;
 function applyWindowSettings(next: Settings): void {
   applyDocumentStyle(next);
+  tabBar.configure(next);
   document.documentElement.style.setProperty("--tab-accent", next.systemAccent ?? "Highlight");
   document.documentElement.dataset.theme = next.theme;
   document.documentElement.style.colorScheme = next.theme === "system" ? "light dark" : next.theme;
@@ -38,84 +43,35 @@ function syncChrome(): void {
     if (element?.dataset[key] === undefined) delete document.documentElement.dataset[key];
     else document.documentElement.dataset[key] = element.dataset[key];
   }
-  const tabFocused = strip.contains(document.activeElement);
-  const ids = layout.tabs;
   const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
   windowTitle.textContent = controller?.meta.name ?? "SimpleMD";
   document.title = controller?.meta.name ?? "SimpleMD";
   windowTitle.title = controller?.meta.path ?? "";
-  strip.hidden = ids.length <= 1;
-  for (const node of strip.querySelectorAll<HTMLElement>(".tab")) {
-    if (!ids.some(id => String(id) === node.dataset.documentId)) node.remove();
+  if (settings.tabStyle === "sidebar") {
+    // Let the document paint before populating sidebar rows. Coalesce load and dirty notifications.
+    if (!tabFrame && tabTimer === undefined) tabFrame = requestAnimationFrame(() => {
+      tabFrame = 0;
+      tabTimer = setTimeout(() => { tabTimer = undefined; syncTabs(); }, 0);
+    });
+  } else {
+    cancelAnimationFrame(tabFrame); tabFrame = 0;
+    clearTimeout(tabTimer); tabTimer = undefined;
+    syncTabs();
   }
-  const tabMeta = (id: DocumentId) => [...panes.values()].find(p => p.controller.documentId === id)?.controller.meta
-    ?? documents.get(id)?.retained?.state.meta ?? documents.get(id)?.payload ?? { name: "Untitled", path: null };
-  const names = ids.map(tabMeta);
-  ids.forEach((id, index) => {
-    const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
-    const tab = documents.get(id);
-    const meta = mounted?.meta ?? tab?.retained?.state.meta ?? tab?.payload;
-    const dirty = !!(mounted?.meta.dirty ?? tab?.retained?.state.dirty ?? tab?.payload.dirty);
-    let button = strip.querySelector<HTMLElement>(`.tab[data-document-id="${id}"]`);
-    if (!button) {
-      button = document.createElement("div");
-      button.className = "tab";
-      button.dataset.documentId = String(id);
-      button.setAttribute("role", "tab");
-      const title = document.createElement("span"); title.className = "tab-name";
-      const close = document.createElement("button");
-      close.type = "button"; close.className = "tab-close";
-      close.addEventListener("click", e => { e.stopPropagation(); void api.closeTab(id); });
-      button.append(title, close);
-      button.addEventListener("click", () => void api.activateTab(id));
-      button.addEventListener("keydown", e => {
-        if (e.target !== e.currentTarget) return;
-        const tabs = layout?.tabs ?? [];
-        const current = tabs.indexOf(id);
-        let next: DocumentId | undefined;
-        if (e.key === "Enter" || e.key === " ") next = id;
-        else if (e.key === "ArrowRight" || e.key === "ArrowLeft") next = tabs[(current + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
-        else if (e.key === "Home") next = tabs[0];
-        else if (e.key === "End") next = tabs.at(-1);
-        if (e.key === "Delete") { e.preventDefault(); void api.closeTab(id); }
-        if (next !== undefined) { e.preventDefault(); void api.activateTab(next); }
-      });
-    }
-    const title = button.querySelector<HTMLElement>(".tab-name")!;
-    const close = button.querySelector<HTMLButtonElement>(".tab-close")!;
-    const label = tabLabel(names[index]!, names);
-    const midpoint = Math.ceil(label.length / 2);
-    const start = document.createElement("span"); start.className = "tab-name-start"; start.textContent = label.slice(0, midpoint);
-    const end = document.createElement("span"); end.className = "tab-name-end"; end.textContent = label.slice(midpoint);
-    title.replaceChildren(start, end);
-    button.setAttribute("aria-label", `${title.textContent}${dirty ? ", unsaved changes" : ""}`);
-    button.setAttribute("aria-selected", String(controller?.documentId === id));
-    button.setAttribute("aria-controls", `document-${id}`);
-    button.tabIndex = controller?.documentId === id ? 0 : -1;
-    button.title = meta?.path ?? "Untitled";
-    if (button.dataset.dirty !== String(dirty)) {
-      button.dataset.dirty = String(dirty);
-      close.replaceChildren();
-      if (dirty) {
-        const dot = document.createElement("span"); dot.className = "tab-dirty"; dot.setAttribute("aria-hidden", "true"); close.append(dot);
-      } else {
-        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        icon.setAttribute("viewBox", "0 0 12 12"); icon.setAttribute("width", "12"); icon.setAttribute("height", "12"); icon.setAttribute("aria-hidden", "true");
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        for (const [name, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(name, value);
-        icon.append(path); close.append(icon);
-      }
-    }
-    close.tabIndex = -1;
-    button.setAttribute("aria-keyshortcuts", "Delete");
-    close.setAttribute("aria-label", `Close ${title.textContent}`);
-    if (strip.children[index] !== button) strip.insertBefore(button, strip.children[index] ?? null);
-  });
-  if (tabFocused) strip.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus({ preventScroll: true });
   for (const [id, pane] of panes) {
     pane.element.dataset.active = String(id === layout.activePane);
     pane.controller.activeChanged(id === layout.activePane);
   }
+}
+function syncTabs(): void {
+  if (!layout) return;
+  const names = layout.tabs.map(id => {
+    const mounted = [...panes.values()].find(p => p.controller.documentId === id)?.controller;
+    const tab = documents.get(id);
+    const meta = mounted?.meta ?? tab?.retained?.state.meta ?? tab?.payload ?? { name: "Untitled", path: null };
+    return { ...meta, dirty: !!(mounted?.meta.dirty ?? tab?.retained?.state.dirty ?? tab?.payload.dirty) };
+  });
+  tabBar.render(tabRows(layout, names));
 }
 function tabMetaForPalette(id: DocumentId) {
   return [...panes.values()].find(p => p.controller.documentId === id)?.controller.meta
@@ -258,6 +214,7 @@ async function boot(): Promise<void> {
     const modeChanged = settings.mode !== next.mode;
     settings = next;
     applyWindowSettings(next);
+    syncChrome();
     for (const pane of panes.values()) pane.controller.settings(next);
     if (modeChanged) active()?.command(next.mode === "live" ? "mode-live" : next.mode === "source" ? "mode-source" : "mode-split");
   });
@@ -278,7 +235,9 @@ async function boot(): Promise<void> {
     if (e.isComposing) return;
     const mod = ready.platform === "darwin" ? e.metaKey : e.ctrlKey;
     let command: Command | undefined;
-    if (mod && e.key === ",") command = "preferences";
+    const sidebarShortcut = ready.platform === "darwin" ? e.ctrlKey && e.metaKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey;
+    if (sidebarShortcut && !e.shiftKey && e.key.toLowerCase() === "s") command = "toggle-tab-sidebar";
+    else if (mod && e.key === ",") command = "preferences";
     else if (mod && e.key.toLowerCase() === "t") command = "new";
     else if (mod && e.key.toLowerCase() === "w") command = "close-tab";
     else if (e.ctrlKey && e.key === "Tab") command = e.shiftKey ? "previous-tab" : "next-tab";
