@@ -1380,7 +1380,7 @@ await test("tab-design-titlebar-grab-regions", async () => {
       const tabs = document.querySelector('#tabs'), titlebar = document.querySelector('.titlebar');
       assert(getComputedStyle(tabs).getPropertyValue('-webkit-app-region') === 'drag', 'Empty strip does not drag');
       assert(getComputedStyle(titlebar).getPropertyValue('-webkit-app-region') === 'drag', 'Titlebar does not drag');
-      assert(getComputedStyle(tabs.firstElementChild).getPropertyValue('-webkit-app-region') === 'no-drag', 'Tabs cannot receive clicks');
+      assert(getComputedStyle(tabs.querySelector('[role=tab]')).getPropertyValue('-webkit-app-region') === 'no-drag', 'Tabs cannot receive clicks');
       assert(innerWidth - tabs.getBoundingClientRect().right >= 27, 'Overflow removed the frame grab space');`),
     { nativeChrome: true },
     { nativeIdentity: { file: other, edited: false } },
@@ -1404,6 +1404,67 @@ await test("tab-design-zen-native-toggle", async () => {
     evaluate(`await waitFor(() => document.body.dataset.zen === 'false', 'Zen shortcut did not exit');`),
     { nativeMenuState: { path: ["View", "Zen Mode"], enabled: true, checked: false } },
   ]);
+});
+
+// Round-two native cases are added here for the GUI worker. Do not run in the chrome lane.
+await test("r2-chrome-zen-session", async () => {
+  const name = "r2-chrome-zen-session", file = fixture(name + "/note.md", note);
+  await launch(name, file, [
+    evaluate(`assert(document.body.dataset.zen !== 'true', 'Legacy config restored zen');`),
+    { nativeMenu: ["View", "Zen Mode"] },
+    { input: { type: "mouseMove", x: 200, y: 2 } },
+    evaluate(`await waitFor(() => document.body.dataset.chromeRevealed === 'true', 'Zen reveal failed');
+      assert(!document.querySelector('#zen-hint').hidden, 'No zen exit hint');
+      for (const button of document.querySelectorAll('.pane-controls [data-mode], .reader-options summary')) {
+        const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        assert(hit === button || button.contains(hit), 'Zen toolbar is blocked');
+      }`),
+    { input: { type: "keyDown", keyCode: "Escape" } },
+    { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`await waitFor(() => document.body.dataset.zen === 'false', 'Escape did not exit zen');`),
+    { nativeMenu: ["View", "Zen Mode"] }, { menuQuit: true },
+  ], "read", undefined, 0, "source", { prepare: profile => fs.writeFileSync(path.join(profile, "config"), "zen-mode = true\n") });
+  await launch(name, file, [evaluate(`assert(document.body.dataset.zen !== 'true', 'Zen survived relaunch');`)]);
+});
+
+await test("r2-chrome-tab-focus-and-Aa", async () => {
+  const name = "r2-chrome-tab-focus-and-Aa", a = fixture(name + "/PLAN.md", note), b = fixture(name + "/PLAN_ARCHIVE.md", note);
+  await launch(name, a, [
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(b)});`),
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await waitFor(() => document.querySelectorAll('.tab[data-pinned=true]').length === 2, 'Pins missing');
+      const labels = [...document.querySelectorAll('.tab-short')].map(node => node.textContent);
+      assert(new Set(labels).size === labels.length, 'Pinned labels collide');
+      document.querySelector('[role=tab]').click();`),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPath === ${quote(a)}, 'Pinned tab did not activate'); const mode = document.querySelector('[data-mode=live]'); mode.click();
+      await waitFor(() => document.activeElement?.classList.contains('cm-content'), 'Live lacks typing focus');
+      window.r2ModeX = mode.getBoundingClientRect().x;`),
+    ...appendCharacter("!"),
+    evaluate(`document.querySelector('[data-mode=source]').click();
+      await waitFor(() => document.activeElement?.classList.contains('cm-content'), 'Source lacks typing focus');
+      assert(document.querySelector('[data-mode=live]').getBoundingClientRect().x === window.r2ModeX, 'Toolbar shifted');
+      const options = document.querySelector('.reader-options'); options.open = true; options.querySelector('button').focus();`),
+    { input: { type: "keyDown", keyCode: "Escape" } },
+    { input: { type: "keyUp", keyCode: "Escape" } },
+    evaluate(`assert(!document.querySelector('.reader-options').open && document.activeElement.matches('.reader-options summary'), 'Aa did not dismiss and restore focus');`),
+    { dialog: { response: 1 } }, { menuQuit: true },
+  ]);
+});
+
+await test("r2-chrome-first-autosave-close", async () => {
+  const name = "r2-chrome-first-autosave-close", file = fixture(name + "/note.md", note);
+  await launch(name, file, [
+    evaluate(`await window.simplemd.setSettings({ autosave: true }); document.querySelector('[data-mode=live]').click();`),
+    ...appendCharacter("!"),
+    evaluate(`await new Promise(resolve => setTimeout(resolve, 1400)); assert(!document.querySelector('#dirty').hidden, 'Tiny first burst autosaved');`),
+    { dialog: { response: 2 } },
+    { input: { type: "keyDown", keyCode: "W", modifiers: [mod] } },
+    { input: { type: "keyUp", keyCode: "W", modifiers: [mod] } },
+    evaluate(`assert(editorText().endsWith('!') && !document.querySelector('#dirty').hidden, 'Cancel lost the guarded edit');`),
+    { dialog: { response: 1 } }, { menuQuit: true },
+  ]);
+  assert.equal(fs.readFileSync(file, "utf8"), note, "Guarded first edit overwrote the file");
 });
 
 await test("tabs-pinned-relaunch", async () => {
@@ -1826,7 +1887,14 @@ await test("ux-conflict-save-copy", async () => {
   const marker = path.join(root, "copy-dirty.png");
   await launch("ux-conflict-save-copy", file, [
     ...appendCharacter("!"), { shot: marker }, { savePath: copy },
-    evaluate(`await waitFor(() => !document.querySelector('#banner').hidden, 'Conflict banner missing'); const button = [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'Save mine as…'); assert(button, 'Save mine as is missing'); button.click(); await waitFor(() => !button.disabled, 'Conflict Save dialog did not finish'); assert(!document.querySelector('#banner').hidden && editorText().endsWith('!'), 'Saving a copy lost the local version or conflict choices');`),
+    evaluate(`await waitFor(() => !document.querySelector('#banner').hidden, 'Conflict banner missing'); const button = [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'Save mine as…'); assert(button, 'Save mine as is missing');
+      const view = [...document.querySelectorAll('#banner button')].find(button => button.textContent === 'View incoming changes');
+      assert(view, 'Incoming comparison missing'); view.click();
+      await waitFor(() => document.querySelector('.conflict-comparison')?.open, 'Comparison did not open');
+      const versions = document.querySelectorAll('.conflict-comparison pre');
+      assert(versions[0].textContent.endsWith('!') && versions[1].textContent === ${quote(incoming)}, 'Comparison lost a version');
+      document.querySelector('.conflict-comparison button').click();
+      assert(!document.querySelector('#banner').hidden, 'Comparison resolved the conflict'); button.click(); await waitFor(() => !button.disabled, 'Conflict Save dialog did not finish'); assert(!document.querySelector('#banner').hidden && editorText().endsWith('!'), 'Saving a copy lost the local version or conflict choices');`),
   ], "edit", { marker, file, text: incoming });
   assert.equal(fs.readFileSync(file, "utf8"), incoming, "Saving a copy replaced the incoming version");
   assert.equal(fs.readFileSync(copy, "utf8"), source + "!", "Saving a copy lost local bytes");

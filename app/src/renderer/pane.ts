@@ -1,3 +1,5 @@
+import { FirstAutosave } from "../shared/first-autosave.js";
+import { showConflictComparison } from "./conflict-comparison.js";
 import type { createOutlineRail } from "./outline-rail.js";
 import { tabCommands } from "../shared/tab-commands.js";
 import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-sync.js";
@@ -31,6 +33,7 @@ interface DocMeta {
 }
 
 interface DocumentState {
+  firstAutosave: FirstAutosave;
   meta: DocMeta;
   hasDoc: boolean;
   readText: string;
@@ -151,6 +154,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
   let navigatingLink = false;
   let pendingDisk: DormantDocument["disk"];
+  let closeComparison: (() => void) | undefined;
   let highlights: HighlightState = { kind: null, generation: 0, changes: { changed: [], deleted: [] } };
   let changeTimer: number | undefined;
   let changeSequence = 0;
@@ -254,6 +258,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
   function createDocumentState(): DocumentState {
     return {
+      firstAutosave: new FirstAutosave("", false),
       meta: { path: null, name: "Untitled", baseUrl: null },
       hasDoc: false, readText: "", savedText: "", dirty: false,
       diskConflict: false, diskSeq: 0, saveQueue: Promise.resolve(),
@@ -271,6 +276,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let pane = createPaneState(paneId, makeDocumentId(0));
 
   function changedText(text: string): void {
+    if (pane.view === "read" && text !== doc.savedText) doc.firstAutosave.confirm();
     doc.revisionId = makeRevisionId(doc.revisionId + 1);
     root.dataset.revisionId = String(doc.revisionId);
     simplemd.edit(text, pane.documentId, doc.revisionId);
@@ -615,7 +621,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     dirtyEl.hidden = !doc.dirty;
     modesEl.hidden = !doc.hasDoc || isReadOnly();
     editBtn.hidden = true;
-    $("reader-options").hidden = pane.view !== "read" || !doc.hasDoc;
+    $("reader-options").hidden = !doc.hasDoc;
     $("nav-back").hidden = !navBack.length;
     const overridden = settings.readingStyle === "github";
     $("reading-size").textContent = `${overridden ? 16 : settings.readingFontSize}px`;
@@ -707,6 +713,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         },
         onChange(text) {
           if (disposed || id !== pane.documentId) return;
+          doc.firstAutosave.edit(text);
           changedText(text);
           doc.readText = text;
           if (pane.view === "read") {
@@ -772,7 +779,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
       if (!restoring) ed.restoreAnchor(syncAnchor);
       if (pane.mode === "split") resyncPreview();
-      if (options.active() && !document.activeElement?.closest("#tabs")) ed.focus();
+      if (options.active() && (!initializing || !document.activeElement?.closest("#tabs"))) ed.focus();
     });
   }
 
@@ -801,6 +808,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const previousAnchor = visibleAnchor();
     disposed = false;
     window.addEventListener("focus", refreshHeadOnFocus);
+    bindReaderOptions();
+    closeComparison?.();
     layoutObserver.observe(previewEl);
     layoutObserver.observe(docEl);
     readRestoreAnchor = undefined;
@@ -867,6 +876,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     root.dataset.renderComplete = "";
     doc.hasDoc = true;
     if (!retained) {
+      doc.firstAutosave = new FirstAutosave(payload.savedText ?? payload.text, payload.firstAutosaveAllowed === undefined ? !!payload.path && payload.intent === "read" : !payload.firstAutosaveAllowed);
       doc.readText = payload.text;
       doc.savedText = payload.savedText ?? payload.text;
       doc.dirty = payload.dirty ?? false;
@@ -957,6 +967,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (pane.view === "read") void renderRead(currentText(), true);
       else if (pane.mode === "split") void renderPreview();
     }
+    doc.firstAutosave.confirm();
     doc.savedText = result.text;
     doc.dirty = currentText() !== doc.savedText;
     simplemd.setDirty(doc.dirty, pane.documentId);
@@ -969,7 +980,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const save = async () => {
       if (!doc.hasDoc || id !== pane.documentId || isReadOnly() || transitioning || doc.diskConflict) return;
       const text = currentText();
-      if (automatic && (!doc.meta.path || text === doc.savedText)) return;
+      if (automatic && (!doc.firstAutosave.allowed || !doc.meta.path || text === doc.savedText)) return;
       if (!forceDialog && doc.meta.path && text === doc.savedText) return;
       const result = await simplemd.save(text, forceDialog, id);
       if (!result || id !== pane.documentId) return;
@@ -982,11 +993,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   function scheduleAutosave(): void {
     clearTimeout(pane.autosaveTimer);
-    if (!settings.autosave || !doc.meta.path || !doc.dirty || doc.diskConflict || isReadOnly()) return;
+    if (!settings.autosave || !doc.firstAutosave.allowed || !doc.meta.path || !doc.dirty || doc.diskConflict || isReadOnly()) return;
     pane.autosaveTimer = window.setTimeout(() => void saveNow(false, true), 900);
   }
 
   function applyDiskText(text: string): void {
+    doc.firstAutosave.baseline(text);
     doc.savedText = text;
     doc.readText = text;
     doc.dirty = false;
@@ -1001,6 +1013,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function onDiskChanged(text: string, id: DocumentId, reason?: string): void {
     pendingDisk = { text, reason };
     if (disposed || id !== pane.documentId) return;
+    closeComparison?.();
     const seq = ++doc.diskSeq;
     const saveCopy = { label: "Save mine as…", run: async () => {
       const copy = await simplemd.saveCopy(currentText(), id);
@@ -1028,6 +1041,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     clearTimeout(pane.autosaveTimer);
     doc.diskConflict = true;
     const offerChoice = () => showBanner("This note changed on disk.", [
+      { label: "View incoming changes", run: () => { closeComparison = showConflictComparison(currentText(), text); return false; } },
       { label: "Reload", run: () => accept(true) },
       { label: "Keep mine", run: () => accept(false) },
       saveCopy,
@@ -1038,6 +1052,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         offerChoice();
         return false;
       }
+      closeComparison?.();
       pendingDisk = undefined;
       doc.diskConflict = false;
       doc.readOnlyReason = undefined;
@@ -1419,15 +1434,38 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   });
   function selectMode(mode: ViewMode): void {
     if (mode === "read") void showRead();
-    else { setMode(mode); if (pane.view === "read") void showEdit(); }
+    else {
+      setMode(mode);
+      if (pane.view === "read") void showEdit();
+      else pane.editor?.focus();
+    }
   }
   $("nav-back").addEventListener("click", () => void navigate("back"));
   for (const [id, delta] of [["reading-smaller", -2], ["reading-larger", 2]] as const) {
     $(id).addEventListener("click", () => { if (settings.readingStyle !== "github") void simplemd.setSettings({ readingFontSize: Math.max(10, Math.min(40, settings.readingFontSize + delta)) }); });
   }
-  $("reader-settings").addEventListener("click", () => { $<HTMLDetailsElement>("reader-options").open = false; handleCommand("preferences"); });
+  $("reader-settings").addEventListener("click", () => { closeReaderOptions(); handleCommand("preferences"); });
   const readerOptions = $<HTMLDetailsElement>("reader-options");
   const readerMenu = container.querySelector<HTMLElement>(".reader-options-menu")!;
+  function closeReaderOptions(): void {
+    if (!readerOptions.open) return;
+    exitChrome(readerMenu);
+    readerOptions.open = false;
+    readerOptions.querySelector("summary")!.focus({ preventScroll: true });
+  }
+  // Scope global listeners to this pane's lifetime.
+  let readerEvents: AbortController | undefined;
+  function bindReaderOptions(): void {
+    readerEvents?.abort();
+    readerEvents = new AbortController();
+    document.addEventListener("pointerdown", event => {
+      if (readerOptions.open && event.target instanceof Node && !readerOptions.contains(event.target)) closeReaderOptions();
+    }, { capture: true, signal: readerEvents.signal });
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || !readerOptions.open) return;
+      event.preventDefault(); event.stopImmediatePropagation(); closeReaderOptions();
+    }, { capture: true, signal: readerEvents.signal });
+  }
   readerOptions.addEventListener("toggle", () => {
     if (readerOptions.open) enterPanel(readerMenu);
   });
@@ -1457,9 +1495,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     suspendedAnchor = visibleAnchor();
     anchors[modeKey()] = suspendedAnchor;
     activeChanged(false);
+    readerEvents?.abort();
+    readerOptions.open = false;
+    closeComparison?.();
     invalidateExport();
     doc.readText = currentText();
-    if (settings.autosave && doc.dirty && doc.meta.path && !doc.diskConflict && !isReadOnly()) {
+    if (settings.autosave && doc.firstAutosave.allowed && doc.dirty && doc.meta.path && !doc.diskConflict && !isReadOnly()) {
       const retained = doc;
       const id = pane.documentId;
       const text = retained.readText;

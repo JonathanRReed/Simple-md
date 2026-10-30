@@ -23,7 +23,6 @@ open-in = tab
 tab-style = top
 sidebar-width = 180
 sidebar-collapsed = false
-zen-mode = false
 ui-motion = subtle
 autosave = true
 vim = false

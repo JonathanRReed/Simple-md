@@ -18,9 +18,9 @@ export async function runBatch(input: { html: string; css: string }) {
   const bar = createTabBar(strip, divider, { activateTab: async () => {}, closeTab: async () => true, tabContextMenu: async () => {}, setSettings: async () => {}, moveTab: async (...args) => { moves.push(args); } });
   const rows: TabRow[] = Array.from({ length: 12 }, (_, i) => ({ id: makeDocumentId(i), label: i === 0 ? "pinned-readme.md" : "gyp-jumping-ceiling-notes.md", title: `/notes/${i}.md`, selected: i === 1, dirty: i === 1, pinned: i === 0, pane: null }));
   bar.configure(DEFAULT_SETTINGS); bar.render(rows); await paint();
-  const pin = strip.children[0] as HTMLElement, row = strip.children[1] as HTMLElement;
+  const pin = strip.querySelectorAll<HTMLElement>(".tab")[0] as HTMLElement, row = strip.querySelectorAll<HTMLElement>(".tab")[1] as HTMLElement;
   assert(pin.getAttribute("aria-label")?.includes("pinned") && pin.title === rows[0]!.title, "Pin name or tooltip lost file identity");
-  assert(pin.querySelector<HTMLButtonElement>(".tab-close")!.hidden && pin.getBoundingClientRect().width === 42, "Horizontal pin has a close button or wrong width");
+  assert(pin.querySelector<HTMLButtonElement>(".tab-close")!.hidden && pin.getBoundingClientRect().width === 62, "Horizontal pin has a close button or wrong width");
   assert(strip.getAttribute("aria-orientation") === "horizontal" && strip.getAttribute("role") === "tablist", "Tab list ARIA changed");
   assert(row.getAttribute("aria-selected") === "true" && row.tabIndex === 0, "Roving tab focus lost selection");
   assert(row.querySelector(".tab-action")?.children.length === 2, "Dirty dot and close do not share a slot");
@@ -32,9 +32,10 @@ export async function runBatch(input: { html: string; css: string }) {
   const metrics = canvas.measureText(name.textContent!);
   assert(name.getBoundingClientRect().height >= metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent, "Label clips glyph height");
   assert(parseFloat(font.lineHeight) >= parseFloat(font.fontSize) * 1.4, "Label line height clips descenders");
-  assert(strip.scrollWidth > strip.clientWidth && getComputedStyle(strip).overflowX === "auto", "Tabs cannot overflow horizontally");
-  assert([...strip.children].slice(1).every(node => node.getBoundingClientRect().width > 108 && node.getBoundingClientRect().width <= 225), "Overflow changed long-label tab widths");
-  strip.scrollLeft = 400; await paint(); assert(strip.scrollLeft > 0, "Overflow does not scroll");
+  const scrolling = strip.querySelector<HTMLElement>(".tab-scroll")!;
+  assert(scrolling.scrollWidth > scrolling.clientWidth && getComputedStyle(scrolling).overflowX === "auto", "Tabs cannot overflow horizontally");
+  assert([...strip.querySelectorAll<HTMLElement>(".tab")].slice(1).every(node => node.getBoundingClientRect().width > 108 && node.getBoundingClientRect().width <= 225), "Overflow changed long-label tab widths");
+  scrolling.scrollLeft = 400; await paint(); assert(scrolling.scrollLeft > 0, "Overflow does not scroll");
   assert(row.getBoundingClientRect().top < 34 && strip.getBoundingClientRect().left >= 84, "Horizontal tabs do not share the titlebar safely");
   const fill = getComputedStyle(row).backgroundColor;
   for (const themeLight of configSchema["theme-light"].options) {
@@ -53,7 +54,7 @@ export async function runBatch(input: { html: string; css: string }) {
   document.body.dataset.platform = "darwin";
   bar.configure({ ...DEFAULT_SETTINGS, tabStyle: "sidebar" }); await paint();
   assert(pin.querySelector<HTMLElement>(".tab-name")!.getBoundingClientRect().width > 0, "Sidebar pin lost full label");
-  assert(getComputedStyle(row).marginBlockStart === "9px", "Pin section has no spacing");
+  assert(getComputedStyle(row.parentElement!).marginBlockStart === "9px", "Pin section has no spacing");
   assert(getComputedStyle(divider, "::after").backgroundColor === "rgba(0, 0, 0, 0)", "Divider is visible at rest");
   // Delayed echoes of our own writes must not undo a newer reset or cancel the next drag.
   divider.setPointerCapture = () => {};

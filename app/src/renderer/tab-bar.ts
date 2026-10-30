@@ -1,6 +1,6 @@
 import { clampSidebarWidth, configSchema } from "../shared/config-schema.js";
 import { tabNavigationIndex, type TabRow } from "../shared/tab-presentation.js";
-import { splitTabLabel } from "../shared/tab-labels.js";
+import { pinnedTabLabels, splitTabLabel } from "../shared/tab-labels.js";
 import { DEFAULT_SETTINGS, type Settings } from "../shared/types.js";
 import type { Bridge } from "./api.js";
 import { animateChrome, capturePaneBounds, captureRects, exitChrome, finishPaneMotion, flipChrome, flipPaneBounds, motionEnabled } from "./motion.js";
@@ -14,6 +14,26 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
   let frame = 0;
   const pendingWidths: number[] = [];
   const saveWidth = () => { pendingWidths.push(width); void api.setSettings({ sidebarWidth: width }); };
+  const pins = document.createElement("div"); pins.className = "tab-pins"; pins.setAttribute("role", "presentation");
+  const scroll = document.createElement("div"); scroll.className = "tab-scroll"; scroll.setAttribute("role", "presentation");
+  strip.append(pins, scroll);
+  const overflow = () => {
+    scroll.dataset.overflowStart = String(settings.tabStyle === "top" && scroll.scrollLeft > 1);
+    scroll.dataset.overflowEnd = String(settings.tabStyle === "top" && scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 1);
+  };
+  const keepSelectedVisible = () => {
+    const selected = strip.querySelector<HTMLElement>('.tab[aria-selected="true"]');
+    selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    overflow();
+  };
+  scroll.addEventListener("scroll", overflow, { passive: true });
+  scroll.addEventListener("wheel", event => {
+    if (settings.tabStyle !== "top" || event.ctrlKey || scroll.scrollWidth <= scroll.clientWidth) return;
+    const delta = (Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY) * (event.deltaMode === 1 ? 28 : event.deltaMode === 2 ? scroll.clientWidth : 1);
+    if (!delta) return;
+    event.preventDefault(); scroll.scrollLeft += delta; overflow();
+  }, { passive: false });
+  new ResizeObserver(keepSelectedVisible).observe(scroll);
   const nodes = new Map<TabRow["id"], HTMLElement>();
   const indicator = document.createElement("span");
   indicator.className = "tab-indicator";
@@ -23,9 +43,9 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
   strip.addEventListener("dragend", () => { dragged = undefined; clearDrop(); document.body.classList.remove("dragging-tabs"); });
   strip.addEventListener("dragover", event => { if (dragged !== undefined) { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = "move"; } });
   strip.addEventListener("drop", event => {
-    if (dragged === undefined || event.target !== strip) return;
+    if (dragged === undefined || event.target !== strip && event.target !== pins && event.target !== scroll) return;
     event.preventDefault();
-    const pinned = settings.tabStyle === "sidebar" && event.clientY < strip.getBoundingClientRect().top + 18;
+    const pinned = event.target === pins || settings.tabStyle === "sidebar" && event.clientY < strip.getBoundingClientRect().top + 18;
     void api.moveTab(dragged, pinned, pinned ? rows.find(row => row.pinned)?.id : undefined);
   });
   const focusDocument = () => {
@@ -103,6 +123,7 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
     divider.setAttribute("aria-valuemax", String(configSchema["sidebar-width"].max));
     divider.hidden = next.tabStyle !== "sidebar" || next.sidebarCollapsed;
     strip.hidden = next.tabStyle === "sidebar" ? next.sidebarCollapsed : rows.length <= 1 && !rows.some(row => row.pinned);
+    requestAnimationFrame(keepSelectedVisible);
     if (changed) {
       flipPaneBounds(bounds);
       if (next.tabStyle === "sidebar" && !next.sidebarCollapsed) animateChrome(strip, [{ opacity: 0, transform: "translateX(-12px)" }, { opacity: 1, transform: "none" }], "layout");
@@ -120,9 +141,11 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
     const pill = animate && indicator.isConnected ? indicator.getBoundingClientRect() : undefined;
     const before = animate ? captureRects(nodes.values()) : new Map();
     rows = next;
+    const pinLabels = pinnedTabLabels(rows.filter(row => row.pinned).map(row => row.label));
+    let pinIndex = 0, regularIndex = 0;
     const focused = strip.contains(document.activeElement);
     for (const [id, node] of nodes) if (!rows.some(row => row.id === id)) { if (animate) exitChrome(node, "tab"); node.remove(); nodes.delete(id); }
-    rows.forEach((row, index) => {
+    rows.forEach((row) => {
       let node = nodes.get(row.id);
       if (!node) {
         node = document.createElement("div"); node.className = "tab"; node.dataset.documentId = String(row.id); node.setAttribute("role", "tab");
@@ -186,12 +209,14 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
       const edited = node.querySelector<HTMLElement>(".tab-edited")!;
       edited.textContent = row.selected && row.dirty && !row.pinned ? "Edited" : "";
       edited.hidden = !edited.textContent;
-      node.querySelector<HTMLElement>(".tab-short")!.textContent = Array.from(row.label)[0] ?? "";
+      node.querySelector<HTMLElement>(".tab-short")!.textContent = row.pinned ? pinLabels[pinIndex] ?? row.label : "";
       node.querySelector<HTMLButtonElement>(".tab-close")!.hidden = row.pinned;
       node.querySelector<HTMLElement>(".tab-pane")!.title = row.pane ? `${row.pane} pane` : "";
       node.querySelector<HTMLElement>(".tab-dirty")!.hidden = !row.dirty;
       node.querySelector<HTMLElement>(".tab-close")!.setAttribute("aria-label", `Close ${row.label}`);
-      if (strip.children[index] !== node) strip.insertBefore(node, strip.children[index] ?? null);
+      const parent = row.pinned ? pins : scroll;
+      const position = row.pinned ? pinIndex++ : regularIndex++;
+      if (parent.children[position] !== node) parent.insertBefore(node, parent.children[position] ?? null);
     });
     strip.hidden = settings.tabStyle === "sidebar" ? settings.sidebarCollapsed : rows.length <= 1 && !rows.some(row => row.pinned);
     document.body.dataset.multipleTabs = String(rows.length > 1 || rows.some(row => row.pinned));
@@ -201,7 +226,7 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
       if (animate && rows.some(row => row.selected && row.id !== previousSelected)) flipChrome(indicator, pill);
     } else indicator.remove();
     if (animate && !strip.hidden) for (const node of nodes.values()) flipChrome(node, before.get(node), !before.has(node));
-    if (!focused && !strip.hidden && selected && rows.some(row => row.selected && row.id !== previousSelected)) requestAnimationFrame(() => { if (selected.isConnected) selected.scrollIntoView({ block: "nearest", inline: "nearest" }); });
+    requestAnimationFrame(keepSelectedVisible);
     previousSelected = rows.find(row => row.selected)?.id;
     if (focused) {
       if (strip.hidden) { focusDocument(); return; }

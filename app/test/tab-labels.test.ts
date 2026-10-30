@@ -15,3 +15,12 @@ test("narrow tabs keep the file ending and ellipsize the start", () => {
   expect(splitTabLabel("README.md")).toEqual(["README.md", ""]);
   expect(splitTabLabel("README.md · docs").join("")).toBe("README.md · docs");
 });
+
+test("pinned fragments distinguish shared initials, prefixes, case and duplicate names", async () => {
+  const { pinnedTabLabels } = await import("../src/shared/tab-labels");
+  const labels = ["PLAN.md", "PLAN_ARCHIVE.md", "README.md", "Readme.md", "document.md", "documentary.md", "README.md · one", "README.md · two"];
+  const fragments = pinnedTabLabels(labels);
+  expect(new Set(fragments.map(label => label.toLowerCase())).size).toBe(labels.length);
+  expect(fragments[0]).toBe("PLAN"); expect(fragments[1]).toBe("PLAN_A");
+  expect(fragments.every(label => label.length > 1 && label.length <= 6)).toBe(true);
+});

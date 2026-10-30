@@ -64,14 +64,14 @@ export async function runBatch(input: { html: string; css: string; reduced: bool
   assert(!!strip.querySelector(".chrome-motion") === enabled, "Tab entry policy is wrong");
   await settle();
   bar.render([row(2, true), row(3), row(1)]);
-  assert(strip.firstElementChild?.getAttribute("data-document-id") === "2", "Reorder waited for animation");
+  assert(strip.querySelector(".tab")?.getAttribute("data-document-id") === "2", "Reorder waited for animation");
   assert(strip.querySelector('.tab[aria-selected="true"] .tab-indicator'), "Active pill did not move");
   if (enabled) assert(strip.querySelector(".chrome-motion"), "Reorder did not FLIP");
   await settle();
   bar.render([row(2, true, true), row(3), row(1)]); await settle();
   bar.render([row(2, true, true), row(1)]);
   assert(!!document.querySelector(".chrome-exit") === enabled, "Close did not respect policy");
-  assert(strip.children.length === 2, "Closed tab still accepts input");
+  assert(strip.querySelectorAll(".tab").length === 2, "Closed tab still accepts input");
   assert(document.querySelectorAll('[role="tab"]').length === 2, "Exit copy retained tab semantics");
   await settle();
   configure({ tabStyle: "sidebar" }); await settle();

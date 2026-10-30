@@ -36,7 +36,6 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `tab-style` | `top` | top, sidebar |
 | `sidebar-width` | `180` | 140 to 420 |
 | `sidebar-collapsed` | `false` | true, false |
-| `zen-mode` | `false` | true, false |
 | `ui-motion` | `subtle` | subtle, off |
 | `autosave` | `true` | true, false |
 | `vim` | `false` | true, false |
@@ -52,11 +51,11 @@ Open Quickly uses Command/Control-Shift-O. Tab cycles This repo and Everywhere; 
 
 Open Quickly searches tabs and recents immediately, then queries Git on demand. Outside a repository it walks the active document's folder, up to six levels and 20,000 entries, skipping hidden directories, node_modules and symlinks. Everywhere also queries Spotlight on macOS or an existing plocate/locate database on Linux. Windows currently searches tabs, recents and the repository or folder only. Missing Linux search tools leave those same sources available. Nothing starts a crawler or writes an index. Closing the finder cancels searches and clears its file list. Search processes have a 10-second timeout and an 8 MB output cap; the picker shows at most 200 results. Machine results exclude Library, app bundles and cache directories.
 
-View > Zen Mode uses Command-Shift-J on macOS and Control-Shift-J elsewhere. zen-mode saves the choice. The top edge reveals controls without shifting the document. Pinned files and their order live in settings.json, not this config. Only existing pinned files reopen on launch.
+View > Zen Mode uses Command-Shift-J on macOS and Control-Shift-J elsewhere. Zen lasts for the application session and resets on relaunch. Escape exits zen after closing any open popover or Find bar. A brief entry hint shows the exit shortcut. The retired zen-mode config key is ignored. The top edge reveals clickable controls without shifting the document. Pinned files and their order live in settings.json, not this config. Only existing pinned files reopen on launch.
 
 ui-motion = subtle enables brief chrome transitions after the first document paint. ui-motion = off or the system Reduce Motion preference makes changes instant. Document text, reading position and first paint never animate. Settings provides a Subtle chrome motion switch.
 
-Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
+Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing. For a file opened in Read, the first autosave waits for 12 changed characters, a second edit burst after a pause of at least 1.5 seconds, or an explicit Save. A tiny edit stays marked Edited and closing the file asks whether to save it. This guard lasts across tab switches. After the first save, autosave works normally. Files opened directly for editing keep normal autosave.
 
 On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, pinned paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
 
@@ -88,7 +87,6 @@ open-in = tab
 tab-style = top
 sidebar-width = 180
 sidebar-collapsed = false
-zen-mode = false
 ui-motion = subtle
 autosave = true
 vim = false
