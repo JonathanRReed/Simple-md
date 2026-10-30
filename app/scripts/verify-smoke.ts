@@ -3,6 +3,7 @@ import { typingProbe, typingInput, typingLetters, typingRecord, calibratedTyping
 import { summarizeEventTiming } from "./perf-gate";
 import { assertDocument as assertPerfDocument } from "./perf-gate";
 import assert from "node:assert/strict";
+import type { KeyboardInputEvent } from "electron";
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -907,7 +908,7 @@ for (const [name, ending] of [["crlf", "\r\n"], ["cr", "\r"], ["mixed", "\r\n"]]
 await test("bytes-table", async () => {
   const original = fs.readFileSync(path.join(byteFixtures, "irregular-table.md"), "utf8");
   const file = fixture("bytes-table/note.md", original);
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } },
     { input: { type: "keyUp", keyCode, modifiers } },
   ];
@@ -928,7 +929,7 @@ await test("bytes-table", async () => {
 await test("bytes-table-new-row", async () => {
   const original = fs.readFileSync(path.join(byteFixtures, "irregular-table.md"), "utf8");
   const file = fixture("bytes-table-new-row/note.md", original);
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } },
     { input: { type: "keyUp", keyCode, modifiers } },
   ];
@@ -1310,6 +1311,8 @@ await test("tab-design-polish-search-layout", async () => {
     evaluate(`window.simplemd.command('mode-read');
       await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read' && document.querySelector('#doc h1'), 'Read did not mount');
       await window.simplemd.setSettings({ theme: 'light' });
+      await waitFor(() => document.documentElement.style.colorScheme === 'light', 'Light theme did not apply');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const toolbar = document.querySelector('.document-pane[data-active=true] .pane-controls');
       assert(toolbar.getBoundingClientRect().top === 3, 'Toolbar is not in the title row');
       assert(document.querySelector('#tabs').getBoundingClientRect().right + 27 <= toolbar.getBoundingClientRect().left, 'Tabs overlap the toolbar or grab space');
@@ -1325,19 +1328,26 @@ await test("tab-design-polish-search-layout", async () => {
     evaluate(`document.querySelector('#tab-search-button').click();
       await waitFor(() => !document.querySelector('#picker').hidden, 'Search button did not open Open Quickly');`),
     { input: { type: "keyDown", keyCode: "Escape" } }, { input: { type: "keyUp", keyCode: "Escape" } },
-    evaluate(`await window.simplemd.setSettings({ theme: 'dark' });`),
+    evaluate(`await waitFor(() => document.querySelector('#picker').hidden, 'Search picker did not close');
+      await window.simplemd.setSettings({ theme: 'dark' });
+      await waitFor(() => document.documentElement.style.colorScheme === 'dark', 'Dark theme did not apply');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`),
     { shot: path.join(shots, "after-top-dark.png") },
     evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });
       await waitFor(() => document.querySelector('#tabs').getBoundingClientRect().width === 180, 'Sidebar did not use its slim default');
       assert(document.querySelector('#tabs').getBoundingClientRect().top === 0, 'Sidebar does not reach the window top');
       assert(document.querySelector('#sidebar-search').getBoundingClientRect().top >= 34, 'Search overlaps traffic lights');
-      assert(document.querySelector('.document-pane[data-active=true] .pane-controls').getBoundingClientRect().top === 3, 'Sidebar moved controls to a second row');`),
+      assert(document.querySelector('.document-pane[data-active=true] .pane-controls').getBoundingClientRect().top === 3, 'Sidebar moved controls to a second row');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`),
     { shot: path.join(shots, "after-sidebar-dark.png") },
     evaluate(`const search = document.querySelector('#sidebar-search-input');
       search.value = 'Working'; search.dispatchEvent(new Event('input', { bubbles: true }));
       await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker-input').value === 'Working', 'Sidebar search lost the query');`),
     { input: { type: "keyDown", keyCode: "Escape" } }, { input: { type: "keyUp", keyCode: "Escape" } },
-    evaluate(`await window.simplemd.setSettings({ theme: 'light' });`),
+    evaluate(`await waitFor(() => document.querySelector('#picker').hidden, 'Sidebar search picker did not close');
+      await window.simplemd.setSettings({ theme: 'light' });
+      await waitFor(() => document.documentElement.style.colorScheme === 'light', 'Sidebar light theme did not apply');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`),
     { shot: path.join(shots, "after-sidebar-light.png") },
     evaluate(`document.querySelector('.document-pane[data-active=true] [data-command=split-panes]').click();
       await waitFor(() => document.querySelectorAll('.document-pane').length === 2, 'Split icon did not open another pane');
@@ -1430,7 +1440,7 @@ await test("tab-sidebar-menu-resize-relaunch", async () => {
       window.resizeEvents = [];
       for (const type of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','dblclick']) document.querySelector('#sidebar-divider').addEventListener(type, event => window.resizeEvents.push([type, event.clientX, event.pointerId, event.buttons, document.querySelector('#sidebar-divider').getAttribute('aria-valuenow')]));`),
     { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
-    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftButtonDown"] } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftbuttondown"] } },
     evaluate(`assert((await window.simplemd.ready()).settings.sidebarWidth === 180, 'Drag wrote config before release');`),
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Native divider drag failed');
@@ -1443,7 +1453,7 @@ await test("tab-sidebar-menu-resize-relaunch", async () => {
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 2 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '180', 'Double click did not reset divider');`),
     { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
-    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftButtonDown"] } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftbuttondown"] } },
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Final width did not apply');`),
     { debug: { method: "Emulation.setEmulatedMedia", params: { features: [{ name: "forced-colors", value: "active" }] } } },
@@ -1586,7 +1596,7 @@ await test("open-quickly-shortcut-scope-tab-pane", async () => {
   const a = fs.realpathSync(fixture("open-quickly/active.md", "# Active\n"));
   const b = fs.realpathSync(fixture("open-quickly/unique-quickly-guide.mdx", "# Guide\n"));
   const c = fs.realpathSync(fixture("open-quickly/unique-quickly-other.markdown", "# Other\n"));
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
   ];
   await launch("open-quickly", a, [
@@ -1622,7 +1632,7 @@ await test("open-quickly-shortcut-scope-tab-pane", async () => {
 await test("tabs-scroll-selection-shortcuts", async () => {
   const source = ("# Scroll\n\nA paragraph with enough text to fill the editor.\n\n").repeat(1800).slice(0, 100000);
   const a = fixture("tabs-scroll/a.md", source), b = fixture("tabs-scroll/b.md", "# Next\n");
-  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
     { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
   ];
   await launch("tabs-scroll", a, [
