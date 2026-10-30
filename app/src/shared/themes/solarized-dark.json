@@ -1,0 +1,21 @@
+{
+  "id": "solarized-dark",
+  "label": "Solarized Dark",
+  "appearance": "dark",
+  "background": "#002b36",
+  "foreground": "#b6c5c5",
+  "muted": "#93a1a1",
+  "link": "#64bdd2",
+  "rule": "#42616a",
+  "codeBackground": "#073642",
+  "tableBackground": "#073642",
+  "selectionTint": "#103641",
+  "syntax": {
+    "keyword": "#fa8f83",
+    "string": "#b2c44b",
+    "number": "#64c1c5",
+    "comment": "#98adad",
+    "name": "#d4a6d7",
+    "type": "#ebae60"
+  }
+}

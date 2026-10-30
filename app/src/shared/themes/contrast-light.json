@@ -1,0 +1,21 @@
+{
+  "id": "contrast-light",
+  "label": "High Contrast Light",
+  "appearance": "light",
+  "background": "#ffffff",
+  "foreground": "#000000",
+  "muted": "#303030",
+  "link": "#0041a8",
+  "rule": "#606060",
+  "codeBackground": "#f2f2f2",
+  "tableBackground": "#f2f2f2",
+  "selectionTint": "#d8e4f7",
+  "syntax": {
+    "keyword": "#990018",
+    "string": "#00551b",
+    "number": "#003b80",
+    "comment": "#454545",
+    "name": "#582799",
+    "type": "#783000"
+  }
+}

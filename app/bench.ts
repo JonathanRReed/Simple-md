@@ -162,7 +162,7 @@ async function startupBench(): Promise<void> {
       const profile = path.join(root, `profile-${sample}`);
       fs.mkdirSync(profile);
       fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({
-        mode: "split", autosave: false, spacePreview: false, launchAtLogin: false, recents: [],
+        mode: "split", autosave: false, launchAtLogin: false, recents: [],
       }));
       const env: NodeJS.ProcessEnv = { ...process.env, SMD_TRACE: "1", SMD_DRIVE: drive, SMD_USER_DATA: profile, SMD_INTENT: "edit" };
       delete env.ELECTRON_RUN_AS_NODE;
@@ -183,8 +183,23 @@ async function startupBench(): Promise<void> {
   }
 }
 
-if (import.meta.main && process.argv.includes("--render-sample")) {
+if (import.meta.main && process.argv.includes("--worker-mdx")) {
+  const at = process.argv.indexOf("--worker-mdx");
+  const baseline = process.argv[at + 1];
+  const file = process.argv[at + 2];
+  if (!baseline || !file) throw new Error("Expected baseline bundle and blog post paths");
+  await (await import("./scripts/bench-render")).workerMdxBench(path.resolve(baseline), path.resolve(file));
+} else if (import.meta.main && process.argv.includes("--worker-medium")) {
+  const baseline = process.argv[process.argv.indexOf("--worker-medium") + 1];
+  if (!baseline) throw new Error("Pass the pre-change Markdown module bundle after --worker-medium");
+  await (await import("./scripts/bench-render")).workerMediumBench(path.resolve(baseline));
+} else if (import.meta.main && process.argv.includes("--shiki-engines")) {
+  await (await import("./scripts/bench-render")).shikiEngineBench();
+} else if (import.meta.main && process.argv.includes("--render-sample")) {
   console.log(JSON.stringify(await renderSample()));
+} else if (import.meta.main && process.argv.includes("--perf-gate")) {
+  const { perfGate } = await import("./scripts/perf-gate");
+  await perfGate();
 } else if (import.meta.main) {
   await renderBench();
   if (process.env.SMD_BENCH_STARTUP !== "0") await startupBench();
@@ -193,4 +208,60 @@ if (import.meta.main && process.argv.includes("--render-sample")) {
     process.exit(1);
   }
   console.log("\nall measured budgets met");
+}
+
+export type DriverEvent = { elapsedMs: number; data: Record<string, unknown> };
+
+// All elapsed times originate in the parent, before spawn or before acknowledging
+// a driver barrier. Neither Electron's clock nor console's printed ms is the gate.
+export async function measureDriverRun(options: {
+  executable: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv;
+  logPath: string; timeoutMs?: number;
+  onEvent?: (event: DriverEvent) => void;
+  onBarrier?: (name: string) => Promise<void>;
+}): Promise<{ events: DriverEvent[]; barriers: Record<string, number>; elapsedMs: number }> {
+  const started = performance.now();
+  const child = spawn(options.executable, options.args, { cwd: options.cwd, env: options.env, stdio: ["pipe", "pipe", "pipe"] });
+  const events: DriverEvent[] = [];
+  const barriers: Record<string, number> = {};
+  let output = "";
+  let pending = "";
+  let timedOut = false;
+  let protocolError: unknown;
+  child.stdout.on("data", (chunk: Buffer) => {
+    output += chunk.toString();
+    pending += chunk.toString();
+    let end: number;
+    while ((end = pending.indexOf("\n")) >= 0) {
+      const line = pending.slice(0, end);
+      pending = pending.slice(end + 1);
+      if (!line.startsWith("smd-perf ")) continue;
+      try {
+        const data: unknown = JSON.parse(line.slice(9));
+        if (typeof data !== "object" || data === null || Array.isArray(data) || !("kind" in data) || typeof data.kind !== "string") throw new Error("Invalid perf driver event");
+        const event = { elapsedMs: performance.now() - started, data };
+        events.push(event);
+        if (data.kind === "barrier") {
+          if (!("name" in data) || typeof data.name !== "string" || data.name in barriers) throw new Error("Invalid or duplicate perf barrier");
+          barriers[data.name] = event.elapsedMs;
+          const name = data.name;
+          if (options.onBarrier) void options.onBarrier(name).then(() => { child.stdin.write(name + "\n"); }, error => { protocolError = error; child.kill("SIGTERM"); });
+          else child.stdin.write(name + "\n");
+        }
+        options.onEvent?.(event);
+      } catch (error) { protocolError = error; child.kill("SIGTERM"); }
+    }
+  });
+  child.stderr.on("data", (chunk: Buffer) => { output += chunk.toString(); });
+  const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, options.timeoutMs ?? 300_000);
+  const force = setTimeout(() => child.kill("SIGKILL"), (options.timeoutMs ?? 300_000) + 3000);
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", resolve);
+  }).finally(() => { clearTimeout(timer); clearTimeout(force); fs.writeFileSync(options.logPath, output); });
+  if (protocolError) throw protocolError;
+  if (code !== 0 || timedOut || /driver failed|failed to open|driver eval failed/.test(output)) {
+    throw new Error(`Performance driver failed: exit=${code}, timeout=${timedOut}. See ${options.logPath}`);
+  }
+  return { events, barriers, elapsedMs: performance.now() - started };
 }

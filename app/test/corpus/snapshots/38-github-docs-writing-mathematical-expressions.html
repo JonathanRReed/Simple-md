@@ -1,0 +1,108 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><markdown-accessiblity-table><table>
+  <tbody>
+  <tr>
+    <th>title</th>
+    <td>Writing mathematical expressions</td>
+  </tr>
+  <tr>
+    <th>intro</th>
+    <td>Use Markdown to display mathematical expressions on {% data variables.product.github %}.</td>
+  </tr>
+  <tr>
+    <th>product</th>
+    <td>{% data reusables.gated-features.markdown-ui %}</td>
+  </tr>
+  <tr>
+    <th>versions</th>
+    <td><table>
+  <thead>
+  <tr>
+  <th>fpt</th>
+  <th>ghes</th>
+  <th>ghec</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr>
+  <td><div dir="auto">*</div></td>
+  <td><div dir="auto">*</div></td>
+  <td><div dir="auto">*</div></td>
+  </tr>
+  </tbody>
+</table>
+</td>
+  </tr>
+  <tr>
+    <th>shortTitle</th>
+    <td>Mathematical expressions</td>
+  </tr>
+  <tr>
+    <th>category</th>
+    <td><table>
+  <tbody>
+  <tr>
+  <td><div dir="auto">Write and format content</div></td>
+  </tr>
+  </tbody>
+</table>
+</td>
+  </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">About writing mathematical expressions</h2><a id="user-content-about-writing-mathematical-expressions" class="anchor" aria-label="Permalink: About writing mathematical expressions" href="#about-writing-mathematical-expressions"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To enable clear communication of mathematical expressions, {% data variables.product.github %} supports LaTeX formatted math within Markdown. For more information, see <a href="http://en.wikibooks.org/wiki/LaTeX/Mathematics" rel="nofollow">LaTeX/Mathematics</a> in Wikibooks.</p>
+<p dir="auto">{% data variables.product.github %}'s math rendering capability uses MathJax; an open source, JavaScript-based display engine. MathJax supports a wide range of LaTeX macros, and several useful accessibility extensions. For more information, see <a href="http://docs.mathjax.org/en/latest/input/tex/index.html#tex-and-latex-support" rel="nofollow">the MathJax documentation</a> and <a href="https://mathjax.github.io/MathJax-a11y/docs/#reader-guide" rel="nofollow">the MathJax Accessibility Extensions Documentation</a>.</p>
+<p dir="auto">Mathematical expressions rendering is available in {% data variables.product.prodname_github_issues %}, {% data variables.product.prodname_discussions %}, pull requests, wikis, and Markdown files.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Writing inline expressions</h2><a id="user-content-writing-inline-expressions" class="anchor" aria-label="Permalink: Writing inline expressions" href="#writing-inline-expressions"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">There are two options for delimiting a math expression inline with your text. You can either surround the expression with dollar symbols (<code>$</code>), or start the expression with <code>$`</code> and end it with <code>`$</code>. The latter syntax is useful when the expression you are writing contains characters that overlap with markdown syntax. For more information, see <a href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax">AUTOTITLE</a>.</p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="This sentence uses `$` delimiters to show math inline: $\sqrt{3x-1}+(1+x)^2$"><pre lang="text" class="notranslate"><code>This sentence uses `$` delimiters to show math inline: $\sqrt{3x-1}+(1+x)^2$
+</code></pre></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/inline-math-markdown-rendering.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/inline-math-markdown-rendering.png" alt="Screenshot of rendered Markdown showing an inline mathematical expression: the square root of 3x minus 1 plus (1 plus x) squared." style="max-width: 100%;"></a></p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="This sentence uses $\` and \`$ delimiters to show math inline: $`\sqrt{3x-1}+(1+x)^2`$"><pre lang="text" class="notranslate"><code>This sentence uses $\` and \`$ delimiters to show math inline: $`\sqrt{3x-1}+(1+x)^2`$
+</code></pre></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/inline-backtick-math-markdown-rendering.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/inline-backtick-math-markdown-rendering.png" alt="Screenshot of rendered Markdown showing an inline mathematical expression with backtick syntax: the square root of 3x minus 1 plus (1 plus x) squared." style="max-width: 100%;"></a></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Writing expressions as blocks</h2><a id="user-content-writing-expressions-as-blocks" class="anchor" aria-label="Permalink: Writing expressions as blocks" href="#writing-expressions-as-blocks"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To add a math expression as a block, start a new line and delimit the expression with two dollar symbols <code>$$</code>.</p>
+<blockquote>
+<p dir="auto">[!TIP] If you're writing in an .md file, you will need to use specific formatting to create a line break, such as ending the line with a backslash as shown in the example below. For more information on line breaks in Markdown, see <a href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#line-breaks">AUTOTITLE</a>.</p>
+</blockquote>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="**The Cauchy-Schwarz Inequality**\
+$$\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)$$"><pre lang="text" class="notranslate"><code>**The Cauchy-Schwarz Inequality**\
+$$\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)$$
+</code></pre></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/math-expression-as-a-block-rendering.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/math-expression-as-a-block-rendering.png" alt="Screenshot of rendered Markdown showing a complex equation. Bold text reads &quot;The Cauchy-Schwarz Inequality&quot; above the formula for the inequality." style="max-width: 100%;"></a></p>
+<p dir="auto">Alternatively, you can use the <code>```math</code> code block syntax to display a math expression as a block. With this syntax, you don't need to use <code>$$</code> delimiters. The following will render the same as above:</p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="**The Cauchy-Schwarz Inequality**
+
+```math
+\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)
+```"><pre lang="text" class="notranslate"><code>**The Cauchy-Schwarz Inequality**
+
+```math
+\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)
+```
+</code></pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Writing dollar signs in line with and within mathematical expressions</h2><a id="user-content-writing-dollar-signs-in-line-with-and-within-mathematical-expressions" class="anchor" aria-label="Permalink: Writing dollar signs in line with and within mathematical expressions" href="#writing-dollar-signs-in-line-with-and-within-mathematical-expressions"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To display a dollar sign as a character in the same line as a mathematical expression, you need to escape the non-delimiter <code>$</code> to ensure the line renders correctly.</p>
+<ul dir="auto">
+<li>
+<p dir="auto">Within a math expression, add a <code>\</code> symbol before the explicit <code>$</code>.</p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="This expression uses `\$` to display a dollar sign: $`\sqrt{\$4}`$"><pre lang="text" class="notranslate"><code>This expression uses `\$` to display a dollar sign: $`\sqrt{\$4}`$
+</code></pre></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/dollar-sign-within-math-expression.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/dollar-sign-within-math-expression.png" alt="Screenshot of rendered Markdown showing how a backslash before a dollar sign displays the sign as part of a mathematical expression." style="max-width: 100%;"></a></p>
+</li>
+<li>
+<p dir="auto">Outside a math expression, but on the same line, use span tags around the explicit <code>$</code>.</p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="To split &lt;span&gt;$&lt;/span&gt;100 in half, we calculate $100/2$"><pre lang="text" class="notranslate"><code>To split &lt;span&gt;$&lt;/span&gt;100 in half, we calculate $100/2$
+</code></pre></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/dollar-sign-inline-math-expression.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/dollar-sign-inline-math-expression.png" alt="Screenshot of rendered Markdown showing how span tags around a dollar sign display the sign as inline text not as part of a mathematical equation." style="max-width: 100%;"></a></p>
+</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Further reading</h2><a id="user-content-further-reading" class="anchor" aria-label="Permalink: Further reading" href="#further-reading"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="http://mathjax.org" rel="nofollow">The MathJax website</a></li>
+<li><a href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github">Getting started with writing and formatting on GitHub</a></li>
+<li><a href="https://github.github.com/gfm/">GitHub Flavored Markdown Spec</a></li>
+</ul>
+</article>

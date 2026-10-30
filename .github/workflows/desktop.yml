@@ -13,6 +13,84 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # bun lint ships in canary builds only; builds and tests stay on stable.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: canary
+      - name: Lint
+        run: bun run lint
+
+  windows-preview-spike:
+    name: Windows preview spike
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+      - name: Check spike formatting
+        run: cargo fmt --manifest-path app/native/windows-preview/Cargo.toml --check
+      - name: Lint spike
+        run: cargo clippy --locked --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc --all-targets -- -D warnings
+      - name: Test inert page and COM lifecycle
+        run: cargo test --locked --manifest-path app/native/windows-preview/Cargo.toml
+      - name: Build preview DLL
+        run: cargo build --locked --release --manifest-path app/native/windows-preview/Cargo.toml --target x86_64-pc-windows-msvc
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          foreach ($script in @('install.ps1', 'uninstall.ps1')) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              "$PWD/app/native/windows-preview/$script", [ref]$tokens, [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          }
+      - name: Stage spike artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path windows-preview-spike | Out-Null
+          Copy-Item app/native/windows-preview/target/x86_64-pc-windows-msvc/release/simplemd_windows_preview.dll windows-preview-spike/
+          Copy-Item app/native/windows-preview/install.ps1, app/native/windows-preview/uninstall.ps1, app/native/windows-preview/TESTING.md windows-preview-spike/
+          "Source commit: $env:GITHUB_SHA" | Set-Content windows-preview-spike/REVISION.txt
+      - name: Check per-user registration round trip
+        shell: pwsh
+        run: |
+          $association = 'HKEY_CURRENT_USER\Software\Classes\.md\shellex\{8895b1c6-b41f-4c1c-a562-0d564250836f}'
+          $clsid = '{a8b4f9c2-6e75-4eaa-9a1d-e4276f01d937}'
+          $class = "HKEY_CURRENT_USER\Software\Classes\CLSID\$clsid"
+          $previous = [Microsoft.Win32.Registry]::GetValue($association, '', $null)
+          ./windows-preview-spike/install.ps1
+          try {
+            if ([Microsoft.Win32.Registry]::GetValue($association, '', $null) -ne $clsid) {
+              throw 'The .md preview association was not installed.'
+            }
+            if ([Microsoft.Win32.Registry]::GetValue("$class\InprocServer32", 'ThreadingModel', $null) -ne 'Apartment') {
+              throw 'The COM apartment registration is missing.'
+            }
+          } finally { ./windows-preview-spike/uninstall.ps1 }
+          if ([Microsoft.Win32.Registry]::GetValue($association, '', $null) -cne $previous) {
+            throw 'The previous .md preview association was not restored.'
+          }
+          if (Test-Path "Registry::$class") { throw 'The spike CLSID survived uninstall.' }
+          if (Test-Path 'HKCU:\Software\SimpleMD\PreviewSpike') { throw 'The registration backup survived uninstall.' }
+      - name: Upload spike
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-preview-spike
+          if-no-files-found: error
+          retention-days: 7
+          path: windows-preview-spike/
+
   desktop:
     name: ${{ matrix.name }}
     strategy:
@@ -21,8 +99,6 @@ jobs:
         include:
           - name: macOS-arm64
             os: macos-15
-          - name: macOS-x64
-            os: macos-15-intel
           - name: Windows-x64
             os: windows-2025
           - name: Linux-x64
@@ -46,8 +122,20 @@ jobs:
         run: bun run setup
       - name: Typecheck
         run: bun run typecheck
+      - name: Build release CLI and native helper before tests
+        run: bun run build:native
       - name: Test
+        if: runner.os != 'Linux'
         run: bun run test
+      - name: Test (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a bun run test
+      - name: GitHub fidelity corpus
+        if: runner.os != 'Linux'
+        run: bun run test:corpus
+      - name: GitHub fidelity corpus (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a bun run test:corpus
       - name: Check Rust formatting
         run: cargo fmt --manifest-path app/native/Cargo.toml --check
       - name: Check Rust
@@ -58,10 +146,19 @@ jobs:
         run: bun run pack:plan
       - name: Build and package unsigned artifacts
         run: bun run dist
+      # Hosted macOS does not provide a stable logged-in GUI session or owner-host
+      # thresholds. Compile the same entrypoint and run its protocol/statistics tests.
+      - name: Performance harness smoke signal (no absolute thresholds)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        working-directory: app
+        run: |
+          bun build bench.ts --target=bun --outdir=.perf-ci
+          bun test test/performance.test.ts
       - name: Upload unsigned artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Simple-md-unsigned-${{ matrix.name }}
+          name: SimpleMD-unsigned-${{ matrix.name }}
           if-no-files-found: error
           retention-days: 7
           path: |

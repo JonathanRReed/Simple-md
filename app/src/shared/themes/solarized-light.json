@@ -1,0 +1,21 @@
+{
+  "id": "solarized-light",
+  "label": "Solarized Light",
+  "appearance": "light",
+  "background": "#fdf6e3",
+  "foreground": "#3f535b",
+  "muted": "#52666c",
+  "link": "#006b88",
+  "rule": "#b9b4a3",
+  "codeBackground": "#eee8d5",
+  "tableBackground": "#eee8d5",
+  "selectionTint": "#d9e4df",
+  "syntax": {
+    "keyword": "#a63b35",
+    "string": "#4d6600",
+    "number": "#006c70",
+    "comment": "#59686b",
+    "name": "#80528e",
+    "type": "#985300"
+  }
+}

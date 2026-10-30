@@ -1,3 +1,12 @@
+import { isBlockChanges, type BlockChanges } from "../shared/change-highlights.js";
+import { applyBlockUpdate } from "../shared/block-update.js";
+import { cacheBudget } from "./cache-budget.js";
+import { applyBlockDelta, isBlockDelta } from "../shared/block-delta.js";
+import { isBlockUpdate, type BlockUpdate } from "../shared/block-update.js";
+import { isRenderedBlock, isRenderedHtml, type RenderedHtml } from "../shared/render-tree.js";
+import { isMdxResult } from "../shared/mdx-result.js";
+import type { MdxResult } from "../shared/render-core.js";
+import { perfMark } from "./perf.js";
 import { Worker } from "node:worker_threads";
 import type { RenderedBlocks } from "./markdown.js";
 import type { RenderCommand, RenderRequest, RenderResponse } from "./render-worker.js";
@@ -16,16 +25,21 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
-  if (value.kind === "fragment") return typeof value.value === "string";
+  if (value.kind === "changes") return isBlockChanges(value.value);
+  if (value.kind === "blocks-delta") return isBlockDelta(value.value);
+  if (value.kind === "stream-next") return isBlockUpdate(value.value);
+  if (value.kind === "mdx-ranges") return isMdxResult(value.value);
+  if (value.kind === "fragment") return isRenderedHtml(value.value);
   if (value.kind !== "blocks" || typeof value.value !== "object" || value.value === null) return false;
   const result = value.value;
   return "title" in result && typeof result.title === "string" && "blocks" in result && Array.isArray(result.blocks) &&
-    result.blocks.every((block: unknown) => typeof block === "object" && block !== null &&
-      "key" in block && typeof block.key === "string" && "html" in block && typeof block.html === "string");
+    result.blocks.every(isRenderedBlock) && (!("mdx" in result) || result.mdx === undefined || isMdxResult(result.mdx));
 }
 
 export class RenderClient {
   private worker: Worker | undefined;
+  private deferredSource: { stream: number; text: string } | undefined;
+  private retainedBlocks: RenderedBlocks["blocks"] = [];
   private sequence = 0;
   private active: Pending | undefined;
   private foreground: Pending[] = [];
@@ -39,15 +53,43 @@ export class RenderClient {
     private readonly timeoutMs = 30_000,
   ) {}
 
-  async renderBlocks(text: string, filePath: string | null): Promise<RenderedBlocks> {
-    const response = await this.request({ kind: "blocks", text, filePath });
+  async renderBlocks(text: string, filePath: string | null, mdx = /\.mdx$/i.test(filePath ?? "")): Promise<RenderedBlocks> {
+    const response = await this.request({ kind: "blocks", text, filePath, mdx });
     if (response?.kind !== "blocks") throw new Error("Invalid block render response");
     return response.value;
   }
 
-  async renderFragment(text: string, baseDir: string | undefined): Promise<string> {
+  async startBlocks(text: string, filePath: string | null): Promise<RenderedBlocks> {
+    const deferred = text.length > 256 * 1024 && !/\.mdx$/i.test(filePath ?? "");
+    const response = await this.request({ kind: "stream-start", text: deferred ? text.slice(0, 8192) : text, filePath });
+    if (response?.kind !== "blocks") throw new Error("Invalid stream response");
+    this.deferredSource = deferred && response.value.stream !== undefined ? { stream: response.value.stream, text } : undefined;
+    return response.value;
+  }
+
+  async nextBlocks(stream: number): Promise<BlockUpdate> {
+    const text = this.deferredSource?.stream === stream ? this.deferredSource.text : undefined;
+    if (text !== undefined) this.deferredSource = undefined;
+    const response = await this.request({ kind: "stream-next", stream, ...(text !== undefined ? { text } : {}) });
+    if (response?.kind !== "stream-next") throw new Error("Invalid stream update");
+    return response.value;
+  }
+
+  async renderFragment(text: string, baseDir: string | undefined): Promise<RenderedHtml> {
     const response = await this.request({ kind: "fragment", text, baseDir });
     if (response?.kind !== "fragment") throw new Error("Invalid fragment render response");
+    return response.value;
+  }
+
+  async mdxRanges(text: string): Promise<MdxResult> {
+    const response = await this.request({ kind: "mdx-ranges", text });
+    if (response?.kind !== "mdx-ranges") throw new Error("Invalid MDX ranges response");
+    return response.value;
+  }
+
+  async changes(before: string, text: string, filePath: string | null, baselineKey = ""): Promise<BlockChanges> {
+    const response = await this.request({ kind: "changes", before, text, filePath, baselineKey });
+    if (response?.kind !== "changes") throw new Error("Invalid changes response");
     return response.value;
   }
 
@@ -80,6 +122,7 @@ export class RenderClient {
       } else {
         this.foreground.push(pending);
       }
+      perfMark("worker-queue", { requestId: pending.request.id, command: request.kind });
       this.dispatch();
     });
   }
@@ -95,7 +138,11 @@ export class RenderClient {
     this.active = pending;
     try {
       if (!this.worker) {
-        const worker = new Worker(this.workerUrl);
+        const owner = cacheBudget.claimOwner();
+        let worker: Worker;
+        try { worker = new Worker(this.workerUrl, { workerData: { cacheBudget: owner.data } }); }
+        catch (error) { owner.release(); throw error; }
+        worker.once("exit", owner.release);
         this.worker = worker;
         worker.on("message", (response: unknown) => {
           if (worker !== this.worker || !this.active) return;
@@ -103,11 +150,24 @@ export class RenderClient {
             this.fail(new Error("Render worker returned an invalid response"));
             return;
           }
+          let validResponse: RenderResponse = response;
+          if (validResponse.kind === "blocks-delta") {
+            try {
+              const result = applyBlockDelta(this.retainedBlocks, validResponse.value);
+              this.retainedBlocks = result.blocks;
+              validResponse = { id: validResponse.id, kind: "blocks", value: result };
+            } catch (error) {
+              this.fail(error instanceof Error ? error : new Error(String(error)));
+              return;
+            }
+          }
+          if (this.active.request.kind === "stream-start" && validResponse.kind === "blocks") this.retainedBlocks = validResponse.value.blocks;
+          if (validResponse.kind === "stream-next") this.retainedBlocks = applyBlockUpdate(this.retainedBlocks, validResponse.value);
           clearTimeout(this.timer);
           const active = this.active;
           this.active = undefined;
-          if (response.kind === "error") active.reject(new Error(response.message));
-          else active.resolve(response);
+          if (validResponse.kind === "error") active.reject(new Error(validResponse.message));
+          else active.resolve(validResponse);
           this.dispatch();
         });
         worker.on("error", (error) => {
@@ -119,7 +179,10 @@ export class RenderClient {
       }
       this.worker.ref();
       this.timer = setTimeout(() => this.fail(new Error("Render worker request timed out")), this.timeoutMs);
-      this.worker.postMessage(pending.request);
+      perfMark("worker-dispatch", { requestId: pending.request.id });
+      this.worker.postMessage(pending.request.kind === "blocks"
+        ? { ...pending.request, known: this.retainedBlocks.map(({ key, fingerprint }) => ({ key, fingerprint })) }
+        : pending.request);
     } catch (error) {
       this.fail(error instanceof Error ? error : new Error(String(error)));
     }
@@ -129,6 +192,8 @@ export class RenderClient {
     clearTimeout(this.timer);
     const worker = this.worker;
     this.worker = undefined;
+    this.retainedBlocks = [];
+    this.deferredSource = undefined;
     this.active?.reject(error);
     this.active = undefined;
     for (const pending of this.foreground) pending.reject(error);
@@ -144,8 +209,14 @@ export class RenderClient {
 }
 
 const client = new RenderClient();
-export const renderBlocks = (text: string, filePath: string | null) => client.renderBlocks(text, filePath);
+export const renderBlocks = (text: string, filePath: string | null, mdx?: boolean) => client.renderBlocks(text, filePath, mdx);
 export const renderFragment = (text: string, baseDir: string | undefined) => client.renderFragment(text, baseDir);
 export const prefetchBlocks = (text: string, filePath: string | null) => client.prefetchBlocks(text, filePath);
-export const warmUp = () => client.warmUp();
 export const disposeRenderer = (): Promise<void> => client.dispose();
+
+export const mdxRanges = (text: string) => client.mdxRanges(text);
+
+export const startBlocks = (text: string, filePath: string | null) => client.startBlocks(text, filePath);
+export const nextBlocks = (stream: number) => client.nextBlocks(stream);
+
+export const blockChanges = (before: string, text: string, filePath: string | null, baselineKey: string) => client.changes(before, text, filePath, baselineKey);

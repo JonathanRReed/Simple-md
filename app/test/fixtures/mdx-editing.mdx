@@ -1,0 +1,48 @@
+---
+title: "A synthetic post"
+description: "Frontmatter can mention <Widget> and {data}."
+tags:
+  - tools
+---
+
+import { Chart } from "./chart.js";
+export const count = 3;
+
+# A post about tools
+
+Text with **Markdown**, an [image](/images/tools.png), and <Badge className="new" value={count}>new</Badge> inline.
+
+<Article className="post">
+
+## Markdown inside a component
+
+An ordinary paragraph with *emphasis* and {count + 1}.
+
+<Chart.Frame>
+
+<Chart data={[1, 2, 3]} />
+
+</Chart.Frame>
+
+</Article>
+
+<style>{`
+  .post { color: red; }
+`}</style>
+
+<script>{`globalThis.__simplemdMdxExecuted = true`}</script>
+
+{count * 2}
+
+{/* A comment in the post. */}
+
+<!-- An HTML comment with <Fake /> and {notJavaScript}. -->
+
+```mdx
+import Example from "example";
+<Example className="code" />
+{notAnExpression}
+<!-- Not a parsed comment -->
+```
+
+End of the post.

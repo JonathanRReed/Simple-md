@@ -1,60 +1,74 @@
+import { configDefaults, type UserSettings } from "./config-schema.js";
+export type DocumentId = number & { readonly __brand: "DocumentId" };
+export type PaneId = number & { readonly __brand: "PaneId" };
+export type RevisionId = number & { readonly __brand: "RevisionId" };
+export type RequestId = number & { readonly __brand: "RequestId" };
+
+const validId = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+export const isDocumentId = (value: unknown): value is DocumentId => validId(value);
+export const isPaneId = (value: unknown): value is PaneId => validId(value);
+export const isRevisionId = (value: unknown): value is RevisionId => validId(value);
+export const isRequestId = (value: unknown): value is RequestId => validId(value);
+
+export function makeDocumentId(value: number): DocumentId {
+  if (!isDocumentId(value)) throw new TypeError("Invalid document ID.");
+  return value;
+}
+export function makePaneId(value: number): PaneId {
+  if (!isPaneId(value)) throw new TypeError("Invalid pane ID.");
+  return value;
+}
+export function makeRevisionId(value: number): RevisionId {
+  if (!isRevisionId(value)) throw new TypeError("Invalid revision ID.");
+  return value;
+}
+export function makeRequestId(value: number): RequestId {
+  if (!isRequestId(value)) throw new TypeError("Invalid request ID.");
+  return value;
+}
+
 export type ThemeSetting = "system" | "light" | "dark";
 export type EditMode = "live" | "split" | "source";
+export type ViewMode = "read" | EditMode;
 export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
-export interface Settings {
-  theme: ThemeSetting;
-  shortcut: string;
-  mode: EditMode;
-  autosave: boolean;
-  /** Press Space on a Markdown file in Finder/Explorer to preview it. Needs the native helper. */
-  spacePreview: boolean;
-  /** Keep Simple-md resident so Space is instant; the app lives in the tray, not the Dock. */
-  launchAtLogin: boolean;
-  /** Modal editing in the source modes. */
-  vim: boolean;
-  spellcheck: boolean;
-  /** The one-time permission explainer has been shown. */
-  peekPrompted: boolean;
+export interface Settings extends UserSettings {
+  zenMode: boolean;
+  systemAccent?: string;
   zoom: number;
+  // Legacy layout values remain readable for first-run migration.
   width: ReadingWidth;
   typeface: Typeface;
   recents: string[];
+  pinnedPaths: string[];
   bounds?: { x: number; y: number; width: number; height: number };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: "system",
-  shortcut: "CommandOrControl+Shift+Space",
-  // Live is the default because it asks nothing of the user: write, and it renders in place.
-  mode: "live",
-  autosave: true,
-  spacePreview: true,
-  peekPrompted: false,
-  launchAtLogin: false,
-  vim: false,
-  spellcheck: true,
-  zoom: 1,
-  width: "normal",
-  typeface: "sans",
-  recents: [],
+  ...configDefaults, zenMode: false, zoom: 1, width: "normal", typeface: "serif", recents: [], pinnedPaths: [],
 };
 
 export const ZOOM_MIN = 0.7;
 export const ZOOM_MAX = 1.8;
 
-/** "peek" opens read-only like Quick Look; "edit" goes straight into the editor. */
-export type OpenIntent = "peek" | "edit";
+/** "read" opens the reading view; "edit" goes straight into the editor. */
+export type OpenIntent = "read" | "edit";
 
-export interface RenderedBlock {
-  /** Stable content hash; unchanged blocks keep their key across edits and re-renders. */
-  key: string;
-  html: string;
-}
+export type { RenderedBlock } from "./render-core.js";
+import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
-  documentId: number;
+  firstAutosaveAllowed?: boolean;
+  initialMode?: EditMode;
+  savedText?: string;
+  dirty?: boolean;
+  revisionId: RevisionId;
+  paneId: PaneId;
+  stream?: number;
+  mdx?: import("./render-core.js").MdxResult;
+  readOnlyReason?: string;
+  documentId: DocumentId;
   path: string | null;
   name: string;
   text: string;
@@ -66,14 +80,16 @@ export interface DocPayload {
 }
 
 export interface FlushResult {
-  documentId: number;
+  revisionId: RevisionId;
+  documentId: DocumentId;
   conflict: boolean;
   dirty: boolean;
   text: string;
 }
 
 export interface SaveResult {
-  documentId: number;
+  revisionId: RevisionId;
+  documentId: DocumentId;
   path: string;
   name: string;
   baseUrl: string;
@@ -81,17 +97,35 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "open-quickly"
+  | "toggle-zen"
+  | "toggle-pin-tab"
+  | "close-pinned-tab"
+  | "toggle-tab-sidebar"
+  | "mark-seen"
+  | "toggle-head-changes"
+  | "next-change"
+  | "previous-change"
+  | "close-tab"
+  | "move-tab-window"
+  | "next-tab"
+  | "previous-tab"
+  | "split-panes"
+  | "stack-panes"
+  | "focus-pane"
   | "preferences"
   | "new"
   | "save"
   | "save-as"
   | "toggle-edit"
+  | "mode-read"
   | "mode-live"
   | "mode-split"
   | "mode-source"
   | "undo"
   | "redo"
   | "find"
+  | "use-selection-find"
   | "palette"
   | "outline"
   | "zoom-in"
@@ -112,3 +146,5 @@ export type Command =
 
 /** Above this many characters the Live Preview is switched off so typing stays instant. */
 export const LIVE_MAX_CHARS = 250_000;
+
+export type DocumentLocation = { kind: "line"; line: number } | { kind: "heading"; heading: string } | { kind: "start" };

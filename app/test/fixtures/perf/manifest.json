@@ -1,0 +1,89 @@
+{
+  "generatorSha256": "3ac8789d5a3ce9a4b6fb09de0a4a156531ec7b3b87b5659b2b75f6276478dafe",
+  "fixtures": [
+    {
+      "name": "small.md",
+      "bytes": 165,
+      "sha256": "36b938bc9bd73e3405123855fc244230ae1050a91c4608028a5445bd612add58",
+      "generated": false
+    },
+    {
+      "name": "medium.md",
+      "bytes": 90000,
+      "sha256": "4573d1b5fe9d2c0316a1dd83c4f8441dce142476f7e7c3f59aa2146fffcdff60",
+      "generated": true
+    },
+    {
+      "name": "huge.md",
+      "bytes": 2000000,
+      "sha256": "484bfa9ced6b2d0fc2070ec3721efaaef30afbcfbf2946c42aa9c34361787f0d",
+      "generated": true
+    },
+    {
+      "name": "ceiling.md",
+      "bytes": 20000000,
+      "sha256": "684dc337c7fdb9790783f144bbe321d1bf5082dd740733c4d3ff0d887ad0632b",
+      "generated": true
+    },
+    {
+      "name": "typing-100k.md",
+      "bytes": 100000,
+      "sha256": "ecee19a2eff26bbd2237bc59193bd43f4e8bca141888829dd78784aed76428a5",
+      "generated": true
+    },
+    {
+      "name": "math.md",
+      "bytes": 2083,
+      "sha256": "6bdeb1a738fbdc7111bf3b55387ec092a9d5b1cecee84f6a5eadad8c814b359d",
+      "generated": false
+    },
+    {
+      "name": "diagrams.md",
+      "bytes": 401,
+      "sha256": "5caa4253634f7cea8e9a290f2c687f750d7097be02f8cb03117c3d73a5c09f25",
+      "generated": false
+    },
+    {
+      "name": "fences.md",
+      "bytes": 1979,
+      "sha256": "b320fbf1ce78ce3b342804230080dd572036b3d3a5cb553b73dfb6f60ae619b5",
+      "generated": false
+    },
+    {
+      "name": "long-lines.md",
+      "bytes": 64020,
+      "sha256": "4b70cdd9071a5b9b8d4894dc6f8956fc5aa225bf54f40e6c930ee2cb7dd95580",
+      "generated": true
+    },
+    {
+      "name": "unicode.md",
+      "bytes": 93,
+      "sha256": "1eac6e3b9781c8cd09ded7b80702f5c793759938cea01b53262ab7c12fc7265b",
+      "generated": false
+    },
+    {
+      "name": "crlf.md",
+      "bytes": 178,
+      "sha256": "01a1b3cddedcac2adf128a01781781693c2ad3ac57ae1e0f938e7c01da200608",
+      "generated": false
+    },
+    {
+      "name": "mixed.md",
+      "bytes": 64,
+      "sha256": "c324451144a12913dd192f5076207dfb9cd40889820c97ec121b8bc708eec9d0",
+      "generated": false
+    },
+    {
+      "name": "bom.md",
+      "bytes": 40,
+      "sha256": "60b3b3af072f4399d68ba91e583f90ff70eb7d125f806107aabbba02cea0bfce",
+      "generated": false
+    },
+    {
+      "name": "astro.mdx",
+      "bytes": 507,
+      "sha256": "04f9a911d795c53d0e245cc9b713166e89bb37f59c1a09b2db7f5227ff53570f",
+      "generated": false
+    }
+  ]
+}

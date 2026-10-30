@@ -1,20 +1,20 @@
 import { expect, test } from "bun:test";
 import { DocumentQueue, openPreparedDocument, settleDocument } from "../src/main/lifecycle";
-import type { FlushResult } from "../src/shared/types";
+import { makeDocumentId, makeRevisionId, type FlushResult } from "../src/shared/types";
 
 function actions(flushes: (FlushResult | null)[]) {
   return {
-    documentId: 4, autosave: true, hasPath: true,
+    documentId: makeDocumentId(4), autosave: true, hasPath: true,
     flush: async () => flushes.shift() ?? null,
     save: async (_text: string) => true,
     choose: async () => "cancel" as const,
   };
 }
-const dirty = { documentId: 4, conflict: false, dirty: true, text: "local edits" };
+const dirty = { revisionId: makeRevisionId(0), documentId: makeDocumentId(4), conflict: false, dirty: true, text: "local edits" };
 
 test("missing or stale flush never authorizes replacing a document", async () => {
   expect(await settleDocument(actions([null]))).toBe(false);
-  expect(await settleDocument(actions([{ ...dirty, documentId: 3, dirty: false }]))).toBe(false);
+  expect(await settleDocument(actions([{ ...dirty, documentId: makeDocumentId(3), dirty: false }]))).toBe(false);
 });
 
 test("failed autosave blocks closing and opening another note", async () => {
@@ -119,4 +119,22 @@ test("the delayed disk acknowledgement conflict preserves real B bytes and local
       expect(localText).toBe("C");
     }
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
+});
+
+test("normal opens settle before refresh and present the refreshed disk payload", async () => {
+  const events: string[] = [];
+  let canSettle = false;
+  const a = {
+    prepare: async () => { events.push("prepare"); return "before"; },
+    transition: async (operation: () => Promise<boolean>) => operation(),
+    settle: async () => { events.push("settle"); return canSettle; },
+    refresh: async (_prepared: string) => { events.push("refresh"); return "after"; },
+    present: async (prepared: string) => { events.push(`present ${prepared}`); },
+  };
+  expect(await openPreparedDocument(a)).toBe(false);
+  expect(events).toEqual(["prepare", "settle"]);
+  events.length = 0;
+  canSettle = true;
+  expect(await openPreparedDocument(a)).toBe(true);
+  expect(events).toEqual(["prepare", "settle", "refresh", "present after"]);
 });

@@ -1,0 +1,11 @@
+PackageIdentifier: JonathanRReed.SimpleMD
+PackageVersion: {{VERSION}}
+PackageLocale: en-US
+Publisher: Jonathan R. Reed
+PackageName: SimpleMD
+License: MIT
+LicenseUrl: https://github.com/JonathanRReed/Simple-md/blob/main/LICENSE
+ShortDescription: Markdown and MDX reader and editor
+PackageUrl: https://github.com/JonathanRReed/Simple-md
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0

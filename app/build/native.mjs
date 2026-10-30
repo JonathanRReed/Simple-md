@@ -17,11 +17,14 @@ export function nativePlan(host, platform = process.platform, arch = process.arc
   if (!expected || host !== expected) {
     throw new Error(`Rust host ${host} does not match ${platform}/${arch}. Use a matching native Rust and Bun toolchain. Cross-compilation and universal packages are not supported by this script.`);
   }
-  const executable = platform === "win32" ? "simple-md-peek.exe" : "simple-md-peek";
+  const executable = platform === "win32" ? "simplemd-helper.exe" : "simplemd-helper";
   const targetDir = path.join(appDir, "native", "target");
   return {
     host,
     executable,
+    cliExecutable: platform === "win32" ? "simplemd.exe" : "simplemd",
+    cliBinary: path.join(targetDir, host, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
+    cliDevelopmentBinary: path.join(targetDir, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
     args: ["build", "--locked", "--release", "--manifest-path", path.join(appDir, "native", "Cargo.toml"), "--target", host, "--target-dir", targetDir],
     binary: path.join(targetDir, host, "release", executable),
     developmentBinary: path.join(targetDir, "release", executable),
@@ -46,10 +49,17 @@ export function buildNative(plan) {
   run("cargo", plan.args);
   mkdirSync(path.dirname(plan.developmentBinary), { recursive: true });
   copyFileSync(plan.binary, plan.developmentBinary);
+  copyFileSync(plan.cliBinary, plan.cliDevelopmentBinary);
+}
+
+export function buildTestCli() {
+  const target = path.join(appDir, "native", "target", "cli-tests");
+  run("cargo", ["build", "--locked", "--release", "--features", "cli-test-hooks", "--manifest-path", path.join(appDir, "native/Cargo.toml"), "--bin", "simplemd", "--target-dir", target]);
+  return path.join(target, "release", process.platform === "win32" ? "simplemd.exe" : "simplemd");
 }
 
 if (import.meta.main) {
   const plan = currentNativePlan();
   if (process.argv.slice(2).includes("--dry-run")) console.log(JSON.stringify(plan, null, 2));
-  else buildNative(plan);
+  else { buildNative(plan); if (process.argv.includes("--test-cli")) buildTestCli(); }
 }

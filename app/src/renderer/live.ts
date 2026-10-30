@@ -1,13 +1,18 @@
-import { ensureSyntaxTree } from "@codemirror/language";
-import { type EditorState, type Extension, type Range, StateField } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+import { getMdxRanges, isInMdxRange, setMdxRanges } from "./mdx-syntax.js";
+import { type RenderedHtml } from "../shared/render-tree.js";
+import { mountRenderedHtml, updateFragments } from "./author-html.js";
+import { syntaxTree } from "@codemirror/language";
+import { displayMath, expandRegion, imageHtmlRegions, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
+import { type EditorState, type Extension, type Range, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { LIVE_MAX_CHARS } from "../shared/types.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 
 /** Live Preview hides markdown syntax away from the cursor and renders heavy blocks in place. */
 export interface LiveHost {
-  renderFragment(text: string): Promise<string>;
+  renderFragment(text: string): Promise<RenderedHtml>;
+  remoteImages?(): boolean;
   baseUrl(): string | null;
   openLink(href: string): void;
 }
@@ -15,24 +20,12 @@ export interface LiveHost {
 
 const disposed = new WeakSet<HTMLElement>();
 
-const blockCache = new Map<string, { html: string; height: number }>();
+const blockCache = new Map<string, { html: RenderedHtml; height: number }>();
 const BLOCK_CACHE_LIMIT = 200;
 
 export const clearLiveCache = () => blockCache.clear();
 
 const mathOptions = { throwOnError: false, trust: false, strict: "ignore", maxSize: 20, maxExpand: 1000 } as const;
-
-function safeImageSrc(src: string, baseUrl: string | null): string | null {
-  try {
-    const destination = src.startsWith("<") && src.endsWith(">") ? src.slice(1, -1) : src;
-    const url = new URL(destination, baseUrl ?? undefined);
-    if (url.protocol === "https:" || url.protocol === "http:" || url.protocol === "file:") return url.href;
-    if (url.protocol === "data:" && /^data:image\//i.test(destination)) return url.href;
-  } catch {
-    // Unresolvable relative path in an unsaved note.
-  }
-  return null;
-}
 
 class RenderedBlock extends WidgetType {
   constructor(
@@ -56,18 +49,51 @@ class RenderedBlock extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const el = document.createElement("div");
-    el.className = `cm-rendered cm-rendered-${this.kind} prose`;
+    const el = document.createElement(this.kind === "image" || this.kind === "html-inline" ? "span" : "div");
+    el.className = this.kind === "image" ? "cm-image" : `cm-rendered cm-rendered-${this.kind} prose`;
     const key = this.key();
-    const show = (html: string) => {
+    const show = (html: RenderedHtml) => {
       if (disposed.has(el)) return;
       destroyDiagrams(el);
-      el.innerHTML = html;
+      mountRenderedHtml(el, html, this.host.remoteImages?.() ?? true);
+      updateFragments(el);
+      if (this.kind === "html-inline" && el.firstElementChild?.tagName === "P" && el.children.length === 1) {
+        el.replaceChildren(...el.firstElementChild.childNodes);
+      }
+      if (this.kind === "image") {
+        const image = el.querySelector("img");
+        if (image?.getAttribute("src")) {
+          image.className = "cm-image";
+          image.loading = "lazy";
+          image.addEventListener("load", () => view.requestMeasure());
+          image.addEventListener("error", () => {
+            el.textContent = image.alt || "Image not found";
+            el.className = "cm-image-missing";
+            view.requestMeasure();
+          }, { once: true });
+          el.replaceChildren(image);
+        } else {
+          el.textContent = image?.alt || "Image";
+          el.className = "cm-image-missing";
+        }
+      }
+      if (this.kind.startsWith("html")) for (const image of el.querySelectorAll("img")) {
+        image.addEventListener("load", () => { if (!disposed.has(el)) view.requestMeasure(); });
+      }
       el.style.minHeight = "";
+      if (blockCache.size >= BLOCK_CACHE_LIMIT && !blockCache.has(key)) blockCache.delete(blockCache.keys().next().value!);
+      blockCache.set(key, { html, height: blockCache.get(key)?.height ?? this.estimatedHeight });
+      view.requestMeasure();
       void renderDiagrams(el).then(() => {
         if (disposed.has(el)) return;
-        blockCache.set(key, { html, height: el.offsetHeight });
-        view.requestMeasure();
+        view.requestMeasure({ key: el,
+          read: () => disposed.has(el) ? null : el.offsetHeight,
+          write: height => {
+            if (height === null || disposed.has(el)) return;
+            if (blockCache.size >= BLOCK_CACHE_LIMIT && !blockCache.has(key)) blockCache.delete(blockCache.keys().next().value!);
+            blockCache.set(key, { html, height });
+          },
+        });
       });
     };
     const cached = blockCache.get(key);
@@ -105,48 +131,6 @@ class RenderedBlock extends WidgetType {
   }
 }
 
-class ImageWidget extends WidgetType {
-  constructor(
-    readonly src: string | null,
-    readonly alt: string,
-  ) {
-    super();
-  }
-
-  eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.alt === this.alt;
-  }
-
-  toDOM(view: EditorView): HTMLElement {
-    if (!this.src) {
-      const span = document.createElement("span");
-      span.className = "cm-image-missing";
-      span.textContent = this.alt || "Image";
-      return span;
-    }
-    const img = document.createElement("img");
-    img.className = "cm-image";
-    img.src = this.src;
-    img.alt = this.alt;
-    img.loading = "lazy";
-    img.addEventListener("load", () => view.requestMeasure());
-    img.addEventListener("error", () => {
-      img.replaceWith(Object.assign(document.createElement("span"), { className: "cm-image-missing", textContent: this.alt || "Image not found" }));
-      view.requestMeasure();
-    });
-    img.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      view.dispatch({ selection: { anchor: view.posAtDOM(img) } });
-      view.focus();
-    });
-    return img;
-  }
-
-  ignoreEvent(): boolean {
-    return true;
-  }
-}
-
 class AlertTitleWidget extends WidgetType {
   constructor(readonly kind: string) {
     super();
@@ -177,12 +161,11 @@ class BulletWidget extends WidgetType {
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly checked: boolean,
-    readonly at: number,
   ) {
     super();
   }
   eq(other: CheckboxWidget): boolean {
-    return other.checked === this.checked && other.at === this.at;
+    return other.checked === this.checked;
   }
   toDOM(view: EditorView): HTMLElement {
     const box = document.createElement("input");
@@ -193,7 +176,8 @@ class CheckboxWidget extends WidgetType {
     box.addEventListener("mousedown", (e) => e.preventDefault());
     box.addEventListener("click", (e) => {
       e.preventDefault();
-      view.dispatch({ changes: { from: this.at + 1, to: this.at + 2, insert: this.checked ? " " : "x" } });
+      const at = view.posAtDOM(box);
+      view.dispatch({ changes: { from: at + 1, to: at + 2, insert: this.checked ? " " : "x" } });
     });
     return box;
   }
@@ -241,26 +225,38 @@ function frontmatterEnd(doc: string): number {
   return m ? m[0].length : 0;
 }
 
-function build(state: EditorState, host: LiveHost): DecorationSet {
+export function buildLiveDecorations(state: EditorState, host: LiveHost, region?: Region, math?: readonly Region[]): DecorationSet {
   const doc = state.doc;
   if (doc.length > LIVE_MAX_CHARS) return Decoration.none;
-  const tree = ensureSyntaxTree(state, doc.length, 80);
+  const tree = liveTree(state);
   if (!tree) return Decoration.none;
 
+  const scope = region ?? { from: 0, to: doc.length };
   const out: Range<Decoration>[] = [];
   const sel = state.selection.ranges;
   const touches = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
   const lineTouches = (from: number, to: number) => touches(doc.lineAt(from).from, doc.lineAt(to).to);
-  const baseUrl = host.baseUrl();
   const fmEnd = frontmatterEnd(doc.sliceString(0, 4000));
-  const blocked: Array<[number, number]> = []; // ranges where inline scanning must not run
+  const blocked: Array<[number, number]> = getMdxRanges(state).map((range) => [range.start, range.end]); // ranges where inline scanning must not run
 
   const linesOf = (from: number, to: number, cb: (lineFrom: number, index: number) => void) => {
-    const last = doc.lineAt(to).number;
-    for (let n = doc.lineAt(from).number, i = 0; n <= last; n++, i++) cb(doc.line(n).from, i);
+    const first = doc.lineAt(from).number;
+    const last = Math.min(doc.lineAt(to).number, doc.lineAt(scope.to).number);
+    for (let n = Math.max(first, doc.lineAt(scope.from).number); n <= last; n++) cb(doc.line(n).from, n - first);
   };
 
   if (fmEnd) blocked.push([0, fmEnd]);
+
+  for (const range of imageHtmlRegions(state, tree)) {
+    const { from, to } = range;
+    if (to < scope.from || from > scope.to || from < fmEnd || getMdxRanges(state).some(range => "capitalized" in range && range.capitalized && range.start < to && range.end > from)) continue;
+    blocked.push([from, to]);
+    if (!touches(from, to)) {
+      const standalone = !doc.lineAt(from).text.slice(0, from - doc.lineAt(from).from).trim() &&
+        !doc.lineAt(to).text.slice(to - doc.lineAt(to).from).trim();
+      out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), standalone ? "html" : "html-inline", host), block: standalone }).range(from, to));
+    }
+  }
 
   const block = (from: number, to: number, kind: string, source: string) => {
     blocked.push([from, to]);
@@ -268,10 +264,14 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
   };
 
   tree.iterate({
+    from: scope.from, to: scope.to,
     enter(ref) {
       const { name, from, to } = ref;
       if (name === "Document") return;
-      if (from < fmEnd) return false;
+      if (to <= scope.from || from > scope.to) return false;
+      if (from < fmEnd || isInMdxRange(state, from)) return false;
+      // A parent Markdown node may span JSX. Never replace any part of that node.
+      if (blocked.some(([a, b]) => a < to && b > from)) return;
       const node = ref.node;
 
       switch (name) {
@@ -310,6 +310,10 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
           return;
         }
         case "Link": {
+          if (node.getChild("Image") && !touches(from, to)) {
+            out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "html-inline", host) }).range(from, to));
+            return false;
+          }
           const marks = node.getChildren("LinkMark");
           const url = node.getChild("URL");
           if (marks.length < 4 || !url) return;
@@ -328,11 +332,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
         }
         case "Image": {
           if (touches(from, to)) return;
-          const url = node.getChild("URL");
-          const marks = node.getChildren("LinkMark");
-          const alt = marks.length >= 2 ? doc.sliceString(marks[0]!.to, marks[1]!.from) : "";
-          const src = url ? safeImageSrc(doc.sliceString(url.from, url.to), baseUrl) : null;
-          out.push(Decoration.replace({ widget: new ImageWidget(src, alt) }).range(from, to));
+          out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "image", host) }).range(from, to));
           return false;
         }
         case "Blockquote": {
@@ -342,7 +342,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
           if (alert) {
             const line = doc.lineAt(from);
             const at = line.text.search(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i);
-            if (at >= 0 && !touches(line.from, line.to)) {
+            if (at >= 0 && line.from >= scope.from && line.from <= scope.to && !touches(line.from, line.to)) {
               out.push(Decoration.replace({ widget: new AlertTitleWidget(alert) }).range(line.from + at, line.from + at + alert.length + 3));
             }
           }
@@ -374,7 +374,7 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
         case "TaskMarker": {
           if (lineTouches(from, to)) return;
           const checked = /x/i.test(doc.sliceString(from, to));
-          out.push(Decoration.replace({ widget: new CheckboxWidget(checked, from) }).range(from, to));
+          out.push(Decoration.replace({ widget: new CheckboxWidget(checked) }).range(from, to));
           return;
         }
         case "HorizontalRule": {
@@ -415,36 +415,23 @@ function build(state: EditorState, host: LiveHost): DecorationSet {
     },
   });
 
-  // `$$ … $$` display math is not part of the markdown grammar, so find it by line.
   const inBlocked = (pos: number) => blocked.some(([a, b]) => pos >= a && pos < b);
-  for (let n = 1; n <= doc.lines; n++) {
-    const line = doc.line(n);
-    if (inBlocked(line.from) || !line.text.trimStart().startsWith("$$")) continue;
-    const trimmed = line.text.trim();
-    let endLine = line;
-    if (!(trimmed.length > 3 && trimmed.endsWith("$$"))) {
-      let m = n + 1;
-      while (m <= doc.lines && !doc.line(m).text.trimEnd().endsWith("$$")) m++;
-      if (m > doc.lines) continue;
-      endLine = doc.line(m);
-      n = m;
-    }
-    if (touches(line.from, endLine.to)) {
-      linesOf(line.from, endLine.to, (lf) => out.push(lineDeco("cm-math-source").range(lf)));
-      blocked.push([line.from, endLine.to]);
-    } else {
-      block(line.from, endLine.to, "math", doc.sliceString(line.from, endLine.to));
-    }
+  for (const range of math ?? displayMath(state, tree, mathLines(state), fmEnd)) {
+    if (range.to < scope.from || range.from > scope.to) continue;
+    if (touches(range.from, range.to)) {
+      linesOf(range.from, range.to, (lf) => out.push(lineDeco("cm-math-source").range(lf)));
+      blocked.push([range.from, range.to]);
+    } else block(range.from, range.to, "math", doc.sliceString(range.from, range.to));
   }
 
-  for (let n = 1; n <= doc.lines; n++) {
+  for (let n = doc.lineAt(scope.from).number; n <= doc.lineAt(scope.to).number; n++) {
     const line = doc.line(n);
     if (!line.text.includes("$") || inBlocked(line.from)) continue;
     INLINE_MATH.lastIndex = 0;
     for (let m = INLINE_MATH.exec(line.text); m; m = INLINE_MATH.exec(line.text)) {
       const from = line.from + m.index;
       const to = from + m[0].length;
-      if (touches(from, to)) continue;
+      if (touches(from, to) || isInMdxRange(state, from) || blocked.some(([a, b]) => a < to && b > from)) continue;
       const inner = tree.resolveInner(from, 1);
       if (inner.name === "InlineCode" || inner.name === "CodeText" || inner.name === "URL") continue;
       out.push(Decoration.replace({ widget: new InlineMathWidget(m[1]!) }).range(from, to));
@@ -470,16 +457,126 @@ function frontmatterDecorations(state: EditorState): DecorationSet {
   return Decoration.set(lines);
 }
 
-export function liveExtension(host: LiveHost): Extension {
-  const field = StateField.define<DecorationSet>({
-    create: (state) => build(state, host),
-    update(deco, tr) {
-      if (tr.docChanged || tr.selection || tr.state.facet(EditorView.editable) !== tr.startState.facet(EditorView.editable)) {
-        return build(tr.state, host);
-      }
-      return deco;
+export const setLiveViewport = StateEffect.define<Region>();
+
+export function liveDecorationField(host: LiveHost) {
+  return StateField.define({
+    create(state) {
+      const tree = liveTree(state);
+      const markers = mathLines(state);
+      const math = tree ? displayMath(state, tree, markers, frontmatterEnd(state.doc.sliceString(0, 4000))) : [];
+      const viewport = { from: 0, to: Math.min(state.doc.length, 12_000) };
+      const scope = tree ? expandRegion(state, tree, viewport, math) : viewport;
+      return { decorations: buildLiveDecorations(state, host, scope, math), tree, markers, math, viewport };
     },
-    provide: (f) => EditorView.decorations.from(f),
+    update(value, tr) {
+      const viewportEffect = tr.effects.find(e => e.is(setLiveViewport));
+      const viewport = viewportEffect?.value ?? mapRegion(value.viewport, tr.changes);
+      const mdxChanged = tr.effects.some(e => e.is(setMdxRanges));
+      const markers = tr.docChanged ? mathLines(tr.state, value.markers, tr) : value.markers;
+      const tree = tr.state.doc.length > LIVE_MAX_CHARS ? null
+        : tr.docChanged || viewportEffect || syntaxTree(tr.state) !== syntaxTree(tr.startState) ? liveTree(tr.state) : value.tree;
+      // Keep delimiter positions current while parsing is incomplete or Live is
+      // suspended. A missing tree forces a fresh visible set when it recovers.
+      if (!tree) return { ...value, decorations: Decoration.none, tree, viewport, markers, math: [] };
+      const fmEnd = frontmatterEnd(tr.state.doc.sliceString(0, 4000));
+      const math = tr.docChanged || mdxChanged || tree !== value.tree ? displayMath(tr.state, tree, markers, fmEnd) : value.math;
+      const scope = expandRegion(tr.state, tree, viewport, math);
+      const full = viewportEffect || mdxChanged || !value.tree || (!tr.docChanged && tree !== value.tree);
+      const dirty: Region[] = [];
+      const add = (region: Region) => {
+        const expanded = expandRegion(tr.state, tree, region, math);
+        if (expanded.to >= scope.from && expanded.from <= scope.to) dirty.push(expanded);
+      };
+      if (full) dirty.push(scope);
+      else {
+        tr.changes.iterChangedRanges((a, b, c, d) => {
+          // Include adjacent lines for setext headings and joining/splitting blocks.
+          const oldDoc = tr.startState.doc, doc = tr.state.doc;
+          const oldRange = expandRegion(tr.startState, value.tree!, {
+            from: oldDoc.line(Math.max(1, oldDoc.lineAt(a).number - 1)).from,
+            to: oldDoc.line(Math.min(oldDoc.lines, oldDoc.lineAt(b).number + 1)).to,
+          }, value.math);
+          let region = { from: Math.min(tr.changes.mapPos(oldRange.from, -1), doc.line(Math.max(1, doc.lineAt(c).number - 1)).from),
+            to: Math.max(tr.changes.mapPos(oldRange.to, 1), doc.line(Math.min(doc.lines, doc.lineAt(d).number + 1)).to) };
+          const inverse = tr.changes.invertedDesc;
+          for (;;) {
+            const next = expandRegion(tr.state, tree, region, math);
+            const old = expandRegion(tr.startState, value.tree!, mapRegion(next, inverse), value.math);
+            const mapped = mapRegion(old, tr.changes);
+            const expanded = { from: Math.min(next.from, mapped.from), to: Math.max(next.to, mapped.to) };
+            if (expanded.from === region.from && expanded.to === region.to) break;
+            region = expanded;
+          }
+          add(region);
+        });
+        if (tr.docChanged && fmEnd !== tr.changes.mapPos(frontmatterEnd(tr.startState.doc.sliceString(0, 4000)), 1)) {
+          add({ from: 0, to: Math.max(fmEnd, tr.changes.mapPos(frontmatterEnd(tr.startState.doc.sliceString(0, 4000)), 1)) });
+        }
+        if (tr.docChanged) {
+          const oldMath = value.math.map(r => mapRegion(r, tr.changes));
+          for (const r of oldMath) if (!math.some(m => m.from === r.from && m.to === r.to)) add(r);
+          for (const r of math) if (!oldMath.some(m => m.from === r.from && m.to === r.to)) add(r);
+        }
+        if (tr.selection || tr.docChanged) {
+          for (const r of tr.startState.selection.ranges) add(mapRegion(r, tr.changes));
+          for (const r of tr.state.selection.ranges) add(r);
+        }
+      }
+      const previousScope = value.tree ? mapRegion(expandRegion(tr.startState, value.tree, value.viewport, value.math), tr.changes) : scope;
+      if (scope.from < previousScope.from) add({ from: scope.from, to: previousScope.from });
+      if (scope.to > previousScope.to) add({ from: previousScope.to, to: scope.to });
+      let decorations = full ? Decoration.none : value.decorations.map(tr.changes);
+      // A changed fence can split a previous replacement. Invalidate that entire
+      // replacement before filtering it, then expand against the new syntax tree.
+      for (let i = 0; i < dirty.length; i++) {
+        let region = dirty[i]!;
+        for (;;) {
+          let from = region.from, to = region.to;
+          decorations.between(from, to, (a, b) => { from = Math.min(from, a); to = Math.max(to, b); });
+          const expanded = expandRegion(tr.state, tree, { from, to }, math);
+          if (expanded.from === region.from && expanded.to === region.to) break;
+          region = expanded;
+        }
+        dirty[i] = region;
+      }
+      for (const region of mergeRegions(dirty)) {
+        const visible = { from: Math.max(scope.from, region.from), to: Math.min(scope.to, region.to) };
+        const replacement = buildLiveDecorations(tr.state, host, visible, math);
+        const add: Range<Decoration>[] = [];
+        for (let cursor = replacement.iter(); cursor.value; cursor.next()) add.push(cursor.value.range(cursor.from, cursor.to));
+        decorations = decorations.update({ filterFrom: region.from, filterTo: region.to,
+          filter: (from, to) => to < region.from || from > region.to, add, sort: true });
+      }
+      decorations = decorations.update({ filter: (from, to) => from >= scope.from && to <= scope.to });
+      return { decorations, tree, markers, math, viewport };
+    },
+    provide: f => EditorView.decorations.from(f, value => value.decorations),
+  });
+}
+
+export function liveExtension(host: LiveHost): Extension {
+  const field = liveDecorationField(host);
+  // Block replacements must come from a state field. Publish the measured viewport
+  // after CodeMirror's update, never dispatch recursively from a view update.
+  const viewport = ViewPlugin.fromClass(class {
+    frame = 0;
+    constructor(readonly view: EditorView) { this.schedule(); }
+    update(update: import("@codemirror/view").ViewUpdate) {
+      if (update.viewportChanged || syntaxTree(update.state) !== syntaxTree(update.startState)) this.schedule();
+    }
+    schedule() {
+      if (this.frame) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = 0;
+        const { from, to } = this.view.viewport;
+        const current = this.view.state.field(field).viewport;
+        if (from !== current.from || to !== current.to || syntaxTree(this.view.state) !== this.view.state.field(field).tree) {
+          this.view.dispatch({ effects: setLiveViewport.of({ from, to }) });
+        }
+      });
+    }
+    destroy() { cancelAnimationFrame(this.frame); }
   });
 
   const linkClicks = EditorView.domEventHandlers({
@@ -495,7 +592,7 @@ export function liveExtension(host: LiveHost): Extension {
     },
   });
 
-  return [field, linkClicks];
+  return [field, viewport, linkClicks];
 }
 
 export type { SyntaxNode };

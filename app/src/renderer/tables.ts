@@ -2,10 +2,6 @@ import { syntaxTree } from "@codemirror/language";
 import { Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 
-// Live table editing: Tab/Shift-Tab hop between cells while the cursor is
-// inside a Markdown table, re-padding the pipes only after a hop so typing
-// mid-cell never reflows under the user's fingers.
-
 /** A conservative table line: optional indent, then a leading pipe. */
 export function isTableLine(line: string): boolean {
   return /^\s*\|/.test(line);
@@ -74,70 +70,15 @@ export function cellIndexAt(line: string, offset: number): number {
   return Math.max(0, pipes - leading);
 }
 
-interface ParsedSep {
-  left: boolean[];
-  right: boolean[];
-}
-
-function parseSeparator(cells: string[]): ParsedSep {
-  return {
-    left: cells.map((c) => c.startsWith(":")),
-    right: cells.map((c) => c.endsWith(":")),
-  };
-}
-
-function separatorCell(width: number, left: boolean, right: boolean): string {
-  const dashes = Math.max(1, width - (left ? 1 : 0) - (right ? 1 : 0));
-  return `${left ? ":" : ""}${"-".repeat(dashes)}${right ? ":" : ""}`;
-}
-
-/**
- * Returns re-padded copies of lines[start..end]: every column as wide as its
- * widest cell (min 3 so the separator stays valid), single-space padding,
- * alignment colons preserved. Rows shorter than the header gain empty cells.
- */
-export function alignTable(lines: string[], start: number, end: number): string[] {
-  const slice = lines.slice(start, end + 1);
-  const indents = slice.map((l) => /^\s*/.exec(l)![0]);
-  const header = splitRow(slice[0]!);
-  const sep = parseSeparator(splitRow(slice[1]!));
-  const cols = Math.max(header.length, ...slice.filter((_, i) => i !== 1).map((line) => splitRow(line).length));
-  const rows = slice.map((l, i) => {
-    if (i === 1) return [] as string[]; // separator is rebuilt from `sep`
-    const cells = splitRow(l);
-    while (cells.length < cols) cells.push("");
-    return cells.slice(0, cols);
-  });
-  const widths = Array.from({ length: cols }, (_, c) => {
-    let w = 3;
-    for (const row of rows) {
-      if (row.length === 0) continue;
-      w = Math.max(w, row[c]!.length);
-    }
-    return w;
-  });
-  // Right-aligned columns pad on the left so the content hugs the colon side.
-  const pad = (c: string, i: number) => (sep.right[i] && !sep.left[i] ? c.padStart(widths[i]!) : c.padEnd(widths[i]!));
-  const emit = (cells: string[]) => `| ${cells.map(pad).join(" | ")} |`;
-  return slice.map((_, i) => {
-    if (i === 1) {
-      return indents[i]! + emit(widths.map((w, c) => separatorCell(w, sep.left[c] ?? false, sep.right[c] ?? false)));
-    }
-    return indents[i]! + emit(rows[i]!);
-  });
-}
-
-/** Character offset of cell `col`'s content start within an aligned row line. */
+/** Character offset of a cell's content, preserving its existing padding. */
 function cellOffset(line: string, col: number): number {
-  let pipes = 0;
+  let cell = -1;
   for (let i = 0; i < line.length; i++) {
-    if (line[i] === "|" && isPipe(line, i)) {
-      pipes++;
-      if (pipes === col + 1) {
-        // Step past the single padding space that alignTable emits.
-        return Math.min(i + 2, line.length);
-      }
-    }
+    if (line[i] !== "|" || !isPipe(line, i)) continue;
+    if (++cell !== col) continue;
+    let at = i + 1;
+    while (at < line.length && /[ \t]/.test(line[at]!)) at++;
+    return at;
   }
   return line.length;
 }
@@ -157,14 +98,15 @@ export function moveCell(view: EditorView, dir: 1 | -1): boolean {
   if (node.name !== "Table") return false;
 
   const cols = Math.max(...lines.slice(table.start, table.end + 1).map((line) => splitRow(line).length));
-  let row = cursorLine.number - 1;
+  const row = cursorLine.number - 1;
+  const rowCols = splitRow(cursorLine.text).length;
   let col = cellIndexAt(cursorLine.text, pos - cursorLine.from);
-  col = Math.min(col, cols - 1);
+  col = Math.min(col, rowCols - 1);
 
   let targetRow = row;
   let targetCol = col + dir;
   let newRow = false;
-  if (targetCol >= cols) {
+  if (targetCol >= rowCols) {
     targetCol = 0;
     targetRow++;
     if (targetRow === table.start + 1) targetRow++; // skip the separator
@@ -176,22 +118,22 @@ export function moveCell(view: EditorView, dir: 1 | -1): boolean {
     targetRow--;
     if (targetRow === table.start + 1) targetRow--;
     if (targetRow < table.start) return true; // already at the first cell; swallow, don't indent
-    targetCol = cols - 1;
+    targetCol = splitRow(lines[targetRow]!).length - 1;
   }
 
-  const work = lines.slice(table.start, table.end + 1);
-  if (newRow) work.push(`|${" |".repeat(cols)}`);
-  const aligned = alignTable(work, 0, work.length - 1);
-
-  const from = state.doc.line(table.start + 1).from;
-  const to = state.doc.line(table.end + 1).to;
-  const alignedRow = aligned[targetRow - table.start]!;
-  const anchor = from + aligned.slice(0, targetRow - table.start).reduce((n, l) => n + l.length + 1, 0) + cellOffset(alignedRow, targetCol);
-  view.dispatch({
-    changes: { from, to, insert: aligned.join("\n") },
-    selection: { anchor },
-    userEvent: "input.table",
-  });
+  if (newRow) {
+    const last = state.doc.line(table.end + 1);
+    const indent = /^[ \t]*/.exec(last.text)![0];
+    const row = `${indent}|${" |".repeat(cols)}`;
+    view.dispatch({
+      changes: { from: last.to, insert: `\n${row}` },
+      selection: { anchor: last.to + 1 + cellOffset(row, targetCol) },
+      userEvent: "input.table",
+    });
+  } else {
+    const target = state.doc.line(targetRow + 1);
+    view.dispatch({ selection: { anchor: target.from + cellOffset(target.text, targetCol) } });
+  }
   return true;
 }
 

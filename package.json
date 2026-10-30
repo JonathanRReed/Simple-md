@@ -1,5 +1,5 @@
 {
-  "name": "simple-md-workspace",
+  "name": "simplemd-workspace",
   "private": true,
   "packageManager": "bun@1.4.4",
   "license": "MIT",
@@ -9,7 +9,10 @@
     "build": "bun run --cwd app build",
     "build:native": "bun run --cwd app build:native",
     "typecheck": "bun run --cwd app typecheck",
+    "lint": "bun run --cwd app lint",
     "test": "bun run --cwd app test",
+    "test:cli": "bun run --cwd app test:cli",
+    "test:corpus": "bun run --cwd app test:corpus",
     "test:packaging": "bun run --cwd app test:packaging",
     "test:asar": "bun run --cwd app test:asar",
     "check:rust": "bun run --cwd app check:rust",
@@ -17,6 +20,9 @@
     "pack": "bun run --cwd app pack",
     "pack:plan": "bun run --cwd app pack:plan",
     "dist": "bun run --cwd app dist",
-    "bench": "bun run --cwd app bench"
+    "bench": "bun run --cwd app bench",
+    "perf:gate": "bun run --cwd app perf:gate",
+    "release:mac": "bun run --cwd app release:mac",
+    "test:release": "bun run --cwd app test:release"
   }
 }

@@ -1,4 +1,4 @@
-import type { FlushResult } from "../shared/types.js";
+import type { DocumentId, FlushResult } from "../shared/types.js";
 
 export class DocumentQueue {
   private tail: Promise<unknown> = Promise.resolve();
@@ -11,27 +11,24 @@ export class DocumentQueue {
 }
 
 export async function openPreparedDocument<T>(a: {
-  valid(): Promise<boolean>;
   prepare(): Promise<T>;
   transition(operation: () => Promise<boolean>): Promise<boolean>;
   settle(): Promise<boolean>;
   refresh(prepared: T): Promise<T>;
   present(prepared: T): Promise<void>;
 }): Promise<boolean> {
-  if (!(await a.valid())) return false;
   const prepared = await a.prepare();
   return a.transition(async () => {
-    if (!(await a.valid()) || !(await a.settle())) return false;
+    if (!(await a.settle())) return false;
     const refreshed = await a.refresh(prepared);
-    if (!(await a.valid())) return false;
     await a.present(refreshed);
     return true;
   });
 }
 
 interface SettleActions {
-  documentId: number;
-  autosave: boolean;
+  documentId: DocumentId;
+  autosave: boolean | (() => boolean);
   hasPath: boolean;
   flush(): Promise<FlushResult | null>;
   save(text: string): Promise<boolean>;
@@ -43,7 +40,8 @@ export async function settleDocument(a: SettleActions): Promise<boolean> {
   if (!before || before.documentId !== a.documentId) return false;
   if (before.conflict) return false;
   if (!before.dirty) return true;
-  const choice = a.autosave && a.hasPath ? "save" : await a.choose();
+  const autosave = typeof a.autosave === "function" ? a.autosave() : a.autosave;
+  const choice = autosave && a.hasPath ? "save" : await a.choose();
   if (choice === "cancel") return false;
   if (choice === "save" && !(await a.save(before.text))) return false;
   const after = await a.flush();

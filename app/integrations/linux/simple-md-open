@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
 
-executable=${SIMPLE_MD_EXECUTABLE:-simple-md}
+executable=${SIMPLE_MD_EXECUTABLE:-simplemd}
 unset ELECTRON_RUN_AS_NODE
 exec "$executable" "$@"

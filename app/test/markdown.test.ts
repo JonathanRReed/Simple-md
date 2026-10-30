@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { preprocessMdx, renderBlocks, renderFragment, renderMarkdown } from "../src/main/markdown";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { renderBlocks, renderFragment, renderMarkdown } from "../src/main/markdown";
 
 const html = async (src: string, file: string | null = "/tmp/note.md") => (await renderMarkdown(src, file)).html;
 
@@ -23,21 +26,21 @@ describe("basics", () => {
     expect(out).toContain('href="#introduction"');
   });
 
-  test("title comes from frontmatter, then file name", async () => {
+  test("title comes from frontmatter, then H1, then file name", async () => {
     expect((await renderMarkdown("---\ntitle: Trip Notes\n---\n# x", "/a/b.md")).title).toBe("Trip Notes");
-    expect((await renderMarkdown("# x", "/a/trip.md")).title).toBe("trip");
-    expect((await renderMarkdown("# x", null)).title).toBe("Untitled");
+    expect((await renderMarkdown("body", "/a/trip.md")).title).toBe("trip");
+    expect((await renderMarkdown("body", null)).title).toBe("Untitled");
   });
 
-  test("frontmatter is shown collapsed, not as a heading or rule", async () => {
+  test("frontmatter renders as a metadata table, not a heading or rule", async () => {
     const out = await html("---\ntitle: A\ntags: [x]\n---\n\nBody");
-    expect(out).toContain('<details class="frontmatter"');
+    expect(out).toContain('<table><tbody><tr><th>title</th><td>A</td>');
     expect(out).not.toContain("<hr");
     expect(out).toContain("<p");
   });
 
   test("a leading byte order mark does not break frontmatter", async () => {
-    expect(await html("\uFEFF---\ntitle: A\n---\nBody")).toContain("frontmatter");
+    expect(await html("\uFEFF---\ntitle: A\n---\nBody")).toContain("<th>title</th><td>A</td>");
   });
 
   test("block direction follows the first strong character", async () => {
@@ -96,11 +99,10 @@ describe("extensions", () => {
 });
 
 describe("security", () => {
-  test("raw HTML is escaped", async () => {
-    const out = await html('<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>');
-    expect(out).not.toContain("<script");
-    expect(out).not.toContain("<img");
-    expect(out).toContain("&lt;script&gt;");
+  test("raw HTML is carried as author content for DOM sanitization", async () => {
+    const out = await renderMarkdown('<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>', "/tmp/note.md");
+    expect(out.content).toBeDefined();
+    expect(JSON.stringify(out.content)).toContain('"kind":"author"');
   });
 
   test("javascript: links are not linked", async () => {
@@ -122,13 +124,13 @@ describe("security", () => {
 
 describe("images", () => {
   test("relative images resolve against the document folder", async () => {
-    const out = await html("![a](pics/a%20b.png)", "/Users/me/Notes/note.md");
-    expect(out).toContain("file:///Users/me/Notes/pics/a%20b.png");
+    const out = await html("![a](pics/a%20b.png)", path.resolve(os.tmpdir(), "Notes/note.md"));
+    expect(out).toContain(pathToFileURL(path.resolve(os.tmpdir(), "Notes/pics/a b.png")).href);
   });
 
   test("encoded reserved filename characters are not encoded twice", async () => {
-    const out = await html("![a](pics/image%20%231%3F.png)", "/tmp/notes/doc.md");
-    expect(out).toContain("file:///tmp/notes/pics/image%20%231%3F.png");
+    const out = await html("![a](pics/image%20%231%3F.png)", path.resolve(os.tmpdir(), "notes/doc.md"));
+    expect(out).toContain(pathToFileURL(path.resolve(os.tmpdir(), "notes/pics/image #1?.png")).href);
     expect(out).not.toContain("%25");
   });
 
@@ -144,14 +146,12 @@ describe("images", () => {
 });
 
 describe("mdx", () => {
-  test("import/export blocks are dropped", () => {
-    expect(preprocessMdx("import X from './x'\nexport const a = 1\n\n# Hi")).toBe("\n# Hi");
-  });
-
-  test("JSX blocks become code, but fences are left alone", () => {
-    const out = preprocessMdx("<Chart data={x} />\n\ntext\n\n```js\nimport a from 'b'\n```");
-    expect(out).toContain("```jsx\n<Chart data={x} />\n```");
-    expect(out).toContain("import a from 'b'");
+  test("imports stay hidden and JSX renders as a component", async () => {
+    const out = await html("import X from './x'\n\n<X />\n\n```js\nimport a from 'b'\n```", "/a.mdx");
+    expect(out).not.toContain("import X");
+    expect(out).toContain('class="mdx-component"');
+    expect(out).toContain('class="mdx-label">X');
+    expect(out).toContain("import");
   });
 
   test("only .mdx files are preprocessed", async () => {
@@ -162,7 +162,7 @@ describe("mdx", () => {
 
 describe("fragments", () => {
   test("render a lone block", async () => {
-    expect(await renderFragment("| a |\n|---|\n| 1 |", undefined)).toContain("<table");
+    expect((await renderFragment("| a |\n|---|\n| 1 |", undefined)).html).toContain("<table");
   });
 });
 
@@ -186,10 +186,11 @@ describe("block rendering cache", () => {
 
   test("reference destination edits invalidate resolved links and images", async () => {
     const source = "[linked][target]\n\n![image][picture]\n\n[target]: https://first.example\n[picture]: old.png";
-    const first = await renderBlocks(source, "/tmp/references.md");
-    const second = await renderBlocks(source.replace("first.example", "next.example").replace("old.png", "new.png"), "/tmp/references.md");
+    const doc = path.resolve(os.tmpdir(), "references.md");
+    const first = await renderBlocks(source, doc);
+    const second = await renderBlocks(source.replace("first.example", "next.example").replace("old.png", "new.png"), doc);
     expect(second.blocks[0]!.html).toContain("https://next.example");
-    expect(second.blocks[1]!.html).toContain("file:///tmp/new.png");
+    expect(second.blocks[1]!.html).toContain(pathToFileURL(path.resolve(os.tmpdir(), "new.png")).href);
     expect(second.blocks[0]!.key).not.toBe(first.blocks[0]!.key);
     expect(second.blocks[1]!.key).not.toBe(first.blocks[1]!.key);
   });
@@ -208,7 +209,7 @@ describe("block rendering cache", () => {
 
   test("footnote sections stay balanced inside a single patchable block", async () => {
     const out = await renderBlocks("A[^a] and B[^b]\n\n[^a]: First\n[^b]: Second", "/tmp/balanced.md");
-    const section = out.blocks.filter((block) => block.html.includes('<section class="footnotes">'));
+    const section = out.blocks.filter((block) => block.html.includes('<section class="footnotes"'));
     expect(section).toHaveLength(1);
     expect(section[0]!.html).toContain("</section>");
     expect(section[0]!.html).toContain("First");

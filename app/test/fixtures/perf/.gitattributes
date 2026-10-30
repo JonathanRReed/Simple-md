@@ -1,0 +1,4 @@
+*.md -text whitespace=-blank-at-eof
+*.mdx -text
+crlf.md -diff
+mixed.md -diff

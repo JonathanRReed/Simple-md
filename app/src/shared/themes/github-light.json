@@ -1,0 +1,21 @@
+{
+  "id": "github-light",
+  "label": "GitHub Light",
+  "appearance": "light",
+  "background": "#ffffff",
+  "foreground": "#1f2328",
+  "muted": "#59636e",
+  "link": "#0969da",
+  "rule": "#d1d9e0",
+  "codeBackground": "#f6f8fa",
+  "tableBackground": "#f6f8fa",
+  "selectionTint": "#eef4ff",
+  "syntax": {
+    "keyword": "#cf222e",
+    "string": "#0a3069",
+    "number": "#0550ae",
+    "comment": "#59636e",
+    "name": "#8250df",
+    "type": "#953800"
+  }
+}

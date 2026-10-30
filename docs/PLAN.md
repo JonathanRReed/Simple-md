@@ -21,10 +21,11 @@ It is not a note-taking app, a writing workspace or a vault.
 - **Native where it is cheap, light everywhere.** Use the OS for menus, context menus, dialogs, share, accent color and recents. Draw only what Electron cannot give us natively without a heavy cost.
 - **File-first.** One file is the unit. Sibling files are reachable by link. There is no file tree.
 - **Nothing executes.** MDX, raw HTML and code blocks are displayed, never run.
+- **Subtle chrome motion only.** Document text, reading position and first paint never animate. Reduce Motion disables chrome motion. Config `ui-motion = subtle | off` defaults to `subtle`.
 
 ## Platforms
 
-Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with separate Apple Silicon and Intel downloads (confirm Electron 45's minimum when packaging). Linux builds stay in CI and get runtime qualification after v1.0. The stack stays Electron plus Rust. Platform-specific native pieces (the macOS Quick Look extension in Swift, the Windows preview handler in Rust) live beside it.
+Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, Apple Silicon only; Intel Macs are not supported unless demand appears later (confirm Electron 45's minimum when packaging). Linux builds stay in CI and get runtime qualification after v1.0. The stack stays Electron plus Rust. Platform-specific native pieces (the macOS Quick Look extension in Swift, the Windows preview handler in Rust) live beside it.
 
 ## Decisions
 
@@ -34,7 +35,7 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 | --- | --- |
 | Byte preservation | Lines the user did not touch keep their exact bytes, including CRLF, mixed endings, BOM and the final newline. New line breaks use the file's dominant ending, or LF on a tie. Files that are not valid UTF-8 (UTF-8 with BOM is fine) open read-only with a notice. Safe saves keep extended attributes and Finder tags by copying them to the temporary file before the atomic rename. Document hard-link behavior. |
 | Editing | CodeMirror 6 live preview, Obsidian-style: syntax hides away from the cursor, and images, math and tables render inline. No WYSIWYG document model. |
-| Modes | Live, Source, and Side by side (formerly "Split"). "Split" now means two panes. |
+| Modes | Read, Live, Source, and Side by side. Finder, double-click, `open`, and CLI opens without `:line` start in Read. Editing starts through the mode control, Command/Control-E or the edit command. `COMMIT_EDITMSG`, files without an extension, `--wait` buffers and `:line` targets start in Source. The `mode` setting chooses the editing view. "Split" means two panes. |
 | MDX | Same editor as `.md`. ESM and JSX are highlighted from parser ranges mapped through edits, and are never hidden or rewritten. Use parse-only `micromark-extension-mdxjs` to find MDX ranges. Never use `@mdx-js/mdx` compile or evaluate, and do not write a custom Lezer MDX grammar. The preview renders the Markdown. Lowercase HTML goes through the sanitizer. Capitalized components render as labeled boxes with their children rendered. Expressions render as inert labeled tokens. `<style>` and `<script>` never apply. While MDX is incomplete or invalid, typing, saving and undo keep working, and the preview keeps the last good render and shows the failing range as escaped source. |
 | Astro | Root-relative paths such as `/images/x.png` resolve against the nearest `public/` folder through the shared URL resolver. No schema validation. |
 | Source ranges | Rendered blocks carry source ranges from markdown-it `token.map`. MDX ranges, block identities, scroll sync and change highlights all reuse them. |
@@ -54,11 +55,12 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 
 | Area | Decision |
 | --- | --- |
-| Tabs | Drawn by the app inside one window and one renderer, styled to feel native. Planning allowance is 5 to 25 MB per extra open document (inconclusive probe; measure in the real app), versus about 60 to 120 MB for an Electron native tab. Same on all platforms. No tear-off, no cross-window dragging, no session restore. "Move Tab to New Window" exists as a command only. |
+| Tabs | Drawn by the app inside one window and one renderer, styled to feel native. Top tabs are the default; `tab-style = sidebar` lists open documents on the leading edge, with a persisted width and collapsed state. Planning allowance is 5 to 25 MB per extra open document (inconclusive probe; measure in the real app), versus about 60 to 120 MB for an Electron native tab. Same on all platforms. No tear-off, no cross-window dragging, no session restore. "Move Tab to New Window" exists as a command only. |
 | Splits | Up to 2 panes, side by side or stacked. A document appears in at most one pane, because Side by side mode already covers source plus preview. Nested split trees are 1.x. |
 | Opening files | New files open as a tab in the frontmost window. Config `open-in = tab | window`. Opening an already-open file focuses its tab. A plain click on a sibling link navigates in place with back and forward. Command/Control-click opens a new tab. |
 | Closing | Command/Control-W closes the tab. Closing the last tab closes the window. On macOS the app stays resident in the tray. |
-| Native items | Settings in its own window. Modes in the View menu plus a small toggle. Native context menus with spelling and link actions. System accent drives chrome, selection and focus. Native Share on macOS only. Dock menu and Windows Jump List with recents. Mac find pasteboard. No motion after the text is readable. AppKit-native Settings and toolbar are 1.x, and only if the HTML versions feel wrong. |
+| Native items | Settings in its own window. Modes in the View menu plus a small toggle. Native context menus with spelling and link actions. System accent drives chrome, selection and focus. Native Share on macOS only. Dock menu and Windows Jump List with recents. Mac find pasteboard. Subtle chrome motion only, after the first readable paint. Document text, reading position and first paint never animate. Reduce Motion or `ui-motion = off` makes changes instant. AppKit-native Settings and toolbar are 1.x, and only if the HTML versions feel wrong. |
+| Motion | `ui-motion = subtle \| off`, default `subtle`, with a Settings switch. Chrome uses transform and opacity, 120 / 160 / 200 ms tokens, and 100 ms panel exits. FLIP handles bounds changes. Text dimensions stay fixed during pane motion and reflow once at the end. Resizing follows the pointer without animation. Tab switching and first-readable markers never wait for motion. |
 | Reading look | Editorial theme by default, with a one-click GitHub style toggle. Both use one semantic renderer. |
 | Themes | About 8 curated token files that style the document area only, with separate light and dark choices that follow the system. Shiki themes match. |
 | Typography | Separate reading, writing and code fonts. Family, size, line height and content width. No custom CSS. |
@@ -79,10 +81,10 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 
 | Area | Decision |
 | --- | --- |
-| macOS preview | `docs/specs/quick-look.md`. Quick Look preview (WKWebView) and thumbnail (Core Text) extensions, built with Command Line Tools only. |
+| macOS preview | `docs/specs/quick-look.md`. A data-based Quick Look preview: the extension renders HTML with the shared render core in JavaScriptCore and Quick Look displays it. No WKWebView, no scripts, no network entitlement. Diagrams show as code blocks in Quick Look; pressing Enter opens the file in SimpleMD with full diagrams. Plus a thumbnail (Core Text) extension. Built with Command Line Tools only. Chosen after the M0 spike: about 39 ms to ready versus about 615 ms for WKWebView, with App Sandbox as the only entitlement. |
 | Windows preview | `docs/specs/windows-preview.md`. Rust Explorer preview pane handler using WebView2, with a fallback if the spike fails. |
-| Peek removal | The experimental Windows Space hook is deleted in milestone 0. The macOS Accessibility hook is deleted once Quick Look passes its fixture set. After both are gone, delete `peek.ts`, `peek-request.ts`, the `peek` intent and peek hide-on-close. The Rust side then ships only the CLI and the Windows handler. |
-| Tray | The app stays resident by default on macOS so warm opens stay fast. |
+| Peek removal | The experimental Windows Space hook was deleted in milestone 0. M4 removes the macOS Accessibility hook, Automation fallback, `peek.ts`, `peek-request.ts`, the `peek` intent, peek window behavior, and preview-only global shortcut. Normal reading uses the `read` intent. The shipped Rust binary is now `simplemd-helper`, which preserves macOS save metadata. The CLI arrives in M6 and the Windows handler in M7. Quick Look must still pass its fixture set before M4 integration is accepted. |
+| Tray | The app stays resident by default on macOS so warm opens stay fast. Closing any document window hides it after settling edits. Tray actions and Launch at Login remain independent of Quick Look. |
 | Rename | SimpleMD. Linux binary `simplemd`. Bundle ID stays `com.jonathanreed.simplemd`. On first launch, migrate only settings and recents from the old `Simple-md` folder; drop old caches. Document that the old `Simple-md.app` or old Windows install can be removed by hand. |
 | Distribution | Free, open source, MIT. macOS: Developer ID signing and notarization with the `simplemd-notary` keychain profile. Windows: SignPath Foundation signing in GitHub Actions plus winget. GitHub Releases, then auto-update, then a personal Homebrew tap. |
 | AI | None. Not in the app. |
@@ -93,22 +95,23 @@ Full method: `docs/specs/perf-harness.md`.
 
 | Gate | Target | Baseline on 2026-10-28 (contended host) |
 | --- | --- | --- |
-| Warm open to first readable, normal files | p95 < 150 ms | 20 to 65 ms median |
-| First screen readable, files up to 20 MB | p95 < 200 ms | about 900 ms for a 2 MB file on first open |
-| Cold launch to first readable | p95 < 800 ms | 519 ms small note, 717 ms 100k live editor (medians) |
+| Warm open to first readable, normal files | p95 < 150 ms | M3: 15 to 23 ms visible; 21 to 30 ms hidden in the tray after a one-second dwell (rapid hide and reopen still stalls about 500 ms in macOS window ordering; recorded as a diagnostic) |
+| First screen readable, files up to 20 MB | p95 < 200 ms | M3: 21 to 32 ms up to 2 MB; 167 ms at 20 MB, all opens succeed |
+| Cold launch to first readable | p95 < 800 ms | M3: 424 to 435 ms |
 | Switch to an already-open 100k tab | p95 < 50 ms | not built yet |
-| Typing in a 100k document, one and two panes | input-to-next-paint p95 < 16 ms | 6.0 ms median, 8.7 ms p95 (beforeinput to rAF, a lower bound) |
-| Memory, one document, settled | physical footprint summed over app processes < 200 MB | not yet measured for the real app; a bare editor probe measured about 139 MB |
+| Typing in a 100k document, one and two panes | p95 editor latency minus a matched empty-textarea control is at most one display frame plus 8 ms, from at least 40 trusted keys per case, with Event Timing's unreported sub-16 ms events counted as under 16 ms | 18 of 18 calibrated cases pass with 0 or 8 ms excess; the raw 24 ms p95 is the same in an empty textarea, so it is injection and frame cost, not the editor |
+| Memory, one document, settled | physical footprint summed over app processes < 200 MB (stretch goal 150 MB) | M3: 143 MB (M0: 159 MB) |
 
 - Memory uses physical footprint, the same measure as Activity Monitor's Memory column. Windows uses private working set. Summed RSS is recorded beside it but is not the gate, because shared framework pages are counted many times. An empty Electron window measures 365 MB summed RSS.
 - Absolute gates run locally on the owner's MacBook through `bun run perf:gate`, and the JSON receipt is attached to each PR. Hosted CI only catches relative regressions.
-- Until the end of milestone 3, a PR must not regress any gate. From then on, gates block merges. The owner reconfirms the 200 MB target after milestone 0 measures the real app.
+- Until the end of milestone 3, a PR must not regress any gate. From then on, gates block merges. The owner confirmed the 200 MB target after M0 measured 159 MB, with 150 MB as a stretch goal for M3.
 
 ## Do not build
 
 Every implementer and reviewer brief includes this list.
 
-- No vault, file tree, backlinks, graph, tag database or crawler.
+- No vault, file tree, backlinks, graph or tag database.
+- No crawler or persistent index; Open Quickly queries Git and the OS search index on demand
 - No AI chat, completion, rewriting, embeddings or agent features.
 - No WYSIWYG document model or whole-document normalization.
 - No executing MDX, raw HTML, embedded apps or code.
@@ -151,13 +154,13 @@ Each milestone is one branch and one PR to `main`, except where it is split belo
    - Start with DocumentSession extraction and no UI changes: distinct `DocumentId`, `PaneId`, `RevisionId` and `RequestId` types, IPC authority from the sender, and stale replies rejected per document revision.
    - Then: `node:crypto` hashing, incremental block identities and live decorations, first screen first, readable text before highlighting, viewport-triggered diagrams, fine-grained Shiki, removal of the Side by side double render, and one shared cache budget.
    - Gates become blocking at the end of M3.
-4. **Quick Look** (moved up). Preview and thumbnail extensions, then deletion of the Accessibility hook and the macOS peek path. Security review required.
+4. **Quick Look** (moved up). Data-based preview and thumbnail extensions, then deletion of the Accessibility hook and the macOS peek path. Security review required.
 5. **Native-feeling window**, as three PRs:
    - 5a: tabs and panes.
    - 5b: Settings window, context menus, share, accent, recents and find pasteboard.
    - 5c: themes, reading toggle, typography and config file.
 6. **Developer workflow.** Rust CLI and URL scheme, change highlights (watch mode and git HEAD), Raycast and Alfred scripts, drag-out export. Security review required.
-7. **Windows.** Preview pane handler (or the fallback), Jump List, and removal of the remaining peek code. The owner verifies on Windows hardware.
+7. **Windows.** Preview pane handler (or the fallback), Jump List, with no file-manager keyboard hook. The owner verifies on Windows hardware.
 8. **Release.**
    - macOS notarization.
    - The Windows release built in GitHub Actions with SignPath.
@@ -192,7 +195,6 @@ The hard gate:
 - Milestone 0: rename the GitHub repository to SimpleMD.
 - After milestone 1: approve publishing the unsigned 0.x prerelease.
 - End of milestone 2: run the Windows preview spike on Windows hardware.
-- Milestone 0 and onward: reconfirm the memory target once the real app is measured.
 - Milestone 7: verify Windows behavior on Windows hardware, and Linux later.
 - Milestone 8: store notarization credentials with `xcrun notarytool store-credentials simplemd-notary`, using an Apple ID app-specific password and team `AJ9VWBRNZN`.
 

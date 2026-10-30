@@ -1,0 +1,2197 @@
+{
+  "measuredRevision": "542741d219245411e7bbe6b8327b7bba925a230d",
+  "branch": "t3/ebe4adc1",
+  "distSha256": "e48a0852503a189afceab3c5c87dc4ce0ee2b52cdce78e3978a9374302f1b293",
+  "dirtyPatchHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "fullReceipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-9H4eZN/receipt.json",
+  "memory": {
+    "memory": {
+      "m0": {
+        "launches": 7,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 156.226768,
+        "launchMedianRange": [
+          154.654024,
+          156.816712
+        ],
+        "pooledMedian": 156.226768,
+        "pooledP95": 156.816712,
+        "processMedians": {
+          "Browser": 63.440888,
+          "GPU": 45.057152,
+          "Utility": 7.766952,
+          "Tab": 40.07668
+        },
+        "rawPeakMB": 424.269152,
+        "loadRange1m": [
+          5.35400390625,
+          15.85498046875
+        ],
+        "rejected": [
+          "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/m0/.audit/perf-VHwlaj/receipt.json",
+          "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/m0/.audit/perf-pmFias/receipt.json"
+        ]
+      },
+      "m1": {
+        "launches": 5,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 161.797448,
+        "launchMedianRange": [
+          161.010968,
+          163.140936
+        ],
+        "pooledMedian": 161.797448,
+        "pooledP95": 163.173704,
+        "processMedians": {
+          "Browser": 68.929504,
+          "GPU": 44.9588,
+          "Utility": 7.750568,
+          "Tab": 40.437056
+        },
+        "rawPeakMB": 189.94516,
+        "loadRange1m": [
+          5.70703125,
+          15.85498046875
+        ],
+        "rejected": []
+      },
+      "m2": {
+        "launches": 5,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 164.287792,
+        "launchMedianRange": [
+          163.386696,
+          164.992256
+        ],
+        "pooledMedian": 164.287792,
+        "pooledP95": 165.00864,
+        "processMedians": {
+          "Browser": 70.944736,
+          "GPU": 45.188176,
+          "Utility": 7.685032,
+          "Tab": 40.387976
+        },
+        "rawPeakMB": 169.039128,
+        "loadRange1m": [
+          5.70703125,
+          13.12451171875
+        ],
+        "rejected": []
+      },
+      "m3a": {
+        "launches": 5,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 164.386096,
+        "launchMedianRange": [
+          162.846024,
+          164.615496
+        ],
+        "pooledMedian": 164.386096,
+        "pooledP95": 164.664648,
+        "processMedians": {
+          "Browser": 70.977528,
+          "GPU": 44.991616,
+          "Utility": 7.750544,
+          "Tab": 40.732016
+        },
+        "rawPeakMB": 168.5804,
+        "loadRange1m": [
+          4.93603515625,
+          12.25
+        ],
+        "rejected": []
+      },
+      "m3-speed": {
+        "launches": 5,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 164.844824,
+        "launchMedianRange": [
+          163.681704,
+          165.385568
+        ],
+        "pooledMedian": 164.844824,
+        "pooledP95": 165.418336,
+        "processMedians": {
+          "Browser": 71.30516,
+          "GPU": 44.975208,
+          "Utility": 7.78336,
+          "Tab": 40.224112
+        },
+        "rawPeakMB": 169.41608,
+        "loadRange1m": [
+          4.93603515625,
+          11.01171875
+        ],
+        "rejected": []
+      },
+      "lazy-mdx": {
+        "launches": 6,
+        "settledLaunches": 6,
+        "medianOfLaunchMedians": 159.36441200000002,
+        "launchMedianRange": [
+          158.68444,
+          159.552864
+        ],
+        "pooledMedian": 159.356232,
+        "pooledP95": 159.552864,
+        "processMedians": {
+          "Browser": 66.00496,
+          "GPU": 44.926056,
+          "Utility": 7.76694,
+          "Tab": 40.748388
+        },
+        "rawPeakMB": 185.341208,
+        "loadRange1m": [
+          4.63623046875,
+          9.55419921875
+        ],
+        "rejected": []
+      },
+      "lazy-yaml": {
+        "launches": 6,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 158.455136,
+        "launchMedianRange": [
+          157.504744,
+          159.37252
+        ],
+        "pooledMedian": 158.455136,
+        "pooledP95": 159.37252,
+        "processMedians": {
+          "Browser": 65.111984,
+          "GPU": 45.139024,
+          "Utility": 7.750592,
+          "Tab": 40.42072
+        },
+        "rawPeakMB": 395.105584,
+        "loadRange1m": [
+          4.3798828125,
+          8.1220703125
+        ],
+        "rejected": [
+          "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/lazy-yaml/.audit/perf-Nv5KOi/receipt.json"
+        ]
+      },
+      "lazy-math": {
+        "launches": 16,
+        "settledLaunches": 16,
+        "medianOfLaunchMedians": 155.374944,
+        "launchMedianRange": [
+          154.146096,
+          155.964792
+        ],
+        "pooledMedian": 155.37492,
+        "pooledP95": 155.964792,
+        "processMedians": {
+          "Browser": 62.310332,
+          "GPU": 44.934248,
+          "Utility": 7.758736000000001,
+          "Tab": 39.880024
+        },
+        "rawPeakMB": 391.79592,
+        "loadRange1m": [
+          4.18115234375,
+          12.974609375
+        ],
+        "rejected": []
+      },
+      "lazy-worker": {
+        "launches": 5,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 155.850032,
+        "launchMedianRange": [
+          154.539336,
+          157.652248
+        ],
+        "pooledMedian": 155.850032,
+        "pooledP95": 157.652248,
+        "processMedians": {
+          "Browser": 62.70356,
+          "GPU": 45.188176,
+          "Utility": 7.717776,
+          "Tab": 40.35516
+        },
+        "rawPeakMB": 161.436952,
+        "loadRange1m": [
+          4.91064453125,
+          7.564453125
+        ],
+        "rejected": []
+      },
+      "live-payload": {
+        "launches": 10,
+        "settledLaunches": 9,
+        "medianOfLaunchMedians": 150.820072,
+        "launchMedianRange": [
+          149.017832,
+          152.114408
+        ],
+        "pooledMedian": 150.820072,
+        "pooledP95": 152.114408,
+        "processMedians": {
+          "Browser": 57.231304,
+          "GPU": 44.926056,
+          "Utility": 7.734184,
+          "Tab": 40.715632
+        },
+        "rawPeakMB": 390.419736,
+        "loadRange1m": [
+          3.697265625,
+          11.4599609375
+        ],
+        "rejected": [
+          "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/live-payload/.audit/perf-syNlBO/receipt.json"
+        ]
+      },
+      "worker-demand": {
+        "launches": 5,
+        "settledLaunches": 5,
+        "medianOfLaunchMedians": 143.33256,
+        "launchMedianRange": [
+          142.087352,
+          144.20084
+        ],
+        "pooledMedian": 143.33256,
+        "pooledP95": 144.217224,
+        "processMedians": {
+          "Browser": 50.00584,
+          "GPU": 44.975232,
+          "Utility": 7.750544,
+          "Tab": 40.43708
+        },
+        "rawPeakMB": 148.62452,
+        "loadRange1m": [
+          3.697265625,
+          11.04150390625
+        ],
+        "rejected": []
+      }
+    },
+    "comparisons": [
+      {
+        "before": "m3-speed",
+        "after": "lazy-mdx",
+        "pairs": 5,
+        "medianDeltaMB": -5.488591999999983,
+        "rangeMB": [
+          -6.701128000000011,
+          -4.128839999999997
+        ],
+        "deltasMB": [
+          -4.5221520000000055,
+          -6.062175999999994,
+          -5.488591999999983,
+          -6.701128000000011,
+          -4.128839999999997
+        ]
+      },
+      {
+        "before": "lazy-mdx",
+        "after": "lazy-yaml",
+        "pairs": 5,
+        "medianDeltaMB": -1.0157119999999793,
+        "rangeMB": [
+          -1.179696000000007,
+          0.42591200000001095
+        ],
+        "deltasMB": [
+          -1.0157119999999793,
+          0.42591200000001095,
+          -1.0977760000000103,
+          -1.179696000000007,
+          -0.19653600000000893
+        ]
+      },
+      {
+        "before": "lazy-yaml",
+        "after": "lazy-math",
+        "pairs": 5,
+        "medianDeltaMB": -3.2277199999999766,
+        "rangeMB": [
+          -3.768320000000017,
+          -2.1297759999999926
+        ],
+        "deltasMB": [
+          -2.4903440000000217,
+          -3.768320000000017,
+          -3.293136000000004,
+          -2.1297759999999926,
+          -3.2277199999999766
+        ]
+      },
+      {
+        "before": "lazy-math",
+        "after": "lazy-worker",
+        "pairs": 5,
+        "medianDeltaMB": 1.196079999999995,
+        "rangeMB": [
+          -0.7045599999999865,
+          3.129415999999992
+        ],
+        "deltasMB": [
+          0.3932399999999916,
+          3.129415999999992,
+          1.196079999999995,
+          1.5564559999999972,
+          -0.7045599999999865
+        ]
+      },
+      {
+        "before": "lazy-math",
+        "after": "live-payload",
+        "pairs": 4,
+        "medianDeltaMB": -4.521995999999987,
+        "rangeMB": [
+          -5.619879999999995,
+          -2.3757280000000094
+        ],
+        "deltasMB": [
+          -4.259839999999997,
+          -5.619879999999995,
+          -4.7841519999999775,
+          -2.3757280000000094
+        ]
+      },
+      {
+        "before": "live-payload",
+        "after": "worker-demand",
+        "pairs": 5,
+        "medianDeltaMB": -7.1271600000000035,
+        "rangeMB": [
+          -8.454192000000006,
+          -5.685271999999998
+        ],
+        "deltasMB": [
+          -6.96332000000001,
+          -8.437855999999982,
+          -8.454192000000006,
+          -5.685271999999998,
+          -7.1271600000000035
+        ]
+      }
+    ]
+  },
+  "idle": {
+    "control": {
+      "intervalCount": 10,
+      "medianCPUSecondsPer60Seconds": 0.021788270833333335,
+      "medianCPUPercentOneCore": 0.03631137854640112,
+      "rangeCPUPercentOneCore": [
+        0.010772822315390854,
+        0.1712331290400368
+      ],
+      "medianInterruptWakeupsPer60Seconds": 139.0,
+      "totalPackageIdleWakeups": 1
+    },
+    "candidate": {
+      "intervalCount": 10,
+      "medianCPUSecondsPer60Seconds": 0.027520479166666667,
+      "medianCPUPercentOneCore": 0.04586430775855596,
+      "rangeCPUPercentOneCore": [
+        0.010657432685214156,
+        0.16108955167891836
+      ],
+      "medianInterruptWakeupsPer60Seconds": 135.5,
+      "totalPackageIdleWakeups": 0
+    },
+    "pairedCPUSecondsDelta": {
+      "median": 0.00036752083333333255,
+      "range": [
+        -0.060095749999999996,
+        0.03287866666666667
+      ],
+      "values": [
+        0.021208208333333353,
+        0.01633025,
+        0.000804291666666665,
+        0.03287866666666667,
+        0.023875416666666663,
+        -0.060095749999999996,
+        -0.014516458333333333,
+        -6.924999999999987e-05,
+        -0.0003969166666666652,
+        -0.002208791666666668
+      ]
+    }
+  },
+  "hiddenControls": [
+    {
+      "round": 0,
+      "dwellMs": 30,
+      "exitCode": 1,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-IoXDVn/receipt.json",
+      "loadStart": [
+        5.79150390625,
+        7.48046875,
+        7.8388671875
+      ],
+      "loadEnd": [
+        5.515625,
+        7.365234375,
+        7.79345703125
+      ],
+      "seconds": 10.441438913345337,
+      "gate": {
+        "status": "fail",
+        "count": 20,
+        "median": 22.644749999999476,
+        "p95": 508.5957920000001,
+        "p99": 524.3201250000002,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 0,
+      "dwellMs": 1000,
+      "exitCode": 0,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-7VMbvn/receipt.json",
+      "loadStart": [
+        5.515625,
+        7.365234375,
+        7.79345703125
+      ],
+      "loadEnd": [
+        4.46923828125,
+        6.94384765625,
+        7.62548828125
+      ],
+      "seconds": 28.267879962921143,
+      "gate": {
+        "status": "pass",
+        "count": 20,
+        "median": 21.07770899999923,
+        "p95": 29.562042000001384,
+        "p99": 33.701208999998926,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 1,
+      "dwellMs": 1000,
+      "exitCode": 0,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-AgbNDa/receipt.json",
+      "loadStart": [
+        4.46923828125,
+        6.94384765625,
+        7.62548828125
+      ],
+      "loadEnd": [
+        4.6142578125,
+        6.771484375,
+        7.54296875
+      ],
+      "seconds": 26.101534366607666,
+      "gate": {
+        "status": "pass",
+        "count": 20,
+        "median": 19.426666000000296,
+        "p95": 24.04987500000061,
+        "p99": 24.072833000001992,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 1,
+      "dwellMs": 30,
+      "exitCode": 1,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-YXdoi5/receipt.json",
+      "loadStart": [
+        4.6142578125,
+        6.771484375,
+        7.54296875
+      ],
+      "loadEnd": [
+        4.8076171875,
+        6.74462890625,
+        7.5244140625
+      ],
+      "seconds": 9.315027236938477,
+      "gate": {
+        "status": "fail",
+        "count": 20,
+        "median": 22.24987500000043,
+        "p95": 505.2099999999991,
+        "p99": 538.0907079999997,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 2,
+      "dwellMs": 30,
+      "exitCode": 1,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-873RJB/receipt.json",
+      "loadStart": [
+        4.8076171875,
+        6.74462890625,
+        7.5244140625
+      ],
+      "loadEnd": [
+        5.009765625,
+        6.72021484375,
+        7.50634765625
+      ],
+      "seconds": 9.86870813369751,
+      "gate": {
+        "status": "fail",
+        "count": 20,
+        "median": 21.652375000000575,
+        "p95": 530.8652080000002,
+        "p99": 532.076583,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 2,
+      "dwellMs": 1000,
+      "exitCode": 0,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-pTpitW/receipt.json",
+      "loadStart": [
+        5.009765625,
+        6.72021484375,
+        7.50634765625
+      ],
+      "loadEnd": [
+        5.05712890625,
+        6.595703125,
+        7.4384765625
+      ],
+      "seconds": 26.33032512664795,
+      "gate": {
+        "status": "pass",
+        "count": 20,
+        "median": 21.04475000000093,
+        "p95": 33.39270800000304,
+        "p99": 39.45575000000099,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 3,
+      "dwellMs": 1000,
+      "exitCode": 0,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-HCZCVZ/receipt.json",
+      "loadStart": [
+        5.05712890625,
+        6.595703125,
+        7.4384765625
+      ],
+      "loadEnd": [
+        7.43017578125,
+        7.04150390625,
+        7.57421875
+      ],
+      "seconds": 25.939892053604126,
+      "gate": {
+        "status": "pass",
+        "count": 20,
+        "median": 22.818624999999884,
+        "p95": 25.180583000001207,
+        "p99": 25.657624999999825,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 3,
+      "dwellMs": 30,
+      "exitCode": 1,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-FANhLO/receipt.json",
+      "loadStart": [
+        7.43017578125,
+        7.04150390625,
+        7.57421875
+      ],
+      "loadEnd": [
+        7.2900390625,
+        7.0234375,
+        7.5615234375
+      ],
+      "seconds": 10.558342933654785,
+      "gate": {
+        "status": "fail",
+        "count": 20,
+        "median": 21.434832999999344,
+        "p95": 523.3490839999995,
+        "p99": 531.6687920000004,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 4,
+      "dwellMs": 30,
+      "exitCode": 1,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-OUVa17/receipt.json",
+      "loadStart": [
+        7.2900390625,
+        7.0234375,
+        7.5615234375
+      ],
+      "loadEnd": [
+        8.3515625,
+        7.28076171875,
+        7.64404296875
+      ],
+      "seconds": 10.712015867233276,
+      "gate": {
+        "status": "fail",
+        "count": 20,
+        "median": 21.639124999999694,
+        "p95": 533.4700000000003,
+        "p99": 536.9212500000003,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    },
+    {
+      "round": 4,
+      "dwellMs": 1000,
+      "exitCode": 0,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/perf-SaMKyU/receipt.json",
+      "loadStart": [
+        8.3515625,
+        7.28076171875,
+        7.64404296875
+      ],
+      "loadEnd": [
+        6.84716796875,
+        7.02734375,
+        7.54296875
+      ],
+      "seconds": 27.29498791694641,
+      "gate": {
+        "status": "pass",
+        "count": 20,
+        "median": 19.109833000002254,
+        "p95": 24.54291699999885,
+        "p99": 25.93512499999997,
+        "target": 150,
+        "statistic": "p95",
+        "minimum": 20
+      }
+    }
+  ],
+  "memoryAttempts": 75,
+  "unsettledAttempts": [
+    {
+      "name": "m0",
+      "revision": "0f1469fd2be986ce7a13b58c0db26ac328a55716",
+      "round": 3,
+      "exitCode": 1,
+      "loadStart": [
+        7.6728515625,
+        7.6982421875,
+        7.5556640625
+      ],
+      "loadEnd": [
+        10.26708984375,
+        8.3134765625,
+        7.78125
+      ],
+      "seconds": 26.246342182159424,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/m0-paired-3.log",
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/m0/.audit/perf-VHwlaj/receipt.json",
+      "gate": {
+        "status": "fail",
+        "count": 0,
+        "median": null,
+        "p95": null,
+        "p99": null,
+        "target": 200,
+        "statistic": "median",
+        "minimum": 5,
+        "settled": false,
+        "observations": 20,
+        "unit": "MB decimal",
+        "metric": "ri_phys_footprint",
+        "rssMB": {
+          "median": null,
+          "p95": null
+        }
+      },
+      "rawPeakMB": 424.269152
+    },
+    {
+      "name": "m0",
+      "revision": "0f1469fd2be986ce7a13b58c0db26ac328a55716",
+      "round": 4,
+      "exitCode": 1,
+      "loadStart": [
+        10.26708984375,
+        8.3134765625,
+        7.78125
+      ],
+      "loadEnd": [
+        15.85498046875,
+        9.92138671875,
+        8.3837890625
+      ],
+      "seconds": 27.518332958221436,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/m0-paired-4.log",
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/m0/.audit/perf-pmFias/receipt.json",
+      "gate": {
+        "status": "fail",
+        "count": 0,
+        "median": null,
+        "p95": null,
+        "p99": null,
+        "target": 200,
+        "statistic": "median",
+        "minimum": 5,
+        "settled": false,
+        "observations": 20,
+        "unit": "MB decimal",
+        "metric": "ri_phys_footprint",
+        "rssMB": {
+          "median": null,
+          "p95": null
+        }
+      },
+      "rawPeakMB": 393.516408
+    },
+    {
+      "name": "lazy-yaml",
+      "revision": "97122881cb44540241ac283f967d1837843b3660",
+      "round": 4,
+      "exitCode": 1,
+      "loadStart": [
+        6.76611328125,
+        8.40478515625,
+        8.0009765625
+      ],
+      "loadEnd": [
+        7.73681640625,
+        8.50048828125,
+        8.04541015625
+      ],
+      "seconds": 26.786823987960815,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/lazy-yaml-paired-4.log",
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/lazy-yaml/.audit/perf-Nv5KOi/receipt.json",
+      "gate": {
+        "status": "fail",
+        "count": 0,
+        "median": null,
+        "p95": null,
+        "p99": null,
+        "target": 200,
+        "statistic": "median",
+        "minimum": 5,
+        "settled": false,
+        "observations": 20,
+        "unit": "MB decimal",
+        "metric": "ri_phys_footprint",
+        "rssMB": {
+          "median": null,
+          "p95": null
+        }
+      },
+      "rawPeakMB": 395.105584
+    },
+    {
+      "name": "live-payload",
+      "revision": "2211c0d5b2eb0fa450da2b9a7fd40932daea869d",
+      "round": 4,
+      "exitCode": 1,
+      "loadStart": [
+        8.28076171875,
+        9.078125,
+        8.51318359375
+      ],
+      "loadEnd": [
+        7.90234375,
+        8.951171875,
+        8.484375
+      ],
+      "seconds": 26.340925931930542,
+      "receipt": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/variants/live-payload/.audit/perf-syNlBO/receipt.json",
+      "gate": {
+        "status": "fail",
+        "count": 0,
+        "median": null,
+        "p95": null,
+        "p99": null,
+        "target": 200,
+        "statistic": "median",
+        "minimum": 5,
+        "settled": false,
+        "observations": 20,
+        "unit": "MB decimal",
+        "metric": "ri_phys_footprint",
+        "rssMB": {
+          "median": null,
+          "p95": null
+        }
+      },
+      "rawPeakMB": 390.419736
+    }
+  ],
+  "finalGates": {
+    "process-cold-fresh-profile": {
+      "status": "pass",
+      "count": 20,
+      "median": 432.9137919999994,
+      "p95": 506.87237500000265,
+      "p99": 576.8338749999966,
+      "target": 800,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "process-cold-reused-profile": {
+      "status": "pass",
+      "count": 20,
+      "median": 447.9446250000001,
+      "p95": 507.3897919999981,
+      "p99": 538.5197499999995,
+      "target": 800,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/small.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 18.93487499999901,
+      "p95": 21.547249999995984,
+      "p99": 21.58337500000198,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/medium.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.2779589999991,
+      "p95": 23.071249999993597,
+      "p99": 31.933250000001863,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/math.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.334249999999884,
+      "p95": 22.957791999993788,
+      "p99": 25.725291999995534,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/diagrams.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.22370800000499,
+      "p95": 23.00241599999572,
+      "p99": 30.273957999997947,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/fences.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.32645799999591,
+      "p95": 23.82245900000271,
+      "p99": 24.52945799999725,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/long-lines.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 14.208582999999635,
+      "p95": 20.204291999994894,
+      "p99": 20.46004200000607,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/unicode.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 12.918208000002778,
+      "p95": 20.292249999998603,
+      "p99": 21.7377919999999,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/crlf.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 14.57570900000428,
+      "p95": 20.47362499999872,
+      "p99": 20.561666000001424,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/mixed.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 13.654333999998926,
+      "p95": 21.159249999996973,
+      "p99": 30.414583999998285,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/bom.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.741457999996783,
+      "p95": 22.447583000001032,
+      "p99": 22.858166999998502,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-visible/astro.mdx": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.59729199999856,
+      "p95": 22.093708000000333,
+      "p99": 22.495875000000524,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/small.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 18.66150000000198,
+      "p95": 22.824416999996174,
+      "p99": 31.225124999997206,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/medium.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.615458000000217,
+      "p95": 26.13300000000163,
+      "p99": 27.346332999994047,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/math.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 18.87491700000828,
+      "p95": 28.27283400000306,
+      "p99": 28.61187500000233,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/diagrams.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.380583000005572,
+      "p95": 25.95412499998929,
+      "p99": 27.085707999998704,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/fences.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.40412500000093,
+      "p95": 27.845790999999736,
+      "p99": 42.22412499997881,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/long-lines.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 24.025666000001365,
+      "p95": 27.513624999992317,
+      "p99": 27.871541999978945,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/unicode.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.108666999993147,
+      "p95": 25.413916999998037,
+      "p99": 34.36691599999904,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/crlf.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 21.924666000006255,
+      "p95": 28.36137499997858,
+      "p99": 29.46500000002561,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/mixed.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 22.17979200000991,
+      "p95": 26.172374999994645,
+      "p99": 31.562917000002926,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/bom.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 22.10020899999654,
+      "p95": 30.51545899998746,
+      "p99": 52.393333000014536,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-hidden/astro.mdx": {
+      "status": "pass",
+      "count": 20,
+      "median": 23.95366699999431,
+      "p95": 28.039958000008482,
+      "p99": 29.555250000033993,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/small.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.517958000011276,
+      "p95": 37.742834000033326,
+      "p99": 40.24241599999368,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/medium.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.45895900001051,
+      "p95": 30.302042000053916,
+      "p99": 43.16400000004796,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/math.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.60879200004274,
+      "p95": 35.748458999965806,
+      "p99": 99.36362499999814,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/diagrams.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.45829199999571,
+      "p95": 29.058250000001863,
+      "p99": 51.42512500000885,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/fences.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.622999999963213,
+      "p95": 22.487833000021055,
+      "p99": 22.55208400002448,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/long-lines.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.172125000040978,
+      "p95": 23.479332999966573,
+      "p99": 25.793584000028204,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/unicode.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 18.14087499998277,
+      "p95": 26.102415999979712,
+      "p99": 47.3269169999985,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/crlf.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.39374999998836,
+      "p95": 23.568125000048894,
+      "p99": 26.984541999991052,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/mixed.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.70724999997765,
+      "p95": 21.209499999997206,
+      "p99": 35.54187499999534,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/bom.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.46595799998613,
+      "p95": 22.038707999978215,
+      "p99": 23.211542000004556,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "resident-new-file-miss/astro.mdx": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.395250000001397,
+      "p95": 37.530583999992814,
+      "p99": 85.443666999985,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/small.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 21.461375000013504,
+      "p95": 23.71683300001314,
+      "p99": 23.750041999970563,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/medium.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 15.713208000001032,
+      "p95": 24.40766700002132,
+      "p99": 24.89304200001061,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/math.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 22.304416999977548,
+      "p95": 28.080707999994047,
+      "p99": 29.762624999973923,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/diagrams.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 15.561833999992814,
+      "p95": 23.84075000003213,
+      "p99": 24.25570899999002,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/fences.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 22.37100000004284,
+      "p95": 24.974832999985665,
+      "p99": 25.23104099999182,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/long-lines.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 22.369249999988824,
+      "p95": 23.834124999993946,
+      "p99": 25.936916000035126,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/unicode.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 15.6447090000147,
+      "p95": 23.964374999981374,
+      "p99": 23.98837499995716,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/crlf.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 21.84704199997941,
+      "p95": 24.74687500001164,
+      "p99": 24.749916000000667,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/mixed.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 16.003333000000566,
+      "p95": 23.445834000012837,
+      "p99": 23.878083000017796,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/bom.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 16.73062500002561,
+      "p95": 23.92654199997196,
+      "p99": 24.744917000003625,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "A-to-B-to-A/astro.mdx": {
+      "status": "pass",
+      "count": 20,
+      "median": 22.408625000040047,
+      "p95": 23.812458999978844,
+      "p99": 24.114666000008583,
+      "target": 150,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/small.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.517958000011276,
+      "p95": 37.742834000033326,
+      "p99": 40.24241599999368,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/medium.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.45895900001051,
+      "p95": 30.302042000053916,
+      "p99": 43.16400000004796,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/math.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.60879200004274,
+      "p95": 35.748458999965806,
+      "p99": 99.36362499999814,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/diagrams.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.45829199999571,
+      "p95": 29.058250000001863,
+      "p99": 51.42512500000885,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/fences.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.622999999963213,
+      "p95": 22.487833000021055,
+      "p99": 22.55208400002448,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/long-lines.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.172125000040978,
+      "p95": 23.479332999966573,
+      "p99": 25.793584000028204,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/unicode.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 18.14087499998277,
+      "p95": 26.102415999979712,
+      "p99": 47.3269169999985,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/crlf.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.39374999998836,
+      "p95": 23.568125000048894,
+      "p99": 26.984541999991052,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/mixed.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.70724999997765,
+      "p95": 21.209499999997206,
+      "p99": 35.54187499999534,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/bom.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 19.46595799998613,
+      "p95": 22.038707999978215,
+      "p99": 23.211542000004556,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/astro.mdx": {
+      "status": "pass",
+      "count": 20,
+      "median": 20.395250000001397,
+      "p95": 37.530583999992814,
+      "p99": 85.443666999985,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/huge.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 24.999708999996074,
+      "p95": 39.98854200000642,
+      "p99": 82.03758299996844,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "first-screen/ceiling.md": {
+      "status": "pass",
+      "count": 20,
+      "median": 145.37033300002804,
+      "p95": 171.25008299999172,
+      "p99": 205.6815840000054,
+      "target": 200,
+      "minimum": 20,
+      "statistic": "p95"
+    },
+    "memory": {
+      "status": "pass",
+      "count": 5,
+      "median": 141.989,
+      "p95": 142.038152,
+      "p99": 142.038152,
+      "target": 200,
+      "minimum": 5,
+      "statistic": "median",
+      "unit": "MB decimal",
+      "settled": true,
+      "observations": 20
+    },
+    "typing/native/live/top": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/native/live/middle": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/native/live/end": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/native/source/top": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/native/source/middle": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 16,
+        "upper": 16
+      }
+    },
+    "typing/native/source/end": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 16,
+        "upper": 16
+      }
+    },
+    "typing/native/split/top": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 16,
+        "upper": 16
+      }
+    },
+    "typing/native/split/middle": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 0,
+        "upper": 0
+      }
+    },
+    "typing/native/split/end": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 16,
+        "upper": 16
+      }
+    },
+    "typing/cdp/live/top": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 0,
+        "upper": 0
+      }
+    },
+    "typing/cdp/live/middle": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/cdp/live/end": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 0,
+        "upper": 0
+      }
+    },
+    "typing/cdp/source/top": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/cdp/source/middle": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/cdp/source/end": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 0,
+        "upper": 0
+      }
+    },
+    "typing/cdp/split/top": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/cdp/split/middle": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 8,
+        "upper": 8
+      }
+    },
+    "typing/cdp/split/end": {
+      "status": "pass",
+      "count": 40,
+      "median": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p95": {
+        "lower": 24,
+        "upper": 24,
+        "upperExclusive": false
+      },
+      "p99": {
+        "lower": 32,
+        "upper": 32,
+        "upperExclusive": false
+      },
+      "target": 16.333290948023745,
+      "minimum": 40,
+      "reason": "Keydown p95 above the matched empty textarea must be at most one display frame plus one 8 ms Event Timing quantum. beforeinput and rAF remain diagnostics; missing Event Timing or control evidence fails.",
+      "excessP95Ms": {
+        "lower": 0,
+        "upper": 0
+      }
+    },
+    "tab-switch-100k": {
+      "status": "n/a",
+      "target": 50,
+      "reason": "Not applicable yet. Tabs do not exist."
+    },
+    "typing-two-panes": {
+      "status": "n/a",
+      "target": 16,
+      "reason": "Not applicable yet. Two document panes do not exist. Split is the existing source plus preview mode."
+    },
+    "correctness": {
+      "status": "pass"
+    }
+  },
+  "checks": [
+    {
+      "name": "build:native",
+      "command": [
+        "bun",
+        "run",
+        "build:native"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.19873046875,
+        9.357421875,
+        9.39208984375
+      ],
+      "startedAt": 1793254787.2378292,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-build-native.log",
+      "exitCode": 0,
+      "loadEnd": [
+        8.19873046875,
+        9.357421875,
+        9.39208984375
+      ],
+      "endedAt": 1793254787.543675
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.19873046875,
+        9.357421875,
+        9.39208984375
+      ],
+      "startedAt": 1793254787.5563579,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-typecheck.log",
+      "exitCode": 0,
+      "loadEnd": [
+        8.19873046875,
+        9.357421875,
+        9.39208984375
+      ],
+      "endedAt": 1793254787.8191092
+    },
+    {
+      "name": "test",
+      "command": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.19873046875,
+        9.357421875,
+        9.39208984375
+      ],
+      "startedAt": 1793254787.831115,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-test.log",
+      "exitCode": 0,
+      "loadEnd": [
+        8.01416015625,
+        9.279296875,
+        9.36376953125
+      ],
+      "endedAt": 1793254798.683151
+    },
+    {
+      "name": "test:corpus",
+      "command": [
+        "bun",
+        "run",
+        "test:corpus"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.01416015625,
+        9.279296875,
+        9.36376953125
+      ],
+      "startedAt": 1793254798.694568,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-test-corpus.log",
+      "exitCode": 0,
+      "loadEnd": [
+        8.1728515625,
+        9.291015625,
+        9.3671875
+      ],
+      "endedAt": 1793254801.486552
+    },
+    {
+      "name": "test:packaging",
+      "command": [
+        "bun",
+        "run",
+        "test:packaging"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.1728515625,
+        9.291015625,
+        9.3671875
+      ],
+      "startedAt": 1793254801.498214,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-test-packaging.log",
+      "exitCode": 0,
+      "loadEnd": [
+        8.1728515625,
+        9.291015625,
+        9.3671875
+      ],
+      "endedAt": 1793254802.0412748
+    },
+    {
+      "name": "build",
+      "command": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.1728515625,
+        9.291015625,
+        9.3671875
+      ],
+      "startedAt": 1793254802.052923,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-build.log",
+      "exitCode": 0,
+      "loadEnd": [
+        8.1728515625,
+        9.291015625,
+        9.3671875
+      ],
+      "endedAt": 1793254802.272865
+    },
+    {
+      "name": "smoke",
+      "command": [
+        "bun",
+        "scripts/verify-smoke.ts"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        8.1728515625,
+        9.291015625,
+        9.3671875
+      ],
+      "startedAt": 1793254802.284422,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-smoke.log",
+      "exitCode": 0,
+      "loadEnd": [
+        14.37744140625,
+        10.8056640625,
+        9.9208984375
+      ],
+      "endedAt": 1793254845.5853372
+    },
+    {
+      "name": "perf:gate",
+      "command": [
+        "bun",
+        "run",
+        "perf:gate"
+      ],
+      "revision": "542741d219245411e7bbe6b8327b7bba925a230d",
+      "loadStart": [
+        14.37744140625,
+        10.8056640625,
+        9.9208984375
+      ],
+      "startedAt": 1793254845.603838,
+      "log": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout/final-perf-gate.log",
+      "exitCode": 0,
+      "loadEnd": [
+        13.44970703125,
+        13.25341796875,
+        11.93212890625
+      ],
+      "endedAt": 1793255384.3273118
+    }
+  ],
+  "load": {
+    "fullGateStart": [
+      14.98779296875,
+      10.9912109375,
+      9.9912109375
+    ],
+    "fullGateEnd": [
+      13.44970703125,
+      13.25341796875,
+      11.93212890625
+    ],
+    "logicalCores": 14
+  },
+  "artifacts": "/Users/jonathanreed/.t3/worktrees/Simple-md/t3-ebe4adc1/.audit/m3-closeout",
+  "sourceArchives": [
+    {
+      "name": "m0",
+      "revision": "0f1469fd2be986ce7a13b58c0db26ac328a55716",
+      "sourceOverride": null,
+      "sourceSha256": "551c1fde9bf4aa96c49ba40991b6e9454835a33e6251daccd10f1d5251b91be2"
+    },
+    {
+      "name": "m1",
+      "revision": "d421f3f3bfe56bc3ebd33675171f02148229dbb4",
+      "sourceOverride": null,
+      "sourceSha256": "23e5d5544a190b070c9171750e1e3807d9b795f4d8938b61012fbfb4765a5ec4"
+    },
+    {
+      "name": "m2",
+      "revision": "dbb6280c3f1af8b4521de4e1b44dae9105f342c8",
+      "sourceOverride": null,
+      "sourceSha256": "9408bd6a2e1f7e41681f6bb4a49b80c159f01e43eb74b56542c264c60e9af9af"
+    },
+    {
+      "name": "m3a",
+      "revision": "f97dc1e8885afa59dd7965ab2eda591b6308166f",
+      "sourceOverride": null,
+      "sourceSha256": "c35cd8b22435d56776c844e3beeacc7f484ea08c3847e9ae4b72baa369473b51"
+    },
+    {
+      "name": "m3-speed",
+      "revision": "6a3977c4513f1218e0168333f3d91aec610491c8",
+      "sourceOverride": null,
+      "sourceSha256": "f4b9002bcc52769179dbc3642ac69cd11c3d96cced463cd900de64efb6c319fc"
+    },
+    {
+      "name": "lazy-mdx",
+      "revision": "97122881cb44540241ac283f967d1837843b3660",
+      "sourceOverride": null,
+      "sourceSha256": "724e730f109c56429131c58fc05c7e833b5e19a953cc469588ad56febd43148c"
+    },
+    {
+      "name": "lazy-yaml",
+      "revision": "97122881cb44540241ac283f967d1837843b3660",
+      "sourceOverride": "YAML lazy import and one awaited call",
+      "sourceSha256": "134b9b61940937ce74447aba560cd5ab8c86617ee7b2870d4d32ea43fa9ddccd"
+    },
+    {
+      "name": "lazy-math",
+      "revision": "8d784c53823b17156b19aa5a31afe3a5eb410f0b",
+      "sourceOverride": null,
+      "sourceSha256": "1dff123c4243297bc9b3a362af141150d1a3c311e4776e97c635c8ba308c4bcf"
+    },
+    {
+      "name": "lazy-worker",
+      "revision": "116a1d4beec4036c74f2bbe9893138614440d374",
+      "sourceOverride": null,
+      "sourceSha256": "111f8992f789f9d66f21211ae53f60f424a7001aa98249d3ac2b1e36d8000237"
+    },
+    {
+      "name": "live-payload",
+      "revision": "2211c0d5b2eb0fa450da2b9a7fd40932daea869d",
+      "sourceOverride": null,
+      "sourceSha256": "813e605885ed33a9c91846038c01715c78652c458c05e01c83e7039ae98f8a18"
+    },
+    {
+      "name": "worker-demand",
+      "revision": "bedc21317bf94411d00f57b80f0e018377a30f8f",
+      "sourceOverride": null,
+      "sourceSha256": "aaef56d17205ab75904c4ef26aea0d3c9485e2b9807a7a877bfb99014ff81184"
+    }
+  ],
+  "archiveReceiptCaveat": "Archives are not separate git checkouts. Their revision and branch fields were pinned explicitly. The containing checkout supplies their dirtyPatchHash. Archive src hashes, lockfile hashes and dist hashes bind the measured apps. The common collector and fixtures were copied into each archive; the YAML-only variant has the recorded source override."
+}

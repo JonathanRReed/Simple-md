@@ -1,7 +1,7 @@
+import { configEntries, normalizeConfigValue, validConfigValue } from "../shared/config-schema.js";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { normalizeShortcut } from "./shortcuts.js";
 import { DEFAULT_SETTINGS, ZOOM_MAX, ZOOM_MIN, type Settings } from "../shared/types.js";
 
 const record = (raw: unknown): raw is Record<string, unknown> => raw !== null && typeof raw === "object" && !Array.isArray(raw);
@@ -9,18 +9,15 @@ const record = (raw: unknown): raw is Record<string, unknown> => raw !== null &&
 export function sanitizeSettings(raw: unknown): Settings {
   const r = record(raw) ? raw : {};
   const s: Settings = { ...DEFAULT_SETTINGS, recents: [] };
-  if (r.mode === "live" || r.mode === "split" || r.mode === "source") s.mode = r.mode;
-  if (r.theme === "system" || r.theme === "light" || r.theme === "dark") s.theme = r.theme;
+  for (const [, def] of configEntries) {
+    const value = normalizeConfigValue(def, r[def.setting]);
+    if (validConfigValue(def, value)) Object.assign(s, { [def.setting]: value });
+  }
   if (r.width === "narrow" || r.width === "normal" || r.width === "wide") s.width = r.width;
   if (r.typeface === "sans" || r.typeface === "serif") s.typeface = r.typeface;
   if (typeof r.zoom === "number" && Number.isFinite(r.zoom)) s.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, r.zoom));
-  if (r.shortcut !== undefined) {
-    try { s.shortcut = normalizeShortcut(r.shortcut); } catch { s.shortcut = DEFAULT_SETTINGS.shortcut; }
-  }
-  for (const key of ["autosave", "spacePreview", "launchAtLogin", "vim", "spellcheck", "peekPrompted"] as const) {
-    if (typeof r[key] === "boolean") s[key] = r[key];
-  }
   if (Array.isArray(r.recents)) s.recents = r.recents.filter((p): p is string => typeof p === "string").slice(0, 12);
+  if (Array.isArray(r.pinnedPaths)) s.pinnedPaths = [...new Set(r.pinnedPaths.filter((p): p is string => typeof p === "string" && path.isAbsolute(p) && !p.includes("\0")))].slice(0, 100);
   const b = r.bounds;
   if (record(b) && typeof b.x === "number" && Number.isFinite(b.x) && typeof b.y === "number" && Number.isFinite(b.y) &&
       typeof b.width === "number" && Number.isFinite(b.width) && typeof b.height === "number" && Number.isFinite(b.height) &&
@@ -38,8 +35,22 @@ export function loadSettings(settingsFile: string): Settings {
   }
 }
 
+export function migrateSettings({ userData, appData, isolated }: { userData: string; appData: string; isolated: boolean }): void {
+  if (isolated) return;
+  const source = path.join(appData, "Simple-md", "settings.json");
+  const target = path.join(userData, "settings.json");
+  if (fs.existsSync(target) || !fs.existsSync(source)) return;
+  try {
+    fs.mkdirSync(userData, { recursive: true });
+    // Recents live in settings.json. Exclusive copy keeps an existing new profile authoritative.
+    fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
+  } catch {
+    // An unreadable old profile must not prevent startup.
+  }
+}
+
 let timer: NodeJS.Timeout | undefined;
-let pending: { file: string; settings: Settings } | undefined;
+let pending: { file: string; settings: Settings | Pick<Settings, "recents" | "bounds" | "zoom" | "pinnedPaths"> } | undefined;
 
 export function flushSettings(): void {
   clearTimeout(timer);
@@ -65,8 +76,14 @@ export function saveSettings(s: Settings, settingsFile: string): void {
 }
 
 export function patchSettings(current: Settings, patch: unknown): Settings {
-  if (record(patch) && "shortcut" in patch) {
-    return sanitizeSettings({ ...current, ...patch, shortcut: normalizeShortcut(patch.shortcut) });
-  }
-  return sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+  const next = sanitizeSettings({ ...current, ...(record(patch) ? patch : {}) });
+  next.zenMode = record(patch) && typeof patch.zenMode === "boolean" ? patch.zenMode : current.zenMode;
+  return next;
+}
+
+export function saveState(settings: Settings, settingsFile: string): void {
+  clearTimeout(timer);
+  pending = { file: settingsFile, settings: { recents: settings.recents, bounds: settings.bounds, zoom: settings.zoom, pinnedPaths: settings.pinnedPaths } };
+  timer = setTimeout(flushSettings, 150);
+  timer.unref();
 }

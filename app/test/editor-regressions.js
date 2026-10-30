@@ -1,10 +1,11 @@
-await doc('read only', 'note.MDX', 2, 'edit');
-await wait(100);
-assert(document.querySelector('#edit').hidden, 'MDX remains read-only for edit intent');
+/* global blocks, calls, command, doc, flushed, listeners, pending, until, wait -- provided by the editor test harness */
+await doc('editable MDX', 'note.MDX', 2, 'edit');
+await until(() => document.querySelector('.cm-content'));
+assert(!document.querySelector('#edit').hidden, 'MDX enters editing for edit intent');
 await command('toggle-edit');
-assert(document.querySelector('#edit').hidden, 'MDX rejects edit command');
-await command('save');
-assert(pending.length === 0, 'MDX does not save');
+assert(document.querySelector('#edit').hidden, 'MDX switches to read view');
+await command('toggle-edit');
+assert(!document.querySelector('#edit').hidden, 'MDX returns to editing');
 
 await doc('a text', 'a.md', 3, 'edit');
 await until(() => document.querySelector('.cm-content'));
@@ -22,20 +23,19 @@ assert(document.querySelector('#name').textContent === 'b.md', 'late save comple
 assert(document.documentElement.dataset.documentPainted === '/tmp/b.md', 'paint marker names the current document');
 
 const ui = await import('./ui.js');
-let finds = 0;
-window.find = () => {finds++;return true};
-ui.openReadFind(() => {});
-ui.openReadFind(() => {});
+ui.openReadFind(document.querySelector('#doc'), () => {});
+ui.openReadFind(document.querySelector('#doc'), () => {});
 document.querySelector('#find-input').value = 'b';
 document.querySelector('#find-input').dispatchEvent(new Event('input'));
-assert(finds === 1, 'reopening find does not add search handlers');
+assert(document.activeElement === document.querySelector('#find-input'), 'reopening find retains input focus');
 document.querySelector('#find-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-ui.openReadFind(() => {});
+assert(!CSS.highlights.has('read-matches'), 'closing find removes highlights');
+ui.openReadFind(document.querySelector('#doc'), () => {});
 document.querySelector('#find-input').dispatchEvent(new Event('input'));
-assert(finds === 2, 'closing find removes input handlers');
+assert(CSS.highlights.has('read-matches'), 'reopening find restores highlights');
 
 ui.closeOverlays();
-await doc('retained', 'retained.md', 5, 'peek', [
+await doc('retained', 'retained.md', 5, 'read', [
  {key:'one',html:'<h1>Retained heading</h1>'},
  {key:'two',html:'<p>Retained text</p>'},
  {key:'three',html:'<p>Tail</p>'}
@@ -44,16 +44,21 @@ const retained = [...document.querySelector('#doc').children];
 const changes = [];
 const observer = new MutationObserver(records => changes.push(...records));
 observer.observe(document.querySelector('#doc'), {childList:true});
-await doc('retained update', 'retained.md', 6, 'peek', [
+const previousRender = window.simplemd.renderBlocks;
+window.simplemd.renderBlocks = async () => ({title:'Retained heading',blocks:[
  {key:'one',html:'<h1>Retained heading</h1>'},
  {key:'two',html:'<p>Retained text</p>'},
  {key:'three',html:'<p>Tail</p>'}
-]);
+]});
+listeners.disk('retained update', 5);
+await wait(80);
 assert(retained.every((node,i) => document.querySelector('#doc').children[i] === node), 'unchanged read blocks retain their DOM identity');
 assert(changes.length === 0, 'unchanged blocks produce zero child-list mutations');
 observer.disconnect();
+window.simplemd.renderBlocks = previousRender;
 
-await doc('A', 'history-a.md', 7);
+await doc('A', 'history-a.md', 7, 'read', [{key:'a-link',html:'<a href="file:///tmp/history-b.md">B</a>'}]);
+document.querySelector('#doc a').click();
 await doc('B', 'history-b.md', 8);
 await command('nav-back');
 await command('nav-back');
@@ -255,7 +260,7 @@ assert(pending.at(-1).id === 22 && pending.at(-1).text === 'local text after acc
 pending.at(-1).resolve({documentId:22,text:'local text after acceptance',path:'/tmp/accept-race.md',name:'accept-race.md',baseUrl:'file:///tmp/'});
 await wait(30);
 
-await doc('polished screenshot', 'Field notes.md', 21, 'peek', [
+await doc('polished screenshot', 'Field notes.md', 21, 'read', [
  {key:'title',html:'<h1>Field notes</h1>'},
  {key:'intro',html:'<p>A small place to read, edit, and keep Markdown files.</p>'},
  {key:'heading',html:'<h2>Keep the useful parts</h2>'},

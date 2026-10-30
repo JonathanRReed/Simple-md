@@ -1,0 +1,21 @@
+{
+  "id": "editorial-dark",
+  "label": "Editorial Dark",
+  "appearance": "dark",
+  "background": "#0a1219",
+  "foreground": "#f6efe1",
+  "muted": "#cdbd9c",
+  "link": "#8ab9dc",
+  "rule": "#796744",
+  "codeBackground": "#0c161f",
+  "tableBackground": "#14212c",
+  "selectionTint": "#233443",
+  "syntax": {
+    "keyword": "#ff9b91",
+    "string": "#b5d39b",
+    "number": "#97c5f0",
+    "comment": "#adbcbd",
+    "name": "#d9b7f4",
+    "type": "#edc78d"
+  }
+}

@@ -9,10 +9,10 @@ export function desktopEntry(executable) {
     .replace(/%/g, "%%")
     .replace(/["`$\\]/g, "\\$&")
     .replace(/\\/g, "\\\\");
-  return `[Desktop Entry]\nType=Application\nName=Simple-md\nComment=View and edit Markdown\nExec="${quoted}" %f\nIcon=text-markdown\nTerminal=false\nCategories=Office;TextEditor;\nMimeType=text/markdown;text/x-markdown;\nStartupWMClass=simple-md\n`;
+  return `[Desktop Entry]\nType=Application\nName=SimpleMD\nComment=View and edit Markdown\nExec="${quoted}" %f\nIcon=text-markdown\nTerminal=false\nCategories=Office;TextEditor;\nMimeType=text/markdown;text/x-markdown;\nStartupWMClass=simplemd\n`;
 }
 
 if (import.meta.main) {
-  if (process.argv.length !== 3) throw new Error("Usage: bun desktop-entry.mjs /absolute/path/to/Simple-md.AppImage");
+  if (process.argv.length !== 3) throw new Error("Usage: bun desktop-entry.mjs /absolute/path/to/SimpleMD.AppImage");
   process.stdout.write(desktopEntry(process.argv[2]));
 }

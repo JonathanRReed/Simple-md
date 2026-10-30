@@ -18,13 +18,14 @@ await bundle({
   target: "node",
   format: "esm",
   splitting: true,
-  external: ["electron"],
+  external: ["electron", "electron-updater"],
   naming: { entry: "[name].mjs", chunk: "chunks/[name]-[hash].mjs", asset: "chunks/[name]-[hash].[ext]" },
 });
 
 await Bun.write(`${out}/main-app.mjs`, Bun.file(`${out}/main.mjs`));
 await writeFile(`${out}/main.mjs`, `import { enableCompileCache } from "node:module";
 try { enableCompileCache?.(); } catch {}
+if (process.env.SMD_PERF === "1") console.log("smd-perf " + JSON.stringify({ kind: "marker", marker: "main-import-start", at: performance.now() }));
 await import("./main-app.mjs");
 `);
 
@@ -37,8 +38,10 @@ await bundle({
   naming: "preload.cjs",
 });
 
+await bundle({ entrypoints: ["src/settings-preload.ts"], outdir: out, target: "node", format: "cjs", external: ["electron"], naming: "settings-preload.cjs" });
+
 await bundle({
-  entrypoints: ["src/renderer/app.ts"],
+  entrypoints: ["src/renderer/app.ts", "src/renderer/settings.ts"],
   outdir: `${out}/renderer`,
   target: "browser",
   format: "esm",
@@ -46,9 +49,13 @@ await bundle({
   minify: true,
 });
 
+
 await cp("src/renderer/index.html", `${out}/renderer/index.html`);
 await cp("src/renderer/style.css", `${out}/renderer/style.css`);
 await cp("src/renderer/motion.css", `${out}/renderer/motion.css`);
 await cp("node_modules/katex/dist/katex.min.css", `${out}/renderer/katex.min.css`);
 await cp("node_modules/katex/dist/fonts", `${out}/renderer/fonts`, { recursive: true });
 await cp("assets", `${out}/assets`, { recursive: true });
+
+await cp("src/renderer/settings.html", `${out}/renderer/settings.html`);
+await cp("src/renderer/settings.css", `${out}/renderer/settings.css`);

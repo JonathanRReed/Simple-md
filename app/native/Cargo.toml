@@ -1,28 +1,23 @@
 [package]
-name = "simple-md-peek"
+name = "simplemd-helper"
 version = "0.1.0"
 edition = "2024"
-description = "Native helper that turns Space in the OS file manager into a Simple-md preview request"
+description = "macOS save-metadata helper for SimpleMD"
 license = "MIT"
 publish = false
+default-run = "simplemd-helper"
+
+[features]
+cli-test-hooks = []
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-[target.'cfg(target_os = "macos")'.dependencies]
-core-foundation = "0.10"
-core-foundation-sys = "0.8"
-objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSWorkspace", "NSRunningApplication"] }
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = [
-    "Win32_Foundation",
-    "Win32_System_LibraryLoader",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_WindowsAndMessaging",
-] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_Console", "Win32_System_Memory", "Win32_System_IO"] }
 
 [profile.release]
 opt-level = 3

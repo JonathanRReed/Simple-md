@@ -1,0 +1,108 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><markdown-accessiblity-table><table>
+  <tbody>
+  <tr>
+    <th>title</th>
+    <td>Organizing information with collapsed sections</td>
+  </tr>
+  <tr>
+    <th>intro</th>
+    <td>You can streamline your Markdown by creating a collapsed section with the `&lt;details&gt;` tag.</td>
+  </tr>
+  <tr>
+    <th>product</th>
+    <td>{% data reusables.gated-features.markdown-ui %}</td>
+  </tr>
+  <tr>
+    <th>versions</th>
+    <td><table>
+  <thead>
+  <tr>
+  <th>fpt</th>
+  <th>ghes</th>
+  <th>ghec</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr>
+  <td><div dir="auto">*</div></td>
+  <td><div dir="auto">*</div></td>
+  <td><div dir="auto">*</div></td>
+  </tr>
+  </tbody>
+</table>
+</td>
+  </tr>
+  <tr>
+    <th>redirect_from</th>
+    <td><table>
+  <tbody>
+  <tr>
+  <td><div dir="auto">/github/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections</div></td>
+  </tr>
+  </tbody>
+</table>
+</td>
+  </tr>
+  <tr>
+    <th>shortTitle</th>
+    <td>Collapsed sections</td>
+  </tr>
+  <tr>
+    <th>category</th>
+    <td><table>
+  <tbody>
+  <tr>
+  <td><div dir="auto">Write and format content</div></td>
+  </tr>
+  </tbody>
+</table>
+</td>
+  </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Creating a collapsed section</h2><a id="user-content-creating-a-collapsed-section" class="anchor" aria-label="Permalink: Creating a collapsed section" href="#creating-a-collapsed-section"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">You can temporarily obscure sections of your Markdown by creating a collapsed section that the reader can choose to expand. For example, when you want to include technical details in an issue comment that may not be relevant or interesting to every reader, you can put those details in a collapsed section.</p>
+<p dir="auto">Any Markdown within the <code>&lt;details&gt;</code> block will be collapsed until the reader clicks {% octicon "triangle-right" aria-label="The right triangle icon" %} to expand the details.</p>
+<p dir="auto">Within the <code>&lt;details&gt;</code> block, use the <code>&lt;summary&gt;</code> tag to let readers know what is inside. The label appears to the right of {% octicon "triangle-right" aria-label="The right triangle icon" %}.</p>
+<div class="highlight highlight-text-md notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="&lt;details&gt;
+
+&lt;summary&gt;Tips for collapsed sections&lt;/summary&gt;
+
+### You can add a header
+
+You can add text within a collapsed section.
+
+You can add an image or a code block, too.
+
+```ruby
+   puts &quot;Hello World&quot;
+```
+
+&lt;/details&gt;"><pre>&lt;<span class="pl-ent">details</span>&gt;
+
+&lt;<span class="pl-ent">summary</span>&gt;Tips for collapsed sections&lt;/<span class="pl-ent">summary</span>&gt;
+
+<span class="pl-mh">### <span class="pl-en">You can add a header</span></span>
+
+You can add text within a collapsed section.
+
+You can add an image or a code block, too.
+
+<span class="pl-s">```</span><span class="pl-en">ruby</span>
+   <span class="pl-c1">puts</span> <span class="pl-s"><span class="pl-pds">"</span>Hello World<span class="pl-pds">"</span></span>
+<span class="pl-s">```</span>
+
+&lt;/<span class="pl-ent">details</span>&gt;</pre></div>
+<p dir="auto">The Markdown inside the <code>&lt;summary&gt;</code> label will be collapsed by default:</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/collapsed-section-view.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/collapsed-section-view.png" alt="Screenshot of the Markdown above on this page as rendered on {% data variables.product.github %}, showing a right-facing arrow and the header &quot;Tips for collapsed sections.&quot;" style="max-width: 100%;"></a></p>
+<p dir="auto">After a reader clicks {% octicon "triangle-right" aria-label="The right triangle icon" %}, the details are expanded:</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/open-collapsed-section.png"><img src="/github/docs/raw/57f571f065a75c31071127b8027a44b064181add/assets/images/help/writing/open-collapsed-section.png" alt="Screenshot of the Markdown above on this page as rendered on {% data variables.product.github %}. The collapsed section contains headers, text, images, and code blocks." style="max-width: 100%;"></a></p>
+<p dir="auto">Optionally, to make the section display as open by default, add the <code>open</code> attribute to the <code>&lt;details&gt;</code> tag:</p>
+<div class="highlight highlight-text-html-basic notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="&lt;details open&gt;"><pre><span class="pl-kos">&lt;</span><span class="pl-ent">details</span> <span class="pl-c1">open</span><span class="pl-kos">&gt;</span></pre></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Further reading</h2><a id="user-content-further-reading" class="anchor" aria-label="Permalink: Further reading" href="#further-reading"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.github.com/gfm/">{% data variables.product.prodname_dotcom %} Flavored Markdown Spec</a></li>
+<li><a href="/github/docs/blob/57f571f065a75c31071127b8027a44b064181add/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax">AUTOTITLE</a></li>
+</ul>
+</article>

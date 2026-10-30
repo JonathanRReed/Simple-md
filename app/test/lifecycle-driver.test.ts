@@ -47,3 +47,11 @@ test("menuQuit exercises the application quit request instead of direct driver c
   expect(requests).toBe(1);
   expect(outcome).toBe("menu-quit");
 });
+
+test("save steps await the real save callback and propagate refused saves", async () => {
+  let saved = 0;
+  const file = await steps([{ save: true }]);
+  await runDriver(win, file, async () => {}, undefined, undefined, async () => { saved++; });
+  expect(saved).toBe(1);
+  await expect(runDriver(win, file, async () => {}, undefined, undefined, async () => { throw new Error("Save refused"); })).rejects.toThrow("Save refused");
+});

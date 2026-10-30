@@ -1,0 +1,654 @@
+[
+  {
+    "id": "01-facebook-react-readme",
+    "repo": "facebook/react",
+    "path": "README.md",
+    "commit": "16a1d5d780b9cbbe2e1ac5f3dc6db8df6e7983ec",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "badge"
+    ],
+    "canonicalRepo": "react/react"
+  },
+  {
+    "id": "02-microsoft-vscode-readme",
+    "repo": "microsoft/vscode",
+    "path": "README.md",
+    "commit": "76e5c7e5e1eb0a68099cdd8ef9538bcd9b4a1afd",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE.txt"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "03-microsoft-TypeScript-readme",
+    "repo": "microsoft/TypeScript",
+    "path": "README.md",
+    "commit": "25f823dc198a00744b458a7bc6984359f0dd7cac",
+    "license": "Apache-2.0",
+    "licensePaths": [
+      "LICENSE.txt"
+    ],
+    "covers": [
+      "badge"
+    ]
+  },
+  {
+    "id": "04-rust-lang-rust-readme",
+    "repo": "rust-lang/rust",
+    "path": "README.md",
+    "commit": "92ffebeceaa0a071066f233873c2438e73d70fe7",
+    "license": "MIT OR Apache-2.0",
+    "licensePaths": [
+      "LICENSE-MIT",
+      "LICENSE-APACHE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "picture"
+    ]
+  },
+  {
+    "id": "05-sbarex-qlmarkdown-test1",
+    "repo": "sbarex/QLMarkdown",
+    "path": "examples/test1.md",
+    "commit": "3a0cdcd40c5f53584a2fd9cf9dde6007276b31ce",
+    "license": "GPL-3.0-only",
+    "licensePaths": [
+      "LICENSE.txt"
+    ],
+    "covers": [
+      "html",
+      "aligned-table",
+      "math-dollar",
+      "math-display",
+      "math-fence",
+      "mermaid",
+      "footnote",
+      "emoji",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "06-nodejs-node-readme",
+    "repo": "nodejs/node",
+    "path": "README.md",
+    "commit": "4b9caf05df4011131f56cb0f74d7510d26b85d6d",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "details",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "07-denoland-deno-readme",
+    "repo": "denoland/deno",
+    "path": "README.md",
+    "commit": "e7b39ebd55c85aaf6a29290c1f5a99e2e21e09dd",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE.md"
+    ],
+    "covers": [
+      "html",
+      "badge"
+    ]
+  },
+  {
+    "id": "08-oven-sh-bun-readme",
+    "repo": "oven-sh/bun",
+    "path": "README.md",
+    "commit": "37a5e3a71c7a9c470f63f65387cdfa1eb39e76b2",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE.md"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "09-sveltejs-svelte-readme",
+    "repo": "sveltejs/svelte",
+    "path": "README.md",
+    "commit": "23f166ba29ac71ad9ef94cbbdcc45a4c5c73ecaf",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE.md"
+    ],
+    "covers": [
+      "html",
+      "badge",
+      "picture"
+    ]
+  },
+  {
+    "id": "10-vuejs-core-readme",
+    "repo": "vuejs/core",
+    "path": "README.md",
+    "commit": "ca034820b8288ab6da3a033626a7857401ee64a5",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge"
+    ]
+  },
+  {
+    "id": "11-vitejs-vite-readme",
+    "repo": "vitejs/vite",
+    "path": "README.md",
+    "commit": "cce559ab158cc6b177d0911a0bea73436b48faff",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "picture",
+      "table"
+    ]
+  },
+  {
+    "id": "12-withastro-astro-readme",
+    "repo": "withastro/astro",
+    "path": "README.md",
+    "commit": "883e672fd0beb575b14776bc842bdee84433e6af",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "table"
+    ]
+  },
+  {
+    "id": "13-d2l-ai-d2l-en-linear-algebra",
+    "repo": "d2l-ai/d2l-en",
+    "path": "chapter_preliminaries/linear-algebra.md",
+    "commit": "23d7a5aecceee57d1292c56e90cce307f183bb0a",
+    "license": "CC-BY-SA-4.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "math-inline",
+      "math-display",
+      "unicode-headings",
+      "long-code",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "14-tailwindlabs-tailwindcss-readme",
+    "repo": "tailwindlabs/tailwindcss",
+    "path": "README.md",
+    "commit": "8cc0551b1217d36dc565840b90920964d37cb46c",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "picture"
+    ]
+  },
+  {
+    "id": "15-shadcn-ui-ui-readme",
+    "repo": "shadcn-ui/ui",
+    "path": "README.md",
+    "commit": "96da9cc7f1aa10580a3741664e2a77c721206c00",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE.md"
+    ],
+    "covers": []
+  },
+  {
+    "id": "16-fastify-fastify-readme",
+    "repo": "fastify/fastify",
+    "path": "README.md",
+    "commit": "5df959f3af698823dd582f1c3661f3e80df0b5da",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "table",
+      "emoji"
+    ]
+  },
+  {
+    "id": "17-expressjs-express-readme",
+    "repo": "expressjs/express",
+    "path": "Readme.md",
+    "commit": "1c6f1b0fe4000977b9a7b4f34097e4d527dd9824",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "badge",
+      "picture",
+      "details",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "18-axios-axios-readme",
+    "repo": "axios/axios",
+    "path": "README.md",
+    "commit": "9d11464a75ee5c644c0308d742f58755c0482594",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "table",
+      "alert",
+      "dollar_math",
+      "emoji",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "19-lodash-lodash-readme",
+    "repo": "lodash/lodash",
+    "path": "README.md",
+    "commit": "2b5e6f7399a7b48005140b5d5c6bc6c0e62919a8",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "alert"
+    ]
+  },
+  {
+    "id": "20-webpack-webpack-readme",
+    "repo": "webpack/webpack",
+    "path": "README.md",
+    "commit": "ef640cfb7b0de2d7c1ab5632d71fa698eece5ba0",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "table",
+      "emoji",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "21-rollup-rollup-readme",
+    "repo": "rollup/rollup",
+    "path": "README.md",
+    "commit": "4de8104f55fe5c0df06aab54c1f9f2967dbe66ac",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE.md"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge"
+    ]
+  },
+  {
+    "id": "22-prettier-prettier-readme",
+    "repo": "prettier/prettier",
+    "path": "README.md",
+    "commit": "5ef89cf57297eca96fc07040e8d4bfce2e48d1dc",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge"
+    ]
+  },
+  {
+    "id": "23-eslint-eslint-readme",
+    "repo": "eslint/eslint",
+    "path": "README.md",
+    "commit": "161558ae1391a8649a8d69a8b2c2e555b40121b9",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "24-pnpm-pnpm-readme",
+    "repo": "pnpm/pnpm",
+    "path": "README.md",
+    "commit": "e7b88a6a62aa042ac2c8bc9fbce3832226c4db4d",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "picture"
+    ]
+  },
+  {
+    "id": "25-yarnpkg-berry-readme",
+    "repo": "yarnpkg/berry",
+    "path": "README.md",
+    "commit": "8f638c0806ec8f3758adb13d93567fc782f9c903",
+    "license": "BSD-2-Clause",
+    "licensePaths": [
+      "LICENSE.md"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "theme_fragment"
+    ]
+  },
+  {
+    "id": "26-supabase-supabase-readme",
+    "repo": "supabase/supabase",
+    "path": "README.md",
+    "commit": "9eaae4cd2cf8e67f9aeadab044e9a14429331c13",
+    "license": "Apache-2.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "theme_fragment",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "27-appwrite-appwrite-readme",
+    "repo": "appwrite/appwrite",
+    "path": "README.md",
+    "commit": "7df604e64d37e51694ae6b945ac9c6ab75602b26",
+    "license": "BSD-3-Clause",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "table",
+      "mermaid",
+      "emoji",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "28-prisma-prisma-readme",
+    "repo": "prisma/prisma",
+    "canonicalRepo": "prisma/orm",
+    "path": "README.md",
+    "commit": "1143e9310013a10c8d7f8a100491e844545320c2",
+    "license": "Apache-2.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge"
+    ]
+  },
+  {
+    "id": "29-mermaid-js-mermaid-readme",
+    "repo": "mermaid-js/mermaid",
+    "path": "README.md",
+    "commit": "1395ea06ec2f0329db1dcbc9bfb5690474dd9821",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "mermaid",
+      "emoji",
+      "details"
+    ]
+  },
+  {
+    "id": "30-KaTeX-KaTeX-readme",
+    "repo": "KaTeX/KaTeX",
+    "path": "README.md",
+    "commit": "65d1e725206dbbd278704df641491cf877413b6b",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "badge",
+      "picture"
+    ]
+  },
+  {
+    "id": "31-remarkjs-remark-readme",
+    "repo": "remarkjs/remark",
+    "path": "readme.md",
+    "commit": "1146b3a274fc1f4607111e5d6607a3a769a0e89a",
+    "license": "MIT",
+    "licensePaths": [
+      "license"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "emoji",
+      "details",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "32-mdx-js-mdx-readme",
+    "repo": "mdx-js/mdx",
+    "path": "readme.md",
+    "commit": "52285a6758fa078ec57f3d4bd8803d9cbfb12065",
+    "license": "MIT",
+    "licensePaths": [
+      "license"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge"
+    ]
+  },
+  {
+    "id": "33-syntax-tree-mdast-readme",
+    "repo": "syntax-tree/mdast",
+    "path": "readme.md",
+    "commit": "c034ec9ddb8ca2ab16de90d668433624bdd92179",
+    "license": "CC-BY-4.0",
+    "licensePaths": [],
+    "covers": [
+      "html",
+      "footnote",
+      "emoji",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "34-electron-electron-readme",
+    "repo": "electron/electron",
+    "path": "README.md",
+    "commit": "646f02cda805f8d444b2b0a714f8d4cdf7f8a71b",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "badge",
+      "emoji"
+    ]
+  },
+  {
+    "id": "35-typst-typst-readme",
+    "repo": "typst/typst",
+    "path": "README.md",
+    "commit": "84cca406aafe7f830ed3f37f1cc6f0c8b6b65a03",
+    "license": "Apache-2.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "center",
+      "badge",
+      "dollar_math",
+      "footnote",
+      "details",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "36-jqlang-jq-readme",
+    "repo": "jqlang/jq",
+    "path": "README.md",
+    "commit": "ac35c7dcbb991fa0f3c3196dd00ca479211e9847",
+    "license": "MIT",
+    "licensePaths": [
+      "COPYING"
+    ],
+    "covers": [
+      "dollar_math"
+    ]
+  },
+  {
+    "id": "37-cli-cli-readme",
+    "repo": "cli/cli",
+    "path": "README.md",
+    "commit": "f7a06a18a91eef5c0b218b549dab64b86f36f8b9",
+    "license": "MIT",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "alert"
+    ]
+  },
+  {
+    "id": "38-github-docs-writing-mathematical-expressions",
+    "repo": "github/docs",
+    "path": "content/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions.md",
+    "commit": "57f571f065a75c31071127b8027a44b064181add",
+    "license": "CC-BY-4.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "alert",
+      "math_fence",
+      "dollar_math",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "39-github-docs-creating-diagrams",
+    "repo": "github/docs",
+    "path": "content/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams.md",
+    "commit": "57f571f065a75c31071127b8027a44b064181add",
+    "license": "CC-BY-4.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "alert",
+      "mermaid",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "40-github-docs-organizing-information-with-collapsed-sections",
+    "repo": "github/docs",
+    "path": "content/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections.md",
+    "commit": "57f571f065a75c31071127b8027a44b064181add",
+    "license": "CC-BY-4.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "details",
+      "nested_list"
+    ]
+  },
+  {
+    "id": "41-github-docs-basic-writing-and-formatting-syntax",
+    "repo": "github/docs",
+    "path": "content/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax.md",
+    "commit": "57f571f065a75c31071127b8027a44b064181add",
+    "license": "CC-BY-4.0",
+    "licensePaths": [
+      "LICENSE"
+    ],
+    "covers": [
+      "html",
+      "picture",
+      "table",
+      "alert",
+      "footnote",
+      "emoji",
+      "nested_list"
+    ]
+  }
+]

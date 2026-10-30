@@ -1,0 +1,431 @@
+<article class="markdown-body entry-content container-lg" itemprop="text"><div align="center" dir="auto"> <a href="https://fastify.dev/" rel="nofollow">
+    <img src="https://raw.githubusercontent.com/fastify/graphics/HEAD/fastify-landscape-outlined.svg" width="650" height="auto" style="max-width: 100%;">
+  </a>
+</div>
+<div align="center" dir="auto">
+<p dir="auto"><a href="https://github.com/fastify/fastify/actions/workflows/ci.yml"><img src="https://github.com/fastify/fastify/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" style="max-width: 100%;"></a>
+<a href="https://github.com/fastify/fastify/actions/workflows/package-manager-ci.yml"><img src="https://github.com/fastify/fastify/actions/workflows/package-manager-ci.yml/badge.svg?branch=main" alt="Package Manager CI" style="max-width: 100%;"></a>
+<a href="https://github.com/fastify/fastify/actions/workflows/website.yml"><img src="https://github.com/fastify/fastify/actions/workflows/website.yml/badge.svg?branch=main" alt="Web site" style="max-width: 100%;"></a>
+<a href="https://github.com/neostandard/neostandard"><img src="https://camo.githubusercontent.com/ee25760f9fdd56f1ff3cb1e4c757f84c74b8cf3d5f64988df6d126e704248b02/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f636f64655f7374796c652d6e656f7374616e646172642d627269676874677265656e3f7374796c653d666c6174" alt="neostandard javascript style" data-canonical-src="https://img.shields.io/badge/code_style-neostandard-brightgreen?style=flat" style="max-width: 100%;"></a>
+<a href="https://www.bestpractices.dev/en/projects/7585/passing" rel="nofollow"><img src="https://camo.githubusercontent.com/0e2d54dd216091592a725572d78640772cd2263f18c01a53a120358b076a6fa4/68747470733a2f2f7777772e626573747072616374696365732e6465762f70726f6a656374732f373538352f6261646765" alt="CII Best Practices" data-canonical-src="https://www.bestpractices.dev/projects/7585/badge" style="max-width: 100%;"></a></p>
+</div>
+<div align="center" dir="auto">
+<p dir="auto"><a href="https://www.npmjs.com/package/fastify" rel="nofollow"><img src="https://camo.githubusercontent.com/2c3b63b90cbdd7ca3d02315d78475549821f05968f23ccf5a7598c31680b48af/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f762f666173746966792e7376673f7374796c653d666c6174" alt="NPM version" data-canonical-src="https://img.shields.io/npm/v/fastify.svg?style=flat" style="max-width: 100%;"></a>
+<a href="https://www.npmjs.com/package/fastify" rel="nofollow"><img src="https://camo.githubusercontent.com/5d1b623cd883413ddbf3c6e08e67fc5352fa218f62186766602e7134463a6656/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f646d2f666173746966792e7376673f7374796c653d666c6174" alt="NPM downloads" data-canonical-src="https://img.shields.io/npm/dm/fastify.svg?style=flat" style="max-width: 100%;"></a>
+<a href="https://github.com/fastify/fastify/blob/main/SECURITY.md"><img src="https://camo.githubusercontent.com/217b90adaa9648578e80cd3568a08b984a3ec76295d6dcbac1f13108faf4a3f0/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f53656375726974792d526573706f6e7369626c65253230446973636c6f737572652d79656c6c6f772e737667" alt="Security Responsible Disclosure" data-canonical-src="https://img.shields.io/badge/Security-Responsible%20Disclosure-yellow.svg" style="max-width: 100%;"></a>
+<a href="https://discord.com/invite/fastify" rel="nofollow"><img src="https://camo.githubusercontent.com/e22e59c23704b322a5acc14a071dc126a33f8de9e3cc04f16ec455dc0e0038d8/68747470733a2f2f696d672e736869656c64732e696f2f646973636f72642f373235363133343631393439393036393835" alt="Discord" data-canonical-src="https://img.shields.io/discord/725613461949906985" style="max-width: 100%;"></a>
+<a href="https://gitpod.io/#https://github.com/fastify/fastify" rel="nofollow"><img src="https://camo.githubusercontent.com/739fd83760574344cf93137b49bba705528c747f5d37fdf44496d7aca1ad180d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6e74726962757465253230776974682d476974706f642d3930386138353f6c6f676f3d676974706f6426636f6c6f723d626c7565" alt="Contribute with Gitpod" data-canonical-src="https://img.shields.io/badge/Contribute%20with-Gitpod-908a85?logo=gitpod&amp;color=blue" style="max-width: 100%;"></a>
+<a href="https://github.com/sponsors/fastify#sponsors"><img src="https://camo.githubusercontent.com/8793b157c08296574f867a37b7906098519a9895e93102ce36c55e08a33c02bd/68747470733a2f2f696d672e736869656c64732e696f2f6f70656e636f6c6c6563746976652f616c6c2f66617374696679" alt="Open Collective backers and sponsors" data-canonical-src="https://img.shields.io/opencollective/all/fastify" style="max-width: 100%;"></a></p>
+</div>
+<br>
+<p dir="auto">An efficient server implies a lower cost of the infrastructure, better
+responsiveness under load, and happy users. How can you efficiently handle the
+resources of your server, knowing that you are serving the highest number of
+requests possible, without sacrificing security validations and handy
+development?</p>
+<p dir="auto">Enter Fastify. Fastify is a web framework highly focused on providing the best
+developer experience with the least overhead and a powerful plugin architecture.
+It is inspired by Hapi and Express and as far as we know, it is one of the
+fastest web frameworks in town.</p>
+<p dir="auto">The <code>main</code> branch refers to the Fastify <code>v6</code> release.
+Check out the <a href="https://github.com/fastify/fastify/tree/5.x"><code>5.x</code> branch</a> for <code>v5</code>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Table of Contents</h3><a id="user-content-table-of-contents" class="anchor" aria-label="Permalink: Table of Contents" href="#table-of-contents"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="#quick-start">Quick start</a></li>
+<li><a href="#install">Install</a></li>
+<li><a href="#example">Example</a></li>
+<li><a href="#core-features">Core features</a></li>
+<li><a href="#benchmarks">Benchmarks</a></li>
+<li><a href="#documentation">Documentation</a></li>
+<li><a href="#ecosystem">Ecosystem</a></li>
+<li><a href="#support">Support</a></li>
+<li><a href="#team">Team</a></li>
+<li><a href="#hosted-by">Hosted by</a></li>
+<li><a href="#license">License</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Quick start</h3><a id="user-content-quick-start" class="anchor" aria-label="Permalink: Quick start" href="#quick-start"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Create a folder and make it your current working directory:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="mkdir my-app
+cd my-app"><pre>mkdir my-app
+<span class="pl-c1">cd</span> my-app</pre></div>
+<p dir="auto">Generate a Fastify project with <code>npm init</code>:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm init fastify"><pre>npm init fastify</pre></div>
+<p dir="auto">Install dependencies:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm i"><pre>npm i</pre></div>
+<p dir="auto">To start the app in dev mode:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm run dev"><pre>npm run dev</pre></div>
+<p dir="auto">For production mode:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm start"><pre>npm start</pre></div>
+<p dir="auto">Under the hood <code>npm init</code> downloads and runs <a href="https://github.com/fastify/create-fastify">Fastify
+Create</a>, which in turn uses the
+generate functionality of <a href="https://github.com/fastify/fastify-cli">Fastify CLI</a>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Install</h3><a id="user-content-install" class="anchor" aria-label="Permalink: Install" href="#install"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">To install Fastify in an existing project as a dependency:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="npm i fastify"><pre>npm i fastify</pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Example</h3><a id="user-content-example" class="anchor" aria-label="Permalink: Example" href="#example"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="// Require the framework and instantiate it
+
+// ESM
+import Fastify from 'fastify'
+
+const fastify = Fastify({
+  logger: true
+})
+// CommonJS
+const fastify = require('fastify')({
+  logger: true
+})
+
+// Declare a route
+fastify.get('/', (request, reply) =&gt; {
+  reply.send({ hello: 'world' })
+})
+
+// Run the server!
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+  if (err) throw err
+  // Server is now listening on ${address}
+})"><pre><span class="pl-c">// Require the framework and instantiate it</span>
+
+<span class="pl-c">// ESM</span>
+<span class="pl-k">import</span> <span class="pl-v">Fastify</span> <span class="pl-k">from</span> <span class="pl-s">'fastify'</span>
+
+<span class="pl-k">const</span> <span class="pl-s1">fastify</span> <span class="pl-c1">=</span> <span class="pl-v">Fastify</span><span class="pl-kos">(</span><span class="pl-kos">{</span>
+  <span class="pl-c1">logger</span>: <span class="pl-c1">true</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+<span class="pl-c">// CommonJS</span>
+<span class="pl-k">const</span> <span class="pl-s1">fastify</span> <span class="pl-c1">=</span> <span class="pl-en">require</span><span class="pl-kos">(</span><span class="pl-s">'fastify'</span><span class="pl-kos">)</span><span class="pl-kos">(</span><span class="pl-kos">{</span>
+  <span class="pl-c1">logger</span>: <span class="pl-c1">true</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+
+<span class="pl-c">// Declare a route</span>
+<span class="pl-s1">fastify</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'/'</span><span class="pl-kos">,</span> <span class="pl-kos">(</span><span class="pl-s1">request</span><span class="pl-kos">,</span> <span class="pl-s1">reply</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span>
+  <span class="pl-s1">reply</span><span class="pl-kos">.</span><span class="pl-en">send</span><span class="pl-kos">(</span><span class="pl-kos">{</span> <span class="pl-c1">hello</span>: <span class="pl-s">'world'</span> <span class="pl-kos">}</span><span class="pl-kos">)</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+
+<span class="pl-c">// Run the server!</span>
+<span class="pl-s1">fastify</span><span class="pl-kos">.</span><span class="pl-en">listen</span><span class="pl-kos">(</span><span class="pl-kos">{</span> <span class="pl-c1">port</span>: <span class="pl-c1">3000</span> <span class="pl-kos">}</span><span class="pl-kos">,</span> <span class="pl-kos">(</span><span class="pl-s1">err</span><span class="pl-kos">,</span> <span class="pl-s1">address</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span>
+  <span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-s1">err</span><span class="pl-kos">)</span> <span class="pl-k">throw</span> <span class="pl-s1">err</span>
+  <span class="pl-c">// Server is now listening on ${address}</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span></pre></div>
+<p dir="auto">With async-await:</p>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="// ESM
+import Fastify from 'fastify'
+
+const fastify = Fastify({
+  logger: true
+})
+// CommonJS
+const fastify = require('fastify')({
+  logger: true
+})
+
+fastify.get('/', async (request, reply) =&gt; {
+  reply.type('application/json').code(200)
+  return { hello: 'world' }
+})
+
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+  if (err) throw err
+  // Server is now listening on ${address}
+})"><pre><span class="pl-c">// ESM</span>
+<span class="pl-k">import</span> <span class="pl-v">Fastify</span> <span class="pl-k">from</span> <span class="pl-s">'fastify'</span>
+
+<span class="pl-k">const</span> <span class="pl-s1">fastify</span> <span class="pl-c1">=</span> <span class="pl-v">Fastify</span><span class="pl-kos">(</span><span class="pl-kos">{</span>
+  <span class="pl-c1">logger</span>: <span class="pl-c1">true</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+<span class="pl-c">// CommonJS</span>
+<span class="pl-k">const</span> <span class="pl-s1">fastify</span> <span class="pl-c1">=</span> <span class="pl-en">require</span><span class="pl-kos">(</span><span class="pl-s">'fastify'</span><span class="pl-kos">)</span><span class="pl-kos">(</span><span class="pl-kos">{</span>
+  <span class="pl-c1">logger</span>: <span class="pl-c1">true</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+
+<span class="pl-s1">fastify</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'/'</span><span class="pl-kos">,</span> <span class="pl-k">async</span> <span class="pl-kos">(</span><span class="pl-s1">request</span><span class="pl-kos">,</span> <span class="pl-s1">reply</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span>
+  <span class="pl-s1">reply</span><span class="pl-kos">.</span><span class="pl-en">type</span><span class="pl-kos">(</span><span class="pl-s">'application/json'</span><span class="pl-kos">)</span><span class="pl-kos">.</span><span class="pl-en">code</span><span class="pl-kos">(</span><span class="pl-c1">200</span><span class="pl-kos">)</span>
+  <span class="pl-k">return</span> <span class="pl-kos">{</span> <span class="pl-c1">hello</span>: <span class="pl-s">'world'</span> <span class="pl-kos">}</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span>
+
+<span class="pl-s1">fastify</span><span class="pl-kos">.</span><span class="pl-en">listen</span><span class="pl-kos">(</span><span class="pl-kos">{</span> <span class="pl-c1">port</span>: <span class="pl-c1">3000</span> <span class="pl-kos">}</span><span class="pl-kos">,</span> <span class="pl-kos">(</span><span class="pl-s1">err</span><span class="pl-kos">,</span> <span class="pl-s1">address</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span>
+  <span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-s1">err</span><span class="pl-kos">)</span> <span class="pl-k">throw</span> <span class="pl-s1">err</span>
+  <span class="pl-c">// Server is now listening on ${address}</span>
+<span class="pl-kos">}</span><span class="pl-kos">)</span></pre></div>
+<p dir="auto">Do you want to know more? Head to the <a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Getting-Started.md"><code><b>Getting Started</b></code></a>.
+If you learn best by reading code, explore the official <a href="https://github.com/fastify/demo">demo</a>.</p>
+<blockquote>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Note</h2><a id="user-content-note" class="anchor" aria-label="Permalink: Note" href="#note"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><code>.listen</code> binds to the local host, <code>localhost</code>, interface by default
+(<code>127.0.0.1</code> or <code>::1</code>, depending on the operating system configuration). If
+you are running Fastify in a container (Docker,
+<a href="https://cloud.google.com/" rel="nofollow">GCP</a>, etc.), you may need to bind to <code>0.0.0.0</code>. Be
+careful when listening on all interfaces; it comes with inherent
+<a href="https://web.archive.org/web/20170711105010/https://snyk.io/blog/mongodb-hack-and-secure-defaults/" rel="nofollow">security
+risks</a>.
+See <a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Server.md#listen">the documentation</a> for more
+information.</p>
+</blockquote>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Core features</h3><a id="user-content-core-features" class="anchor" aria-label="Permalink: Core features" href="#core-features"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><strong>Highly performant:</strong> as far as we know, Fastify is one of the fastest web
+frameworks in town, depending on the code complexity we can serve more than 76
+thousand requests per second.</li>
+<li><strong>Extensible:</strong> Fastify is fully extensible via its hooks, plugins, and
+decorators.</li>
+<li><strong>Schema-based:</strong> even if it is not mandatory we recommend using <a href="https://json-schema.org/" rel="nofollow">JSON
+Schema</a> to validate your routes and serialize your
+outputs. Internally Fastify compiles the schema in a highly performant
+function.</li>
+<li><strong>Logging:</strong> logs are extremely important, but are costly; we chose the best
+logger to almost remove this cost, <a href="https://github.com/pinojs/pino">Pino</a>!</li>
+<li><strong>Developer friendly:</strong> the framework is built to be very expressive and help
+developers in their daily use without sacrificing performance and
+security.</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Benchmarks</h3><a id="user-content-benchmarks" class="anchor" aria-label="Permalink: Benchmarks" href="#benchmarks"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><strong>Machine:</strong> EX41S-SSD, Intel Core i7, 4Ghz, 64GB RAM, 4C/8T, SSD.</p>
+<p dir="auto"><strong>Method</strong>: <code>autocannon -c 100 -d 40 -p 10 localhost:3000</code> * 2, taking the
+second average</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th align="left">Framework</th>
+<th align="left">Version</th>
+<th align="center">Router?</th>
+<th align="right">Requests/sec</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">Express</td>
+<td align="left">4.17.3</td>
+<td align="center">✓</td>
+<td align="right">14,200</td>
+</tr>
+<tr>
+<td align="left">hapi</td>
+<td align="left">20.2.1</td>
+<td align="center">✓</td>
+<td align="right">42,284</td>
+</tr>
+<tr>
+<td align="left">Restify</td>
+<td align="left">8.6.1</td>
+<td align="center">✓</td>
+<td align="right">50,363</td>
+</tr>
+<tr>
+<td align="left">Koa</td>
+<td align="left">2.13.0</td>
+<td align="center">✗</td>
+<td align="right">54,272</td>
+</tr>
+<tr>
+<td align="left"><strong>Fastify</strong></td>
+<td align="left"><strong>4.0.0</strong></td>
+<td align="center"><strong>✓</strong></td>
+<td align="right"><strong>77,193</strong></td>
+</tr>
+<tr>
+<td align="left">-</td>
+<td align="left"></td>
+<td align="center"></td>
+<td align="right"></td>
+</tr>
+<tr>
+<td align="left"><code>http.Server</code></td>
+<td align="left">16.14.2</td>
+<td align="center">✗</td>
+<td align="right">74,513</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">These benchmarks were taken using <a href="https://github.com/fastify/benchmarks">https://github.com/fastify/benchmarks</a>. This is
+a synthetic "hello world" benchmark that aims to evaluate the framework overhead.
+The overhead that each framework has on your application depends on your
+application. You should <strong>always</strong> benchmark if performance matters to you.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Documentation</h2><a id="user-content-documentation" class="anchor" aria-label="Permalink: Documentation" href="#documentation"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Getting-Started.md"><strong><code>Getting Started</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Index.md"><strong><code>Guides</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Server.md"><strong><code>Server</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Routes.md"><strong><code>Routes</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Encapsulation.md"><strong><code>Encapsulation</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Logging.md"><strong><code>Logging</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Middleware.md"><strong><code>Middleware</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Hooks.md"><strong><code>Hooks</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Decorators.md"><strong><code>Decorators</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Validation-and-Serialization.md"><strong><code>Validation and Serialization</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Fluent-Schema.md"><strong><code>Fluent Schema</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Lifecycle.md"><strong><code>Lifecycle</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Reply.md"><strong><code>Reply</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Request.md"><strong><code>Request</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Errors.md"><strong><code>Errors</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/ContentTypeParser.md"><strong><code>Content Type Parser</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/Plugins.md"><strong><code>Plugins</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Testing.md"><strong><code>Testing</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Benchmarking.md"><strong><code>Benchmarking</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Write-Plugin.md"><strong><code>How to write a good plugin</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Plugins-Guide.md"><strong><code>Plugins Guide</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/HTTP2.md"><strong><code>HTTP2</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/LTS.md"><strong><code>Long Term Support</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Reference/TypeScript.md"><strong><code>TypeScript and types support</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Serverless.md"><strong><code>Serverless</code></strong></a></li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Recommendations.md"><strong><code>Recommendations</code></strong></a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Ecosystem</h2><a id="user-content-ecosystem" class="anchor" aria-label="Permalink: Ecosystem" href="#ecosystem"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Ecosystem.md#core">Core</a> - Core plugins maintained by the
+<em>Fastify</em> <a href="#team">team</a>.</li>
+<li><a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/docs/Guides/Ecosystem.md#community">Community</a> - Community-supported
+plugins.</li>
+<li><a href="https://github.com/fastify/example">Live Examples</a> - Multirepo with a broad
+set of real working examples.</li>
+<li><a href="https://discord.com/invite/D3FZYPy" rel="nofollow">Discord</a> - Join our discord server and
+chat with the maintainers.</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Support</h2><a id="user-content-support" class="anchor" aria-label="Permalink: Support" href="#support"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Please visit <a href="https://github.com/fastify/help">Fastify help</a> to view prior
+support issues and to ask new support questions.</p>
+<p dir="auto">Version 3 of Fastify and lower are EOL and will not receive any security or bug
+fixes.</p>
+<p dir="auto">Fastify's partner, HeroDevs, provides commercial security fixes for all
+unsupported versions at <a href="https://www.herodevs.com/support/fastify-nes?utm_source=fastify&amp;utm_medium=link&amp;utm_campaign=github_readme" rel="nofollow">https://herodevs.com/support/fastify-nes</a>.
+Fastify's supported version matrix is available in the
+<a href="https://fastify.dev/docs/latest/Reference/LTS/" rel="nofollow">Long Term Support</a> documentation.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Contributing</h2><a id="user-content-contributing" class="anchor" aria-label="Permalink: Contributing" href="#contributing"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Whether reporting bugs, discussing improvements and new ideas, or writing code,
+we welcome contributions from anyone and everyone. Please read the <a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/CONTRIBUTING.md">CONTRIBUTING</a>
+guidelines before submitting pull requests.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Team</h2><a id="user-content-team" class="anchor" aria-label="Permalink: Team" href="#team"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><em>Fastify</em> is the result of the work of a great community. Team members are
+listed in alphabetical order.</p>
+<p dir="auto"><strong>Lead Maintainers:</strong></p>
+<ul dir="auto">
+<li><a href="https://github.com/mcollina"><strong>Matteo Collina</strong></a>,
+<a href="https://x.com/matteocollina" rel="nofollow">https://x.com/matteocollina</a>, <a href="https://www.npmjs.com/~matteo.collina" rel="nofollow">https://www.npmjs.com/~matteo.collina</a></li>
+<li><a href="https://github.com/delvedor"><strong>Tomas Della Vedova</strong></a>,
+<a href="https://x.com/delvedor" rel="nofollow">https://x.com/delvedor</a>, <a href="https://www.npmjs.com/~delvedor" rel="nofollow">https://www.npmjs.com/~delvedor</a></li>
+<li><a href="https://github.com/climba03003"><strong>KaKa Ng</strong></a>,
+<a href="https://www.npmjs.com/~climba03003" rel="nofollow">https://www.npmjs.com/~climba03003</a></li>
+<li><a href="https://github.com/eomm"><strong>Manuel Spigolon</strong></a>,
+<a href="https://x.com/manueomm" rel="nofollow">https://x.com/manueomm</a>, <a href="https://www.npmjs.com/~eomm" rel="nofollow">https://www.npmjs.com/~eomm</a></li>
+<li><a href="https://github.com/jsumners"><strong>James Sumners</strong></a>,
+<a href="https://x.com/jsumners79" rel="nofollow">https://x.com/jsumners79</a>, <a href="https://www.npmjs.com/~jsumners" rel="nofollow">https://www.npmjs.com/~jsumners</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Fastify Core team</h3><a id="user-content-fastify-core-team" class="anchor" aria-label="Permalink: Fastify Core team" href="#fastify-core-team"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/uzlopak"><strong>Aras Abbasi</strong></a>,
+<a href="https://www.npmjs.com/~uzlopak" rel="nofollow">https://www.npmjs.com/~uzlopak</a></li>
+<li><a href="https://github.com/airhorns/"><strong>Harry Brundage</strong></a>,
+<a href="https://x.com/harrybrundage" rel="nofollow">https://x.com/harrybrundage</a>, <a href="https://www.npmjs.com/~airhorns" rel="nofollow">https://www.npmjs.com/~airhorns</a></li>
+<li><a href="https://github.com/mcollina"><strong>Matteo Collina</strong></a>,
+<a href="https://x.com/matteocollina" rel="nofollow">https://x.com/matteocollina</a>, <a href="https://www.npmjs.com/~matteo.collina" rel="nofollow">https://www.npmjs.com/~matteo.collina</a></li>
+<li><a href="https://github.com/gurgunday"><strong>Gürgün Dayıoğlu</strong></a>,
+<a href="https://www.npmjs.com/~gurgunday" rel="nofollow">https://www.npmjs.com/~gurgunday</a></li>
+<li><a href="https://github.com/delvedor"><strong>Tomas Della Vedova</strong></a>,
+<a href="https://x.com/delvedor" rel="nofollow">https://x.com/delvedor</a>, <a href="https://www.npmjs.com/~delvedor" rel="nofollow">https://www.npmjs.com/~delvedor</a></li>
+<li><a href="https://github.com/metcoder95"><strong>Carlos Fuentes</strong></a>,
+<a href="https://x.com/metcoder95" rel="nofollow">https://x.com/metcoder95</a>, <a href="https://www.npmjs.com/~metcoder95" rel="nofollow">https://www.npmjs.com/~metcoder95</a></li>
+<li><a href="https://github.com/zekth"><strong>Vincent Le Goff</strong></a></li>
+<li><a href="https://github.com/lmammino"><strong>Luciano Mammino</strong></a>,
+<a href="https://x.com/loige" rel="nofollow">https://x.com/loige</a>, <a href="https://www.npmjs.com/~lmammino" rel="nofollow">https://www.npmjs.com/~lmammino</a></li>
+<li><a href="https://github.com/jean-michelet"><strong>Jean Michelet</strong></a>,
+<a href="https://www.npmjs.com/~jean-michelet" rel="nofollow">https://www.npmjs.com/~jean-michelet</a></li>
+<li><a href="https://github.com/climba03003"><strong>KaKa Ng</strong></a>,
+<a href="https://www.npmjs.com/~climba03003" rel="nofollow">https://www.npmjs.com/~climba03003</a></li>
+<li><a href="https://github.com/luisorbaiceta"><strong>Luis Orbaiceta</strong></a>,
+<a href="https://www.npmjs.com/~luisorbaiceta" rel="nofollow">https://www.npmjs.com/~luisorbaiceta</a></li>
+<li><a href="https://github.com/fox1t"><strong>Maksim Sinik</strong></a>,
+<a href="https://x.com/maksimsinik" rel="nofollow">https://x.com/maksimsinik</a>, <a href="https://www.npmjs.com/~fox1t" rel="nofollow">https://www.npmjs.com/~fox1t</a></li>
+<li><a href="https://github.com/eomm"><strong>Manuel Spigolon</strong></a>,
+<a href="https://x.com/manueomm" rel="nofollow">https://x.com/manueomm</a>, <a href="https://www.npmjs.com/~eomm" rel="nofollow">https://www.npmjs.com/~eomm</a></li>
+<li><a href="https://github.com/jsumners"><strong>James Sumners</strong></a>,
+<a href="https://x.com/jsumners79" rel="nofollow">https://x.com/jsumners79</a>, <a href="https://www.npmjs.com/~jsumners" rel="nofollow">https://www.npmjs.com/~jsumners</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Fastify Plugins team</h3><a id="user-content-fastify-plugins-team" class="anchor" aria-label="Permalink: Fastify Plugins team" href="#fastify-plugins-team"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="https://github.com/airhorns/"><strong>Harry Brundage</strong></a>,
+<a href="https://x.com/harrybrundage" rel="nofollow">https://x.com/harrybrundage</a>, <a href="https://www.npmjs.com/~airhorns" rel="nofollow">https://www.npmjs.com/~airhorns</a></li>
+<li><a href="https://github.com/simoneb"><strong>Simone Busoli</strong></a>,
+<a href="https://x.com/simonebu" rel="nofollow">https://x.com/simonebu</a>, <a href="https://www.npmjs.com/~simoneb" rel="nofollow">https://www.npmjs.com/~simoneb</a></li>
+<li><a href="https://github.com/dancastillo"><strong>Dan Castillo</strong></a>,
+<a href="https://www.npmjs.com/~dancastillo" rel="nofollow">https://www.npmjs.com/~dancastillo</a></li>
+<li><a href="https://github.com/mcollina"><strong>Matteo Collina</strong></a>,
+<a href="https://x.com/matteocollina" rel="nofollow">https://x.com/matteocollina</a>, <a href="https://www.npmjs.com/~matteo.collina" rel="nofollow">https://www.npmjs.com/~matteo.collina</a></li>
+<li><a href="https://github.com/gurgunday"><strong>Gürgün Dayıoğlu</strong></a>,
+<a href="https://www.npmjs.com/~gurgunday" rel="nofollow">https://www.npmjs.com/~gurgunday</a></li>
+<li><a href="https://github.com/delvedor"><strong>Tomas Della Vedova</strong></a>,
+<a href="https://x.com/delvedor" rel="nofollow">https://x.com/delvedor</a>, <a href="https://www.npmjs.com/~delvedor" rel="nofollow">https://www.npmjs.com/~delvedor</a></li>
+<li><a href="https://github.com/metcoder95"><strong>Carlos Fuentes</strong></a>,
+<a href="https://x.com/metcoder95" rel="nofollow">https://x.com/metcoder95</a>, <a href="https://www.npmjs.com/~metcoder95" rel="nofollow">https://www.npmjs.com/~metcoder95</a></li>
+<li><a href="https://github.com/zekth"><strong>Vincent Le Goff</strong></a></li>
+<li><a href="https://github.com/jean-michelet"><strong>Jean Michelet</strong></a>,
+<a href="https://www.npmjs.com/~jean-michelet" rel="nofollow">https://www.npmjs.com/~jean-michelet</a></li>
+<li><a href="https://github.com/climba03003"><strong>KaKa Ng</strong></a>,
+<a href="https://www.npmjs.com/~climba03003" rel="nofollow">https://www.npmjs.com/~climba03003</a></li>
+<li><a href="https://github.com/fox1t"><strong>Maksim Sinik</strong></a>,
+<a href="https://x.com/maksimsinik" rel="nofollow">https://x.com/maksimsinik</a>, <a href="https://www.npmjs.com/~fox1t" rel="nofollow">https://www.npmjs.com/~fox1t</a></li>
+<li><a href="https://github.com/Fdawgs"><strong>Frazer Smith</strong></a>, <a href="https://www.npmjs.com/~fdawgs" rel="nofollow">https://www.npmjs.com/~fdawgs</a></li>
+<li><a href="https://github.com/eomm"><strong>Manuel Spigolon</strong></a>,
+<a href="https://x.com/manueomm" rel="nofollow">https://x.com/manueomm</a>, <a href="https://www.npmjs.com/~eomm" rel="nofollow">https://www.npmjs.com/~eomm</a></li>
+<li><a href="https://github.com/Tony133"><strong>Antonio Tripodi</strong></a>, <a href="https://www.npmjs.com/~tony133" rel="nofollow">https://www.npmjs.com/~tony133</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Emeritus Contributors</h3><a id="user-content-emeritus-contributors" class="anchor" aria-label="Permalink: Emeritus Contributors" href="#emeritus-contributors"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Great contributors to a specific area of the Fastify ecosystem will be invited
+to join this group by Lead Maintainers when they decide to step down from the
+active contributor's group.</p>
+<ul dir="auto">
+<li><a href="https://github.com/allevo"><strong>Tommaso Allevi</strong></a>,
+<a href="https://x.com/allevitommaso" rel="nofollow">https://x.com/allevitommaso</a>, <a href="https://www.npmjs.com/~allevo" rel="nofollow">https://www.npmjs.com/~allevo</a></li>
+<li><a href="https://github.com/Ethan-Arrowood/"><strong>Ethan Arrowood</strong></a>,
+<a href="https://x.com/arrowoodtech" rel="nofollow">https://x.com/arrowoodtech</a>, <a href="https://www.npmjs.com/~ethan_arrowood" rel="nofollow">https://www.npmjs.com/~ethan_arrowood</a></li>
+<li><a href="https://github.com/cagataycali"><strong>Çağatay Çalı</strong></a>,
+<a href="https://x.com/cagataycali" rel="nofollow">https://x.com/cagataycali</a>, <a href="https://www.npmjs.com/~cagataycali" rel="nofollow">https://www.npmjs.com/~cagataycali</a></li>
+<li><a href="https://github.com/davidmarkclements"><strong>David Mark Clements</strong></a>,
+<a href="https://x.com/davidmarkclem" rel="nofollow">https://x.com/davidmarkclem</a>,
+<a href="https://www.npmjs.com/~davidmarkclements" rel="nofollow">https://www.npmjs.com/~davidmarkclements</a></li>
+<li><a href="https://github.com/dalisoft"><strong>dalisoft</strong></a>, <a href="https://x.com/dalisoft" rel="nofollow">https://x.com/dalisoft</a>,
+<a href="https://www.npmjs.com/~dalisoft" rel="nofollow">https://www.npmjs.com/~dalisoft</a></li>
+<li><a href="https://github.com/StarpTech"><strong>Dustin Deus</strong></a>,
+<a href="https://x.com/dustindeus" rel="nofollow">https://x.com/dustindeus</a>, <a href="https://www.npmjs.com/~starptech" rel="nofollow">https://www.npmjs.com/~starptech</a></li>
+<li><a href="https://github.com/SerayaEryn"><strong>Denis Fäcke</strong></a>,
+<a href="https://x.com/serayaeryn" rel="nofollow">https://x.com/serayaeryn</a>, <a href="https://www.npmjs.com/~serayaeryn" rel="nofollow">https://www.npmjs.com/~serayaeryn</a></li>
+<li><a href="https://github.com/rafaelgss"><strong>Rafael Gonzaga</strong></a>,
+<a href="https://x.com/_rafaelgss" rel="nofollow">https://x.com/_rafaelgss</a>, <a href="https://www.npmjs.com/~rafaelgss" rel="nofollow">https://www.npmjs.com/~rafaelgss</a></li>
+<li><a href="https://github.com/trivikr"><strong>Trivikram Kamat</strong></a>,
+<a href="https://x.com/trivikram" rel="nofollow">https://x.com/trivikram</a>, <a href="https://www.npmjs.com/~trivikr" rel="nofollow">https://www.npmjs.com/~trivikr</a></li>
+<li><a href="https://github.com/AyoubElk"><strong>Ayoub El Khattabi</strong></a>,
+<a href="https://x.com/ayoubelkh" rel="nofollow">https://x.com/ayoubelkh</a>, <a href="https://www.npmjs.com/~ayoubelk" rel="nofollow">https://www.npmjs.com/~ayoubelk</a></li>
+<li><a href="https://github.com/cemremengu"><strong>Cemre Mengu</strong></a>,
+<a href="https://x.com/cemremengu" rel="nofollow">https://x.com/cemremengu</a>, <a href="https://www.npmjs.com/~cemremengu" rel="nofollow">https://www.npmjs.com/~cemremengu</a></li>
+<li><a href="https://github.com/salmanm"><strong>Salman Mitha</strong></a>,
+<a href="https://www.npmjs.com/~salmanm" rel="nofollow">https://www.npmjs.com/~salmanm</a></li>
+<li><a href="https://github.com/nwoltman"><strong>Nathan Woltman</strong></a>,
+<a href="https://x.com/NathanWoltman" rel="nofollow">https://x.com/NathanWoltman</a>, <a href="https://www.npmjs.com/~nwoltman" rel="nofollow">https://www.npmjs.com/~nwoltman</a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Hosted by</h2><a id="user-content-hosted-by" class="anchor" aria-label="Permalink: Hosted by" href="#hosted-by"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://openjsf.org/projects" rel="nofollow"><img src="https://raw.githubusercontent.com/openjs-foundation/artwork/main/openjs_foundation/openjs_foundation-logo-horizontal-color.png" width="250px;" style="max-width: 100%;"></a></p>
+<p dir="auto">We are an <a href="https://github.com/openjs-foundation/cross-project-council/blob/HEAD/PROJECT_PROGRESSION.md#at-large-projects">At-Large
+Project</a>
+in the <a href="https://openjsf.org/" rel="nofollow">OpenJS Foundation</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Sponsors</h2><a id="user-content-sponsors" class="anchor" aria-label="Permalink: Sponsors" href="#sponsors"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Support this project by becoming a <a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/SPONSORS.md">SPONSOR</a>!
+Fastify has an <a href="https://opencollective.com/fastify" rel="nofollow">Open Collective</a>
+page where we accept and manage financial contributions.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Acknowledgments</h2><a id="user-content-acknowledgments" class="anchor" aria-label="Permalink: Acknowledgments" href="#acknowledgments"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">This project is kindly sponsored by:</p>
+<ul dir="auto">
+<li><a href="https://nearform.com" rel="nofollow">NearForm</a></li>
+<li><a href="https://platformatic.dev" rel="nofollow">Platformatic</a></li>
+</ul>
+<p dir="auto">This list includes all companies that support one or more team members
+in maintaining this project.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#license"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Licensed under <a href="/fastify/fastify/blob/5df959f3af698823dd582f1c3661f3e80df0b5da/LICENSE">MIT</a>.</p>
+<p dir="auto">For your convenience, here is a list of all the licenses of our production
+dependencies:</p>
+<ul dir="auto">
+<li>MIT</li>
+<li>ISC</li>
+<li>BSD-3-Clause</li>
+<li>BSD-2-Clause</li>
+</ul>
+</article>

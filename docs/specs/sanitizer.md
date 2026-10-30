@@ -4,21 +4,22 @@ Milestone 1. Applies to every place HTML reaches a DOM: read view, live-preview 
 
 ## Where it runs
 
-- One function, `sanitizeAuthorHtml()`, runs in a DOM context: the Electron renderer, Quick Look's WKWebView, or WebView2. It does not run in the Node worker. Do not add jsdom or linkedom.
+- One function, `sanitizeAuthorHtml()`, runs in a DOM context: the Electron renderer or WebView2. It does not run in the Node worker. Do not add jsdom or linkedom.
+- Quick Look renders in JavaScriptCore with no DOM (see `quick-look.md`). It must enforce this same policy and prove parity with a differential test against this function's output on every fixture.
 - It runs before every HTML insertion. A test fails if any other `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `DOMParser` path inserts author content.
 - A raw HTML wrapper that spans Markdown blocks, such as `<details>` around Markdown content, is sanitized as one balanced unit and becomes one render block. Opening and closing tags are never sanitized separately. Block identities added in milestone 3 must keep this grouping.
 - App-generated markup (Shiki, KaTeX, task checkboxes, alert icons, footnotes, diagram SVG) is added through app-owned render nodes with their own policies. It is never re-sanitized with the author policy. Author `class`, `style`, `data-*`, custom elements, or a fake `class="mermaid"` never gain generated-content privileges.
 
 ## Policy
 
-It mirrors GitHub's historical html-pipeline allow-list. Use a dedicated DOMPurify instance.
+It mirrors GitHub's historical html-pipeline allow-list, plus `figure` and `figcaption`, which GitHub strips but which are inert and keep blog image captions laid out correctly. No corpus document uses them. Use a dedicated DOMPurify instance.
 
 ```ts
 const authorTags = `
   h1 h2 h3 h4 h5 h6 br b i strong em a pre code img tt div ins del
   sup sub p picture ol ul table thead tbody tfoot blockquote dl dt dd
   kbd q samp var hr ruby rt rp li tr td th s strike summary details
-  mark source span video
+  mark source span video figure figcaption
 `.trim().split(/\s+/);
 
 const globalAttrs = `

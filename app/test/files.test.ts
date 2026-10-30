@@ -1,8 +1,8 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { writeAtomic } from "../src/main/files";
+import { decodeDocument, readDiskText, writeAtomic } from "../src/main/files";
 
 const dirs: string[] = [];
 async function fixture() {
@@ -19,6 +19,32 @@ test("concurrent writes use separate temporary files and leave one complete revi
   await Promise.all(revisions.map((text) => writeAtomic(file, text)));
   expect(revisions).toContain(await fs.readFile(file, "utf8"));
   expect(await fs.readdir(dir)).toEqual(["note.md"]);
+});
+
+test.skipIf(process.platform !== "win32")("atomic save retries temporary Windows sharing errors", async () => {
+  const dir = await fixture(), file = path.join(dir, "note.md");
+  await fs.writeFile(file, "old");
+  const rename = spyOn(fs, "rename");
+  rename.mockRejectedValueOnce(Object.assign(new Error("Sharing violation"), { code: "EPERM" }));
+  try {
+    await writeAtomic(file, "new", "old");
+    expect(await fs.readFile(file, "utf8")).toBe("new");
+    expect(await fs.readdir(dir)).toEqual(["note.md"]);
+  } finally { rename.mockRestore(); }
+});
+
+test.skipIf(process.platform !== "win32")("an external edit during a Windows rename retry is preserved", async () => {
+  const dir = await fixture(), file = path.join(dir, "note.md");
+  await fs.writeFile(file, "old");
+  const rename = spyOn(fs, "rename").mockImplementationOnce(async () => {
+    await fs.writeFile(file, "external edit");
+    throw Object.assign(new Error("Sharing violation"), { code: "EPERM" });
+  });
+  try {
+    await expect(writeAtomic(file, "new", "old")).rejects.toThrow("changed on disk");
+    expect(await fs.readFile(file, "utf8")).toBe("external edit");
+    expect(await fs.readdir(dir)).toEqual(["note.md"]);
+  } finally { rename.mockRestore(); }
 });
 
 test("saving preserves existing private permissions", async () => {
@@ -72,4 +98,64 @@ test("directory watching follows repeated atomic replacement", async () => {
       expect(revisions).toContain(revision);
     }
   } finally { watcher.close(); }
+});
+
+for (const name of ["invalid-utf8", "utf16le-bom", "utf16be-bom", "utf16le", "utf16be"]) {
+  test(`${name} opens read-only and cannot be overwritten`, async () => {
+    const bytes = await fs.readFile(path.join(import.meta.dir, "fixtures/bytes", `${name}.md`));
+    const file = path.join(await fixture(), "note.md");
+    await fs.writeFile(file, bytes);
+    expect(decodeDocument(bytes).readOnlyReason).toBe("Not a UTF-8 text file. Read only.");
+    await expect(readDiskText(file)).rejects.toThrow("Read only");
+    await expect(writeAtomic(file, "replacement")).rejects.toThrow("Read only");
+    expect(await fs.readFile(file)).toEqual(bytes);
+    expect(await fs.readdir(path.dirname(file))).toEqual(["note.md"]);
+  });
+}
+
+test("an invalid external revision cannot be replaced by a save with an old UTF-8 baseline", async () => {
+  const file = path.join(await fixture(), "note.md");
+  const bytes = Buffer.from([0xff, 0xfe, 65, 0]);
+  await fs.writeFile(file, bytes);
+  await expect(writeAtomic(file, "local edit", "previous")).rejects.toThrow("Read only");
+  expect(await fs.readFile(file)).toEqual(bytes);
+});
+
+test("atomic save keeps xattrs, Finder tags, permissions and ACLs across repeated saves", async () => {
+  if (process.platform !== "darwin") return;
+  const file = path.join(await fixture(), "metadata.md");
+  const original = await fs.readFile(path.join(import.meta.dir, "fixtures/bytes/metadata.md"));
+  await fs.writeFile(file, original, { mode: 0o640 });
+  const run = (...args: string[]) => {
+    const result = Bun.spawnSync(args);
+    if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+    return result.stdout.toString();
+  };
+  const tag = '<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><array><string>SimpleMD\n6</string></array></plist>';
+  run("xattr", "-w", "com.simplemd.test", "preserved", file);
+  run("xattr", "-w", "com.apple.metadata:_kMDItemUserTags", tag, file);
+  run("chmod", "+a", "everyone allow read", file);
+  const previousTime = new Date("2020-01-02T03:04:05.000Z");
+  await fs.utimes(file, previousTime, previousTime);
+  const attributes = run("xattr", "-lx", file);
+  const acl = run("ls", "-le", file).split("\n").slice(1).join("\n");
+  for (const text of [original.toString() + "first", "short", original.toString()]) {
+    await writeAtomic(file, text);
+    expect(await fs.readFile(file)).toEqual(Buffer.from(text));
+    expect(run("xattr", "-lx", file)).toBe(attributes);
+    expect(run("ls", "-le", file).split("\n").slice(1).join("\n")).toBe(acl);
+    expect((await fs.stat(file)).mode & 0o777).toBe(0o640);
+    expect((await fs.stat(file)).mtimeMs).toBeGreaterThan(previousTime.getTime());
+  }
+});
+
+test("saving replaces a hard link while its other names retain the previous bytes", async () => {
+  const dir = await fixture();
+  const file = path.join(dir, "note.md");
+  const link = path.join(dir, "other.md");
+  await fs.writeFile(file, "old");
+  await fs.link(file, link);
+  await writeAtomic(file, "new", "old");
+  expect(await fs.readFile(file, "utf8")).toBe("new");
+  expect(await fs.readFile(link, "utf8")).toBe("old");
 });
