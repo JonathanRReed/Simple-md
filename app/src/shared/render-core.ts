@@ -310,7 +310,7 @@ export function createRenderCore(services: RenderServices = {}) {
     services.mark?.("html-serialize-start");
     let blocks: RenderedBlock[] = [];
     let batchBytes = 0;
-    const title = documentTitle(src, filePath, tokens);
+    const title = await documentTitle(src, filePath, tokens);
     const result = (): RenderedBlocks => ({ ...(mdx ? { mdx } : {}), title, blocks });
     const seenKeys = new Map<string, number>();
     if (raw !== undefined) {

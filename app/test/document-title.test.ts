@@ -14,7 +14,7 @@ test("document titles use metadata, then the first visible H1, then the filename
     ['No heading', "some/file.md", "file"],
     ['No heading', null, "Untitled"],
   ] as const) {
-    expect(documentTitle(source, filename)).toBe(expected);
+    expect(await documentTitle(source, filename)).toBe(expected);
     expect((await core.renderBlocks(source, filename)).title).toBe(expected);
   }
 });

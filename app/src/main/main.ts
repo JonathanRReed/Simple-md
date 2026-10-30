@@ -789,7 +789,7 @@ async function exportDocumentBytes(doc: DocumentSession, text: string, format: E
 
 async function exportName(text: string, current: DocumentSession, format: ExportFormat): Promise<string> {
   const { documentTitle, exportFilename } = await import("../shared/document-title.js");
-  return exportFilename(documentTitle(text, current.name), format);
+  return exportFilename(await documentTitle(text, current.name), format);
 }
 
 async function exportPdf(text: string): Promise<void> {
