@@ -1,3 +1,4 @@
+import { waitForGuiLoad } from "./host-load";
 import { buildTestCli } from "../build/native.mjs";
 import { calibratedTyping, typingInput, typingLetters, typingProbe, typingRecord, type InputMethod } from "./perf-typing";
 import assert from "node:assert/strict";
@@ -208,6 +209,7 @@ export async function perfGate(): Promise<void> {
   const targetDirectory = path.join(root, "native");
   const helper = path.join(targetDirectory, "release", `perf-memory${process.platform === "win32" ? ".exe" : ""}`);
   async function launch(name: string, file: string, userData: string, steps: DriverStep[], intent = "read") {
+    await waitForGuiLoad();
     const directory = path.join(root, name);
     fs.mkdirSync(directory, { recursive: true });
     const drive = path.join(directory, "drive.json");

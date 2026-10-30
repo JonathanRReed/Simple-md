@@ -59,6 +59,7 @@ Typing runs also cover burst input, selection movement, backspace, undo, paste a
 
 ## Where gates run
 
+- Set `SMD_MAX_GUI_LOAD=12` to admit each performance Electron process only when macOS reports a lower one-minute load. Smoke and CLI runs accept the same opt-in guard, using `20`. It reads `sysctl -n vm.loadavg` and waits 60 seconds between checks while the host exceeds the limit. Admission happens before the timed region.
 - Absolute gates run on the owner's MacBook. Never register that machine as a self-hosted runner on this public repository.
 - Hosted CI runs the same harness only to catch relative regressions beyond a noise band measured from repeated control runs. It also catches missing output and broken markers.
 - Until the end of milestone 3, a PR must not regress any gate. From then on, the gates block merges.

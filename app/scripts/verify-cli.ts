@@ -1,3 +1,4 @@
+import { waitForGuiLoad } from "./host-load";
 import { buildTestCli } from "../build/native.mjs";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -42,6 +43,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, input?: st
 }
 async function session(name: string, steps: DriverStep[], actions: Record<string, (env: NodeJS.ProcessEnv) => Promise<void>>, settings: object = {}) {
   if (filter && !name.includes(filter)) return;
+  await waitForGuiLoad();
   const profile = path.join(root, name); fs.mkdirSync(profile);
   fs.writeFileSync(path.join(profile, "settings.json"), JSON.stringify({ mode: "source", autosave: false, launchAtLogin: false, ...settings }));
   const drive = path.join(profile, "drive.json"); fs.writeFileSync(drive, JSON.stringify(steps));

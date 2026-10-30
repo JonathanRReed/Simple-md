@@ -1,3 +1,4 @@
+import { waitForGuiLoad } from "./host-load";
 import { typingProbe, typingInput, typingLetters, typingRecord, calibratedTyping } from "./perf-typing";
 import { summarizeEventTiming } from "./perf-gate";
 import { assertDocument as assertPerfDocument } from "./perf-gate";
@@ -63,6 +64,7 @@ function fixture(name: string, text: string): string {
 }
 
 async function launch(name: string, file: string, steps: Step[], intent: "read" | "edit" | "default" = "read", change?: DiskChange, expectedExit: 0 | 1 = 0, initialMode: "source" | "split" | "live" = "source", options: { env?: NodeJS.ProcessEnv; prepare?: (profile: string) => void } = {}): Promise<void> {
+  await waitForGuiLoad();
   const output = path.join(root, name);
   const profile = path.join(output, "profile");
   fs.mkdirSync(profile, { recursive: true });
