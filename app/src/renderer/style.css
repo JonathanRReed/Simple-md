@@ -1324,4 +1324,33 @@ body[data-zen="true"][data-chrome-revealed="true"] #chrome-reveal { pointer-even
 body[data-zen="true"][data-tab-style="sidebar"][data-chrome-revealed="true"] .pane-toolbar { inset-inline-start: var(--sidebar-width, 220px); }
 body[data-zen="true"][data-tab-style="sidebar"][data-sidebar-collapsed="true"] .pane-toolbar { inset-inline-start: 0; }
 
+/* The outline owns a gutter in each document viewport, including split previews. */
+.outline-host.outline-present { padding-inline-end: 36px; box-sizing: border-box; }
+.document-pane :is([data-element="editor-host"], [data-element="preview-pane"]).outline-host { position: relative; }
+.outline-scroll { scrollbar-width: none !important; }
+.outline-scroll::-webkit-scrollbar { display: none; }
+.outline-rail { position: absolute; inset-block: 16px; inset-inline-end: 4px; width: 28px; z-index: 2; touch-action: none; user-select: none; }
+.outline-track { display: flex; flex-direction: column; height: 100%; }
+.outline-strip { position: relative; display: flex; align-items: center; justify-content: end; flex: 1 1 0; min-height: 0; width: 100%; border: 0; padding: 0; background: none; color: var(--fg); cursor: pointer; }
+.outline-strip > span { display: block; width: 24px; height: 2px; border-radius: 1px; background: currentColor; opacity: 0.18; transform-origin: right center; transition: transform 150ms, opacity 150ms; pointer-events: none; }
+.outline-strip[data-level="2"] > span { width: 20px; }
+.outline-strip[data-level="3"] > span { width: 16px; }
+.outline-strip:is([data-level="4"], [data-level="5"], [data-level="6"]) > span { width: 12px; }
+.outline-strip[data-level="0"] > span { width: 18px; }
+.outline-rail:is(:hover, :focus-within) .outline-strip > span { opacity: 0.4; }
+.outline-strip[data-in-view="true"] > span { opacity: 0.65; }
+.outline-rail:is(:hover, :focus-within) .outline-strip[data-in-view="true"] > span { opacity: 0.9; }
+.outline-strip:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.outline-viewport { position: absolute; inset: 0 auto 0 0; width: 2px; height: 100%; background: var(--fg); opacity: 0.12; transform-origin: top; pointer-events: none; }
+.outline-rail:is(:hover, :focus-within) .outline-viewport { opacity: 0.3; }
+.outline-tooltip { position: absolute; inset-inline-end: 36px; width: max-content; max-width: min(280px, 60cqw); padding: 7px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--fg); box-shadow: 0 3px 12px #0002; font: 12px/1.4 var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .outline-strip > span { transition: none; } }
+@media (forced-colors: active) {
+  .outline-strip > span, .outline-viewport { background: CanvasText; opacity: 0.5; }
+  .outline-strip[data-in-view="true"] > span { background: Highlight; opacity: 1; }
+  .outline-strip:focus-visible { outline-color: Highlight; }
+  .outline-tooltip { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}
+@media print { .outline-rail { display: none; } .outline-host.outline-present { padding-inline-end: 0; } }
+
 body[data-tab-style="sidebar"].dragging-tabs #tabs::before { content: ""; display: block; flex: 0 0 12px; border-radius: 6px; background: var(--chrome-hover); }

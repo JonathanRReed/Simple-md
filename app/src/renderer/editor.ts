@@ -1,3 +1,4 @@
+import { deriveOutline, type OutlineItem } from "./outline-model.js";
 import type { SourceAnchor } from "./scroll-sync.js";
 import { changeMarks, setChangeMarks } from "./change-marks.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
@@ -12,7 +13,7 @@ import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, iso
 import { html } from "@codemirror/lang-html";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { bracketMatching, ensureSyntaxTree, syntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
 import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
@@ -40,6 +41,7 @@ export interface EditorOptions {
   vim?: boolean;
   onChange(text: string): void;
   onScroll(): void;
+  onOutlineChange?(): void;
   onImages(files: File[]): Promise<string | null>;
 }
 
@@ -69,6 +71,8 @@ export interface EditorHandle {
   undo(): void;
   redo(): void;
   headings(): Heading[];
+  outlineItems(levels: number): OutlineItem<number>[];
+  outlineOffset(pos: number): number;
   goTo(pos: number): void;
   scrollFraction(): number;
   sourceAnchor(): SourceAnchor;
@@ -208,6 +212,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
           if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
+          if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state) || update.heightChanged) opts.onOutlineChange?.();
         }),
         EditorView.domEventHandlers({
           contextmenu(event, v) {
@@ -377,6 +382,27 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     },
     undo: () => void undo(view),
     redo: () => void redo(view),
+    outlineItems(levels) {
+      const headings: OutlineItem<number>[] = [];
+      const blocks: OutlineItem<number>[] = [];
+      const frontmatterEnd = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(view.state.doc.sliceString(0, 20_000))?.[0].length ?? 0;
+      // Read the existing incremental tree. Unlike the command palette, the rail must never force parsing.
+      syntaxTree(view.state).iterate({ enter(ref) {
+        if (ref.name === "Document") return;
+        if (ref.from < frontmatterEnd) return false;
+        if (ref.node.parent?.name === "Document") blocks.push({ key: String(ref.from), text: `Section ${blocks.length + 1}`, level: 0, target: ref.from });
+        const match = /^(?:ATXHeading|SetextHeading)(\d)$/.exec(ref.name);
+        if (!match) return /^(?:Blockquote|BulletList|OrderedList|ListItem)$/.test(ref.name) ? undefined : false;
+        const line = view.state.doc.lineAt(ref.from);
+        const text = line.text.replace(/^#{1,6}\s*/, "").replace(/\s#+\s*$/, "").trim();
+        if (text) headings.push({ key: String(ref.from), text, level: Number(match[1]), target: ref.from });
+        return false;
+      } });
+      return deriveOutline(headings, blocks, levels);
+    },
+    outlineOffset(pos) {
+      return view.lineBlockAt(pos).top + view.documentTop - view.scrollDOM.getBoundingClientRect().top + view.scrollDOM.scrollTop;
+    },
     headings() {
       const found: Heading[] = [];
       // The closing --- of frontmatter makes the parser see a setext heading; it is not part of the outline.

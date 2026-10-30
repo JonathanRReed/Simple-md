@@ -17,6 +17,8 @@ export const configSchema = {
   "reading-font-size": { ...number("readingFontSize", "Size (px)", "Reading", 19, 10, 40, 1), setting: "readingFontSize" },
   "reading-line-height": { ...number("readingLineHeight", "Line height", "Reading", 1.68, 1, 2.5, 0.05), setting: "readingLineHeight" },
   "content-width": { ...number("contentWidth", "Width (characters)", "Reading", 66, 40, 160, 1), setting: "contentWidth" },
+  "outline-rail": { ...boolean("outlineRail", "Outline rail", "Behavior", true), setting: "outlineRail" },
+  "outline-rail-levels": { ...number("outlineRailLevels", "Outline heading levels", "Behavior", 3, 1, 6, 1), setting: "outlineRailLevels" },
   "writing-font-family": { ...font("writingFontFamily", "Font", "Writing", "system-ui"), setting: "writingFontFamily" },
   "writing-font-size": { ...number("writingFontSize", "Size (px)", "Writing", 17, 10, 40, 1), setting: "writingFontSize" },
   "writing-line-height": { ...number("writingLineHeight", "Line height", "Writing", 1.65, 1, 2.5, 0.05), setting: "writingLineHeight" },
@@ -54,7 +56,7 @@ export function isConfigKey(key: string): key is ConfigKey { return Object.hasOw
 export function validConfigValue(def: ConfigDefinition, value: unknown): boolean {
   switch (def.kind) {
     case "boolean": return typeof value === "boolean";
-    case "number": return typeof value === "number" && Number.isFinite(value) && value >= def.min && value <= def.max;
+    case "number": return typeof value === "number" && Number.isFinite(value) && value >= def.min && value <= def.max && (def.setting !== "outlineRailLevels" || Number.isInteger(value));
     case "choice": return typeof value === "string" && def.options.some(option => option === value);
     case "font": return typeof value === "string" && value.trim().length > 0 && value.length <= 160 && !/[\x00-\x1f\x7f]/.test(value);
   }

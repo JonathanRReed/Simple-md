@@ -1,3 +1,4 @@
+import type { createOutlineRail } from "./outline-rail.js";
 import { tabCommands } from "../shared/tab-commands.js";
 import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-sync.js";
 import type { HighlightState } from "../shared/change-highlights.js";
@@ -88,6 +89,54 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let retainedEditor: EditorSnapshot | undefined;
   let retainedScroll: number | undefined;
   let disposed = false;
+  let outlineFrame = 0, outlineTimer = 0, outlineSequence = 0;
+  const outlines = new Map<HTMLElement, ReturnType<typeof createOutlineRail>>();
+  function clearOutlines(): void {
+    ++outlineSequence;
+    cancelAnimationFrame(outlineFrame); clearTimeout(outlineTimer);
+    outlineFrame = 0; outlineTimer = 0;
+    for (const rail of outlines.values()) rail.destroy();
+    outlines.clear();
+  }
+  function scheduleOutlines(delay = 0): void {
+    if (disposed || !settings.outlineRail || !doc.hasDoc) return;
+    if (pane.view === "edit" && pane.mode === "source" && !outlines.size) return;
+    clearTimeout(outlineTimer);
+    cancelAnimationFrame(outlineFrame);
+    outlineFrame = requestAnimationFrame(() => {
+      outlineFrame = requestAnimationFrame(() => {
+        outlineFrame = 0;
+        outlineTimer = window.setTimeout(() => { outlineTimer = 0; void refreshOutlines(); }, delay);
+      });
+    });
+  }
+  async function refreshOutlines(): Promise<void> {
+    const sequence = ++outlineSequence;
+    const [{ createOutlineRail }, { renderedOutline }] = await Promise.all([import("./outline-rail.js"), import("./outline-model.js")]);
+    if (disposed || !settings.outlineRail || sequence !== outlineSequence) return;
+    const hosts = doc.hasDoc ? pane.view === "read" ? [readPane] : pane.mode === "split" ? [previewPane] : pane.mode === "live" ? [editorHost] : [] : [];
+    for (const [host, rail] of outlines) if (!hosts.includes(host)) { rail.destroy(); outlines.delete(host); }
+    for (const host of hosts) {
+      const existing = outlines.get(host);
+      if (existing) { existing.refresh(); continue; }
+      if (host === editorHost && pane.editor) {
+        const editor = pane.editor;
+        outlines.set(host, createOutlineRail({ host, scroller: editor.scroller, content: editor.scroller.querySelector<HTMLElement>(".cm-content") ?? editor.scroller,
+          items: () => editor.outlineItems(settings.outlineRailLevels), offset: pos => editor.outlineOffset(pos),
+          navigate: () => { scrollDriver = "editor"; },
+        }));
+      } else {
+        const scroller = host === readPane ? readScroll : previewScroll;
+        const content = host === readPane ? docEl : previewEl;
+        outlines.set(host, createOutlineRail({ host, scroller, content,
+          items: () => renderedOutline(content, settings.outlineRailLevels),
+          offset: element => element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop,
+          element: element => element,
+          navigate: () => { readRestoreAnchor = undefined; scrollDriver = "preview"; },
+        }));
+      }
+    }
+  }
   let navigatingLink = false;
   let pendingDisk: DormantDocument["disk"];
   let highlights: HighlightState = { kind: null, generation: 0, changes: { changed: [], deleted: [] } };
@@ -389,6 +438,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     blockEls.set(el, next);
     paintChanges();
     updateFragments(el);
+    scheduleOutlines();
     // renderDiagrams is idempotent per block, so retained blocks only rejoin the readiness wait.
     const id = pane.documentId;
     void Promise.all([...next.values()].map((node) => renderDiagrams(node))).then(() => {
@@ -540,6 +590,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     updateHint();
     paintChanges();
     options.changed();
+    if (settings.outlineRail) scheduleOutlines();
+    else clearOutlines();
   }
 
   function applySettings(s: Settings): void {
@@ -611,6 +663,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           schedulePreview();
           scheduleAutosave();
         },
+        onOutlineChange: () => { if (pane.mode === "live") scheduleOutlines(180); },
         onScroll() {
           if (pane.view === "edit" && pane.mode === "split" && pane.editor && scrollDriver === "editor") {
             syncAnchor = pane.editor.sourceAnchor(); resyncPreview();
@@ -630,6 +683,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function dropEditor(): void {
+    clearOutlines();
     pane.editor?.destroy();
     pane.editor = null;
     pane.editorLoading = null;
@@ -1335,6 +1389,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
+    clearOutlines();
     cancelAnimationFrame(layoutFrame);
     layoutObserver.disconnect();
     clearTimeout(changeTimer); ++changeSequence;
