@@ -123,4 +123,7 @@ export async function runBatch(input: { html: string; css: string; reduced: bool
   }
   return { startup: true, tabs: true, pill: true, sidebar: true, split: true, panels: true, off: true, reduced: input.reduced };
 }
-Object.assign(globalThis, { CorpusBrowser: { runBatch } });
+Object.assign(globalThis, { CorpusBrowser: { runBatch, afterFrames() {
+  assert(!document.querySelector(".chrome-exit, .chrome-motion"), "Capture retained a finished animation");
+  assert([...document.querySelectorAll<HTMLElement>(".pane-content")].every(node => !node.style.width && !node.style.height), "Capture retained frozen document dimensions");
+} } });

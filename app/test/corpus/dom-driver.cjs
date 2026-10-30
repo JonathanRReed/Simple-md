@@ -27,13 +27,14 @@ app.whenReady().then(async () => {
     for (const time of options.frames.times) {
       await window.webContents.executeJavaScript(`(async () => {
         for (const animation of document.getAnimations()) {
-          if (${time} > Number(animation.effect.getTiming().duration)) animation.finish();
+          if (${time} >= Number(animation.effect.getTiming().duration)) animation.finish();
           else { animation.pause(); animation.currentTime = ${time}; }
         }
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       })()`);
       writeFileSync(path.join(options.frames.directory, `${time}ms.png`), (await window.webContents.capturePage()).toPNG());
     }
+    await window.webContents.executeJavaScript("globalThis.CorpusBrowser.afterFrames?.()");
   }
   if (options.screenshot) writeFileSync(options.screenshot.path, (await window.webContents.capturePage()).toPNG());
   writeFileSync(output, JSON.stringify(results));
