@@ -1428,9 +1428,9 @@ await test("tab-sidebar-menu-resize-relaunch", async () => {
     { nativeMenu: ["View", "Show Tab Sidebar"] },
     evaluate(`await waitFor(() => !document.querySelector('#sidebar-divider').hidden, 'Sidebar did not reopen');
       window.resizeEvents = [];
-      for (const type of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','dblclick']) document.querySelector('#sidebar-divider').addEventListener(type, event => window.resizeEvents.push([type, event.clientX, event.pointerId, document.querySelector('#sidebar-divider').getAttribute('aria-valuenow')]));`),
+      for (const type of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','dblclick']) document.querySelector('#sidebar-divider').addEventListener(type, event => window.resizeEvents.push([type, event.clientX, event.pointerId, event.buttons, document.querySelector('#sidebar-divider').getAttribute('aria-valuenow')]));`),
     { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
-    { input: { type: "mouseMove", x: 302, y: 110, button: "left" } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftButtonDown"] } },
     evaluate(`assert((await window.simplemd.ready()).settings.sidebarWidth === 180, 'Drag wrote config before release');`),
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Native divider drag failed');
@@ -1443,7 +1443,7 @@ await test("tab-sidebar-menu-resize-relaunch", async () => {
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 2 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '180', 'Double click did not reset divider');`),
     { input: { type: "mouseDown", x: 182, y: 110, button: "left", clickCount: 1 } },
-    { input: { type: "mouseMove", x: 302, y: 110, button: "left" } },
+    { input: { type: "mouseMove", x: 302, y: 110, button: "left", modifiers: ["leftButtonDown"] } },
     { input: { type: "mouseUp", x: 302, y: 110, button: "left", clickCount: 1 } },
     evaluate(`await waitFor(() => document.querySelector('#sidebar-divider').getAttribute('aria-valuenow') === '300', 'Final width did not apply');`),
     { debug: { method: "Emulation.setEmulatedMedia", params: { features: [{ name: "forced-colors", value: "active" }] } } },
