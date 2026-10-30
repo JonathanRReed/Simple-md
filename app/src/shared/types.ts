@@ -29,6 +29,7 @@ export function makeRequestId(value: number): RequestId {
 
 export type ThemeSetting = "system" | "light" | "dark";
 export type EditMode = "live" | "split" | "source";
+export type ViewMode = "read" | EditMode;
 export type ReadingWidth = "narrow" | "normal" | "wide";
 export type Typeface = "sans" | "serif";
 
@@ -56,6 +57,7 @@ export type { RenderedBlock } from "./render-core.js";
 import type { RenderedBlock } from "./render-core.js";
 
 export interface DocPayload {
+  initialMode?: EditMode;
   savedText?: string;
   dirty?: boolean;
   revisionId: RevisionId;
@@ -108,6 +110,7 @@ export type Command =
   | "save"
   | "save-as"
   | "toggle-edit"
+  | "mode-read"
   | "mode-live"
   | "mode-split"
   | "mode-source"

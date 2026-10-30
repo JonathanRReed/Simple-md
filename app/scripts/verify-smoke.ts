@@ -1486,6 +1486,30 @@ if (process.platform === "darwin") await test("native-find-pasteboard", async ()
   ]);
 });
 
+// ux-app: native opening policy, active title and edited state. Run only by the owner.
+await test("ux-reader-policy-chrome", async () => {
+  const file = fixture("ux-reader/note.md", "# Reader\n\nKeep these bytes.\n");
+  const second = fixture("ux-reader/other.md", "# Other\n");
+  await launch("ux-reader-policy-chrome", file, [
+    evaluate(`assert(document.querySelector('.document-pane').dataset.view === 'read', 'Normal open did not use Read');
+      const modes = document.querySelector('[data-element=modes]');
+      assert(!modes.hidden && modes.querySelector('[data-mode=read]'), 'Read mode is not visible');
+      const before = (await window.simplemd.ready()).settings.theme;
+      document.querySelector('[data-element=read-scroll]').focus();
+      for (const key of 'hello t') document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles:true}));
+      assert(document.querySelector('.document-pane').dataset.view === 'read', 'Bare letter opened the editor');
+      assert((await window.simplemd.ready()).settings.theme === before, 'Bare letter changed appearance');`),
+    { nativeMenu: ["View", "Read / Edit"] },
+    ...appendCharacter("x"),
+    { nativeIdentity: { file, edited: true } },
+    evaluate(`const edited = document.querySelector('[data-element=dirty]'); const r = edited.getBoundingClientRect(); assert(!edited.hidden && r.width > 0 && r.right <= innerWidth, 'Edited is offscreen');`),
+    { nativeMenu: ["View", "Read"] },
+    evaluate(`await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read', 'Read menu did not work'); await window.simplemd.openPath(${quote(second)});`),
+    { nativeIdentity: { file: second, edited: false } },
+    evaluate(`await waitFor(() => document.querySelector('.tb-title').textContent === 'other.md', 'Active title vanished with two tabs'); assert(document.title === 'other.md', 'Native title differs');`),
+  ]);
+});
+
 const blog = process.env.SMD_BYTE_BLOG_DIR;
 if (blog) for (const name of fs.readdirSync(blog).filter((name) => name.endsWith(".mdx")).sort()) {
   await test(`bytes-blog-${name}`, async () => {

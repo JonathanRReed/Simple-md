@@ -29,17 +29,27 @@
     <template id="pane-template">
       <div class="document-pane">
         <div class="pane-toolbar">
-          <div class="pane-name"><span id="name"></span><span id="dirty" title="Unsaved changes" hidden>●</span></div>
+          <div class="pane-name"><span id="name"></span><span id="dirty" title="Unsaved changes" role="status" hidden>Edited</span></div>
           <div class="pane-controls">
-          <div id="modes" class="seg" role="radiogroup" aria-label="Editing mode" hidden>
-            <button type="button" role="radio" data-mode="live" aria-checked="true" title="Live preview">Live</button>
-            <button type="button" role="radio" data-mode="split" aria-checked="false" title="Side by side" aria-label="Side by side">Side</button>
-            <button type="button" role="radio" data-mode="source" aria-checked="false" title="Source">Source</button>
+          <button id="nav-back" type="button" class="pill" title="Go back to the previous document" aria-label="Back" hidden>←</button>
+          <details id="reader-options" class="reader-options" hidden>
+            <summary title="Reading text size and Settings" aria-label="Reading options">Aa</summary>
+            <div class="reader-options-menu">
+              <div class="reader-size"><button id="reading-smaller" type="button" aria-label="Smaller reading text">A−</button><output id="reading-size"></output><button id="reading-larger" type="button" aria-label="Larger reading text">A+</button></div>
+              <p id="reading-override" hidden>GitHub style fixes text at 16px. Use Zoom to enlarge it.</p>
+              <button id="reader-settings" type="button">Settings…</button>
+            </div>
+          </details>
+          <div id="modes" class="seg" role="radiogroup" aria-label="Document mode" hidden>
+            <button type="button" role="radio" data-mode="read" aria-checked="true" title="Read without editing the text">Read</button>
+            <button type="button" role="radio" data-mode="live" aria-checked="false" title="Edit with formatting shown around the cursor">Live</button>
+            <button type="button" role="radio" data-mode="split" aria-checked="false" title="Edit the text beside a formatted page" aria-label="Side by side">Side</button>
+            <button type="button" role="radio" data-mode="source" aria-checked="false" title="Edit the text with all Markdown symbols visible">Source</button>
           </div>
-          <select class="mode-menu" aria-label="Editing mode" title="Editing mode" hidden>
-            <option value="live">Live</option><option value="split">Side by side</option><option value="source">Source</option>
+          <select class="mode-menu" aria-label="Document mode" title="Document mode" hidden>
+            <option value="read">Read</option><option value="live">Live</option><option value="split">Side by side</option><option value="source">Source</option>
           </select>
-          <button id="edit-btn" type="button" class="pill" title="Edit document (Enter)" hidden>Edit</button>
+          <button id="edit-btn" type="button" class="pill" title="Edit document (⌘E)" hidden>Edit</button>
           </div>
         </div>
         <div id="banner" role="status" hidden></div>
@@ -68,7 +78,7 @@
         <footer class="pane-status"><span id="hint" hidden></span>
           <div class="drag-export-controls">
             <select id="export-format" aria-label="Export format"><option value="html">HTML</option><option value="pdf">PDF</option></select>
-            <button id="drag-export" type="button" title="Prepare a file to drag">Export</button>
+            <button id="drag-export" type="button" title="Save an exported file, or drag it out">Export</button>
           </div>
           <div id="changes" class="change-controls" hidden>
             <span id="change-count"></span>

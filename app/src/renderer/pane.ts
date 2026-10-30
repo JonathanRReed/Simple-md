@@ -2,7 +2,7 @@ import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 
@@ -44,6 +44,7 @@ export interface DormantDocument {
   state: DocumentState;
   editor?: EditorSnapshot;
   view: "read" | "edit";
+  mode: EditMode;
   scroll: number;
   back: string[];
   forward: string[];
@@ -53,6 +54,7 @@ export interface DormantDocument {
 export function createPane(container: HTMLElement, paneId: PaneId, options: {
   active(): boolean;
   changed(): void;
+  tabs(): { id: DocumentId; name: string; path: string | null }[];
 }) {
   const simplemd = bridge();
   const hideBanner = () => hidePaneBanner(container);
@@ -75,7 +77,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const modesEl = $("modes");
   const editBtn = $("edit-btn");
   const modeMenu = container.querySelector<HTMLSelectElement>(".mode-menu")!;
-  readScroll.title = "Enter to edit";
+  readScroll.title = "Read document";
 
   const root = container;
 
@@ -405,7 +407,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
             if (request.seq !== targetPane.readRenderSeq || disposed || request.id !== activeDocumentId() || request.revisionId !== state.revisionId) continue;
             mountBlocks(docEl, acceptRender(result, request.text));
             targetPane.mountedReadText = request.text;
-            document.title = result.title;
             if (top !== undefined) readScroll.scrollTop = top;
             updateHint();
           } catch {
@@ -489,15 +490,24 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     nameEl.textContent = doc.meta.name;
     root.dataset.view = pane.view;
     container.querySelector<HTMLElement>(".pane-toolbar")!.title = doc.meta.path ?? doc.meta.name;
-    readScroll.title = isReadOnly() ? "Read only" : "Enter to edit";
-    modeMenu.hidden = pane.view !== "edit";
-    modeMenu.value = pane.mode;
+    readScroll.title = isReadOnly() ? "Read only" : "Read document";
+    const viewMode = pane.view === "read" ? "read" : pane.mode;
+    simplemd.paneMode(pane.paneId, viewMode);
+    modeMenu.hidden = !doc.hasDoc || isReadOnly();
+    modeMenu.value = viewMode;
     dirtyEl.hidden = !doc.dirty;
-    modesEl.hidden = pane.view !== "edit";
-    editBtn.hidden = pane.view !== "read" || !doc.hasDoc || isReadOnly();
+    modesEl.hidden = !doc.hasDoc || isReadOnly();
+    editBtn.hidden = true;
+    $("reader-options").hidden = pane.view !== "read" || !doc.hasDoc;
+    $("nav-back").hidden = !navBack.length;
+    const overridden = settings.readingStyle === "github";
+    $("reading-size").textContent = `${overridden ? 16 : settings.readingFontSize}px`;
+    $<HTMLButtonElement>("reading-smaller").disabled = overridden || settings.readingFontSize <= 10;
+    $<HTMLButtonElement>("reading-larger").disabled = overridden || settings.readingFontSize >= 40;
+    $("reading-override").hidden = !overridden;
     for (const b of modesEl.querySelectorAll<HTMLButtonElement>("button")) {
-      b.setAttribute("aria-checked", String(b.dataset.mode === pane.mode));
-      b.tabIndex = b.dataset.mode === pane.mode ? 0 : -1;
+      b.setAttribute("aria-checked", String(b.dataset.mode === viewMode));
+      b.tabIndex = b.dataset.mode === viewMode ? 0 : -1;
     }
     readPane.hidden = pane.view !== "read";
     editPane.hidden = pane.view !== "edit";
@@ -659,7 +669,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     visibleRevision = undefined;
     pendingDisk = undefined;
     const id = payload.documentId;
-    const mode = doc.hasDoc ? pane.mode : settings.mode;
+    const mode = retained?.mode ?? payload.initialMode ?? (doc.hasDoc ? pane.mode : settings.mode);
     simplemd.perfMarker(id, "renderer-receive");
     ++pane.readRenderSeq;
     ++pane.previewRenderSeq;
@@ -716,7 +726,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (doc.readOnlyReason) showBanner(doc.readOnlyReason, []);
     emptyEl.hidden = true;
     docEl.hidden = false;
-    document.title = payload.title;
     mountBlocks(previewEl, []);
     const sourceEdit = (retained ? retained.view === "edit" : payload.intent === "edit") && !isReadOnly();
     mountBlocks(docEl, sourceEdit ? [] : doc.lastGoodBlocks ?? payload.blocks);
@@ -1031,6 +1040,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       case "toggle-edit":
         void (pane.view === "read" ? showEdit() : showRead());
         break;
+      case "mode-read":
+        void showRead();
+        break;
       case "mode-live":
       case "mode-split":
       case "mode-source":
@@ -1162,36 +1174,40 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   container.addEventListener("keydown", (e) => {
     if (isPickerOpen() || isFindOpen() || e.defaultPrevented || e.isComposing) return;
     const mod = e.metaKey || e.ctrlKey;
-    if (pane.view === "read") {
-      if (!mod && !e.altKey && (e.key === "Enter" || e.key === "e")) {
-        e.preventDefault();
-        void showEdit();
-      } else if (!mod && !e.altKey && e.key === "t") {
-        const order = ["system", "light", "dark"] as const;
-        void simplemd.setSettings({ theme: order[(order.indexOf(settings.theme) + 1) % order.length]! });
-      }
-    } else if (e.key === "Escape") {
+    if (mod && !e.altKey && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      void (pane.view === "read" ? showEdit() : showRead());
+    } else if (pane.view === "edit" && e.key === "Escape") {
       e.preventDefault();
       void showRead();
     }
   });
 
   modesEl.addEventListener("click", (e) => {
-    const mode = (e.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset.mode as EditMode | undefined;
-    if (mode) setMode(mode);
+    const mode = (e.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset.mode;
+    if (mode === "read" || mode === "live" || mode === "split" || mode === "source") selectMode(mode);
   });
   modesEl.addEventListener("keydown", e => {
-    const modes: EditMode[] = ["live", "split", "source"];
-    const index = modes.indexOf(pane.mode);
-    const next = e.key === "Home" ? modes[0] : e.key === "End" ? modes[2]
+    const modes: ViewMode[] = ["read", "live", "split", "source"];
+    const index = modes.indexOf(pane.view === "read" ? "read" : pane.mode);
+    const next = e.key === "Home" ? modes[0] : e.key === "End" ? modes[3]
       : ["ArrowRight", "ArrowDown"].includes(e.key) ? modes[(index + 1) % modes.length]
       : ["ArrowLeft", "ArrowUp"].includes(e.key) ? modes[(index + modes.length - 1) % modes.length] : undefined;
-    if (next) { e.preventDefault(); setMode(next); modesEl.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus(); }
+    if (next) { e.preventDefault(); selectMode(next); modesEl.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus(); }
   });
   modeMenu.addEventListener("change", () => {
     const mode = modeMenu.value;
-    if (mode === "live" || mode === "split" || mode === "source") setMode(mode);
+    if (mode === "read" || mode === "live" || mode === "split" || mode === "source") selectMode(mode);
   });
+  function selectMode(mode: ViewMode): void {
+    if (mode === "read") void showRead();
+    else { setMode(mode); if (pane.view === "read") void showEdit(); }
+  }
+  $("nav-back").addEventListener("click", () => void navigate("back"));
+  for (const [id, delta] of [["reading-smaller", -2], ["reading-larger", 2]] as const) {
+    $(id).addEventListener("click", () => { if (settings.readingStyle !== "github") void simplemd.setSettings({ readingFontSize: Math.max(10, Math.min(40, settings.readingFontSize + delta)) }); });
+  }
+  $("reader-settings").addEventListener("click", () => { $<HTMLDetailsElement>("reader-options").open = false; handleCommand("preferences"); });
   editBtn.addEventListener("click", () => void showEdit());
   $("mark-seen").addEventListener("click", () => void markSeen());
   $("next-change").addEventListener("click", () => navigateChange(1));
@@ -1224,7 +1240,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     }
     const snapshot: DormantDocument = {
       state: doc, editor: pane.editor?.snapshot() ?? retainedEditor,
-      view: pane.view,
+      view: pane.view, mode: pane.mode,
       scroll: pane.view === "edit" ? pane.editor?.scroller.scrollTop ?? 0 : readScroll.scrollTop,
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };

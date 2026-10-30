@@ -9,7 +9,7 @@ const output = `# SimpleMD config
 
 Generated from \`app/src/shared/config-schema.ts\`. Regenerate with \`cd app && bun scripts/generate-config-docs.ts\`.
 
-Settings and the config file update each other live. Open Settings from the application menu, the tray or Command/Control-comma.
+Settings and the config file update each other live. Open Settings from the application menu, the tray, the Read view Aa control or Command/Control-comma.
 
 On macOS and Linux, the file is \`$XDG_CONFIG_HOME/simplemd/config\`, or \`~/.config/simplemd/config\` when XDG_CONFIG_HOME is unset. On Windows it is \`%APPDATA%\\SimpleMD\\config\`. Isolated development profiles use \`$SMD_USER_DATA/config\`.
 
@@ -21,7 +21,9 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | --- | --- | --- |
 ${rows.join("\n")}
 
-The default appearance follows the system and selects the configured light or dark theme. Theme colors apply only to the document. Chrome, focus and selection use the system accent. GitHub style fixes reading typography at 16px system UI, line height 1.5 and a maximum width of 980px. Switching back restores the reading font, size and measure. Writing and code typography remain independent. Widths use characters of the selected font; code blocks scroll horizontally when needed. No fonts are bundled for these roles. KaTeX retains its math fonts.
+The default appearance follows the system and selects the configured light or dark theme. Theme colors apply only to the document. Chrome, focus and selection use the system accent. GitHub style fixes reading typography at 16px system UI, line height 1.5 and a maximum width of 980px. Settings disables the reading font, size, line height and width controls while GitHub style is active, since those values have no effect. Config values remain saved and apply again when you switch back. Zoom still enlarges GitHub pages. Writing and code typography remain independent. Widths use characters of the selected font; code blocks scroll horizontally when needed. No fonts are bundled for these roles. KaTeX retains its math fonts.
+
+Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
 
 On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
 

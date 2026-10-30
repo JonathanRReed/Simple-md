@@ -13,7 +13,7 @@ export interface Bridge {
   onClosed(cb: (id: DocumentId) => void): void;
   releaseView(id: DocumentId): void;
   activateTab(id: DocumentId): Promise<void>;
-  paneMode(id: PaneId, mode: import("../shared/types.js").EditMode): void;
+  paneMode(id: PaneId, mode: import("../shared/types.js").ViewMode): void;
   focusPane(id: PaneId): Promise<void>;
   closeTab(id: DocumentId): Promise<boolean>;
   ready(): Promise<{ settings: Settings; platform: string; accent: string }>;

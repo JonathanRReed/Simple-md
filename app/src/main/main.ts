@@ -1,3 +1,4 @@
+import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
 import type { DragExports, ExportFormat } from "./drag-export.js";
 import type { startOptionalCliServer, CliDispatch } from "./cli-server.js";
 import { DocumentWaiters, parseOpenUrl } from "./cli-protocol.js";
@@ -86,7 +87,7 @@ const documents = new DocumentQueue();
 interface WindowContext {
   win: BrowserWindow;
   layout: TabLayout;
-  paneModes: Map<ReturnType<typeof makePaneId>, Settings["mode"]>;
+  paneModes: Map<ReturnType<typeof makePaneId>, import("../shared/types.js").ViewMode>;
   mainPane: { paneId: ReturnType<typeof makePaneId>; documentId: DocumentId };
   rendererReady: boolean;
   nativeContext?: NativeContext;
@@ -162,11 +163,12 @@ function refreshMenus(): void {
   const gitStatus = activeDoc?.gitStatus ?? { available: false as const, reason: "Open a file first." };
   const next = menuState(settings, mode, !!activeDoc?.path, gitStatus);
   if (next.application !== lastMenuState?.application) buildMenu({
-    settings: () => ({ ...settings, mode }),
+    settings: () => settings,
+    mode: () => mode,
     changesStatus: () => gitStatus,
     command: (cmd) => runCommand(cmd),
     openDialog: () => void openDialog(),
-    openPath: (p) => void openFile(p, "edit"),
+    openPath: (p) => void openFile(p, fileOpenIntent(p)),
     patch: applySettings,
     clearRecents: () => {
       clearNativeRecents(recentOS, process.platform);
@@ -181,7 +183,7 @@ function refreshMenus(): void {
   if (next.recents !== lastMenuState?.recents && process.platform === "win32") recentOS.setJumpList(jumpList(process.execPath, app.isPackaged ? undefined : app.getAppPath(), settings.recents));
   if (next.recents !== lastMenuState?.recents && process.platform === "darwin") app.dock?.setMenu(Menu.buildFromTemplate([
     { label: "New Window", click: () => void newDocumentWindow() },
-    ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, "edit") })),
+    ...settings.recents.map(file => ({ label: path.basename(file), click: () => void openFile(file, fileOpenIntent(file)) })),
   ]));
   lastMenuState = next;
 }
@@ -508,12 +510,13 @@ function openFile(file: string | undefined, intent: OpenIntent, inPlace = false,
   return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? "")): Promise<boolean> {
   if (!file) {
     reveal(host);
     return true;
   }
-  if (!cli && !isMarkdown(file)) return false;
+  if (!cli && !isMarkdown(file) && !opensInSource(file)) return false;
+  if (forceSource) intent = "edit";
   const abs = path.resolve(file);
   const canonical = await fs.promises.realpath(abs).catch(() => abs);
   for (const host of windows.values()) {
@@ -528,12 +531,13 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       host.layout.activate(existing);
       syncLayout(host); reveal(host);
       await usable;
+      if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
       return true;
     });
   }
   if (!inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
-    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli));
+    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource));
   }
   const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
@@ -566,13 +570,15 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
           registry.remove(replaced);
           sendTo(host, "smd:closed", replaced);
         }
+        if (forceSource) payload.initialMode = "source";
         await present(payload, host);
         addRecent(abs);
       },
     });
   } catch (err) {
     console.error("simple-md: failed to open", abs, err);
-    if (!cli) void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
+    if (cli) throw err;
+    void dialog.showMessageBox(host.win, { type: "error", message: `Couldn’t open “${path.basename(abs)}”.`, detail: String(err) });
     return false;
   } finally {
     if (prepared && !host.layout.has(prepared.documentId)) registry.remove(prepared.documentId);
@@ -597,7 +603,7 @@ function openDialog(): Promise<boolean> {
     });
     if (res.canceled || !res.filePaths[0]) return false;
     let opened = true;
-    for (const file of res.filePaths) opened = await openCurrentFile(file, "edit") && opened;
+    for (const file of res.filePaths) opened = await openCurrentFile(file, fileOpenIntent(file)) && opened;
     return opened;
   });
 }
@@ -728,6 +734,7 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
     case "reveal":
       if (current?.path) shell.showItemInFolder(current.path);
       return;
+    case "mode-read":
     case "mode-live":
     case "mode-split":
     case "mode-source":
@@ -737,7 +744,7 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
     case "zoom-in":
     case "zoom-out":
     case "zoom-reset":
-      applySettings({ zoom: cmd === "zoom-reset" ? 1 : settings.zoom + (cmd === "zoom-in" ? 0.1 : -0.1) });
+      applySettings({ zoom: cmd === "zoom-reset" ? 1 : settings.zoom + (cmd === "zoom-in" ? 0.2 : -0.2) });
       return;
     default:
       reveal();
@@ -903,8 +910,8 @@ function ipcRevision(doc: DocumentSession, value: unknown): RevisionId {
 }
 
 function ipcIntent(value: unknown): OpenIntent {
-  if (value === undefined || value === "edit") return "edit";
-  if (value === "read") return "read";
+  if (value === undefined || value === "read") return "read";
+  if (value === "edit") return "edit";
   throw new TypeError("Unsupported open intent.");
 }
 
@@ -936,7 +943,7 @@ function registerIpc(): void {
     return { settings, platform: process.platform, accent: systemAccent(), performanceTracing: testProfile && process.env.SMD_PERF === "1" };
   });
   on("smd:pane-mode", (_e, id, mode) => {
-    if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "live" && mode !== "source" && mode !== "split")) return;
+    if (!isPaneId(id) || !context().layout.state.panes.some(p => p.paneId === id) || (mode !== "read" && mode !== "live" && mode !== "source" && mode !== "split")) return;
     if (context().paneModes.get(id) === mode) return;
     context().paneModes.set(id, mode); refreshMenus();
   });
@@ -1130,7 +1137,7 @@ function registerIpc(): void {
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
     if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
-    const commands: readonly string[] = ["mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
+    const commands: readonly string[] = ["mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }
@@ -1166,9 +1173,10 @@ const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
       if (settings.openIn === "window" && host.layout.state.tabs.length) host = createDocumentWindow();
       doc = registry.create(null, stdin, "edit"); doc.displayName = request.name; doc.dirty = stdin.length > 0;
       const payload = await payloadFor(doc, false, doc.text, "edit", host);
+      if (request.wait) payload.initialMode = "source";
       reveal(host); await present(payload, host);
     } else {
-      if (!(await openCurrentFile(request.path, "edit", false, undefined, host, true))) throw new Error("The file could not be opened.");
+      if (!(await openCurrentFile(request.path, fileOpenIntent(request.path, request.wait, request.location), false, undefined, host, true, opensInSource(request.path, request.wait, request.location)))) throw new Error("The file could not be opened.");
       const canonical = await fs.promises.realpath(request.path);
       for (const candidate of windows.values()) {
         for (const id of candidate.layout.state.tabs) {
@@ -1246,11 +1254,11 @@ if (!app.requestSingleInstanceLock()) {
     const url = argv.find(arg => arg.startsWith("simplemd:"));
     if (url) { if (cliReady) void openUrl(url); else pendingUrl = url; }
     else if (argv.includes("--new-window")) void newDocumentWindow();
-    else void openFile(fileArg(argv), "edit");
+    else void openFile(fileArg(argv), "read");
   });
   app.on("open-file", (e, file) => {
     e.preventDefault();
-    if (context()) void openFile(file, "edit");
+    if (context()) void openFile(file, fileOpenIntent(file));
     else pendingOpen = file;
   });
   let quitRequest: Promise<boolean> | undefined;
@@ -1302,7 +1310,7 @@ if (!app.requestSingleInstanceLock()) {
     context().win.webContents.once("did-finish-load", () => trace("page-loaded"));
     createTray();
     refreshMenus();
-    if (pendingOpen) await openFile(pendingOpen, process.env.SMD_INTENT === "read" ? "read" : "edit");
+    if (pendingOpen) await openFile(pendingOpen, testProfile && process.env.SMD_INTENT === "edit" ? "edit" : fileOpenIntent(pendingOpen));
     cliReady = true;
     if (pendingUrl) await openUrl(pendingUrl);
     // File and URL opens have painted. Blank and background launches wait for the renderer,
