@@ -10,7 +10,7 @@
     "build": "bun run build.ts",
     "start": "bun run build.ts && electron .",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "lint": "bun lint",
+    "lint": "bun lint --no-script",
     "test": "bun test",
     "test:corpus": "SIMPLEMD_CORPUS_GATE=1 bun test test/corpus.test.ts",
     "build:native": "bun run build/native.mjs",
