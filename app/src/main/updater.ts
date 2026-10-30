@@ -27,8 +27,9 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
       // Verify the signature only when a check would otherwise run.
       if (process.platform === "darwin" && !signed && updateDecision({ ...gate, signed: true }) === "check") {
         try {
-          await promisify(execFile)("/usr/bin/codesign", ["--verify", "--strict", "-R",
-            'anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', path.resolve(process.execPath, "../../..")]);
+          await promisify(execFile)("/usr/bin/codesign", ["--verify", "--strict",
+            // The leading "=" makes codesign read an inline requirement, not a file path.
+            '-R=anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', path.resolve(process.execPath, "../../..")]);
           signed = true;
         } catch { /* unsigned: updates stay off */ }
       }

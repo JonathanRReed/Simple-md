@@ -55,7 +55,7 @@ export async function releaseMac(args) {
   config.afterSign = async context => {
     const app = packagedApp(context);
     verifyQuickLook(app);
-    run("codesign", ["--verify", "--strict", "-R", 'anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', app]);
+    run("codesign", ["--verify", "--strict", '-R=anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', app]);
     const scratch = mkdtempSync(path.join(os.tmpdir(), "simplemd-notary-"));
     try {
       const archive = path.join(scratch, "SimpleMD.zip");
