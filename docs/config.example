@@ -21,6 +21,7 @@ open-in = tab
 tab-style = top
 sidebar-width = 220
 sidebar-collapsed = false
+zen-mode = false
 autosave = true
 vim = false
 spellcheck = true

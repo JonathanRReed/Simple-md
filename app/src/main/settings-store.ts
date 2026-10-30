@@ -17,6 +17,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (r.typeface === "sans" || r.typeface === "serif") s.typeface = r.typeface;
   if (typeof r.zoom === "number" && Number.isFinite(r.zoom)) s.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, r.zoom));
   if (Array.isArray(r.recents)) s.recents = r.recents.filter((p): p is string => typeof p === "string").slice(0, 12);
+  if (Array.isArray(r.pinnedPaths)) s.pinnedPaths = [...new Set(r.pinnedPaths.filter((p): p is string => typeof p === "string" && path.isAbsolute(p) && !p.includes("\0")))].slice(0, 100);
   const b = r.bounds;
   if (record(b) && typeof b.x === "number" && Number.isFinite(b.x) && typeof b.y === "number" && Number.isFinite(b.y) &&
       typeof b.width === "number" && Number.isFinite(b.width) && typeof b.height === "number" && Number.isFinite(b.height) &&
@@ -49,7 +50,7 @@ export function migrateSettings({ userData, appData, isolated }: { userData: str
 }
 
 let timer: NodeJS.Timeout | undefined;
-let pending: { file: string; settings: Settings | Pick<Settings, "recents" | "bounds" | "zoom"> } | undefined;
+let pending: { file: string; settings: Settings | Pick<Settings, "recents" | "bounds" | "zoom" | "pinnedPaths"> } | undefined;
 
 export function flushSettings(): void {
   clearTimeout(timer);
@@ -80,7 +81,7 @@ export function patchSettings(current: Settings, patch: unknown): Settings {
 
 export function saveState(settings: Settings, settingsFile: string): void {
   clearTimeout(timer);
-  pending = { file: settingsFile, settings: { recents: settings.recents, bounds: settings.bounds, zoom: settings.zoom } };
+  pending = { file: settingsFile, settings: { recents: settings.recents, bounds: settings.bounds, zoom: settings.zoom, pinnedPaths: settings.pinnedPaths } };
   timer = setTimeout(flushSettings, 150);
   timer.unref();
 }

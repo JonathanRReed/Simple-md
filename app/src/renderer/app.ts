@@ -1,5 +1,6 @@
 import { tabRows } from "../shared/tab-presentation.js";
 import { createTabBar } from "./tab-bar.js";
+import { createWindowChrome } from "./window-chrome.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
@@ -10,6 +11,7 @@ import { renderDiagrams } from "./diagrams.js";
 import { closeOverlays, openPicker, toast } from "./ui.js";
 
 const api = bridge();
+const windowChrome = createWindowChrome(api);
 const stage = document.querySelector<HTMLElement>("#stage")!;
 const strip = document.querySelector<HTMLElement>("#tabs")!;
 const tabBar = createTabBar(strip, document.querySelector<HTMLElement>("#sidebar-divider")!, api);
@@ -30,6 +32,7 @@ const active = () => layout ? panes.get(layout.activePane)?.controller : undefin
 function applyWindowSettings(next: Settings): void {
   applyDocumentStyle(next);
   tabBar.configure(next);
+  windowChrome.configure(next);
   document.documentElement.style.setProperty("--tab-accent", next.systemAccent ?? "Highlight");
   document.documentElement.dataset.theme = next.theme;
   document.documentElement.style.colorScheme = next.theme === "system" ? "light dark" : next.theme;
@@ -264,7 +267,8 @@ async function boot(): Promise<void> {
     const mod = ready.platform === "darwin" ? e.metaKey : e.ctrlKey;
     let command: Command | undefined;
     const sidebarShortcut = ready.platform === "darwin" ? e.ctrlKey && e.metaKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey;
-    if (sidebarShortcut && !e.shiftKey && e.key.toLowerCase() === "s") command = "toggle-tab-sidebar";
+    if (mod && e.shiftKey && !e.altKey && (ready.platform !== "darwin" || !e.ctrlKey) && e.key.toLowerCase() === "j") command = "toggle-zen";
+    else if (sidebarShortcut && !e.shiftKey && e.key.toLowerCase() === "s") command = "toggle-tab-sidebar";
     else if (mod && e.shiftKey && e.key.toLowerCase() === "o") command = e.altKey ? "outline" : "open-quickly";
     else if (mod && e.key === ",") command = "preferences";
     else if (mod && e.key.toLowerCase() === "t") command = "new";

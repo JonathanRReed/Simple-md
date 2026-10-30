@@ -14,9 +14,9 @@ test("rows retain order, duplicate folders, dirty state and split pane position"
     { name: "Untitled", path: null, dirty: false },
   ];
   expect(tabRows(layout.state, names)).toEqual([
-    { id: a, label: "README.md · one", title: "/one/README.md", dirty: true, selected: true, pane: "left" },
-    { id: b, label: "README.md · two", title: "C:\\two\\README.md", dirty: false, selected: false, pane: "right" },
-    { id: c, label: "Untitled", title: "Untitled", dirty: false, selected: false, pane: null },
+    { id: a, label: "README.md · one", title: "/one/README.md", dirty: true, selected: true, pane: "left", pinned: false },
+    { id: b, label: "README.md · two", title: "C:\\two\\README.md", dirty: false, selected: false, pane: "right", pinned: false },
+    { id: c, label: "Untitled", title: "Untitled", dirty: false, selected: false, pane: null, pinned: false },
   ]);
   layout.state.axis = "vertical"; layout.activate(b);
   expect(tabRows(layout.state, names).map(row => [row.selected, row.pane])).toEqual([[false, "top"], [true, "bottom"], [false, null]]);

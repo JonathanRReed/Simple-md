@@ -8,6 +8,7 @@ export interface TabRow {
   title: string;
   dirty: boolean;
   selected: boolean;
+  pinned: boolean;
   pane: "left" | "right" | "top" | "bottom" | null;
 }
 export function tabRows(layout: TabLayoutState, names: (TabName & { dirty: boolean })[]): TabRow[] {
@@ -17,7 +18,7 @@ export function tabRows(layout: TabLayoutState, names: (TabName & { dirty: boole
     const paneIndex = layout.panes.findIndex(pane => pane.documentId === id);
     const pane = layout.panes.length !== 2 || paneIndex < 0 ? null
       : layout.axis === "horizontal" ? paneIndex === 0 ? "left" : "right" : paneIndex === 0 ? "top" : "bottom";
-    return { id, label: tabLabel(name, names), title: name.path ?? "Untitled", dirty: name.dirty, selected: id === active, pane };
+    return { id, label: tabLabel(name, names), title: name.path ?? "Untitled", dirty: name.dirty, selected: id === active, pinned: layout.pinned?.includes(id) ?? false, pane };
   });
 }
 export function tabNavigationIndex(key: string, current: number, count: number, style: Settings["tabStyle"]): number | undefined {

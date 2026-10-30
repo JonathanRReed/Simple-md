@@ -34,6 +34,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `tab-style` | `top` | top, sidebar |
 | `sidebar-width` | `220` | 160 to 420 |
 | `sidebar-collapsed` | `false` | true, false |
+| `zen-mode` | `false` | true, false |
 | `autosave` | `true` | true, false |
 | `vim` | `false` | true, false |
 | `spellcheck` | `true` | true, false |
@@ -48,9 +49,11 @@ Open Quickly uses Command/Control-Shift-O. Tab cycles This repo and Everywhere; 
 
 Open Quickly searches tabs and recents immediately, then queries Git on demand. Outside a repository it walks the active document's folder, up to six levels and 20,000 entries, skipping hidden directories, node_modules and symlinks. Everywhere also queries Spotlight on macOS or an existing plocate/locate database on Linux. Windows currently searches tabs, recents and the repository or folder only. Missing Linux search tools leave those same sources available. Nothing starts a crawler or writes an index. Closing the finder cancels searches and clears its file list. Search processes have a 10-second timeout and an 8 MB output cap; the picker shows at most 200 results. Machine results exclude Library, app bundles and cache directories.
 
+View > Zen Mode uses Command-Shift-J on macOS and Control-Shift-J elsewhere. zen-mode saves the choice. The top edge reveals controls without shifting the document. Pinned files and their order live in settings.json, not this config. Only existing pinned files reopen on launch.
+
 Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
 
-On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
+On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, pinned paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
 
 ## Example
 
@@ -78,6 +81,7 @@ open-in = tab
 tab-style = top
 sidebar-width = 220
 sidebar-collapsed = false
+zen-mode = false
 autosave = true
 vim = false
 spellcheck = true

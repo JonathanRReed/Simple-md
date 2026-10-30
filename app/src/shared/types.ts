@@ -40,11 +40,12 @@ export interface Settings extends UserSettings {
   width: ReadingWidth;
   typeface: Typeface;
   recents: string[];
+  pinnedPaths: string[];
   bounds?: { x: number; y: number; width: number; height: number };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  ...configDefaults, zoom: 1, width: "normal", typeface: "serif", recents: [],
+  ...configDefaults, zoom: 1, width: "normal", typeface: "serif", recents: [], pinnedPaths: [],
 };
 
 export const ZOOM_MIN = 0.7;
@@ -95,6 +96,9 @@ export interface SaveResult {
 
 export type Command =
   | "open-quickly"
+  | "toggle-zen"
+  | "toggle-pin-tab"
+  | "close-pinned-tab"
   | "toggle-tab-sidebar"
   | "mark-seen"
   | "toggle-head-changes"

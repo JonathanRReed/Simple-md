@@ -24,6 +24,8 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let edited = "";
   const setSettings = async (patch: Partial<Settings>) => { writes.push(patch); settings = { ...settings, ...patch }; onSettings!(settings); };
   Object.assign(window, { simplemd: {
+    setChromeVisible() {},
+    moveTab: async () => {},
     ready: async () => ({ settings, platform: "darwin", accent: "#0055aa" }),
     onContextMenu() {}, onNavigate() {}, onClosed() {}, onSaved() {}, onDiskChanged() {}, onTransition() {}, onFlushRequest() {},
     onSettings(cb: typeof onSettings) { onSettings = cb; }, onCommand(cb: typeof onCommand) { onCommand = cb; },
@@ -65,11 +67,11 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert(document.querySelector(".tb-title")!.textContent === "README.md" && document.title === "README.md", "Sidebar lost the active title");
   assert(getComputedStyle(row(a).querySelector(".tab-name-start")!).textOverflow === "ellipsis", "Sidebar lost middle truncation");
   await setSettings({ theme: "light" });
-  const light = getComputedStyle(strip).backgroundColor;
+  const light = getComputedStyle(document.body).backgroundColor;
   await setSettings({ theme: "dark" });
-  assert(getComputedStyle(strip).backgroundColor !== light, "Sidebar ignored dark appearance");
+  assert(getComputedStyle(document.body).backgroundColor !== light, "Sidebar ignored dark appearance");
   document.body.dataset.platform = "linux";
-  assert(!getComputedStyle(strip).backgroundColor.startsWith("rgba"), "Linux sidebar is translucent");
+  assert(!getComputedStyle(document.body).backgroundColor.startsWith("rgba"), "Linux sidebar is translucent");
   document.body.dataset.platform = "darwin";
   row(a).focus(); key(row(a), "ArrowDown");
   await until(() => ready.has(b) && row(b).getAttribute("aria-selected") === "true", "Down did not activate the next tab");
@@ -138,6 +140,12 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert(row(a).getAttribute("aria-label")!.includes("right pane"), "Pane marker is not accessible");
   layout = { ...layout, axis: "vertical" }; onLayout!(layout);
   await until(() => row(b).dataset.pane === "top", "Stacked panes have incorrect sidebar markers");
+  layout = { ...layout, tabs: [b, a], pinned: [b] }; onLayout!(layout);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "2", metaKey: true, bubbles: true, cancelable: true }));
+  await until(() => row(a).getAttribute("aria-selected") === "true", "Command-2 did not count pinned tabs first");
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true, cancelable: true }));
+  await until(() => row(b).getAttribute("aria-selected") === "true", "Command-1 did not select the first pin");
+  assert(row(b).getAttribute("aria-label")!.includes("pinned"), "Pin state is not accessible");
   layout = { tabs: [b], panes: [{ paneId: p0, documentId: b }], activePane: p0, axis: "horizontal" }; onLayout!(layout);
   await until(() => strip.children.length === 1, "Closed tab row remains");
   assert(!strip.hidden, "Sidebar hides a single open tab");

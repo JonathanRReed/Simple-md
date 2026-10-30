@@ -15,6 +15,7 @@ export interface MenuActions {
   clearRecents(): void;
   share(): void;
   hasDocumentPath(): boolean;
+  tabPinned(): boolean;
   quit(): void;
   installCli(): void;
 }
@@ -125,6 +126,9 @@ export function buildMenu(a: MenuActions): void {
     {
       label: "View",
       submenu: [
+        { ...cmd("Zen Mode", "toggle-zen", "CommandOrControl+Shift+J"), type: "checkbox", checked: s.zenMode },
+        { ...cmd(a.tabPinned() ? "Unpin Tab" : "Pin Tab", "toggle-pin-tab"), enabled: a.hasDocumentPath() },
+        { ...cmd("Close Pinned Tab", "close-pinned-tab"), enabled: a.tabPinned() },
         cmd(s.tabStyle === "sidebar" && !s.sidebarCollapsed ? "Hide Tab Sidebar" : "Show Tab Sidebar", "toggle-tab-sidebar", mac ? "Control+Command+S" : "Control+Alt+S"),
         cmd("Split Side by Side", "split-panes", "CommandOrControl+\\"),
         cmd("Split Stacked", "stack-panes", "CommandOrControl+Shift+\\"),

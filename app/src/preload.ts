@@ -13,6 +13,8 @@ const renderStates = new Map<DocumentId, RenderedBlock[]>();
 const viewGenerations = new Map<DocumentId, number>();
 
 contextBridge.exposeInMainWorld("simplemd", {
+  setChromeVisible: (visible: boolean) => ipcRenderer.send("smd:chrome-visible", visible),
+  moveTab: (id: DocumentId, pinned: boolean, before?: DocumentId) => ipcRenderer.invoke("smd:move-tab", id, pinned, before),
   ready: async () => {
     const ready = await ipcRenderer.invoke("smd:ready");
     performanceTracing = ready.performanceTracing === true;

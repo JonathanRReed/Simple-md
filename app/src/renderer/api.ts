@@ -4,6 +4,8 @@ import { type RenderedHtml } from "../shared/render-tree.js";
 import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
+  setChromeVisible(visible: boolean): void;
+  moveTab(id: DocumentId, pinned: boolean, before?: DocumentId): Promise<void>;
   readFindText(): Promise<string>;
   writeFindText(text: string): Promise<void>;
   onContextMenu(cb: (context: import("../shared/native-context.js").NativeContext) => void): void;
