@@ -13,15 +13,15 @@ use std::{
 };
 
 use webview2_com::{
-    ExecuteScriptCompletedHandler, Microsoft::Web::WebView2::Win32::*,
-    NavigationCompletedEventHandler, NavigationStartingEventHandler,
-    NewWindowRequestedEventHandler, ProcessFailedEventHandler, WebMessageReceivedEventHandler,
-    WebResourceRequestedEventHandler,
+    AcceleratorKeyPressedEventHandler, ExecuteScriptCompletedHandler,
+    Microsoft::Web::WebView2::Win32::*, NavigationCompletedEventHandler,
+    NavigationStartingEventHandler, NewWindowRequestedEventHandler, ProcessFailedEventHandler,
+    WebMessageReceivedEventHandler, WebResourceRequestedEventHandler,
 };
 use windows::{
     Win32::{
         Foundation::*,
-        Graphics::Gdi::{ANSI_FIXED_FONT, GetStockObject},
+        Graphics::Gdi::*,
         Security::{
             GetSidSubAuthority, GetSidSubAuthorityCount, GetTokenInformation,
             TOKEN_MANDATORY_LABEL, TOKEN_QUERY, TokenIntegrityLevel,
@@ -30,13 +30,18 @@ use windows::{
             Com::*,
             Ole::{IObjectWithSite, IObjectWithSite_Impl, IOleWindow, IOleWindow_Impl},
             SystemInformation::GetSystemTime,
-            Threading::{GetCurrentProcess, GetCurrentThreadId, OpenProcessToken},
+            Threading::{
+                GetCurrentProcess, GetCurrentThreadId, OpenProcess, OpenProcessToken,
+                PROCESS_QUERY_LIMITED_INFORMATION,
+            },
         },
         UI::{
+            HiDpi::GetDpiForWindow,
             Input::KeyboardAndMouse::{GetFocus, SetFocus},
             Shell::{
-                FOLDERID_LocalAppDataLow, IPreviewHandler, IPreviewHandler_Impl,
-                IPreviewHandlerFrame, KF_FLAG_DEFAULT, PropertiesSystem::*, SHGetKnownFolderPath,
+                DefSubclassProc, FOLDERID_LocalAppDataLow, IPreviewHandler, IPreviewHandler_Impl,
+                IPreviewHandlerFrame, KF_FLAG_DEFAULT, PropertiesSystem::*, RemoveWindowSubclass,
+                SHGetKnownFolderPath, SetWindowSubclass,
             },
             WindowsAndMessaging::*,
         },
@@ -48,7 +53,10 @@ use windows::{
 };
 use windows_core::IUnknownImpl;
 
-use crate::content::{Generation, INPUT_LIMIT, Input, fallback_text, read_bounded, render_script};
+use crate::content::{
+    Generation, HTML_LIMIT, INPUT_LIMIT, Input, can_render, fallback_text, read_bounded,
+    render_script,
+};
 
 const RENDER_CORE: &str = include_str!("../render-core.js");
 
@@ -84,13 +92,16 @@ fn low_root() -> Result<PathBuf> {
 
 fn log(message: &str) {
     // A failed logger must never panic across a COM boundary. Install creates and
-    // labels this directory; do not fall back to a medium-integrity location.
+    // inherits the LocalLow label for this directory; do not fall back to a medium-integrity location.
     let Ok(root) = low_root() else { return };
     if let Ok(mut file) = OpenOptions::new()
         .create(true)
         .append(true)
         .open(root.join("preview.log"))
     {
+        if file.metadata().is_ok_and(|m| m.len() >= 1024 * 1024) {
+            let _ = file.set_len(0);
+        }
         let t = unsafe { GetSystemTime() };
         let line = format!(
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z pid={} tid={} {message}\n",
@@ -166,19 +177,348 @@ fn log_integrity() -> Result<()> {
     }
 }
 
+// Each STA caches its COM environment and an empty, hidden WebView. The empty
+// controller keeps the shared browser alive between selections in this process.
+// A lease pins the DLL until the host STA exits, including its window procedure.
+#[derive(Default)]
+struct Host {
+    environment: Option<ICoreWebView2Environment>,
+    keeper: Option<ICoreWebView2Controller>,
+    window: HWND,
+    waiting: Vec<(Weak<State>, u64)>,
+    _lease: Option<ModuleLease>,
+}
+impl Drop for Host {
+    fn drop(&mut self) {
+        if let Some(controller) = self.keeper.take() {
+            let _ = unsafe { controller.Close() };
+        }
+        self.environment.take();
+        if !self.window.is_invalid() {
+            let _ = unsafe { DestroyWindow(self.window) };
+        }
+    }
+}
+thread_local! { static HOST: RefCell<Option<Host>> = const { RefCell::new(None) }; }
+
+fn user_data() -> Result<PathBuf> {
+    let root = low_root()?.join("UserData");
+    fs::create_dir_all(&root).map_err(|e| Error::new(E_FAIL, e.to_string()))?;
+    // Older builds used PID-handler-generation directories. Never remove a live
+    // PID's data, including access-denied PIDs. Rust removes directory links as links.
+    if let Ok(entries) = fs::read_dir(&root) {
+        for entry in entries.flatten() {
+            if let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.split('-').next())
+                .and_then(|pid| pid.parse::<u32>().ok())
+                && pid != 0
+                && pid != std::process::id()
+            {
+                let dead = unsafe {
+                    match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+                        Ok(process) => {
+                            let mut code = 259;
+                            let dead = windows::Win32::System::Threading::GetExitCodeProcess(
+                                process, &mut code,
+                            )
+                            .is_ok()
+                                && code != 259;
+                            let _ = CloseHandle(process);
+                            dead
+                        }
+                        Err(error) => {
+                            error.code() == HRESULT::from_win32(ERROR_INVALID_PARAMETER.0)
+                        }
+                    }
+                };
+                if dead {
+                    cleanup(&entry.path());
+                }
+            }
+        }
+    }
+    let path = root.join(std::process::id().to_string());
+    fs::create_dir_all(&path).map_err(|e| Error::new(E_FAIL, e.to_string()))?;
+    Ok(path)
+}
+
+fn host_start(state: &Rc<State>, generation: u64) -> Result<()> {
+    let environment = HOST.with(|host| {
+        host.borrow()
+            .as_ref()
+            .filter(|host| host.keeper.is_some())
+            .and_then(|host| host.environment.clone())
+    });
+    if let Some(environment) = environment {
+        state.create_controller(generation, &environment);
+        return Ok(());
+    }
+    let starting = HOST.with(|host| {
+        let mut host = host.borrow_mut();
+        let starting = host.is_some();
+        host.get_or_insert_with(Host::default)
+            .waiting
+            .push((Rc::downgrade(state), generation));
+        starting
+    });
+    if starting {
+        return Ok(());
+    }
+    let result = (|| {
+        let data = user_data()?;
+        log(&format!("WebView2 host user data: {}", data.display()));
+        let window = unsafe {
+            CreateWindowExW(
+                WINDOW_EX_STYLE::default(),
+                w!("STATIC"),
+                w!(""),
+                WINDOW_STYLE::default(),
+                0,
+                0,
+                0,
+                0,
+                Some(HWND_MESSAGE),
+                None,
+                None,
+                None,
+            )
+        }?;
+        HOST.with(|host| {
+            let mut host = host.borrow_mut();
+            let host = host.as_mut().unwrap();
+            host.window = window;
+            host._lease = Some(ModuleLease::new());
+        });
+        let callback: ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler = HostStartup {
+            _lease: ModuleLease::new(),
+        }
+        .into();
+        // No sandbox flags, browser arguments or nested message pump.
+        unsafe {
+            CreateCoreWebView2EnvironmentWithOptions(
+                PCWSTR::null(),
+                &HSTRING::from(data.as_os_str()),
+                None,
+                &callback,
+            )
+        }
+    })();
+    if result.is_err() {
+        host_ready(false);
+    }
+    result
+}
+
+fn host_ready(success: bool) {
+    let (environment, waiting, rejected) = HOST.with(|host| {
+        let mut host = host.borrow_mut();
+        if success {
+            let host = host.as_mut().unwrap();
+            (
+                host.environment.clone(),
+                std::mem::take(&mut host.waiting),
+                None,
+            )
+        } else {
+            let mut rejected = host.take().unwrap_or_default();
+            (None, std::mem::take(&mut rejected.waiting), Some(rejected))
+        }
+    });
+    drop(rejected);
+    for (state, generation) in waiting {
+        if let Some(state) = state.upgrade().filter(|s| s.current(generation)) {
+            if let Some(environment) = &environment {
+                state.create_controller(generation, environment);
+            } else {
+                state.fallback(generation, "WebView2 host startup failed");
+            }
+        }
+    }
+}
+
+#[implement(
+    ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
+    ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
+    Agile = false
+)]
+struct HostStartup {
+    _lease: ModuleLease,
+}
+impl ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for HostStartup_Impl {
+    fn Invoke(&self, hr: HRESULT, environment: Ref<ICoreWebView2Environment>) -> Result<()> {
+        let result = (|| {
+            hr.ok()?;
+            let environment = environment.as_ref().ok_or_else(|| Error::from(E_POINTER))?;
+            let window = HOST.with(|host| {
+                let mut host = host.borrow_mut();
+                let host = host.as_mut().unwrap();
+                host.environment = Some(environment.clone());
+                host.window
+            });
+            let mut version = PWSTR::null();
+            unsafe {
+                environment.BrowserVersionString(&mut version)?;
+                log(&format!(
+                    "WebView2 runtime: {}",
+                    version.to_string().unwrap_or_default()
+                ));
+                CoTaskMemFree(Some(version.0.cast()));
+                environment.CreateCoreWebView2Controller(
+                    window,
+                    &self
+                        .to_interface::<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                        ),
+                )
+            }
+        })();
+        if record("Host environment", result).is_err() {
+            host_ready(false);
+        }
+        Ok(())
+    }
+}
+impl ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl for HostStartup_Impl {
+    fn Invoke(&self, hr: HRESULT, controller: Ref<ICoreWebView2Controller>) -> Result<()> {
+        let result = (|| {
+            hr.ok()?;
+            let controller = controller.as_ref().ok_or_else(|| Error::from(E_POINTER))?;
+            // This empty control never receives author content or focus.
+            unsafe {
+                controller.SetIsVisible(false)?;
+                let settings = controller.CoreWebView2()?.Settings()?;
+                settings.SetIsScriptEnabled(false)?;
+                settings.SetIsWebMessageEnabled(false)?;
+                settings.SetAreHostObjectsAllowed(false)?;
+                settings.SetAreDevToolsEnabled(false)?;
+                settings
+                    .cast::<ICoreWebView2Settings3>()?
+                    .SetAreBrowserAcceleratorKeysEnabled(false)?;
+            }
+            HOST.with(|host| host.borrow_mut().as_mut().unwrap().keeper = Some(controller.clone()));
+            Ok(())
+        })();
+        let success = record("Host browser", result).is_ok();
+        if !success && let Some(controller) = controller.as_ref() {
+            let _ = unsafe { controller.Close() };
+        }
+        host_ready(success);
+        Ok(())
+    }
+}
+
+struct Container {
+    state: Weak<State>,
+    _lease: ModuleLease,
+}
+unsafe extern "system" fn container_proc(
+    hwnd: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    id: usize,
+    data: usize,
+) -> LRESULT {
+    let context = unsafe { &*(data as *const Container) };
+    if message == WM_NCDESTROY {
+        let _ = unsafe { RemoveWindowSubclass(hwnd, Some(container_proc), id) };
+        let result = unsafe { DefSubclassProc(hwnd, message, wparam, lparam) };
+        unsafe {
+            drop(Box::from_raw(data as *mut Container));
+        }
+        return result;
+    }
+    if message == WM_TIMER {
+        preview_timer(wparam.0);
+        return LRESULT(0);
+    }
+    if matches!(message, WM_SIZE | WM_DPICHANGED | WM_DPICHANGED_AFTERPARENT)
+        && let Some(state) = context.state.upgrade()
+    {
+        let _ = record("Preview layout", layout(&state));
+    }
+    unsafe { DefSubclassProc(hwnd, message, wparam, lparam) }
+}
+
+fn layout(state: &State) -> Result<()> {
+    let (child, source, controller, dpi) = {
+        let r = state.resources.borrow();
+        (r.child, r.source, r.controller.clone(), r.dpi)
+    };
+    if child.is_invalid() {
+        return Ok(());
+    }
+    unsafe {
+        let mut rect = RECT::default();
+        GetClientRect(child, &mut rect)?;
+        SetWindowPos(
+            source,
+            None,
+            0,
+            0,
+            rect.right,
+            rect.bottom,
+            SWP_NOZORDER | SWP_NOACTIVATE,
+        )?;
+        let current_dpi = GetDpiForWindow(child).max(96);
+        if current_dpi != dpi {
+            // The font mapper substitutes a modern fixed-pitch system face when
+            // Consolas is unavailable. A positive FIXED_PITCH requests monospace.
+            let font = CreateFontW(
+                -(((11 * current_dpi + 36) / 72) as i32),
+                0,
+                0,
+                0,
+                FW_NORMAL.0 as i32,
+                0,
+                0,
+                0,
+                DEFAULT_CHARSET,
+                OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS,
+                CLEARTYPE_QUALITY,
+                (FIXED_PITCH.0 | FF_MODERN.0) as u32,
+                w!("Consolas"),
+            );
+            if font.is_invalid() {
+                return Err(E_FAIL.into());
+            }
+            let old = {
+                let mut r = state.resources.borrow_mut();
+                r.dpi = current_dpi;
+                std::mem::replace(&mut r.font, font)
+            };
+            SendMessageW(
+                source,
+                WM_SETFONT,
+                Some(WPARAM(font.0 as usize)),
+                Some(LPARAM(1)),
+            );
+            if !old.is_invalid() {
+                let _ = DeleteObject(old.into());
+            }
+        }
+        if let Some(controller) = controller {
+            controller.SetBounds(rect)?;
+        }
+    }
+    Ok(())
+}
+
 #[derive(Default)]
 struct Resources {
     input: Option<Input>,
-    mode: u32,
     site: Option<IUnknown>,
     frame: Option<IPreviewHandlerFrame>,
     child: HWND,
-    rect: RECT,
+    source: HWND,
+    font: HFONT,
+    dpi: u32,
     controller: Option<ICoreWebView2Controller>,
     timer: usize,
     rendered: bool,
     expected_navigation: bool,
-    data: Option<PathBuf>,
     started: bool,
 }
 impl Resources {
@@ -191,8 +531,8 @@ impl Resources {
         if !self.child.is_invalid() {
             let _ = record("DestroyWindow", unsafe { DestroyWindow(self.child) });
         }
-        if let Some(data) = &self.data {
-            cleanup(data);
+        if !self.font.is_invalid() {
+            let _ = unsafe { DeleteObject(self.font.into()) };
         }
         // All COM references, including the input stream and site, drop here.
     }
@@ -206,11 +546,6 @@ struct State {
 }
 impl State {
     fn check_thread(&self, step: &str) -> Result<()> {
-        log(&format!(
-            "handler={} generation={} {step}",
-            self.id,
-            self.generation.get()
-        ));
         record(
             step,
             if unsafe { GetCurrentThreadId() } == self.owner {
@@ -255,12 +590,6 @@ fn cancel_timer(timer: usize) {
     let pending = TIMERS.with(|timers| timers.borrow_mut().remove(&timer));
     if let Some(pending) = pending {
         let _ = unsafe { KillTimer(Some(pending.child), timer) };
-        // KillTimer leaves posted WM_TIMER messages behind. Drain only our private
-        // source HWND before releasing the callback's DLL lease.
-        let mut msg = MSG::default();
-        while unsafe { PeekMessageW(&mut msg, Some(pending.child), WM_TIMER, WM_TIMER, PM_REMOVE) }
-            .as_bool()
-        {}
     }
 }
 fn schedule(state: &Rc<State>, generation: u64, work: PendingWork, delay: u32) -> bool {
@@ -270,7 +599,7 @@ fn schedule(state: &Rc<State>, generation: u64, work: PendingWork, delay: u32) -
             Some(child),
             NEXT_ID.fetch_add(1, Ordering::Relaxed),
             delay,
-            Some(preview_timer),
+            None,
         )
     };
     if timer == 0 {
@@ -291,7 +620,7 @@ fn schedule(state: &Rc<State>, generation: u64, work: PendingWork, delay: u32) -
     state.resources.borrow_mut().timer = timer;
     true
 }
-unsafe extern "system" fn preview_timer(_: HWND, _: u32, timer: usize, _: u32) {
+fn preview_timer(timer: usize) {
     let pending = TIMERS.with(|timers| timers.borrow_mut().remove(&timer));
     if let Some(pending) = pending {
         let _ = unsafe { KillTimer(Some(pending.child), timer) };
@@ -319,44 +648,27 @@ unsafe extern "system" fn preview_timer(_: HWND, _: u32, timer: usize, _: u32) {
 }
 impl State {
     fn start(self: &Rc<Self>, generation: u64) {
-        let data = match low_root().and_then(|root| {
-            let data = root.join("UserData").join(format!(
-                "{}-{}-{generation}",
-                std::process::id(),
-                self.id
-            ));
-            fs::create_dir_all(&data).map_err(|e| Error::new(E_FAIL, e.to_string()))?;
-            Ok(data)
-        }) {
-            Ok(data) => data,
-            Err(error) => {
-                self.fallback(generation, &format!("User data: {error}"));
-                return;
-            }
-        };
+        let result = host_start(self, generation);
+        if let Err(error) = result {
+            self.fallback(generation, &format!("Environment startup: {error}"));
+        }
+    }
+
+    fn create_controller(self: &Rc<Self>, generation: u64, environment: &ICoreWebView2Environment) {
         if !self.current(generation) {
-            cleanup(&data);
             return;
         }
-        log(&format!("WebView2 user data: {}", data.display()));
-        self.resources.borrow_mut().data = Some(data.clone());
-        let callback: ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler = Startup {
+        let child = self.resources.borrow().child;
+        let callback: ICoreWebView2CreateCoreWebView2ControllerCompletedHandler = Startup {
             state: Rc::downgrade(self),
             generation,
-            data: data.clone(),
             _lease: ModuleLease::new(),
         }
         .into();
-        // No sandbox flags, custom browser arguments, or nested message pump.
-        if let Err(error) = record("CreateCoreWebView2EnvironmentWithOptions", unsafe {
-            CreateCoreWebView2EnvironmentWithOptions(
-                PCWSTR::null(),
-                &HSTRING::from(data.as_os_str()),
-                None,
-                &callback,
-            )
+        if let Err(error) = record("Create controller", unsafe {
+            environment.CreateCoreWebView2Controller(child, &callback)
         }) {
-            self.fallback(generation, &format!("Environment startup: {error}"));
+            self.fallback(generation, &format!("Create controller: {error}"));
         }
     }
 
@@ -367,21 +679,15 @@ impl State {
         log(&format!("Native fallback: {reason}"));
         // Cancel all outstanding startup/render callbacks but retain the source control.
         self.generation.cancel();
-        let (controller, data, timer) = {
+        let (controller, source, timer) = {
             let mut r = self.resources.borrow_mut();
-            (
-                r.controller.take(),
-                r.data.take(),
-                std::mem::take(&mut r.timer),
-            )
+            (r.controller.take(), r.source, std::mem::take(&mut r.timer))
         };
         cancel_timer(timer);
         if let Some(controller) = controller {
             let _ = record("Fallback Close", unsafe { controller.Close() });
         }
-        if let Some(data) = data {
-            cleanup(&data);
-        }
+        let _ = unsafe { ShowWindow(source, SW_SHOWNA) };
     }
 }
 
@@ -434,7 +740,6 @@ impl IInitializeWithStream_Impl for Preview_Impl {
                 }
                 let mut r = self.state.resources.borrow_mut();
                 r.input = Some(input);
-                r.mode = mode;
                 drop(r);
                 log(&format!(
                     "Initialize mode=0x{mode:08X}, read limit={INPUT_LIMIT}"
@@ -506,10 +811,9 @@ fn rect_from_ptr(rect: *const RECT) -> Result<RECT> {
 
 impl Preview_Impl {
     fn resize(&self, rect: RECT) -> Result<()> {
-        let (child, controller) = {
-            let mut r = self.state.resources.borrow_mut();
-            r.rect = rect;
-            (r.child, r.controller.clone())
+        let child = {
+            let r = self.state.resources.borrow();
+            r.child
         };
         let width = rect.right - rect.left;
         let height = rect.bottom - rect.top;
@@ -526,16 +830,7 @@ impl Preview_Impl {
                 )
             })?;
         }
-        if let Some(controller) = controller {
-            record("Controller.SetBounds", unsafe {
-                controller.SetBounds(RECT {
-                    left: 0,
-                    top: 0,
-                    right: width,
-                    bottom: height,
-                })
-            })?;
-        }
+        layout(&self.state)?;
         Ok(())
     }
 }
@@ -553,21 +848,12 @@ impl IPreviewHandler_Impl for Preview_Impl {
                 let generation = self.state.generation.get();
                 let child = self.state.resources.borrow().child;
                 if child.is_invalid() {
-                    // A built-in class needs no DLL WndProc and cannot outlive our code.
                     let child = unsafe {
                         CreateWindowExW(
                             WINDOW_EX_STYLE::default(),
-                            w!("EDIT"),
+                            w!("STATIC"),
                             w!(""),
-                            WS_CHILD
-                                | WS_VISIBLE
-                                | WS_CLIPCHILDREN
-                                | WS_VSCROLL
-                                | WS_HSCROLL
-                                | WINDOW_STYLE(
-                                    (ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL | ES_AUTOVSCROLL)
-                                        as u32,
-                                ),
+                            WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
                             rect.left,
                             rect.top,
                             rect.right - rect.left,
@@ -578,19 +864,58 @@ impl IPreviewHandler_Impl for Preview_Impl {
                             None,
                         )
                     }?;
+                    let source = match unsafe {
+                        CreateWindowExW(
+                            WINDOW_EX_STYLE::default(),
+                            w!("EDIT"),
+                            w!(""),
+                            WS_CHILD
+                                | WS_VISIBLE
+                                | WS_VSCROLL
+                                | WS_HSCROLL
+                                | WINDOW_STYLE(
+                                    (ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL | ES_AUTOVSCROLL)
+                                        as u32,
+                                ),
+                            0,
+                            0,
+                            0,
+                            0,
+                            Some(child),
+                            None,
+                            None,
+                            None,
+                        )
+                    } {
+                        Ok(source) => source,
+                        Err(error) => {
+                            let _ = unsafe { DestroyWindow(child) };
+                            return Err(error);
+                        }
+                    };
                     if !self.state.current(generation) {
-                        let _ = record("Destroy stale child", unsafe { DestroyWindow(child) });
+                        let _ = unsafe { DestroyWindow(child) };
                         return Err(E_ABORT.into());
                     }
-                    unsafe {
-                        SendMessageW(
-                            child,
-                            WM_SETFONT,
-                            Some(WPARAM(GetStockObject(ANSI_FIXED_FONT).0 as usize)),
-                            Some(LPARAM(1)),
-                        );
+                    let context = Box::new(Container {
+                        state: Rc::downgrade(&self.state),
+                        _lease: ModuleLease::new(),
+                    });
+                    let context = Box::into_raw(context);
+                    if !unsafe {
+                        SetWindowSubclass(child, Some(container_proc), 1, context as usize)
                     }
-                    self.state.resources.borrow_mut().child = child;
+                    .as_bool()
+                    {
+                        unsafe {
+                            drop(Box::from_raw(context));
+                            let _ = DestroyWindow(child);
+                        }
+                        return Err(E_FAIL.into());
+                    }
+                    let mut r = self.state.resources.borrow_mut();
+                    r.child = child;
+                    r.source = source;
                 } else {
                     unsafe { SetParent(child, Some(parent)) }?;
                 }
@@ -613,25 +938,27 @@ impl IPreviewHandler_Impl for Preview_Impl {
             "DoPreview",
             (|| {
                 let generation = self.state.generation.get();
-                let child = {
+                {
                     let r = self.state.resources.borrow();
                     if r.started || r.child.is_invalid() || r.input.is_none() {
                         return Err(E_UNEXPECTED.into());
                     }
-                    r.child
-                };
+                }
+                let source = self.state.resources.borrow().source;
                 let text = fallback_text(self.state.resources.borrow().input.as_ref().unwrap());
                 record("Set fallback text", unsafe {
-                    SetWindowTextW(child, &HSTRING::from(text))
+                    SetWindowTextW(source, &HSTRING::from(text))
                 })?;
                 if !self.state.current(generation) {
                     return Err(E_ABORT.into());
                 }
                 self.state.resources.borrow_mut().started = true;
-                log(&format!(
-                    "Native source visible while WebView2 starts; mode=0x{:08X}",
-                    self.state.resources.borrow().mode
-                ));
+                if !can_render(self.state.resources.borrow().input.as_ref().unwrap()) {
+                    self.state
+                        .fallback(generation, "Input exceeds static preview size limit");
+                    return Ok(());
+                }
+                log("Native source visible while WebView2 starts");
                 // Return before loading WebView2 or touching its profile. The private
                 // timer dispatches that work on this STA after the host resumes its loop.
                 if !schedule(&self.state, generation, PendingWork::Start, 1) {
@@ -651,14 +978,17 @@ impl IPreviewHandler_Impl for Preview_Impl {
 
     fn SetFocus(&self) -> Result<()> {
         self.state.check_thread("SetFocus")?;
-        let controller = self.state.resources.borrow().controller.clone();
+        let controller = {
+            let r = self.state.resources.borrow();
+            r.controller.clone().filter(|_| r.rendered && r.timer == 0)
+        };
         record(
             "SetFocus",
             if let Some(controller) = controller {
                 unsafe { controller.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC) }
             } else {
-                let child = self.state.resources.borrow().child;
-                unsafe { SetFocus(Some(child)) }.map(|_| ())
+                let source = self.state.resources.borrow().source;
+                unsafe { SetFocus(Some(source)) }.map(|_| ())
             },
         )
     }
@@ -719,14 +1049,12 @@ impl IOleWindow_Impl for Preview_Impl {
 }
 
 #[implement(
-    ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
     Agile = false
 )]
 struct Startup {
     state: Weak<State>,
     generation: u64,
-    data: PathBuf,
     _lease: ModuleLease,
 }
 impl Startup_Impl {
@@ -743,57 +1071,12 @@ impl Startup_Impl {
         Ok(Some(state))
     }
 }
-impl ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for Startup_Impl {
-    fn Invoke(&self, hr: HRESULT, environment: Ref<ICoreWebView2Environment>) -> Result<()> {
-        // Log failures even when the selection has already changed.
-        if let Err(error) = record("Environment completed", hr.ok()) {
-            if let Some(state) = self.current("Environment failed")? {
-                state.fallback(self.generation, &format!("Environment callback: {error}"));
-            }
-            cleanup(&self.data);
-            return Ok(());
-        }
-        let Some(state) = self.current("Environment completed")? else {
-            cleanup(&self.data);
-            return Ok(());
-        };
-        let result = record(
-            "Environment callback",
-            (|| {
-                let environment = environment.as_ref().ok_or_else(|| Error::from(E_POINTER))?;
-                let mut version = PWSTR::null();
-                record("BrowserVersionString", unsafe {
-                    environment.BrowserVersionString(&mut version)
-                })?;
-                unsafe {
-                    log(&format!(
-                        "WebView2 runtime: {}",
-                        version.to_string().unwrap_or_default()
-                    ));
-                    CoTaskMemFree(Some(version.0.cast()));
-                }
-                if !state.current(self.generation) {
-                    return Err(E_ABORT.into());
-                }
-                let child = state.resources.borrow().child;
-                let callback = self
-                    .to_interface::<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>();
-                unsafe { environment.CreateCoreWebView2Controller(child, &callback) }
-            })(),
-        );
-        if let Err(error) = result {
-            state.fallback(self.generation, &format!("Create controller: {error}"));
-        }
-        Ok(())
-    }
-}
 impl ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl for Startup_Impl {
     fn Invoke(&self, hr: HRESULT, controller: Ref<ICoreWebView2Controller>) -> Result<()> {
         if let Err(error) = record("Controller completed", hr.ok()) {
             if let Some(state) = self.current("Controller failed")? {
                 state.fallback(self.generation, &format!("Controller callback: {error}"));
             }
-            cleanup(&self.data);
             return Ok(());
         }
         let Some(controller) = controller.as_ref() else {
@@ -804,7 +1087,6 @@ impl ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl for Startup_
         };
         let Some(state) = self.current("Controller completed")? else {
             let _ = record("Close stale controller", unsafe { controller.Close() });
-            cleanup(&self.data);
             return Ok(());
         };
         state.resources.borrow_mut().controller = Some(controller.clone());
@@ -814,7 +1096,6 @@ impl ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl for Startup_
         );
         if result.is_err() || !state.current(self.generation) {
             let _ = record("Close rejected controller", unsafe { controller.Close() });
-            cleanup(&self.data);
             state.fallback(self.generation, "Controller configuration failed");
         }
         Ok(())
@@ -835,6 +1116,50 @@ fn configure(
         settings.SetAreDevToolsEnabled(false)?;
         settings.SetAreDefaultContextMenusEnabled(false)?;
         settings.SetAreDefaultScriptDialogsEnabled(false)?;
+        settings
+            .cast::<ICoreWebView2Settings3>()?
+            .SetAreBrowserAcceleratorKeysEnabled(false)?;
+        let lease = ModuleLease::new();
+        let weak = Rc::downgrade(state);
+        let mut accelerator_token = 0;
+        controller.add_AcceleratorKeyPressed(
+            &AcceleratorKeyPressedEventHandler::create(Box::new(move |_, args| {
+                let _keep_loaded = &lease;
+                let Some(state) = weak.upgrade().filter(|s| s.current(generation)) else {
+                    return Ok(());
+                };
+                let args = args.ok_or_else(|| Error::from(E_POINTER))?;
+                let mut kind = COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN;
+                let mut key = 0;
+                let mut lparam = 0;
+                args.KeyEventKind(&mut kind)?;
+                args.VirtualKey(&mut key)?;
+                args.KeyEventLParam(&mut lparam)?;
+                let frame = state.resources.borrow().frame.clone();
+                if let Some(frame) = frame {
+                    let message = MSG {
+                        hwnd: state.resources.borrow().child,
+                        message: match kind {
+                            COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN => WM_KEYDOWN,
+                            COREWEBVIEW2_KEY_EVENT_KIND_KEY_UP => WM_KEYUP,
+                            COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN => WM_SYSKEYDOWN,
+                            COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_UP => WM_SYSKEYUP,
+                            _ => return Ok(()),
+                        },
+                        wParam: WPARAM(key as usize),
+                        lParam: LPARAM(lparam as isize),
+                        ..Default::default()
+                    };
+                    let hr = (frame.vtable().TranslateAccelerator)(frame.as_raw(), &message);
+                    if hr.is_err() {
+                        record("Host accelerator", hr.ok())?;
+                    }
+                    args.SetHandled(hr == S_OK)?;
+                }
+                Ok(())
+            })),
+            &mut accelerator_token,
+        )?;
         view.AddWebResourceRequestedFilter(w!("*"), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL)?;
         let environment = view.cast::<ICoreWebView2_2>()?.Environment()?;
         let blocked_response = environment.CreateWebResourceResponse(
@@ -883,11 +1208,9 @@ fn configure(
                             std::mem::take(&mut state.resources.borrow_mut().expected_navigation);
                         let text = text?;
                         let blocked = !expected && !text.starts_with("about:blank#");
-                        log(if blocked {
-                            "Navigation blocked"
-                        } else {
-                            "Host document or fragment navigation"
-                        });
+                        if blocked {
+                            log("Navigation blocked");
+                        }
                         args.SetCancel(blocked)
                     })(),
                 )
@@ -965,6 +1288,8 @@ fn configure(
                         if let Some(controller) = controller {
                             controller.SetIsVisible(true)?;
                         }
+                        let source = state.resources.borrow().source;
+                        let _ = ShowWindow(source, SW_HIDE);
                         log("Static preview visible NavigationCompleted success=true");
                     }
                     Ok(())
@@ -1007,7 +1332,7 @@ fn configure(
                     if html.is_empty() {
                         return Err(Error::new(E_FAIL, "Static renderer returned no HTML"));
                     }
-                    if html.len() > 1_900_000 {
+                    if html.len() > HTML_LIMIT {
                         return Err(Error::new(E_FAIL, "Static HTML exceeds preview size limit"));
                     }
                     view.Settings()?.SetIsWebMessageEnabled(false)?;
@@ -1040,13 +1365,7 @@ fn configure(
             })),
             &mut token,
         )?;
-        let rect = state.resources.borrow().rect;
-        controller.SetBounds(RECT {
-            left: 0,
-            top: 0,
-            right: rect.right - rect.left,
-            bottom: rect.bottom - rect.top,
-        })?;
+        layout(state)?;
         if !state.current(generation) {
             return Err(E_ABORT.into());
         }
@@ -1069,7 +1388,6 @@ impl IClassFactory_Impl for Factory_Impl {
         iid: *const GUID,
         out: *mut *mut c_void,
     ) -> Result<()> {
-        log("Factory.CreateInstance");
         record(
             "Factory.CreateInstance",
             (|| {
@@ -1088,14 +1406,13 @@ impl IClassFactory_Impl for Factory_Impl {
                 let mut apartment = APTTYPE::default();
                 let mut qualifier = APTTYPEQUALIFIER::default();
                 unsafe { CoGetApartmentType(&mut apartment, &mut qualifier) }?;
-                log(&format!(
-                    "COM apartment={} qualifier={}",
-                    apartment.0, qualifier.0
-                ));
                 if apartment != APTTYPE_STA && apartment != APTTYPE_MAINSTA {
                     return Err(RPC_E_WRONG_THREAD.into());
                 }
-                let _ = record("Process integrity", log_integrity());
+                static STARTUP: std::sync::Once = std::sync::Once::new();
+                STARTUP.call_once(|| {
+                    let _ = record("Process integrity", log_integrity());
+                });
                 let handler: IPreviewHandler = Preview {
                     state: Rc::new(State {
                         owner: unsafe { GetCurrentThreadId() },
@@ -1111,7 +1428,6 @@ impl IClassFactory_Impl for Factory_Impl {
         )
     }
     fn LockServer(&self, lock: BOOL) -> Result<()> {
-        log(&format!("Factory.LockServer {}", lock.as_bool()));
         if lock.as_bool() {
             LOCKS.fetch_add(1, Ordering::SeqCst);
         } else {
@@ -1134,7 +1450,6 @@ pub unsafe extern "system" fn DllGetClassObject(
     iid: *const GUID,
     out: *mut *mut c_void,
 ) -> HRESULT {
-    log("DllGetClassObject");
     let result = (|| {
         if out.is_null() {
             return Err(E_POINTER.into());
@@ -1161,7 +1476,6 @@ pub unsafe extern "system" fn DllGetClassObject(
 pub extern "system" fn DllCanUnloadNow() -> HRESULT {
     let live = LIVE.load(Ordering::SeqCst);
     let locks = LOCKS.load(Ordering::SeqCst);
-    log(&format!("DllCanUnloadNow live={live} locks={locks}"));
     if live == 0 && locks == 0 {
         S_OK
     } else {
@@ -1189,6 +1503,13 @@ mod tests {
     fn com_contract_and_unload_allow_stream_reinitialization() -> Result<()> {
         unsafe {
             CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
+            let root = low_root()?;
+            fs::create_dir_all(&root).unwrap();
+            fs::write(root.join("preview.log"), vec![b'x'; 1024 * 1024]).unwrap();
+            log("Test: rotate full log");
+            assert!(fs::metadata(root.join("preview.log")).unwrap().len() < 1024);
+            let stale_profile = root.join("UserData/4294967295-1-0");
+            fs::create_dir_all(&stale_profile).unwrap();
             struct Apartment;
             impl Drop for Apartment {
                 fn drop(&mut self) {
@@ -1265,15 +1586,29 @@ mod tests {
             preview.SetWindow(parent, &rect)?;
             preview.DoPreview()?;
             let child = state.resources.borrow().child;
+            let source_control = state.resources.borrow().source;
+            assert_eq!(GetParent(source_control)?, child);
+            assert_eq!(
+                GetWindowLongW(child, GWL_STYLE) & (WS_VSCROLL | WS_HSCROLL).0 as i32,
+                0
+            );
             let mut text = [0u16; 256];
-            let count = GetWindowTextW(child, &mut text);
+            let count = GetWindowTextW(source_control, &mut text);
             assert_eq!(
                 String::from_utf16_lossy(&text[..count as usize]),
                 "# Hidden preview\r\n<script>inert</script>"
             );
-            assert_ne!(GetWindowLongW(child, GWL_STYLE) & ES_READONLY, 0);
+            assert_ne!(GetWindowLongW(source_control, GWL_STYLE) & ES_READONLY, 0);
             // DoPreview must not load the runtime or touch a browser profile synchronously.
-            assert!(state.resources.borrow().data.is_none());
+            assert!(HOST.with(|host| host.borrow().is_none()));
+            let log_size = fs::metadata(root.join("preview.log")).unwrap().len();
+            for _ in 0..100 {
+                state.check_thread("TranslateAccelerator")?;
+            }
+            assert_eq!(
+                fs::metadata(root.join("preview.log")).unwrap().len(),
+                log_size
+            );
             // Deterministic missing/denied-runtime path while deferred startup is pending.
             let stale = state.generation.get();
             state.fallback(stale, "Test: runtime unavailable");
@@ -1307,6 +1642,7 @@ mod tests {
             }
             assert_eq!(state.resources.borrow().timer, 0);
             assert!(state.resources.borrow().rendered || !state.current(current));
+            let mut browser_pid = 0;
             if SimpleMDWebView2Available().as_bool() {
                 assert!(
                     state.current(current),
@@ -1319,6 +1655,49 @@ mod tests {
                     .clone()
                     .expect("Static controller");
                 let view = controller.CoreWebView2()?;
+                view.BrowserProcessId(&mut browser_pid)?;
+                assert!(!stale_profile.exists());
+                assert_eq!(
+                    GetWindowLongW(state.resources.borrow().source, GWL_STYLE)
+                        & WS_VISIBLE.0 as i32,
+                    0
+                );
+                let resized = RECT {
+                    left: 5,
+                    top: 7,
+                    right: 805,
+                    bottom: 607,
+                };
+                preview.SetRect(&resized)?;
+                let mut client = RECT::default();
+                GetClientRect(state.resources.borrow().child, &mut client)?;
+                let mut bounds = RECT::default();
+                controller.Bounds(&mut bounds)?;
+                assert_eq!(
+                    (bounds.left, bounds.top, bounds.right, bounds.bottom),
+                    (0, 0, client.right, client.bottom)
+                );
+                let original_font = state.resources.borrow().font;
+                state.resources.borrow_mut().dpi = 0;
+                let container = state.resources.borrow().child;
+                SendMessageW(container, WM_DPICHANGED_AFTERPARENT, None, None);
+                let font = state.resources.borrow().font;
+                assert!(!font.is_invalid());
+                assert_ne!(font, original_font);
+                let mut font_info = LOGFONTW::default();
+                assert_ne!(
+                    GetObjectW(
+                        font.into(),
+                        size_of::<LOGFONTW>() as i32,
+                        Some((&mut font_info as *mut LOGFONTW).cast())
+                    ),
+                    0
+                );
+                assert_eq!(
+                    font_info.lfHeight,
+                    -(((11 * GetDpiForWindow(state.resources.borrow().child).max(96) + 36) / 72)
+                        as i32)
+                );
                 let mut title = PWSTR::null();
                 view.DocumentTitle(&mut title)?;
                 let title_text = title.to_string();
@@ -1326,6 +1705,10 @@ mod tests {
                 assert_eq!(title_text?, "Rendered preview");
                 let settings = view.Settings()?;
                 let mut enabled = BOOL(1);
+                settings
+                    .cast::<ICoreWebView2Settings3>()?
+                    .AreBrowserAcceleratorKeysEnabled(&mut enabled)?;
+                assert!(!enabled.as_bool());
                 settings.IsScriptEnabled(&mut enabled)?;
                 assert!(!enabled.as_bool());
                 settings.IsWebMessageEnabled(&mut enabled)?;
@@ -1352,8 +1735,68 @@ mod tests {
                 let actual = output.borrow_mut().take().expect("Final DOM readback")?;
                 assert_eq!(actual, "true");
             }
+            let font = state.resources.borrow().font;
             preview.Unload()?;
             assert!(state.resources.borrow().input.is_none());
+            assert_eq!(GetObjectW(font.into(), 0, None), 0);
+            // Select and unload repeatedly in one host. The shared browser must
+            // survive and the number of process profiles must remain bounded.
+            for _ in 0..4 {
+                let stream = SHCreateMemStream(Some(b"# Again")).unwrap();
+                init.Initialize(&stream, STGM_READ.0)?;
+                preview.SetWindow(parent, &rect)?;
+                preview.DoPreview()?;
+                let current = state.generation.get();
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(18);
+                while state.current(current)
+                    && state.resources.borrow().timer != 0
+                    && std::time::Instant::now() < deadline
+                {
+                    let mut msg = MSG::default();
+                    while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
+                        let _ = TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                assert_eq!(state.resources.borrow().timer, 0);
+                if browser_pid != 0 {
+                    assert!(state.current(current));
+                    let mut pid = 0;
+                    state
+                        .resources
+                        .borrow()
+                        .controller
+                        .as_ref()
+                        .unwrap()
+                        .CoreWebView2()?
+                        .BrowserProcessId(&mut pid)?;
+                    assert_eq!(
+                        pid, browser_pid,
+                        "Browser process changed between selections"
+                    );
+                }
+                preview.Unload()?;
+            }
+            let count = fs::read_dir(root.join("UserData")).unwrap().count();
+            assert_eq!(
+                count, 1,
+                "UserData accumulated profiles after preview/unload"
+            );
+            let large = vec![b'x'; HTML_LIMIT + 1];
+            let stream = SHCreateMemStream(Some(&large)).unwrap();
+            init.Initialize(&stream, STGM_READ.0)?;
+            preview.SetWindow(parent, &rect)?;
+            preview.DoPreview()?;
+            assert_eq!(state.resources.borrow().timer, 0);
+            assert!(state.resources.borrow().controller.is_none());
+            assert_ne!(
+                GetWindowLongW(state.resources.borrow().source, GWL_STYLE) & WS_VISIBLE.0 as i32,
+                0
+            );
+            preview.Unload()?;
+            let host = HOST.with(|host| host.borrow_mut().take());
+            drop(host);
             DestroyWindow(parent)?;
         }
         Ok(())

@@ -6,6 +6,11 @@ param(
     [switch]$CheckRuntime
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'paths.ps1')
+if (-not (Test-X64Windows)) { return }
+# Refuse before any registration, removal, directory creation or host restart.
+$lowRoot = Get-LowRoot
+Assert-NoReparsePoint $lowRoot
 if (-not $DllPath) { $DllPath = Join-Path $PSScriptRoot 'simplemd_windows_preview.dll' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell for this x64 DLL.' }
 $DllPath = (Resolve-Path -LiteralPath $DllPath).Path
@@ -17,21 +22,6 @@ $previewId = '{8895b1c6-b41f-4c1c-a562-0d564250836f}'
 $handlers = 'Software\Microsoft\Windows\CurrentVersion\PreviewHandlers'
 $statePath = 'Software\SimpleMD\Preview'
 $root = [Microsoft.Win32.RegistryKey]::OpenBaseKey('CurrentUser', 'Registry64')
-
-function Get-LowRoot {
-    if (-not ('SimpleMDPreview.KnownFolder' -as [type])) {
-        Add-Type -Namespace SimpleMDPreview -Name KnownFolder -MemberDefinition @'
-[System.Runtime.InteropServices.DllImport("shell32.dll", PreserveSig = false)]
-public static extern void SHGetKnownFolderPath(ref System.Guid id, uint flags, System.IntPtr token, out System.IntPtr path);
-'@
-    }
-    $id = [Guid]'{a520a1a4-1780-4ff6-bd18-167343c5af16}'
-    $path = [IntPtr]::Zero
-    try {
-        [SimpleMDPreview.KnownFolder]::SHGetKnownFolderPath([ref]$id, 0x4000, [IntPtr]::Zero, [ref]$path)
-        return (Join-Path ([Runtime.InteropServices.Marshal]::PtrToStringUni($path)) 'SimpleMD\Preview')
-    } finally { [Runtime.InteropServices.Marshal]::FreeCoTaskMem($path) }
-}
 
 function Set-String($Path, $Name, $Value) {
     $key = $root.CreateSubKey($Path)
@@ -54,10 +44,9 @@ try {
         } finally { $key.Dispose() }
     }
     # Resolve the same known folder as the DLL before writing registration.
-    $lowRoot = Get-LowRoot
     New-Item -ItemType Directory -Path $lowRoot -Force | Out-Null
-    & icacls.exe $lowRoot /setintegritylevel '(OI)(CI)L'
-    if ($LASTEXITCODE -ne 0) { throw 'Could not set the low integrity label. No registration was written.' }
+    Assert-NoReparsePoint $lowRoot
+    # LocalLow already supplies the inherited low-integrity label.
     Write-Host "Prepared low-integrity log and data directory: $lowRoot"
 
     $parent = $root.OpenSubKey('Software\SimpleMD')
@@ -105,13 +94,7 @@ try {
     Write-Host 'Registered Markdown extensions in HKCU. The default Open With application is unchanged.'
     Write-Host "Log: $lowRoot\preview.log"
     if ($CheckRuntime) {
-        $escaped = $DllPath.Replace('"', '""')
-        Add-Type -Namespace SimpleMDPreview -Name Runtime -MemberDefinition @"
-[System.Runtime.InteropServices.DllImport(@"$escaped", EntryPoint = "SimpleMDWebView2Available")]
-[return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-public static extern bool Available();
-"@
-        if (-not [SimpleMDPreview.Runtime]::Available()) {
+        if (-not (Test-WebView2Runtime)) {
             Write-Host 'Evergreen WebView2 is missing. Native source preview is available.'
             exit 10
         }

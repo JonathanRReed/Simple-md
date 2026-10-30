@@ -19,7 +19,67 @@ function Assert-Installed {
     $dll = [Microsoft.Win32.Registry]::GetValue("$class\InprocServer32", '', $null)
     if (-not (Test-Path -LiteralPath $dll)) { throw 'Registered DLL is absent' }
 }
+# The CI profile is disposable. A sentinel outside LocalLow must survive both
+# entry points, including the installer runtime-check mode.
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$low = Get-LowRoot
+$outside = Join-Path $env:RUNNER_TEMP 'simplemd-preview-junction-target'
+$dll = Join-Path $PSScriptRoot 'target/x86_64-pc-windows-msvc/release/simplemd_windows_preview.dll'
+function Target-Snapshot {
+    return (Get-ChildItem -LiteralPath $outside -Recurse -Force | ForEach-Object {
+        "$($_.FullName)|$((Get-Acl -LiteralPath $_.FullName).Sddl)|$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+    }) -join "`n"
+}
+function Assert-Refused([string]$Script, [string[]]$ExtraArguments = @()) {
+    $output = & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PSScriptRoot/$Script" @ExtraArguments 2>&1
+    if ($LASTEXITCODE -eq 0 -or ($output | Out-String) -notmatch 'reparse point') {
+        throw "Expected reparse-point refusal from $Script, got: $output"
+    }
+}
 try {
+    New-Item -ItemType Directory -Path $outside -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $outside 'sentinel.txt') -Value 'must survive'
+    Copy-Item -LiteralPath $dll -Destination $outside
+    $before = Target-Snapshot
+    foreach ($junction in @((Split-Path $low), $low)) {
+        Assert-NoReparsePoint $low
+        if (Test-Path -LiteralPath $low) { Remove-PreviewData $low }
+        if ($junction -eq (Split-Path $low) -and (Test-Path -LiteralPath $junction)) {
+            [IO.Directory]::Delete($junction)
+        }
+        New-Item -ItemType Directory -Path (Split-Path $junction) -Force | Out-Null
+        New-Item -ItemType Junction -Path $junction -Target $outside | Out-Null
+        try {
+            Assert-Refused 'install.ps1' @('-DllPath', $dll, '-CheckRuntime')
+            Assert-Refused 'uninstall.ps1'
+            if ((Target-Snapshot) -ne $before) { throw 'Junction target changed' }
+            if (Test-Path "Registry::$class") { throw 'Refused install changed registration' }
+        } finally { [IO.Directory]::Delete($junction) }
+    }
+    # Runtime detection must never execute a caller-supplied DLL.
+    New-Item -ItemType Directory -Path $low -Force | Out-Null
+    $invalidDll = Join-Path $low 'not-code.dll'
+    Set-Content -LiteralPath $invalidDll -Value 'not a PE image'
+    $output = & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PSScriptRoot/install.ps1" -DllPath $invalidDll -CheckRuntime 2>&1
+    if ($LASTEXITCODE -notin @(0, 10)) { throw "Runtime detection attempted to load the DLL: $output" }
+    # Refuse uninstall before touching the saved registration.
+    $savedLow = "$low-saved"
+    [IO.Directory]::Move($low, $savedLow)
+    New-Item -ItemType Junction -Path $low -Target $outside | Out-Null
+    try {
+        Assert-Refused 'uninstall.ps1'
+        if (-not (Test-Path "Registry::$class")) { throw 'Refused uninstall changed registration' }
+        if ((Target-Snapshot) -ne $before) { throw 'Uninstall changed junction target' }
+    } finally {
+        [IO.Directory]::Delete($low)
+        [IO.Directory]::Move($savedLow, $low)
+    }
+    # Nested links are removed as links without touching outside files or ACLs.
+    New-Item -ItemType Junction -Path (Join-Path $low 'nested') -Target $outside | Out-Null
+    & "$PSScriptRoot/uninstall.ps1"
+    if ((Target-Snapshot) -ne $before) { throw 'Nested junction target changed' }
+    if (Test-Path -LiteralPath $low) { throw 'Nested-link cleanup did not remove preview data' }
+
     # Standalone scripts preserve previous associations, survive reinstall and keep later changes.
     foreach ($extension in $extensions) {
         $key = $root.CreateSubKey((Association $extension))
@@ -78,4 +138,7 @@ try {
     finally { [Runtime.InteropServices.Marshal]::FreeCoTaskMem($pointer) }
     if (Test-Path -LiteralPath $low) { throw "Preview data survived uninstall: $low" }
     Remove-Item -LiteralPath $install -Recurse -Force -ErrorAction SilentlyContinue
-} finally { $root.Dispose() }
+} finally {
+    $root.Dispose()
+    if (Test-Path -LiteralPath $outside) { Remove-Item -LiteralPath $outside -Recurse -Force }
+}

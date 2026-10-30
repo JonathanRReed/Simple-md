@@ -1,6 +1,8 @@
 use std::{cell::Cell, io};
 
 pub const INPUT_LIMIT: usize = 4 * 1024 * 1024;
+// Leave headroom below NavigateToString's 2 MB limit. Input uses the same bound.
+pub const HTML_LIMIT: usize = 1_900_000;
 pub const FALLBACK_LIMIT: usize = 128 * 1024;
 
 pub struct Input {
@@ -34,15 +36,28 @@ pub fn read_bounded(mut read: impl FnMut(&mut [u8]) -> io::Result<usize>) -> io:
     })
 }
 
-// No author byte is executable syntax, including quotes and Unicode separators.
+// Source stays inside a string literal. Escape HTML delimiters too, even though
+// ExecuteScript receives code directly rather than through an HTML script tag.
 pub fn js_string(text: &str) -> String {
     use std::fmt::Write;
-    let mut result = String::from("\"");
-    for unit in text.encode_utf16() {
-        write!(&mut result, "\\u{unit:04x}").expect("String write");
+    let mut result = String::with_capacity(text.len() + 2);
+    result.push('"');
+    for ch in text.chars() {
+        match ch {
+            '"' => result.push_str("\\\""),
+            '\\' => result.push_str("\\\\"),
+            '<' | '\u{2028}' | '\u{2029}' | '\0'..='\u{1f}' => {
+                write!(&mut result, "\\u{:04x}", ch as u32).expect("String write");
+            }
+            _ => result.push(ch),
+        }
     }
     result.push('"');
     result
+}
+
+pub fn can_render(input: &Input) -> bool {
+    !input.truncated && input.text.len() <= HTML_LIMIT
 }
 
 pub fn render_script(bundle: &str, input: &Input) -> String {
@@ -132,7 +147,8 @@ mod tests {
                 invalid_utf8: false,
             };
             let script = render_script("/* trusted bundle */", &input);
-            assert!(!script.contains(attack));
+            assert!(script.contains(&js_string(attack)));
+            assert!(!js_string(attack).contains('<'));
             assert_eq!(fallback_text(&input), attack.replace('\n', "\r\n"));
         }
         let input = Input {
@@ -144,6 +160,33 @@ mod tests {
             fallback_text(&input)
                 .ends_with("[Preview truncated. Open in SimpleMD to read the whole file.]")
         );
+    }
+
+    #[test]
+    fn string_escaping_and_render_admission() {
+        assert_eq!(js_string("plain λ 😀"), "\"plain λ 😀\"");
+        assert_eq!(
+            js_string("</script>\"\\\n\u{2028}\u{2029}"),
+            "\"\\u003c/script>\\\"\\\\\\u000a\\u2028\\u2029\""
+        );
+        // Rust strings cannot contain lone UTF-16 surrogates. Invalid UTF-8
+        // encodings of them are replaced at the stream boundary, before scripting.
+        let mut bytes = &[0xed, 0xa0, 0x80, 0xed, 0xbf, 0xbf][..];
+        let invalid = read_bounded(|chunk| bytes.read(chunk)).unwrap();
+        assert!(invalid.invalid_utf8);
+        assert!(invalid.text.chars().all(|c| c == '\u{fffd}'));
+        assert_eq!(js_string(&invalid.text), format!("\"{}\"", invalid.text));
+        let mut input = Input {
+            text: "x".repeat(HTML_LIMIT),
+            truncated: false,
+            invalid_utf8: false,
+        };
+        assert!(can_render(&input));
+        input.text.push('x');
+        assert!(!can_render(&input));
+        input.text.clear();
+        input.truncated = true;
+        assert!(!can_render(&input));
     }
 
     #[test]

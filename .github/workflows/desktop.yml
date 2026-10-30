@@ -79,7 +79,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path windows-preview | Out-Null
           Copy-Item app/native/windows-preview/target/x86_64-pc-windows-msvc/release/simplemd_windows_preview.dll windows-preview/
-          Copy-Item app/native/windows-preview/install.ps1, app/native/windows-preview/uninstall.ps1, app/native/windows-preview/TESTING.md windows-preview/
+          Copy-Item app/native/windows-preview/install.ps1, app/native/windows-preview/uninstall.ps1, app/native/windows-preview/paths.ps1, app/native/windows-preview/TESTING.md windows-preview/
           "Source commit: $env:GITHUB_SHA" | Set-Content windows-preview/REVISION.txt
       - name: Upload Windows preview and installer
         uses: actions/upload-artifact@v4

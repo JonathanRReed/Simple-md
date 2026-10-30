@@ -266,7 +266,7 @@ describe("Windows preview packaging", () => {
       from: path.join(appDir, "native/windows-preview/target", plan.host, "release/simplemd_windows_preview.dll"),
       to: "native/preview/simplemd_windows_preview.dll",
     });
-    for (const name of ["install.ps1", "uninstall.ps1"]) {
+    for (const name of ["install.ps1", "uninstall.ps1", "paths.ps1"]) {
       expect(resources).toContainEqual({ from: path.join(appDir, "native/windows-preview", name), to: `native/preview/${name}` });
     }
     const pkg = JSON.parse(readFileSync(path.join(appDir, "package.json"), "utf8"));

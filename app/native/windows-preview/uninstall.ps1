@@ -1,6 +1,11 @@
 [CmdletBinding()]
 param([switch]$RestartPreviewHost)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'paths.ps1')
+if (-not (Test-X64Windows)) { return }
+# Refuse before any registration, removal, directory creation or host restart.
+$lowRoot = Get-LowRoot
+Assert-NoReparsePoint $lowRoot
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell for this x64 registration.' }
 $clsid = '{a8b4f9c2-6e75-4eaa-9a1d-e4276f01d937}'
 $description = 'SimpleMD Markdown preview'
@@ -10,21 +15,6 @@ $previewId = '{8895b1c6-b41f-4c1c-a562-0d564250836f}'
 $handlers = 'Software\Microsoft\Windows\CurrentVersion\PreviewHandlers'
 $statePath = 'Software\SimpleMD\Preview'
 $root = [Microsoft.Win32.RegistryKey]::OpenBaseKey('CurrentUser', 'Registry64')
-
-function Get-LowRoot {
-    if (-not ('SimpleMDPreview.KnownFolder' -as [type])) {
-        Add-Type -Namespace SimpleMDPreview -Name KnownFolder -MemberDefinition @'
-[System.Runtime.InteropServices.DllImport("shell32.dll", PreserveSig = false)]
-public static extern void SHGetKnownFolderPath(ref System.Guid id, uint flags, System.IntPtr token, out System.IntPtr path);
-'@
-    }
-    $id = [Guid]'{a520a1a4-1780-4ff6-bd18-167343c5af16}'
-    $path = [IntPtr]::Zero
-    try {
-        [SimpleMDPreview.KnownFolder]::SHGetKnownFolderPath([ref]$id, 0x4000, [IntPtr]::Zero, [ref]$path)
-        return (Join-Path ([Runtime.InteropServices.Marshal]::PtrToStringUni($path)) 'SimpleMD\Preview')
-    } finally { [Runtime.InteropServices.Marshal]::FreeCoTaskMem($path) }
-}
 
 function Remove-EmptyKey($Path) {
     $key = $root.OpenSubKey($Path)
@@ -88,11 +78,10 @@ try {
     } else {
         Write-Host 'Optional: stop prevhost.exe in Task Manager to release the DLL, or use -RestartPreviewHost on uninstall.'
     }
-    $lowRoot = Get-LowRoot
     $data = $lowRoot
     if (Test-Path -LiteralPath $data) {
         try {
-            Remove-Item -LiteralPath $data -Recurse -Force
+            Remove-PreviewData $data
             Write-Host "Removed WebView2 data: $data"
         } catch { Write-Host "WebView2 still holds data files. After stopping prevhost.exe, remove: $data" }
     }
