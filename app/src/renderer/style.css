@@ -1152,9 +1152,10 @@ body:not([data-platform="darwin"]) #tabs { height: 34px; font-size: 13px; }
 }
 .tab:hover:not([aria-selected="true"]) { background: color-mix(in srgb, CanvasText 5%, transparent); }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
-.tab-name { display: flex; flex: 1; min-width: 0; overflow: hidden; white-space: pre; }
+/* Line height 1 clips descenders once overflow is hidden. */
+.tab-name { display: flex; flex: 1; min-width: 0; overflow: hidden; white-space: pre; line-height: 1.4; }
 .tab-name-start { overflow: hidden; text-overflow: ellipsis; }
-.tab-name-end { flex: none; max-width: 50%; overflow: hidden; }
+.tab-name-end { flex: none; }
 .tab-close { display: grid; place-items: center; flex: none; border: 0; padding: 0; width: 18px; height: 18px; border-radius: 4px; background: transparent; color: inherit; opacity: 0; }
 .tab:is(:hover, :focus-within) .tab-close { opacity: 1; }
 .tab-close:hover { background: color-mix(in srgb, CanvasText 12%, transparent); }

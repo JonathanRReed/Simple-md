@@ -1,3 +1,9 @@
+/** Keep the file's ending visible and let the start take the ellipsis, Finder style. */
+export function splitTabLabel(label: string, tail = 7): [string, string] {
+  if (label.length <= tail + 3) return [label, ""];
+  return [label.slice(0, -tail), label.slice(-tail)];
+}
+
 export interface TabName { name: string; path: string | null }
 
 export function tabLabel(tab: TabName, tabs: TabName[]): string {

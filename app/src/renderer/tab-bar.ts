@@ -1,5 +1,6 @@
 import { clampSidebarWidth, configSchema } from "../shared/config-schema.js";
 import { tabNavigationIndex, type TabRow } from "../shared/tab-presentation.js";
+import { splitTabLabel } from "../shared/tab-labels.js";
 import { DEFAULT_SETTINGS, type Settings } from "../shared/types.js";
 import type { Bridge } from "./api.js";
 
@@ -118,8 +119,8 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
       }
       const title = node.querySelector<HTMLElement>(".tab-name")!;
       if (title.textContent !== row.label) {
-        const midpoint = Math.ceil(row.label.length / 2);
-        title.firstChild!.textContent = row.label.slice(0, midpoint); title.lastChild!.textContent = row.label.slice(midpoint);
+        const [start, end] = splitTabLabel(row.label);
+        title.firstChild!.textContent = start; title.lastChild!.textContent = end;
       }
       node.setAttribute("aria-label", `${row.label}${row.dirty ? ", unsaved changes" : ""}${row.pane ? `, ${row.pane} pane` : ""}`);
       node.setAttribute("aria-selected", String(row.selected)); node.setAttribute("aria-controls", `document-${row.id}`);
