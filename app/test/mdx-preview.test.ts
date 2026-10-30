@@ -100,3 +100,26 @@ describe("positioned MDX preview", () => {
     expect(mapped[0]!.syntax.map((span) => normalized.slice(span.start, span.end))).toEqual(["A", "A"]);
   });
 });
+
+for (const math of [
+  "$$\n\\sum_{i=1}^{3}\\theta_i = 2\\pi\n$$",
+  "$\\frac{1}{2}$",
+  "$`\\frac{1}{2}`$",
+  "```math\n\\sum_{i=1}^{3} x_i\n```",
+]) test(`MDX math stays identical to Markdown: ${math}`, async () => {
+  const md = await core.renderMarkdown(math, "/posts/note.md");
+  const mdx = await core.renderMarkdown(math, "/posts/note.mdx");
+  expect(mdx.html).toBe(md.html);
+  expect(mdx.html).toContain('class="katex');
+  expect(mdx.html).not.toMatch(/SIMPLEMDMDX|mdx-expression/);
+});
+
+test("math inside components preserves expressions outside math and source positions", async () => {
+  const source = '<Card value={1}>\n\n$\\frac{1}{2}$ and {2 + 2}\n\n</Card>\n\n<X />';
+  const result = await render(source);
+  expect(result.mdx?.error).toBeUndefined();
+  expect(result.blocks[0]?.html).toContain('class="katex');
+  expect(result.blocks[0]?.html).toContain('{2 + 2}');
+  expect(result.blocks[0]?.html).not.toContain('SIMPLEMDMDX');
+  expect(result.blocks.at(-1)?.sourceRange).toEqual([6, 7]);
+});
