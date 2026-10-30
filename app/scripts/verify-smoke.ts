@@ -1609,10 +1609,10 @@ await test("open-quickly-shortcut-scope-tab-pane", async () => {
   ];
   await launch("open-quickly", a, [
     ...key("O", [mod, "shift"]),
-    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.activeElement.id === 'picker-input', 'Open Quickly shortcut failed.');
-      assert(document.querySelector('.picker-scope').textContent === 'This repo', 'Initial scope differs.');`),
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker .picker-scope') && document.activeElement.id === 'picker-input', 'Open Quickly shortcut failed.');
+      assert(document.querySelector('#picker .picker-scope').textContent === 'This repo', 'Initial scope differs.');`),
     ...key("Tab"),
-    evaluate(`assert(document.querySelector('.picker-scope').textContent === 'Everywhere', 'Tab did not change scope.');`),
+    evaluate(`assert(document.querySelector('#picker .picker-scope').textContent === 'Everywhere', 'Tab did not change scope.');`),
     ...key("Tab"),
     evaluate(`const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-guide'; input.dispatchEvent(new Event('input'));
       await waitFor(() => [...document.querySelectorAll('#picker-list [role=option]')].some(row => row.title === ${quote(b)}), 'Folder result missing.');`),
@@ -1620,15 +1620,15 @@ await test("open-quickly-shortcut-scope-tab-pane", async () => {
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Result did not open.');
       assert(document.querySelectorAll('[role=tab]').length === 2, 'Result did not open a tab.');`),
     { nativeMenu: ["File", "Open Quickly…"] },
-    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden, 'Native Open Quickly menu failed.');
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker .picker-scope'), 'Native Open Quickly menu failed.');
       const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-other'; input.dispatchEvent(new Event('input'));
       await waitFor(() => [...document.querySelectorAll('#picker-list [role=option]')].some(row => row.title === ${quote(c)}), 'Other result missing.');`),
     ...key("Enter", [mod]),
     evaluate(`await waitFor(() => document.querySelectorAll('.document-pane').length === 2 && document.documentElement.dataset.documentPainted === ${quote(c)}, 'Other pane did not open.');
       assert([...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(b)}), 'Opening beside replaced the original pane.');`),
     ...key("O", [mod, "shift"]),
-    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden, 'Finder did not reopen.');
-      assert(document.querySelector('.picker-scope').textContent === 'This repo', 'Scope was not remembered.');
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.querySelector('#picker .picker-scope'), 'Finder did not reopen.');
+      assert(document.querySelector('#picker .picker-scope').textContent === 'This repo', 'Scope was not remembered.');
       const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-guide'; input.dispatchEvent(new Event('input'));`),
     ...key("Enter"),
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Existing result did not focus.');
