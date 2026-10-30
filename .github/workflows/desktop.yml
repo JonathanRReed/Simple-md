@@ -13,6 +13,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # bun lint ships in canary builds only; builds and tests stay on stable.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: canary
+      - name: Lint
+        run: bun run lint
+
   windows-preview:
     name: Windows preview and installer
     runs-on: windows-2025
@@ -27,7 +40,7 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version: "1.4.4"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
@@ -140,8 +153,6 @@ jobs:
         run: bun run setup
       - name: Typecheck
         run: bun run typecheck
-      - name: Lint
-        run: bun run lint
       - name: Build release CLI and native helper before tests
         run: bun run build:native
       - name: Test

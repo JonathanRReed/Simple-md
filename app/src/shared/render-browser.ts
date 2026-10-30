@@ -30,7 +30,9 @@ const highlighting: RenderServices = {
     if (missing.length) await highlighter.loadLanguage(...missing.map(lang => bundledLanguages[lang]));
   },
   highlight(code, lang) {
-    return highlighter?.getLoadedLanguages().includes(lang) ? highlighter.codeToHtml(code, { lang, themes, defaultColor: false }) : "";
+    // A timed-out theme pass silently extends the last colour over the rest of
+    // the line. Bound fence size above, but finish both themes regardless of load.
+    return highlighter?.getLoadedLanguages().includes(lang) ? highlighter.codeToHtml(code, { lang, themes, defaultColor: false, tokenizeTimeLimit: 0 }) : "";
   },
 };
 export function createRenderCore(services: RenderServices = {}) {
