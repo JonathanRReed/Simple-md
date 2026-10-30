@@ -6,9 +6,14 @@ app.whenReady().then(async () => {
   session.defaultSession.webRequest.onBeforeRequest((request, done) => {
     done({ cancel: request.url !== "about:blank" });
   });
-  const window = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  const options = JSON.parse(process.env.SMD_DOM_OPTIONS || "{}");
+  const window = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
   window.webContents.on("console-message", (event) => console.error(event.message, event.lineNumber, event.sourceId));
   await window.loadURL("about:blank");
+  if (options.media?.length) {
+    window.webContents.debugger.attach("1.3");
+    await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: options.media });
+  }
   const [input, bundle, output] = process.argv.slice(-3);
   const loadError = await window.webContents.executeJavaScript(`try { ${readFileSync(bundle, "utf8")}
  null; } catch (error) { String(error.stack); }`);

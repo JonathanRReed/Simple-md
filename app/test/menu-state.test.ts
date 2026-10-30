@@ -29,5 +29,7 @@ test("tab placement and collapse update the View menu; width does not rebuild it
   const before = menuState(DEFAULT_SETTINGS, "read", true);
   expect(menuState({ ...DEFAULT_SETTINGS, tabStyle: "sidebar" }, "read", true).application).not.toBe(before.application);
   expect(menuState({ ...DEFAULT_SETTINGS, sidebarCollapsed: true }, "read", true).application).not.toBe(before.application);
+  expect(menuState({ ...DEFAULT_SETTINGS, zenMode: true }, "read", true).application).not.toBe(before.application);
+  expect(menuState(DEFAULT_SETTINGS, "read", true, undefined, true).application).not.toBe(before.application);
   expect(menuState({ ...DEFAULT_SETTINGS, sidebarWidth: 340 }, "read", true)).toEqual(before);
 });

@@ -1,3 +1,4 @@
+import { tabCommands } from "../shared/tab-commands.js";
 import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-sync.js";
 import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
@@ -1051,6 +1052,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const set = (patch: Partial<Settings>) => () => { if (patch.mode) selectMode(patch.mode); else void simplemd.setSettings(patch); };
     const cmd = (c: Command) => () => handleCommand(c);
     const items: PickerItem[] = [
+      ...tabCommands(settings, doc.meta.path).map(({ label, command }) => ({ label, run: () => simplemd.command(command) })),
       { label: "Mark Seen", run: cmd("mark-seen") },
       { label: "Next Change", run: cmd("next-change") },
       { label: "Previous Change", run: cmd("previous-change") },

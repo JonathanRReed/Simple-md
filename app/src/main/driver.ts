@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { BrowserWindow } from "electron";
 
-type NativeStep = { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
+type NativeStep = { nativeChrome: true } | { nativeMenu: string[] } | { nativeContext: { selector: string; context: import("../shared/native-context.js").NativeContext; labels: string[]; choose?: string } } | { nativeIdentity: { file: string; edited: boolean } } | { nativeFind: string | null } | { nativeAccent: true };
 export type DriverStep = NativeStep | { nativeMenuState: { path: string[]; enabled: boolean; checked?: boolean; tooltip?: boolean } } | { dragExport: { format: "html" | "pdf"; target: string; receipt: string } } | { nativeMenus: "capture" | "unchanged" | "app-only" | "recents" } | { noSavePrompt: true } | { closeWindow: true } | { settings: DriverStep[] } | { selectWindow: number | string } | { windowCount: number } | { dialog: { response: 0 | 1 | 2; savePath?: string } } | { save: true } | { page: string } | { throttling: boolean } | { diagnostics: string } | { paste: string } | { visibility: boolean } | { barrier: string } | { record: { name: string; eval: string } } | { memory: string } | { debug: { method: string; params: Record<string, unknown> } } | { eval: string } | { assert: string } | { wait: number } | { shot: string } | { pdf: string } | { html: string } | { input: Parameters<BrowserWindow["webContents"]["sendInputEvent"]>[0] } | { quit: true } | { menuQuit: true } | { savePath: string };
 
 export async function runDriver(
@@ -68,7 +68,7 @@ export async function runDriver(
         } finally { clearTimeout(timer); target.webContents.startDrag = startDrag; }
         continue;
       }
-      if ("nativeMenu" in step || "nativeContext" in step || "nativeIdentity" in step || "nativeFind" in step || "nativeAccent" in step) {
+      if ("nativeChrome" in step || "nativeMenu" in step || "nativeContext" in step || "nativeIdentity" in step || "nativeFind" in step || "nativeAccent" in step) {
         const { BrowserWindow, Menu, clipboard, ClipboardItem, systemPreferences } = await import("electron");
         const target = BrowserWindow.getAllWindows().find(w => w.webContents === win.webContents);
         if (!target) throw new Error("Native driver window is missing.");
@@ -82,6 +82,9 @@ export async function runDriver(
           }
           if (!item?.enabled) throw new Error("Native menu item is disabled.");
           item.click({}, target, target.webContents);
+        } else if ("nativeChrome" in step && process.platform === "darwin") {
+          const position = target.getWindowButtonPosition();
+          if (position?.x !== 12 || position.y !== 10) throw new Error("Traffic lights are not aligned with the tab row.");
         } else if ("nativeIdentity" in step && process.platform === "darwin") {
           if (target.getRepresentedFilename() !== step.nativeIdentity.file || target.isDocumentEdited() !== step.nativeIdentity.edited) throw new Error("Native document identity differs.");
         } else if ("nativeFind" in step && process.platform === "darwin") {

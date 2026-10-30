@@ -7,10 +7,10 @@ export function changesMenuState(hasDocumentPath: boolean, status?: GitChangesSt
     toolTip: status?.available === false ? status.reason : "Compare this file with Git HEAD",
   };
 }
-export function menuState(settings: Settings, mode: ViewMode, hasDocumentPath: boolean, gitStatus?: GitChangesStatus) {
-  const { recents, autosave, spellcheck, vim, theme, readingStyle, launchAtLogin, tabStyle, sidebarCollapsed } = settings;
+export function menuState(settings: Settings, mode: ViewMode, hasDocumentPath: boolean, gitStatus?: GitChangesStatus, pinned = false) {
+  const { recents, autosave, spellcheck, vim, theme, readingStyle, launchAtLogin, tabStyle, sidebarCollapsed, zenMode } = settings;
   return {
-    application: JSON.stringify({ recents, mode, autosave, spellcheck, vim, theme, readingStyle, tabStyle, sidebarCollapsed, hasDocumentPath, changes: changesMenuState(hasDocumentPath, gitStatus) }),
+    application: JSON.stringify({ recents, mode, autosave, spellcheck, vim, theme, readingStyle, tabStyle, sidebarCollapsed, zenMode, pinned, hasDocumentPath, changes: changesMenuState(hasDocumentPath, gitStatus) }),
     tray: JSON.stringify({ mode: settings.mode, theme, launchAtLogin }),
     recents: JSON.stringify(recents),
   };

@@ -1280,6 +1280,64 @@ await test("tabs-inactive-pane-link", async () => {
   `)], "read");
 });
 
+await test("tab-design-titlebar-grab-regions", async () => {
+  const file = fixture("tab-design-titlebar/README.md", note), other = fixture("tab-design-titlebar/other.md", "# Other\n");
+  await launch("tab-design-titlebar-grab-regions", file, [
+    evaluate(`await window.simplemd.openPath(${quote(other)}); await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Second tab did not appear');
+      const tabs = document.querySelector('#tabs'), titlebar = document.querySelector('.titlebar');
+      assert(getComputedStyle(tabs).getPropertyValue('-webkit-app-region') === 'drag', 'Empty strip does not drag');
+      assert(getComputedStyle(titlebar).getPropertyValue('-webkit-app-region') === 'drag', 'Titlebar does not drag');
+      assert(getComputedStyle(tabs.firstElementChild).getPropertyValue('-webkit-app-region') === 'no-drag', 'Tabs cannot receive clicks');
+      assert(innerWidth - tabs.getBoundingClientRect().right >= 27, 'Overflow removed the frame grab space');`),
+    { nativeChrome: true },
+    { nativeIdentity: { file: other, edited: false } },
+    evaluate(`await window.simplemd.setSettings({ tabStyle: 'sidebar' });`),
+    { nativeChrome: true },
+  ]);
+});
+
+await test("tab-design-zen-native-toggle", async () => {
+  const file = fixture("tab-design-zen/README.md", note);
+  await launch("tab-design-zen-native-toggle", file, [
+    { nativeMenu: ["View", "Zen Mode"] },
+    evaluate(`await waitFor(() => document.body.dataset.zen === 'true', 'Zen menu did not apply');
+      assert(getComputedStyle(document.querySelector('.pane-status')).display === 'none', 'Zen retained footer');
+      assert(document.querySelector('#stage').getBoundingClientRect().top === 0, 'Zen retained titlebar space');`),
+    { nativeIdentity: { file, edited: false } },
+    { input: { type: "mouseMove", x: 200, y: 2 } },
+    evaluate(`await waitFor(() => document.body.dataset.chromeRevealed === 'true', 'Top edge did not reveal controls');`),
+    { input: { type: "keyDown", keyCode: "J", modifiers: [mod, "shift"] } },
+    { input: { type: "keyUp", keyCode: "J", modifiers: [mod, "shift"] } },
+    evaluate(`await waitFor(() => document.body.dataset.zen === 'false', 'Zen shortcut did not exit');`),
+    { nativeMenuState: { path: ["View", "Zen Mode"], enabled: true, checked: false } },
+  ]);
+});
+
+await test("tabs-pinned-relaunch", async () => {
+  const name = "tabs-pinned-relaunch", a = fixture(name + "/a.md", note), b = fixture(name + "/b.md", "# B\n"), c = fixture(name + "/missing.md", "# Missing\n");
+  await launch(name, a, [
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(b)});`),
+    { nativeMenu: ["View", "Pin Tab"] },
+    evaluate(`await window.simplemd.openPath(${quote(c)});`),
+    { nativeMenu: ["View", "Pin Tab"] },
+    { input: { type: "keyDown", keyCode: "W", modifiers: [mod] } },
+    { input: { type: "keyUp", keyCode: "W", modifiers: [mod] } },
+    evaluate(`assert(document.querySelectorAll('[role=tab]').length === 3, 'Normal close removed a pin');`),
+    { menuQuit: true },
+  ]);
+  const state = fs.readFileSync(path.join(root, name, "profile/settings.json"), "utf8");
+  assert.deepEqual(JSON.parse(state).pinnedPaths, [a, b, c]);
+  fs.unlinkSync(c);
+  await launch(name, "", [
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 2, 'Existing pins did not restore');
+      assert([...document.querySelectorAll('[role=tab]')].every(tab => tab.dataset.pinned === 'true'), 'Restored an ordinary tab');
+      assert([...document.querySelectorAll('[role=tab]')].map(tab => tab.title).join('|') === ${quote(a + "|" + b)}, 'Pin order changed');`),
+    { nativeMenu: ["View", "Close Pinned Tab"] },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Explicit close retained the pin');`),
+  ], "read", undefined, 0, "source", { prepare: profile => fs.writeFileSync(path.join(profile, "settings.json"), state) });
+});
+
 await test("tab-sidebar-menu-resize-relaunch", async () => {
   const name = "tab-sidebar-menu-resize-relaunch";
   const file = fixture(`${name}/README.md`, note);

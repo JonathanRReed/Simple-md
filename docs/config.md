@@ -33,6 +33,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `tab-style` | `top` | top, sidebar |
 | `sidebar-width` | `220` | 160 to 420 |
 | `sidebar-collapsed` | `false` | true, false |
+| `zen-mode` | `false` | true, false |
 | `autosave` | `true` | true, false |
 | `vim` | `false` | true, false |
 | `spellcheck` | `true` | true, false |
@@ -43,9 +44,11 @@ The default appearance follows the system and selects the configured light or da
 
 Tabs appear across the top by default. Set tab-style = sidebar for a list of open documents on the leading edge. Drag its divider to resize, use Left and Right when the divider has focus, or double-click to reset to 220 px. sidebar-width clamps to 160 through 420 px. View > Show/Hide Tab Sidebar uses Control-Command-S on macOS and Control-Alt-S elsewhere, where Control-Shift-S remains Save As. sidebar-collapsed saves the hidden state. These settings apply to every open window without reloading documents.
 
+View > Zen Mode uses Command-Shift-J on macOS and Control-Shift-J elsewhere. zen-mode saves the choice. The top edge reveals controls without shifting the document. Pinned files and their order live in settings.json, not this config. Only existing pinned files reopen on launch.
+
 Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
 
-On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
+On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, pinned paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
 
 ## Example
 
@@ -72,6 +75,7 @@ open-in = tab
 tab-style = top
 sidebar-width = 220
 sidebar-collapsed = false
+zen-mode = false
 autosave = true
 vim = false
 spellcheck = true

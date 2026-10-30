@@ -30,6 +30,7 @@ export const configSchema = {
   "tab-style": { ...choice("tabStyle", "Tab style", "Tabs", "top", ["top", "sidebar"]), setting: "tabStyle" },
   "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 220, 160, 420, 1), setting: "sidebarWidth" },
   "sidebar-collapsed": { ...boolean("sidebarCollapsed", "Hide tab sidebar", "Tabs", false), setting: "sidebarCollapsed" },
+  "zen-mode": { ...boolean("zenMode", "Zen mode", "Tabs", false), setting: "zenMode" },
   "autosave": { ...boolean("autosave", "Autosave", "Behavior", true), setting: "autosave" },
   "vim": { ...boolean("vim", "Vim key bindings", "Behavior", false), setting: "vim" },
   "spellcheck": { ...boolean("spellcheck", "Spellcheck", "Behavior", true), setting: "spellcheck" },

@@ -9,7 +9,7 @@ import { sanitizeSettings } from "../src/main/settings-store";
 
 test("tab settings round trip and sidebar width clamps at every config boundary", () => {
   expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(220);
-  const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true } as const;
+  const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true, zenMode: true } as const;
   expect(parseConfig(serializeConfig("# Tabs\r\n", patch)).settings).toMatchObject(patch);
   for (const [input, expected] of [[1, 160], [900, 420], [250.7, 251]]) {
     expect(clampSidebarWidth(input!)).toBe(expected!);
@@ -90,7 +90,7 @@ test("legacy font and width migrate only when explicitly stored", async () => {
   try {
     const file = path.join(dir, "settings.json");
     saveState({ ...sanitizeSettings(raw), recents: ["note.md"], zoom: 1.2 }, file); flushSettings();
-    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ recents: ["note.md"], zoom: 1.2 });
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ recents: ["note.md"], zoom: 1.2, pinnedPaths: [] });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
