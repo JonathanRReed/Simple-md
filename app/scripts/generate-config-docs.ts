@@ -31,6 +31,8 @@ Open Quickly searches tabs and recents immediately, then queries Git on demand. 
 
 View > Zen Mode uses Command-Shift-J on macOS and Control-Shift-J elsewhere. zen-mode saves the choice. The top edge reveals controls without shifting the document. Pinned files and their order live in settings.json, not this config. Only existing pinned files reopen on launch.
 
+ui-motion = subtle enables brief chrome transitions after the first document paint. ui-motion = off or the system Reduce Motion preference makes changes instant. Document text, reading position and first paint never animate. Settings provides a Subtle chrome motion switch.
+
 Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
 
 On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, pinned paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.

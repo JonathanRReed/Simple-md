@@ -21,6 +21,7 @@ It is not a note-taking app, a writing workspace or a vault.
 - **Native where it is cheap, light everywhere.** Use the OS for menus, context menus, dialogs, share, accent color and recents. Draw only what Electron cannot give us natively without a heavy cost.
 - **File-first.** One file is the unit. Sibling files are reachable by link. There is no file tree.
 - **Nothing executes.** MDX, raw HTML and code blocks are displayed, never run.
+- **Subtle chrome motion only.** Document text, reading position and first paint never animate. Reduce Motion disables chrome motion. Config `ui-motion = subtle | off` defaults to `subtle`.
 
 ## Platforms
 
@@ -58,7 +59,8 @@ Mac first, then Windows. Both ship in v1.0. macOS 13 Ventura or later, with sepa
 | Splits | Up to 2 panes, side by side or stacked. A document appears in at most one pane, because Side by side mode already covers source plus preview. Nested split trees are 1.x. |
 | Opening files | New files open as a tab in the frontmost window. Config `open-in = tab | window`. Opening an already-open file focuses its tab. A plain click on a sibling link navigates in place with back and forward. Command/Control-click opens a new tab. |
 | Closing | Command/Control-W closes the tab. Closing the last tab closes the window. On macOS the app stays resident in the tray. |
-| Native items | Settings in its own window. Modes in the View menu plus a small toggle. Native context menus with spelling and link actions. System accent drives chrome, selection and focus. Native Share on macOS only. Dock menu and Windows Jump List with recents. Mac find pasteboard. No motion after the text is readable. AppKit-native Settings and toolbar are 1.x, and only if the HTML versions feel wrong. |
+| Native items | Settings in its own window. Modes in the View menu plus a small toggle. Native context menus with spelling and link actions. System accent drives chrome, selection and focus. Native Share on macOS only. Dock menu and Windows Jump List with recents. Mac find pasteboard. Subtle chrome motion only, after the first readable paint. Document text, reading position and first paint never animate. Reduce Motion or `ui-motion = off` makes changes instant. AppKit-native Settings and toolbar are 1.x, and only if the HTML versions feel wrong. |
+| Motion | `ui-motion = subtle \| off`, default `subtle`, with a Settings switch. Chrome uses transform and opacity, 120 / 160 / 200 ms tokens, and 100 ms panel exits. FLIP handles bounds changes. Text dimensions stay fixed during pane motion and reflow once at the end. Resizing follows the pointer without animation. Tab switching and first-readable markers never wait for motion. |
 | Reading look | Editorial theme by default, with a one-click GitHub style toggle. Both use one semantic renderer. |
 | Themes | About 8 curated token files that style the document area only, with separate light and dark choices that follow the system. Shiki themes match. |
 | Typography | Separate reading, writing and code fonts. Family, size, line height and content width. No custom CSS. |

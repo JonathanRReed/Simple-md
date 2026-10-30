@@ -8,6 +8,7 @@ import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-htm
 import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
+import { enterPanel, exitChrome } from "./motion.js";
 
 import type { EditorHandle, EditorSnapshot, FormatKind } from "./editor.js";
 import {
@@ -1362,6 +1363,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     $(id).addEventListener("click", () => { if (settings.readingStyle !== "github") void simplemd.setSettings({ readingFontSize: Math.max(10, Math.min(40, settings.readingFontSize + delta)) }); });
   }
   $("reader-settings").addEventListener("click", () => { $<HTMLDetailsElement>("reader-options").open = false; handleCommand("preferences"); });
+  const readerOptions = $<HTMLDetailsElement>("reader-options");
+  const readerMenu = container.querySelector<HTMLElement>(".reader-options-menu")!;
+  readerOptions.addEventListener("toggle", () => {
+    if (readerOptions.open) enterPanel(readerMenu);
+  });
+  readerOptions.querySelector("summary")!.addEventListener("click", () => {
+    if (readerOptions.open) exitChrome(readerMenu);
+  });
   editBtn.addEventListener("click", () => void showEdit());
   $("mark-seen").addEventListener("click", () => void markSeen());
   $("next-change").addEventListener("click", () => navigateChange(1));

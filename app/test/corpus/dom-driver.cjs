@@ -1,5 +1,6 @@
 const { app, BrowserWindow, session } = require("electron");
-const { readFileSync, writeFileSync } = require("node:fs");
+const { mkdirSync, readFileSync, writeFileSync } = require("node:fs");
+const path = require("node:path");
 
 app.whenReady().then(async () => {
   // Only an empty page and bundled application code run here. No reference assets load.
@@ -21,6 +22,19 @@ app.whenReady().then(async () => {
   const batch = `(async () => { try { return await CorpusBrowser.runBatch(${readFileSync(input, "utf8")}); } catch (error) { return { error: String(error.stack) }; } })()`;
   const results = await window.webContents.executeJavaScript(batch);
   if (results.error) throw new Error(results.error);
+  if (options.frames) {
+    mkdirSync(options.frames.directory, { recursive: true });
+    for (const time of options.frames.times) {
+      await window.webContents.executeJavaScript(`(async () => {
+        for (const animation of document.getAnimations()) {
+          if (${time} > Number(animation.effect.getTiming().duration)) animation.finish();
+          else { animation.pause(); animation.currentTime = ${time}; }
+        }
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      })()`);
+      writeFileSync(path.join(options.frames.directory, `${time}ms.png`), (await window.webContents.capturePage()).toPNG());
+    }
+  }
   if (options.screenshot) writeFileSync(options.screenshot.path, (await window.webContents.capturePage()).toPNG());
   writeFileSync(output, JSON.stringify(results));
   window.destroy();

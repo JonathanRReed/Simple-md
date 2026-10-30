@@ -1,4 +1,5 @@
 import { readSearchRanges } from "./read-search.js";
+import { enterPanel, exitChrome } from "./motion.js";
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 let toastTimer: number | undefined;
@@ -78,7 +79,7 @@ function score(query: string, text: string): number {
   return total;
 }
 
-let closePicker: (() => void) | undefined;
+let closePicker: ((animate?: boolean) => void) | undefined;
 let pickerOpen = false;
 export const isPickerOpen = () => pickerOpen;
 
@@ -89,7 +90,8 @@ export interface PickerSearch {
   search(query: string, update: (items: PickerItem[]) => void): void;
 }
 export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void, search?: PickerSearch): void {
-  closePicker?.();
+  const replacing = pickerOpen;
+  closePicker?.(false);
   const root = $("picker");
   const input = $<HTMLInputElement>("picker-input");
   const list = $("picker-list");
@@ -107,7 +109,8 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   function toggleScope(): void { if (search) { setScope(search.toggleScope()); render(); input.focus(); } }
   scopes.addEventListener("click", toggleScope);
 
-  const close = () => {
+  const close = (animate = true) => {
+    if (animate) exitChrome(root.querySelector<HTMLElement>(".picker-card")!);
     closed = true; generation++; scopes.remove();
     closePicker = undefined;
     pickerOpen = false;
@@ -243,6 +246,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   input.setAttribute("aria-label", placeholder);
   input.setAttribute("aria-expanded", "true");
   root.hidden = false;
+  if (!replacing) enterPanel(root.querySelector<HTMLElement>(".picker-card")!);
   input.addEventListener("input", render);
   input.addEventListener("keydown", onKey);
   root.addEventListener("mousedown", onBackdrop);

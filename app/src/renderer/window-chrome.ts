@@ -1,5 +1,6 @@
 import type { Settings } from "../shared/types.js";
 import type { Bridge } from "./api.js";
+import { animateChrome, exitChrome } from "./motion.js";
 
 export function createWindowChrome(api: Pick<Bridge, "setChromeVisible">) {
   const edge = document.querySelector<HTMLButtonElement>("#chrome-reveal")!;
@@ -7,11 +8,14 @@ export function createWindowChrome(api: Pick<Bridge, "setChromeVisible">) {
   let zen = false;
   let pointer = false;
   let revealed = false;
+  const chrome = () => [...document.querySelectorAll<HTMLElement>(".titlebar, #tabs, .document-pane[data-active='true'] .pane-controls")].filter(node => !node.hidden && node.getBoundingClientRect().width > 0);
   const update = () => {
     const next = zen && (pointer || isChrome(document.activeElement));
     if (next === revealed) return;
+    if (!next) for (const node of chrome()) exitChrome(node, "zen");
     revealed = next;
     document.body.dataset.chromeRevealed = String(next);
+    if (next) for (const node of chrome()) animateChrome(node, [{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }]);
     api.setChromeVisible(!zen || next);
   };
   document.addEventListener("pointerover", event => { if (zen) { pointer = isChrome(event.target); update(); } });

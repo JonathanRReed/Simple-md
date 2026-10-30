@@ -1064,6 +1064,14 @@ await test("settings-config-themes", async () => {
       assert(snapshot.fonts.length > 4 && !snapshot.fontError, 'Installed system fonts were not listed.');
       const keys = ${quote(configEntries.map(([key]) => key))};
       assert(document.querySelectorAll('select,input').length === keys.length && keys.every(key => document.getElementById(key)?.matches('select,input')), 'Schema controls are missing.');
+      const motion = document.querySelector('#ui-motion');
+      assert(motion.type === 'checkbox' && motion.checked, 'Motion switch is missing or off by default');
+      motion.click();
+      await waitFor(() => !motion.disabled, 'Motion switch did not save');
+      assert((await window.simplemdSettings.get()).settings.uiMotion === 'off', 'Motion switch did not disable motion');
+      motion.click();
+      await waitFor(() => !motion.disabled, 'Motion switch did not restore');
+      assert((await window.simplemdSettings.get()).settings.uiMotion === 'subtle', 'Motion switch did not enable motion');
       const choose = async (key, value) => {
         const input = document.getElementById(key); input.value = value; input.dispatchEvent(new Event('change', {bubbles:true}));
         await waitFor(() => !input.disabled, 'Settings did not save.');
@@ -1785,7 +1793,9 @@ await test("ux-reader-policy-chrome", async () => {
     { nativeMenu: ["View", "Read / Edit"] },
     ...appendCharacter("x"),
     { nativeIdentity: { file, edited: true } },
-    evaluate(`const edited = document.querySelector('[data-element=dirty]'); const r = edited.getBoundingClientRect(); assert(!edited.hidden && r.width > 0 && r.right <= innerWidth, 'Edited is offscreen');`),
+    evaluate(`const edited = document.querySelector('.window-edited'); const r = edited.getBoundingClientRect(); assert(edited.textContent === 'Edited' && r.width > 0 && r.right <= innerWidth, 'Edited is offscreen');
+      assert(edited.parentElement.matches('.tb-title'), 'Edited is detached from the active filename');
+      assert(getComputedStyle(edited).color === (matchMedia('(prefers-color-scheme: dark)').matches ? 'rgb(184, 184, 184)' : 'rgb(96, 96, 96)'), 'Edited is not secondary text');`),
     { nativeMenu: ["View", "Read"] },
     evaluate(`await waitFor(() => document.querySelector('.document-pane').dataset.view === 'read', 'Read menu did not work'); await window.simplemd.openPath(${quote(second)});`),
     { nativeIdentity: { file: second, edited: false } },

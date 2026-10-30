@@ -16,7 +16,7 @@ Read the [Helium UI patches](https://github.com/imputnet/helium/tree/main/patche
 | `native-frame-materials.patch` | Native material shared across frame and sidebar | Existing macOS vibrancy and neutral translucent chrome; opaque Windows and Linux frame |
 | `frame-radius-helper.patch` | 12 px older macOS corners, 17 px on macOS 26, 3 px inner inset | 9 px inner radius on macOS, 6 px elsewhere, without private APIs |
 | `fix-layout-separators.patch` | Separators respond to attached chrome | Remove ornamental rules; retain the split-pane boundary |
-| `layout/zen-mode.patch` | 6 px reveal edge, 200 ms reveal | 6 px edge with instant reveal and collapse, including reduced motion |
+| `layout/zen-mode.patch` | 6 px reveal edge, 200 ms reveal | 6 px edge with subtle chrome reveal; instant with Reduce Motion or motion off |
 
 The `ui/enable-tab-hover-cards.patch` path returned 404. Read [the patch under core](https://github.com/imputnet/helium/blob/main/patches/helium/core/enable-tab-hover-cards.patch). It enables preview images. SimpleMD keeps text tooltips with full paths and does not render dormant documents for previews. Some reference screenshots have tab separators; omitting them is a SimpleMD choice.
 
@@ -34,7 +34,21 @@ Pinned paths and order live in app state, `settings.json`, never user config. La
 
 View > Zen Mode uses Command-Shift-J or Control-Shift-J. `zen-mode = false` is the config default. Zen hides tabs, toolbar and footer. Hovering the top edge or focusing controls reveals chrome without moving the document. Native window titles and represented filenames remain accessible. macOS traffic lights follow reveal; Windows and Linux retain native caption controls.
 
-All eight document themes keep neutral chrome and system-accent focus. Increased contrast and forced colors add selection outlines. No fonts, assets or animation were added. Selection scrolling is deferred. Read mode reuses an already-mounted, unchanged document so revisits do not restart lazy diagrams. First-readable markers keep their existing meaning. Performance qualification requires a receipt from the full gate.
+All eight document themes keep neutral chrome and system-accent focus. Increased contrast and forced colors add selection outlines. No fonts or assets were added. Selection scrolling is deferred. Read mode reuses an already-mounted, unchanged document so revisits do not restart lazy diagrams. First-readable markers keep their existing meaning. Performance qualification requires a receipt from the full gate.
+
+## Chrome motion
+
+The owner revised the motion decision on 2026-10-30. `ui-motion = subtle | off` defaults to `subtle` and generates a Settings switch. Reduce Motion overrides the setting. Motion starts only after a document has painted. Document text, reading position and first paint never animate.
+
+CSS owns 120, 160 and 200 ms tokens, a 100 ms exit token, ease-out `cubic-bezier(0.2, 0, 0, 1)` and gentle spring `cubic-bezier(0.3, 0.7, 0.2, 1)`. Transforms and opacity run on the compositor. Nothing keeps `will-change` set.
+
+Both tab layouts use FLIP for insertions, removals, reordering and pin moves. New rows fade and expand from a 0.96 scale while neighboring rows slide to their new positions. Removed rows collapse as inert chrome copies while surviving rows slide into place. One active pill moves between the retained tab nodes. Dirty dots and close buttons crossfade in their shared slot.
+
+Sidebar toggles and split bounds use 200 ms FLIP. Existing document viewports keep fixed dimensions, counteract the frame scale and clip during the transition. They reflow once when motion ends. Pointer resizing stays immediate. Read, Live, Side and Source change their chrome indicator without fading the document. Buttons have a 120 ms pressed transition. The outline magnification uses the 160 ms token.
+
+The palette, Open Quickly and reading options fade and scale from 0.98 over 120 ms, then leave over 100 ms. Exits use inert chrome copies so closing a panel restores focus and removes its interaction immediately. Zen reveals chrome with a 4 px slide and fade. Disabling motion cancels running animations and commits final layout.
+
+The active filename or tab carries a secondary-text Edited label. Split headers keep it beside their filename. The sidebar search placeholder uses opaque secondary text in both appearances.
 
 ## Smoke cases
 

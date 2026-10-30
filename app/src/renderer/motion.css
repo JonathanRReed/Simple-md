@@ -1,5 +1,32 @@
-/* Documents and chrome state changes are instant. Copy affordances follow hover. */
-.copy-code { transition: opacity 80ms ease-out, background-color 80ms ease-out; }
-@media (prefers-reduced-motion: reduce) {
-  .copy-code { transition: none; }
+:root {
+  --motion-fast: 120ms;
+  --motion-move: 160ms;
+  --motion-layout: 200ms;
+  --motion-out: 100ms;
+  --motion-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-spring: cubic-bezier(0.3, 0.7, 0.2, 1);
 }
+/* Only chrome animates. Startup, document paint and resize drags stay instant. */
+.tab { isolation: isolate; }
+.tab[aria-selected="true"] { background: transparent; }
+.tab-indicator { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--chrome-fill); pointer-events: none; }
+.chrome-exit { position: fixed; z-index: 20; overflow: hidden; pointer-events: none; transform-origin: left center; color: CanvasText; font: 12px / 1.5 var(--sans); }
+.chrome-exit > .tab { background: var(--chrome-fill); }
+:root[data-ui-motion="subtle"] :is(.tab-close, .tab-dirty) { transition: opacity var(--motion-fast) var(--motion-ease-out); }
+:root[data-ui-motion="subtle"] .pane-controls button { transition: transform var(--motion-fast) var(--motion-ease-out); }
+:root[data-ui-motion="subtle"] .pane-controls button:active { transform: scale(0.94); }
+.pane-controls :is(.seg, .layout-controls) button { position: relative; isolation: isolate; }
+.pane-controls :is(.seg, .layout-controls) button[aria-pressed="true"] { background: transparent; }
+.pane-controls :is(.seg, .layout-controls) button::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: color-mix(in srgb, var(--system-accent) 16%, transparent); opacity: 0; pointer-events: none; }
+.pane-controls :is(.seg, .layout-controls) button[aria-pressed="true"]::before { opacity: 1; }
+:root[data-ui-motion="subtle"] .pane-controls button::before { transition: opacity var(--motion-fast) var(--motion-ease-out); }
+:root[data-ui-motion="subtle"] .outline-strip > span { transition: transform var(--motion-move) var(--motion-ease-spring), opacity var(--motion-move) var(--motion-ease-out); }
+:root:not([data-ui-motion="subtle"]) :is(.outline-strip > span, .copy-code, #toast), :root:not([data-ui-motion="subtle"]) .code-block[data-lang]::after { transition: none; }
+:root[data-ui-motion="subtle"] .copy-code { transition: opacity var(--motion-fast) var(--motion-ease-out); }
+:root[data-ui-motion="subtle"] #toast, :root[data-ui-motion="subtle"] .code-block[data-lang]::after { transition: opacity var(--motion-fast) var(--motion-ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  :root :is(.tab-close, .tab-dirty, .pane-controls button, .outline-strip > span, .copy-code), :root .pane-controls button::before { transition: none; }
+  :root .pane-controls button:active { transform: none; }
+}
+@media (forced-colors: active) { .tab-indicator { background: Canvas; } }
+@media print { .chrome-exit { display: none; } }

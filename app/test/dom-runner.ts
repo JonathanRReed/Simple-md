@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import electron from "electron";
 
-export async function runDom(entrypoint: string, inputs: unknown, options: { media?: { name: string; value: string }[]; screenshot?: { path: string; width: number; height: number } } = {}): Promise<unknown> {
+export async function runDom(entrypoint: string, inputs: unknown, options: { media?: { name: string; value: string }[]; screenshot?: { path: string; width: number; height: number }; frames?: { directory: string; times: number[] } } = {}): Promise<unknown> {
   const temp = await mkdtemp(path.join(os.tmpdir(), "simplemd-dom-"));
   try {
     const bundle = path.join(temp, "browser.js");

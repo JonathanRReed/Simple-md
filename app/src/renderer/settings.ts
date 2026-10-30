@@ -7,7 +7,7 @@ const controls = new Map<keyof UserSettings, HTMLInputElement | HTMLSelectElemen
 let settings: UserSettings;
 const labelFor = (value: string) => ({ "editorial-light": "Editorial Light", "editorial-dark": "Editorial Dark", "github-light": "GitHub Light", "github-dark": "GitHub Dark", "solarized-light": "Solarized Light", "solarized-dark": "Solarized Dark", "contrast-light": "High Contrast Light", "contrast-dark": "High Contrast Dark", system: "System", light: "Light", dark: "Dark", live: "Live", split: "Side by side", source: "Source", tab: "Tabs", window: "Windows", top: "Horizontal", sidebar: "Sidebar", repo: "Repository", everywhere: "Everywhere" })[value] ?? value;
 function makeControl(def: ConfigDefinition): HTMLInputElement | HTMLSelectElement {
-  if (def.kind === "choice" && def.setting !== "readingStyle" || def.kind === "font") {
+  if (def.kind === "choice" && def.setting !== "readingStyle" && def.setting !== "uiMotion" || def.kind === "font") {
     const select = document.createElement("select");
     if (def.kind === "choice") for (const value of def.options) select.add(new Option(labelFor(value), value));
     return select;
@@ -30,7 +30,7 @@ function sync(snapshot: SettingsSnapshot): void {
       const fonts = [...new Set([...snapshot.fonts, String(value)])];
       input.replaceChildren(...fonts.map(font => new Option(font, font)));
     }
-    if (input instanceof HTMLInputElement && input.type === "checkbox") input.checked = def.setting === "readingStyle" ? value === "github" : value === true;
+    if (input instanceof HTMLInputElement && input.type === "checkbox") input.checked = def.setting === "readingStyle" ? value === "github" : def.setting === "uiMotion" ? value === "subtle" : value === true;
     else input.value = String(value);
   }
   document.querySelector<HTMLElement>("#reading-style-note")!.hidden = settings.readingStyle !== "github";
@@ -68,6 +68,7 @@ for (const [key, def] of configEntries) {
     if (def.group === "Reading" && settings.readingStyle === "github") return;
     if (!input.checkValidity()) { input.reportValidity(); return; }
     const value = def.setting === "readingStyle" && input instanceof HTMLInputElement ? (input.checked ? "github" : "editorial")
+      : def.setting === "uiMotion" && input instanceof HTMLInputElement ? (input.checked ? "subtle" : "off")
       : def.kind === "boolean" && input instanceof HTMLInputElement ? input.checked
       : def.kind === "number" && input instanceof HTMLInputElement ? input.valueAsNumber : input.value;
     const restoreFocus = document.activeElement === input;

@@ -34,7 +34,7 @@ export function createOutlineRail<T>(options: {
   let buttons: HTMLButtonElement[] = [];
   let offsets: number[] = [];
   let active: number | null = null;
-  let frame = 0, buildFrame = 0, buildTimer = 0, measureFrame = 0, animation = 0;
+  let frame = 0, buildFrame = 0, buildTimer = 0, measureFrame = 0;
   let destroyed = false;
   let gesture: { id: number; y: number; top: number; height: number; dragging: boolean } | null = null;
   let suppressedClick = false;
@@ -84,35 +84,22 @@ export function createOutlineRail<T>(options: {
   function scheduleViewport(): void {
     if (!frame) frame = requestAnimationFrame(paintViewport);
   }
-  function stopAnimation(): void { cancelAnimationFrame(animation); animation = 0; }
   function restoreNavigation(): void {
     if (!navigation) return;
     const intent = navigation;
     const index = intent.kind === "heading" ? items.findIndex(item => item.key === intent.key) : -1;
     if (intent.kind === "heading" && index < 0) { navigation = null; return; }
-    stopAnimation();
     writeTop(intent.kind === "scrub" ? outlineScroll(intent.progress, scroller.scrollHeight, scroller.clientHeight)
       : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, offsets[index]! - 16)));
   }
-  function stopNavigation(): void { navigation = null; ownedTop = null; stopAnimation(); }
+  function stopNavigation(): void { navigation = null; ownedTop = null; }
   function jump(index: number): void {
     const item = items[index];
     if (!item) return;
     const target = options.offset(item.target);
     navigation = { kind: "heading", key: item.key };
     options.navigate();
-    stopAnimation();
-    const start = scroller.scrollTop;
-    const end = Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, target - 16));
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { writeTop(end); return; }
-    const since = performance.now();
-    const step = (now: number) => {
-      const progress = Math.min(1, (now - since) / 160);
-      writeTop(start + (end - start) * (1 - (1 - progress) ** 3));
-      if (progress < 1) animation = requestAnimationFrame(step);
-      else animation = 0;
-    };
-    animation = requestAnimationFrame(step);
+    writeTop(Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, target - 16)));
   }
 
   function build(): void {
@@ -237,7 +224,7 @@ export function createOutlineRail<T>(options: {
   return {
     refresh,
     destroy() {
-      destroyed = true; abort.abort(); observer.disconnect(); intersection?.disconnect(); observed.clear(); stopAnimation();
+      destroyed = true; abort.abort(); observer.disconnect(); intersection?.disconnect(); observed.clear();
       cancelAnimationFrame(frame); cancelAnimationFrame(buildFrame); cancelAnimationFrame(measureFrame); clearTimeout(buildTimer);
       scroller.classList.remove("outline-scroll"); host.classList.remove("outline-host", "outline-present"); rail.remove();
     },

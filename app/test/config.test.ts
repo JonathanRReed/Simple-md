@@ -7,6 +7,17 @@ import { parseConfig, serializeConfig, validateUserPatch } from "../src/shared/c
 import { ConfigStore, configPath } from "../src/main/config-store";
 import { sanitizeSettings } from "../src/main/settings-store";
 
+test("chrome motion defaults to subtle and only accepts subtle or off", () => {
+  expect(configDefaults.uiMotion).toBe("subtle");
+  for (const uiMotion of ["subtle", "off"] as const) {
+    expect(parseConfig(serializeConfig("", { uiMotion })).settings.uiMotion).toBe(uiMotion);
+    expect(validateUserPatch({ uiMotion })).toEqual({ uiMotion });
+    expect(sanitizeSettings({ uiMotion }).uiMotion).toBe(uiMotion);
+  }
+  expect(parseConfig("ui-motion = fast").issues).toHaveLength(1);
+  expect(() => validateUserPatch({ uiMotion: true })).toThrow();
+});
+
 test("tab settings round trip and sidebar width clamps at every config boundary", () => {
   expect(configDefaults.tabStyle).toBe("top"); expect(configDefaults.sidebarWidth).toBe(180);
   const patch = { tabStyle: "sidebar", sidebarWidth: 301, sidebarCollapsed: true, zenMode: true } as const;

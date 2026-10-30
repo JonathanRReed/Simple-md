@@ -9,6 +9,7 @@ import { applyDocumentStyle } from "./document-style.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { renderDiagrams } from "./diagrams.js";
 import { closeOverlays, openPicker, toast } from "./ui.js";
+import { armMotion, capturePaneBounds, configureMotion, flipPaneBounds } from "./motion.js";
 
 const api = bridge();
 const windowChrome = createWindowChrome(api);
@@ -30,6 +31,7 @@ document.addEventListener("contextmenu", event => {
 api.onContextMenu(context => { if (contextTarget) void contextTarget.contextMenu(context).catch(console.error); });
 const active = () => layout ? panes.get(layout.activePane)?.controller : undefined;
 function applyWindowSettings(next: Settings): void {
+  configureMotion(next);
   applyDocumentStyle(next);
   tabBar.configure(next);
   windowChrome.configure(next);
@@ -42,12 +44,17 @@ function syncChrome(): void {
   if (!layout) return;
   const controller = active();
   const element = panes.get(layout.activePane)?.element;
+  if (element?.dataset.documentPainted !== undefined) armMotion();
   for (const key of ["documentPath", "documentPainted", "firstReadable", "fullyHighlighted", "renderComplete", "documentId", "revisionId"]) {
     if (element?.dataset[key] === undefined) delete document.documentElement.dataset[key];
     else document.documentElement.dataset[key] = element.dataset[key];
   }
   const windowTitle = document.querySelector<HTMLElement>(".tb-title")!;
   windowTitle.textContent = controller?.meta.name ?? "SimpleMD";
+  if (controller?.meta.dirty) {
+    const edited = document.createElement("span"); edited.className = "window-edited"; edited.textContent = "Edited";
+    windowTitle.append(edited);
+  }
   document.title = controller?.meta.name ?? "SimpleMD";
   windowTitle.title = controller?.meta.path ?? "";
   if (settings.tabStyle === "sidebar") {
@@ -93,6 +100,7 @@ function stash(entry: { element: HTMLElement; controller: PaneController }): voi
   }
 }
 function mountLayout(next: TabLayoutState): void {
+  const bounds = layout && (layout.axis !== next.axis || layout.panes.length !== next.panes.length) ? capturePaneBounds() : new Map();
   closeOverlays();
   const previousActive = layout?.activePane;
   for (const [id, entry] of panes) entry.controller.activeChanged(next.activePane === id && next.panes.some(slot => slot.paneId === id && slot.documentId === entry.controller.documentId));
@@ -161,6 +169,7 @@ function mountLayout(next: TabLayoutState): void {
     }
   }
   syncChrome();
+  flipPaneBounds(bounds);
   if (previousActive !== next.activePane && !strip.contains(document.activeElement)) active()?.focus();
 }
 
@@ -239,7 +248,6 @@ async function boot(): Promise<void> {
     void import("./open-quickly.js").then(({ openQuickly }) => {
       if (closed) return;
       const query = document.querySelector<HTMLInputElement>("#picker-input")!.value.slice(0, 256);
-      closeOverlays();
       openQuickly(api, settings.openQuicklyScope, instant, query);
     }).finally(() => { quicklyLoading = false; });
   }

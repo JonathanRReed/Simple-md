@@ -37,6 +37,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `sidebar-width` | `180` | 140 to 420 |
 | `sidebar-collapsed` | `false` | true, false |
 | `zen-mode` | `false` | true, false |
+| `ui-motion` | `subtle` | subtle, off |
 | `autosave` | `true` | true, false |
 | `vim` | `false` | true, false |
 | `spellcheck` | `true` | true, false |
@@ -52,6 +53,8 @@ Open Quickly uses Command/Control-Shift-O. Tab cycles This repo and Everywhere; 
 Open Quickly searches tabs and recents immediately, then queries Git on demand. Outside a repository it walks the active document's folder, up to six levels and 20,000 entries, skipping hidden directories, node_modules and symlinks. Everywhere also queries Spotlight on macOS or an existing plocate/locate database on Linux. Windows currently searches tabs, recents and the repository or folder only. Missing Linux search tools leave those same sources available. Nothing starts a crawler or writes an index. Closing the finder cancels searches and clears its file list. Search processes have a 10-second timeout and an 8 MB output cap; the picker shows at most 200 results. Machine results exclude Library, app bundles and cache directories.
 
 View > Zen Mode uses Command-Shift-J on macOS and Control-Shift-J elsewhere. zen-mode saves the choice. The top edge reveals controls without shifting the document. Pinned files and their order live in settings.json, not this config. Only existing pinned files reopen on launch.
+
+ui-motion = subtle enables brief chrome transitions after the first document paint. ui-motion = off or the system Reduce Motion preference makes changes instant. Document text, reading position and first paint never animate. Settings provides a Subtle chrome motion switch.
 
 Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing.
 
@@ -86,6 +89,7 @@ tab-style = top
 sidebar-width = 180
 sidebar-collapsed = false
 zen-mode = false
+ui-motion = subtle
 autosave = true
 vim = false
 spellcheck = true

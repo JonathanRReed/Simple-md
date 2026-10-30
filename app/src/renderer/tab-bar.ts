@@ -3,6 +3,7 @@ import { tabNavigationIndex, type TabRow } from "../shared/tab-presentation.js";
 import { splitTabLabel } from "../shared/tab-labels.js";
 import { DEFAULT_SETTINGS, type Settings } from "../shared/types.js";
 import type { Bridge } from "./api.js";
+import { animateChrome, capturePaneBounds, captureRects, exitChrome, finishPaneMotion, flipChrome, flipPaneBounds, motionEnabled } from "./motion.js";
 
 export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick<Bridge, "activateTab" | "closeTab" | "tabContextMenu" | "setSettings" | "moveTab">) {
   let settings: Settings = DEFAULT_SETTINGS;
@@ -14,6 +15,9 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
   const pendingWidths: number[] = [];
   const saveWidth = () => { pendingWidths.push(width); void api.setSettings({ sidebarWidth: width }); };
   const nodes = new Map<TabRow["id"], HTMLElement>();
+  const indicator = document.createElement("span");
+  indicator.className = "tab-indicator";
+  indicator.setAttribute("aria-hidden", "true");
   let dragged: TabRow["id"] | undefined;
   const clearDrop = () => { for (const node of nodes.values()) delete node.dataset.dropBefore; };
   strip.addEventListener("dragend", () => { dragged = undefined; clearDrop(); document.body.classList.remove("dragging-tabs"); });
@@ -50,6 +54,7 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
   };
   divider.addEventListener("pointerdown", event => {
     if (event.button !== 0 || drag) return;
+    finishPaneMotion();
     event.preventDefault();
     divider.focus({ preventScroll: true });
     drag = { pointer: event.pointerId, x: event.clientX, width, direction: getComputedStyle(strip).direction === "rtl" ? -1 : 1 };
@@ -82,6 +87,10 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
     saveWidth();
   });
   function configure(next: Settings): void {
+    const changed = settings.tabStyle !== next.tabStyle || settings.sidebarCollapsed !== next.sidebarCollapsed;
+    const bounds = changed ? capturePaneBounds() : new Map();
+    const sidebar = changed && settings.tabStyle === "sidebar" && !settings.sidebarCollapsed ? strip.getBoundingClientRect() : undefined;
+    if (sidebar) exitChrome(strip, "sidebar");
     const ownWidth = pendingWidths.indexOf(next.sidebarWidth);
     if (ownWidth >= 0) pendingWidths.splice(0, ownWidth + 1);
     if (drag && ((ownWidth < 0 && settings.sidebarWidth !== next.sidebarWidth) || settings.tabStyle !== next.tabStyle || settings.sidebarCollapsed !== next.sidebarCollapsed)) finishDrag(false);
@@ -94,14 +103,25 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
     divider.setAttribute("aria-valuemax", String(configSchema["sidebar-width"].max));
     divider.hidden = next.tabStyle !== "sidebar" || next.sidebarCollapsed;
     strip.hidden = next.tabStyle === "sidebar" ? next.sidebarCollapsed : rows.length <= 1 && !rows.some(row => row.pinned);
+    if (changed) {
+      flipPaneBounds(bounds);
+      if (next.tabStyle === "sidebar" && !next.sidebarCollapsed) animateChrome(strip, [{ opacity: 0, transform: "translateX(-12px)" }, { opacity: 1, transform: "none" }], "layout");
+    }
     if ((strip.hidden && strip.contains(document.activeElement)) || (divider.hidden && document.activeElement === divider)) {
       focusDocument();
     }
   }
   function render(next: TabRow[]): void {
+    if (next.length === rows.length && next.every((row, i) => {
+      const old = rows[i]!;
+      return row.id === old.id && row.label === old.label && row.title === old.title && row.selected === old.selected && row.dirty === old.dirty && row.pinned === old.pinned && row.pane === old.pane;
+    })) return;
+    const animate = nodes.size > 0 && motionEnabled();
+    const pill = animate && indicator.isConnected ? indicator.getBoundingClientRect() : undefined;
+    const before = animate ? captureRects(nodes.values()) : new Map();
     rows = next;
     const focused = strip.contains(document.activeElement);
-    for (const [id, node] of nodes) if (!rows.some(row => row.id === id)) { node.remove(); nodes.delete(id); }
+    for (const [id, node] of nodes) if (!rows.some(row => row.id === id)) { if (animate) exitChrome(node, "tab"); node.remove(); nodes.delete(id); }
     rows.forEach((row, index) => {
       let node = nodes.get(row.id);
       if (!node) {
@@ -121,7 +141,8 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
         for (const [key, value] of Object.entries({ d: "m3 3 6 6m0-6-6 6", fill: "none", stroke: "currentColor", "stroke-width": "1.3", "stroke-linecap": "round" })) path.setAttribute(key, value);
         icon.append(path); close.append(icon);
         close.addEventListener("click", event => { event.stopPropagation(); void api.closeTab(row.id); });
-        action.append(dirty, close); node.append(pane, title, short, action);
+        const edited = document.createElement("span"); edited.className = "tab-edited";
+        action.append(dirty, close); node.append(pane, title, short, action, edited);
         node.draggable = true;
         node.addEventListener("dragstart", event => {
           dragged = row.id; document.body.classList.add("dragging-tabs");
@@ -162,6 +183,9 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
       node.setAttribute("aria-keyshortcuts", "Delete"); node.tabIndex = row.selected ? 0 : -1;
       node.title = row.title; node.dataset.dirty = String(row.dirty); node.dataset.pane = row.pane ?? "";
       node.dataset.pinned = String(row.pinned);
+      const edited = node.querySelector<HTMLElement>(".tab-edited")!;
+      edited.textContent = row.selected && row.dirty && !row.pinned ? "Edited" : "";
+      edited.hidden = !edited.textContent;
       node.querySelector<HTMLElement>(".tab-short")!.textContent = Array.from(row.label)[0] ?? "";
       node.querySelector<HTMLButtonElement>(".tab-close")!.hidden = row.pinned;
       node.querySelector<HTMLElement>(".tab-pane")!.title = row.pane ? `${row.pane} pane` : "";
@@ -172,6 +196,11 @@ export function createTabBar(strip: HTMLElement, divider: HTMLElement, api: Pick
     strip.hidden = settings.tabStyle === "sidebar" ? settings.sidebarCollapsed : rows.length <= 1 && !rows.some(row => row.pinned);
     document.body.dataset.multipleTabs = String(rows.length > 1 || rows.some(row => row.pinned));
     const selected = strip.querySelector<HTMLElement>('.tab[aria-selected="true"]');
+    if (selected) {
+      selected.prepend(indicator);
+      if (animate && rows.some(row => row.selected && row.id !== previousSelected)) flipChrome(indicator, pill);
+    } else indicator.remove();
+    if (animate && !strip.hidden) for (const node of nodes.values()) flipChrome(node, before.get(node), !before.has(node));
     if (!focused && !strip.hidden && selected && rows.some(row => row.selected && row.id !== previousSelected)) requestAnimationFrame(() => { if (selected.isConnected) selected.scrollIntoView({ block: "nearest", inline: "nearest" }); });
     previousSelected = rows.find(row => row.selected)?.id;
     if (focused) {

@@ -34,6 +34,7 @@ export const configSchema = {
   "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 180, 140, 420, 1), setting: "sidebarWidth" },
   "sidebar-collapsed": { ...boolean("sidebarCollapsed", "Hide tab sidebar", "Tabs", false), setting: "sidebarCollapsed" },
   "zen-mode": { ...boolean("zenMode", "Zen mode", "Tabs", false), setting: "zenMode" },
+  "ui-motion": { ...choice("uiMotion", "Subtle chrome motion", "Appearance", "subtle", ["subtle", "off"]), setting: "uiMotion" },
   "autosave": { ...boolean("autosave", "Autosave", "Behavior", true), setting: "autosave" },
   "vim": { ...boolean("vim", "Vim key bindings", "Behavior", false), setting: "vim" },
   "spellcheck": { ...boolean("spellcheck", "Spellcheck", "Behavior", true), setting: "spellcheck" },
