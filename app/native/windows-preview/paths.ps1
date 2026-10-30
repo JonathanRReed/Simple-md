@@ -7,8 +7,8 @@ function Test-X64Windows {
 public static extern bool IsWow64Process2(System.IntPtr process, out ushort processMachine, out ushort nativeMachine);
 '@
     }
-    [ushort]$processMachine = 0
-    [ushort]$nativeMachine = 0
+    [uint16]$processMachine = 0
+    [uint16]$nativeMachine = 0
     if (-not [SimpleMDPreview.Architecture]::IsWow64Process2(
         (Get-Process -Id $PID).Handle, [ref]$processMachine, [ref]$nativeMachine)) {
         throw 'Could not determine the native Windows architecture. No preview registration changed.'

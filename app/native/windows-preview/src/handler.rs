@@ -94,14 +94,15 @@ fn log(message: &str) {
     // A failed logger must never panic across a COM boundary. Install creates and
     // inherits the LocalLow label for this directory; do not fall back to a medium-integrity location.
     let Ok(root) = low_root() else { return };
-    if let Ok(mut file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(root.join("preview.log"))
-    {
-        if file.metadata().is_ok_and(|m| m.len() >= 1024 * 1024) {
+    let path = root.join("preview.log");
+    if fs::metadata(&path).is_ok_and(|m| m.len() >= 1024 * 1024) {
+        // An append-only Windows handle cannot truncate. Use a separate writable
+        // handle, then reopen for atomic append by concurrent preview hosts.
+        if let Ok(file) = OpenOptions::new().write(true).open(&path) {
             let _ = file.set_len(0);
         }
+    }
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
         let t = unsafe { GetSystemTime() };
         let line = format!(
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z pid={} tid={} {message}\n",
