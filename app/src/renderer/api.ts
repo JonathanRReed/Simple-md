@@ -1,7 +1,7 @@
 import type { HighlightState, GitChangesStatus } from "../shared/change-highlights.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
-import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, RenderedBlock, Settings, SaveResult } from "../shared/types.js";
+import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
   readFindText(): Promise<string>;

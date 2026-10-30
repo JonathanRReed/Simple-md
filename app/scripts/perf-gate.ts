@@ -275,7 +275,8 @@ export async function perfGate(): Promise<void> {
     } finally {
       const runtime = cliRuntime(userData);
       for (const name of ["state.json", "ipc.sock"]) fs.rmSync(path.join(runtime, name), { force: true });
-      try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error; }
+      // Never throw from finally: it would replace the run's own error.
+      try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.warn(`perf-gate: could not remove ${runtime}`, error); }
     }
     runs.push({ name, file, profile: userData, compileCache: env.NODE_COMPILE_CACHE, loadAverageStart: startedLoad, loadAverageEnd: os.loadavg(), ...result });
     runResults.set(name, result);

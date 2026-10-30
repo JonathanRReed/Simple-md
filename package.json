@@ -8,6 +8,7 @@
     "build": "bun run --cwd app build",
     "build:native": "bun run --cwd app build:native",
     "typecheck": "bun run --cwd app typecheck",
+    "lint": "bun run --cwd app lint",
     "test": "bun run --cwd app test",
     "test:corpus": "bun run --cwd app test:corpus",
     "test:packaging": "bun run --cwd app test:packaging",

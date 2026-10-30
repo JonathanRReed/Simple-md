@@ -14,7 +14,7 @@ export function githubAutolinks(md: MarkdownIt): void {
         if (token.type === "link_close") linkDepth--;
         if (token.type === "html_inline" && /^<\/?(?:a|code|pre)\b/i.test(token.content)) literalDepth += token.content.startsWith("</") ? -1 : 1;
         if (linkDepth || literalDepth || token.type !== "text") { result.push(token); continue; }
-        const matches = /(?:https?:\/\/|www\.)[^\s<>]+|(?:mailto:)?[a-z0-9._+\-]+@[a-z0-9_\-]+(?:\.[a-z0-9_\-]+)+/gi;
+        const matches = /(?:https?:\/\/|www\.)[^\s<>]+|(?:mailto:)?[a-z0-9._+-]+@[a-z0-9_-]+(?:\.[a-z0-9_-]+)+/gi;
         let start = 0;
         for (const match of token.content.matchAll(matches)) {
           let label = match[0];

@@ -194,8 +194,8 @@ try {
   for (const child of processes) if (child.exitCode === null) child.kill("SIGKILL");
   for (const runtime of runtimes) {
     const state = path.join(runtime, "state.json");
-    if (fs.existsSync(state)) { const value = JSON.parse(fs.readFileSync(state, "utf8")); try { process.kill(value.pid, "SIGKILL"); } catch {} }
+    if (fs.existsSync(state)) { const value = JSON.parse(fs.readFileSync(state, "utf8")); try { process.kill(value.pid, "SIGKILL"); } catch { /* already exited */ } }
     for (const name of ["state.json", "ipc.sock"]) fs.rmSync(path.join(runtime, name), { force: true });
-    try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error; }
+    try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.warn(`could not remove ${runtime}`, error); }
   }
 }

@@ -79,7 +79,7 @@ test("rendered task ordinals exclude display math and alert bodies use the same 
     "$$\n\\begin{aligned}\n- [ ] math-only\n\\end{aligned}\n$$\n\n> [!NOTE]\n> - [ ] actual\n",
   ]) {
     const html = (await renderBlocks(source, "/tmp/tasks.md")).blocks.map(block => block.html).join("");
-    expect([...html.matchAll(/class=\"task-list-item-checkbox\"/g)]).toHaveLength(1);
+    expect([...html.matchAll(/class="task-list-item-checkbox"/g)]).toHaveLength(1);
     expect(toggleTaskAt(source, 0)).toBe(source.replace("[ ] actual", "[x] actual"));
     expect(toggleTaskAt(source, 1)).toBeNull();
   }
