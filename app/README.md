@@ -31,7 +31,8 @@ Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 - Read or edit: Command/Control+Enter
 - Command palette: Command/Control+Shift+P
 - Find: Command/Control+F
-- Outline: Command/Control+Shift+O
+- Open Quickly: Command/Control+Shift+O
+- Outline: Command/Control+Alt+Shift+O
 - Editing modes: Command/Control+Alt+1, 2, or 3
 
 ## Quick Look on macOS

@@ -92,6 +92,8 @@ interface WindowContext {
   paneModes: Map<ReturnType<typeof makePaneId>, import("../shared/types.js").ViewMode>;
   mainPane: { paneId: ReturnType<typeof makePaneId>; documentId: DocumentId };
   rendererReady: boolean;
+  quickly?: import("./open-quickly.js").QuicklySearch;
+  quicklyGeneration?: number;
   nativeContext?: NativeContext;
   loaded: Promise<void>;
   markLoaded(): void;
@@ -276,7 +278,7 @@ function createWindow(host: WindowContext): BrowserWindow {
   };
   w.on("focus", () => { frontmost = windows.get(w.webContents.id) ?? frontmost; trace("win-focus"); if (!quitting) refreshMenus(); });
   w.on("blur", () => trace("win-blur"));
-  w.on("hide", () => trace("win-hide"));
+  w.on("hide", () => { host.quickly?.close(); host.quickly = undefined; host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1; trace("win-hide"); });
   w.on("show", () => trace("win-show"));
   w.on("resize", rememberBounds);
   w.on("move", rememberBounds);
@@ -289,6 +291,7 @@ function createWindow(host: WindowContext): BrowserWindow {
   });
   const webContentsId = w.webContents.id;
   w.on("closed", () => {
+    host.quickly?.close();
     windows.delete(webContentsId);
     if (frontmost?.win === w) frontmost = [...windows.values()].find(host => !host.win.isDestroyed() && host.win.isVisible()) ?? [...windows.values()].at(-1) ?? frontmost;
   });
@@ -480,10 +483,11 @@ function waitUntilUsable(id: DocumentId, host = context()): Promise<void> {
     waiters.add(done);
   });
 }
-async function present(payload: DocPayload, host = context()): Promise<void> {
+async function present(payload: DocPayload, host = context(), otherPane = false): Promise<void> {
   await host.loaded;
   const previous = host.mainPane.documentId;
-  host.layout.add(payload.documentId);
+  if (otherPane) host.layout.openOther(payload.documentId);
+  else host.layout.add(payload.documentId);
   Object.assign(host.mainPane, host.layout.active);
   payload.paneId = host.mainPane.paneId;
   if (!host.layout.has(previous)) registry.remove(previous);
@@ -512,7 +516,7 @@ function openFile(file: string | undefined, intent: OpenIntent, inPlace = false,
   return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? "")): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? ""), quickly?: { otherPane: boolean }): Promise<boolean> {
   if (!file) {
     reveal(host);
     return true;
@@ -530,7 +534,8 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     if (existing !== undefined) return windowScope.run(host, async () => {
       const usable = waitUntilUsable(existing, host);
       perfMark("file-open-arrival", { path: abs });
-      host.layout.activate(existing);
+      if (quickly?.otherPane) host.layout.openOther(existing);
+      else host.layout.activate(existing);
       syncLayout(host); reveal(host);
       await usable;
       if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
@@ -538,7 +543,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       return true;
     });
   }
-  if (!inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
+  if (!quickly && !inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
     return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource));
   }
@@ -574,7 +579,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
           sendTo(host, "smd:closed", replaced);
         }
         if (forceSource) payload.initialMode = "source";
-        await present(payload, host);
+        await present(payload, host, quickly?.otherPane);
         addRecent(abs);
       },
     });
@@ -1086,6 +1091,28 @@ function registerIpc(): void {
       return doc.path ? saveImageNextTo(doc.path, bytes, ext) : Promise.resolve(null);
     });
   });
+  handle("smd:quickly-query", async (raw, scope, request) => {
+    const host = context();
+    if (typeof raw !== "string" || raw.length > 256 || (scope !== "repo" && scope !== "everywhere") || !Number.isSafeInteger(request)) throw new TypeError("Invalid search.");
+    host.quickly?.cancel();
+    const generation = host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1;
+    const { QuicklySearch } = await import("./open-quickly.js");
+    if (host.win.isDestroyed() || host.quicklyGeneration !== generation) return [];
+    host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null);
+    const tabs = host.layout.state.tabs.flatMap(id => { const file = registry.get(id)?.path; return file ? [{ path: file, source: "tab" as const }] : []; });
+    const matches = await host.quickly.search(raw, scope, [...tabs, ...settings.recents.map(path => ({ path, source: "recent" as const }))], matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
+    return host.quicklyGeneration === generation ? matches : [];
+  });
+  on("smd:quickly-close", () => {
+    const host = context(); host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1;
+    host.quickly?.close(); host.quickly = undefined;
+  });
+  handle("smd:quickly-open", (file, otherPane) => {
+    const host = context();
+    const target = ipcText(file);
+    if (!path.isAbsolute(target) || !/\.(md|mdx|markdown|mdown|mkd)$/i.test(target) || target.includes("\0")) throw new TypeError("Invalid Markdown path.");
+    return documents.run(() => openCurrentFile(target, "read", false, undefined, host, false, false, { otherPane: otherPane === true }));
+  });
   handle("smd:open-dialog", openDialog);
   handle("smd:save-copy", (value, id) => {
     const doc = ipcSession(id), text = ipcText(value), host = context();
@@ -1174,7 +1201,7 @@ function registerIpc(): void {
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
     if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
-    const commands: readonly string[] = ["toggle-tab-sidebar", "mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
+    const commands: readonly string[] = ["open-quickly", "toggle-tab-sidebar", "mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }

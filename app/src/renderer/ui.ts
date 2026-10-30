@@ -52,7 +52,10 @@ export interface PickerItem {
   label: string;
   hint?: string;
   depth?: number;
-  run(): void;
+  labelIndices?: readonly number[];
+  parent?: string;
+  parentIndices?: readonly number[];
+  run(otherPane?: boolean): void;
 }
 
 /** In-order subsequence match, scored so tighter and earlier matches rank first. */
@@ -79,18 +82,36 @@ let closePicker: (() => void) | undefined;
 let pickerOpen = false;
 export const isPickerOpen = () => pickerOpen;
 
-export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void): void {
+export interface PickerSearch {
+  initialQuery?: string;
+  scope: "repo" | "everywhere";
+  toggleScope(): "repo" | "everywhere";
+  search(query: string, update: (items: PickerItem[]) => void): void;
+}
+export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void, search?: PickerSearch): void {
   closePicker?.();
   const root = $("picker");
   const input = $<HTMLInputElement>("picker-input");
   const list = $("picker-list");
   let shown: PickerItem[] = items;
   let active = 0;
+  let closed = false;
+  let generation = 0;
+  const scopes = document.createElement("button");
+  scopes.type = "button"; scopes.className = "picker-scope";
+  const setScope = (scope: "repo" | "everywhere") => {
+    scopes.textContent = scope === "repo" ? "This repo" : "Everywhere";
+    scopes.setAttribute("aria-label", `Search scope: ${scopes.textContent}`);
+  };
+  if (search) { setScope(search.scope); input.before(scopes); }
+  function toggleScope(): void { if (search) { setScope(search.toggleScope()); render(); input.focus(); } }
+  scopes.addEventListener("click", toggleScope);
 
   const close = () => {
+    closed = true; generation++; scopes.remove();
     closePicker = undefined;
     pickerOpen = false;
-    root.hidden = true;
+    root.hidden = true; input.setAttribute("aria-expanded", "false");
     input.removeEventListener("input", render);
     input.removeEventListener("keydown", onKey);
     root.removeEventListener("mousedown", onBackdrop);
@@ -99,6 +120,12 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
 
   function render(): void {
     const q = input.value.trim();
+    if (search) {
+      const request = ++generation;
+      active = 0;
+      search.search(q, next => { if (!closed && generation === request) { shown = next; active = Math.min(active, Math.max(0, next.length - 1)); paint(); } });
+      return;
+    }
     shown = q
       ? items
           .map((item) => ({ item, s: score(q, `${item.label} ${item.hint ?? ""}`) }))
@@ -107,6 +134,23 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
           .map((x) => x.item)
       : items;
     active = Math.min(active, Math.max(0, shown.length - 1));
+    paint();
+  }
+  function highlight(text: string, indices: readonly number[] = []): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    const matches = new Set(indices);
+    let start = 0;
+    while (start < text.length) {
+      const matched = matches.has(start);
+      let end = start + 1;
+      while (end < text.length && matches.has(end) === matched) end++;
+      if (matched) { const mark = document.createElement("mark"); mark.textContent = text.slice(start, end); fragment.append(mark); }
+      else fragment.append(document.createTextNode(text.slice(start, end)));
+      start = end;
+    }
+    return fragment;
+  }
+  function paint(): void {
     list.replaceChildren(
       ...shown.map((item, i) => {
         const li = document.createElement("li");
@@ -115,8 +159,24 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
         li.setAttribute("aria-selected", String(i === active));
         li.style.paddingInlineStart = `${14 + (item.depth ?? 0) * 14}px`;
         const label = document.createElement("span");
-        label.textContent = item.label;
+        label.append(highlight(item.label, item.labelIndices));
         li.append(label);
+        if (item.parent !== undefined) {
+          li.classList.add("picker-file");
+          li.title = item.parent + "/" + item.label;
+          li.setAttribute("aria-label", `${item.label}, ${item.parent}`);
+          const parent = document.createElement("span"); parent.className = "picker-parent";
+          const text = item.parent;
+          // A bounded middle truncation preserves both ends and their highlight indices.
+          const omitted = Math.max(0, text.length - 66);
+          if (omitted) {
+            parent.append(highlight(text.slice(0, 30), item.parentIndices));
+            parent.append("…");
+            const start = text.length - 36;
+            parent.append(highlight(text.slice(start), item.parentIndices?.filter(i => i >= start).map(i => i - start)));
+          } else parent.append(highlight(text, item.parentIndices));
+          li.append(parent);
+        }
         if (item.hint) {
           const hint = document.createElement("kbd");
           hint.textContent = item.hint;
@@ -130,24 +190,29 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
         return li;
       }),
     );
+    if (!shown.length) {
+      const empty = document.createElement("li"); empty.textContent = search ? "No matching files" : "No matches"; empty.setAttribute("role", "status"); list.append(empty);
+    }
     input.setAttribute("aria-activedescendant", shown.length ? `picker-opt-${active}` : "");
     list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
   }
 
   function mark(): void {
     list.querySelectorAll("li").forEach((li, i) => li.setAttribute("aria-selected", String(i === active)));
-    input.setAttribute("aria-activedescendant", `picker-opt-${active}`);
+    input.setAttribute("aria-activedescendant", shown.length ? `picker-opt-${active}` : "");
   }
 
-  function choose(i: number): void {
+  function choose(i: number, otherPane = false): void {
     const item = shown[i];
+    if (!item) return;
     close();
-    item?.run();
+    item.run(otherPane);
   }
 
   function onKey(e: KeyboardEvent): void {
-    if (e.key === "Escape") {
-      e.preventDefault();
+    if (e.key === "Tab" && search) { e.preventDefault(); e.stopPropagation(); toggleScope(); }
+    else if (e.key === "Escape") {
+      e.preventDefault(); e.stopPropagation();
       close();
     } else if (e.key === "ArrowDown" || (e.ctrlKey && e.key === "n")) {
       e.preventDefault();
@@ -161,7 +226,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
       list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
     } else if (e.key === "Enter") {
       e.preventDefault();
-      choose(active);
+      choose(active, document.body.dataset.platform === "darwin" ? e.metaKey : e.ctrlKey);
     }
   }
 
@@ -171,8 +236,11 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
 
   closePicker = close;
   pickerOpen = true;
-  input.value = "";
+  input.value = search?.initialQuery ?? "";
+  input.maxLength = search ? 256 : -1;
   input.placeholder = placeholder;
+  input.setAttribute("aria-label", placeholder);
+  input.setAttribute("aria-expanded", "true");
   root.hidden = false;
   input.addEventListener("input", render);
   input.addEventListener("keydown", onKey);

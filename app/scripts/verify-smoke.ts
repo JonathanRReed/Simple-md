@@ -1447,6 +1447,43 @@ await test("tabs-windows", async () => {
   assert.deepEqual(fs.readFileSync(a), Buffer.from(note + "!"), "Moving a dirty tab lost unsaved bytes.");
 });
 
+await test("open-quickly-shortcut-scope-tab-pane", async () => {
+  const a = fs.realpathSync(fixture("open-quickly/active.md", "# Active\n"));
+  const b = fs.realpathSync(fixture("open-quickly/unique-quickly-guide.mdx", "# Guide\n"));
+  const c = fs.realpathSync(fixture("open-quickly/unique-quickly-other.markdown", "# Other\n"));
+  const key = (keyCode: string, modifiers: string[] = []): Step[] => [
+    { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
+  ];
+  await launch("open-quickly", a, [
+    ...key("O", [mod, "shift"]),
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.activeElement.id === 'picker-input', 'Open Quickly shortcut failed.');
+      assert(document.querySelector('.picker-scope').textContent === 'This repo', 'Initial scope differs.');`),
+    ...key("Tab"),
+    evaluate(`assert(document.querySelector('.picker-scope').textContent === 'Everywhere', 'Tab did not change scope.');`),
+    ...key("Tab"),
+    evaluate(`const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-guide'; input.dispatchEvent(new Event('input'));
+      await waitFor(() => [...document.querySelectorAll('#picker-list [role=option]')].some(row => row.title === ${quote(b)}), 'Folder result missing.');`),
+    ...key("Enter"),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Result did not open.');
+      assert(document.querySelectorAll('[role=tab]').length === 2, 'Result did not open a tab.');`),
+    { nativeMenu: ["File", "Open Quickly…"] },
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden, 'Native Open Quickly menu failed.');
+      const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-other'; input.dispatchEvent(new Event('input'));
+      await waitFor(() => [...document.querySelectorAll('#picker-list [role=option]')].some(row => row.title === ${quote(c)}), 'Other result missing.');`),
+    ...key("Enter", [mod]),
+    evaluate(`await waitFor(() => document.querySelectorAll('.document-pane').length === 2 && document.documentElement.dataset.documentPainted === ${quote(c)}, 'Other pane did not open.');
+      assert([...document.querySelectorAll('.document-pane')].some(p => p.dataset.documentPath === ${quote(b)}), 'Opening beside replaced the original pane.');`),
+    ...key("O", [mod, "shift"]),
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden, 'Finder did not reopen.');
+      assert(document.querySelector('.picker-scope').textContent === 'This repo', 'Scope was not remembered.');
+      const input = document.querySelector('#picker-input'); input.value = 'unique-quickly-guide'; input.dispatchEvent(new Event('input'));`),
+    ...key("Enter"),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Existing result did not focus.');
+      assert(document.querySelectorAll('[role=tab]').length === 3, 'Existing result duplicated a tab.');`),
+    { windowCount: 1 },
+  ], "read", undefined, 0, "source", { prepare: profile => fs.writeFileSync(path.join(profile, "config"), "open-in = window\nopen-quickly-scope = repo\n") });
+});
+
 await test("tabs-scroll-selection-shortcuts", async () => {
   const source = ("# Scroll\n\nA paragraph with enough text to fill the editor.\n\n").repeat(1800).slice(0, 100000);
   const a = fixture("tabs-scroll/a.md", source), b = fixture("tabs-scroll/b.md", "# Next\n");

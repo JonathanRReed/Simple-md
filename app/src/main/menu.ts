@@ -70,6 +70,7 @@ export function buildMenu(a: MenuActions): void {
         cmd("New", "new", "CommandOrControl+N"),
         cmd("New Tab", "new", "CommandOrControl+T"),
         { label: "Open…", accelerator: "CommandOrControl+O", click: a.openDialog },
+        cmd("Open Quickly…", "open-quickly", "CommandOrControl+Shift+O"),
         { label: "Open Recent", submenu: recents },
         { type: "separator" },
         cmd("Save", "save", "CommandOrControl+S"),
@@ -168,7 +169,7 @@ export function buildMenu(a: MenuActions): void {
         cmd("Zoom Out", "zoom-out", "CommandOrControl+-"),
         cmd("Actual Size", "zoom-reset", "CommandOrControl+0"),
         { type: "separator" },
-        cmd("Outline", "outline", "CommandOrControl+Shift+O"),
+        cmd("Outline", "outline", "CommandOrControl+Alt+Shift+O"),
         cmd("Command Palette…", "palette", "CommandOrControl+Shift+P"),
         { type: "separator" },
         {

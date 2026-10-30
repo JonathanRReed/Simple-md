@@ -26,6 +26,7 @@ export const configSchema = {
   "code-line-height": { ...number("codeLineHeight", "Line height", "Code", 1.55, 1, 2.5, 0.05), setting: "codeLineHeight" },
   "code-content-width": { ...number("codeContentWidth", "Width (characters)", "Code", 100, 40, 200, 1), setting: "codeContentWidth" },
   "mode": { ...choice("mode", "Editing mode", "Behavior", "live", ["live", "split", "source"]), setting: "mode" },
+  "open-quickly-scope": { ...choice("openQuicklyScope", "Open Quickly scope", "Behavior", "repo", ["repo", "everywhere"]), setting: "openQuicklyScope" },
   "open-in": { ...choice("openIn", "Open files in", "Behavior", "tab", ["tab", "window"]), setting: "openIn" },
   "tab-style": { ...choice("tabStyle", "Tab style", "Tabs", "top", ["top", "sidebar"]), setting: "tabStyle" },
   "sidebar-width": { ...number("sidebarWidth", "Sidebar width (px)", "Tabs", 220, 160, 420, 1), setting: "sidebarWidth" },

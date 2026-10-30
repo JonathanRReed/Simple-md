@@ -329,6 +329,13 @@ body[data-platform="darwin"] .picker-card {
   white-space: nowrap;
 }
 
+.picker-scope { margin: 10px 16px 0; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 6px; background: none; color: var(--fg); font: inherit; }
+#picker-list .picker-file { flex-direction: column; gap: 3px; }
+.picker-file > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-parent { color: var(--muted); font-size: 11px; }
+#picker-list mark { color: inherit; background: none; font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); }
+@media (forced-colors: active) { #picker-list li[aria-selected="true"] { outline: 2px solid Highlight; } }
+
 /* ───────── rendered prose (read view, split preview, live blocks) ───────── */
 
 .prose {

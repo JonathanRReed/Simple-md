@@ -50,6 +50,10 @@ export interface Bridge {
   exportPdf(text: string, documentId: DocumentId): Promise<void>;
   exportHtml(text: string, documentId: DocumentId): Promise<void>;
   print(text: string, documentId: DocumentId): Promise<void>;
+  onQuicklyResults(cb: (request: number, matches: import("../shared/open-quickly.js").QuicklyMatch[]) => void): () => void;
+  quicklyQuery(query: string, scope: import("../shared/open-quickly.js").QuicklyScope, request: number): Promise<import("../shared/open-quickly.js").QuicklyMatch[]>;
+  quicklyClose(): void;
+  quicklyOpen(path: string, otherPane: boolean): Promise<boolean>;
   openDialog(): Promise<void>;
   openPath(p: string, intent?: "read" | "edit", inPlace?: boolean, documentId?: DocumentId): Promise<boolean>;
   openLink(href: string, intent?: "read" | "edit", newTab?: boolean, documentId?: DocumentId): Promise<boolean>;

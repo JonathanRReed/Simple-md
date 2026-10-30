@@ -16,6 +16,7 @@ code-font-size = 14
 code-line-height = 1.55
 code-content-width = 100
 mode = live
+open-quickly-scope = repo
 open-in = tab
 tab-style = top
 sidebar-width = 220

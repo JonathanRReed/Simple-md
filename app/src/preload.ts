@@ -84,6 +84,14 @@ contextBridge.exposeInMainWorld("simplemd", {
   exportHtml: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:export-html", text, documentId),
   print: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:print", text, documentId),
 
+  onQuicklyResults: (cb: (request: number, matches: import("./shared/open-quickly.js").QuicklyMatch[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, request: number, matches: import("./shared/open-quickly.js").QuicklyMatch[]) => cb(request, matches);
+    ipcRenderer.on("smd:quickly-results", listener);
+    return () => ipcRenderer.removeListener("smd:quickly-results", listener);
+  },
+  quicklyQuery: (query: string, scope: string, request: number) => ipcRenderer.invoke("smd:quickly-query", query, scope, request),
+  quicklyClose: () => ipcRenderer.send("smd:quickly-close"),
+  quicklyOpen: (file: string, otherPane: boolean) => ipcRenderer.invoke("smd:quickly-open", file, otherPane),
   openDialog: () => ipcRenderer.invoke("smd:open-dialog"),
   openPath: (p: string, intent?: "read" | "edit", inPlace = false, documentId = activeDocumentId) => ipcRenderer.invoke("smd:open-path", p, intent, documentId, inPlace),
   openLink: (href: string, intent?: "read" | "edit", newTab = false, documentId = activeDocumentId) => ipcRenderer.invoke("smd:open-link", href, intent, documentId, newTab),

@@ -4,6 +4,8 @@ A Markdown viewer and editor for macOS, Windows, and Linux. The current app live
 
 Choose Live, Source, or Side by side editing for Markdown and MDX. Read with syntax highlighting, math, diagrams, and local images. MDX imports stay hidden in read view. Components and expressions appear as inert placeholders.
 
+Open Quickly with Command/Control+Shift+O finds Markdown and MDX files in the active repository or across your machine. Tab switches between This repo and Everywhere. Enter opens a tab; Command/Control+Enter opens in the other pane. Open files focus their existing tabs. Machine search uses Spotlight on macOS and an existing locate database on Linux. Windows currently searches tabs, recents and the repo. Print remains Command/Control+P.
+
 Open **Preferences** from the app menu, toolbar, or Command/Control+, to change the theme, editing defaults, text size, autosave, Vim, spelling, and launch behavior. Changes save automatically.
 
 Settings and recent documents migrate automatically from the old profile, without caches. You can remove an old Simple-md.app or Windows install by hand.

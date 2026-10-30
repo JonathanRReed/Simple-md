@@ -29,6 +29,17 @@ export class TabLayout {
       this.state.activePane = slot.paneId;
     }
   }
+  openOther(id: DocumentId): void {
+    if (!this.has(id)) this.state.tabs.push(id);
+    const visible = this.state.panes.find(p => p.documentId === id);
+    if (visible) { this.state.activePane = visible.paneId; return; }
+    const other = this.state.panes.find(p => p.paneId !== this.state.activePane);
+    if (other) { other.documentId = id; this.state.activePane = other.paneId; }
+    else if (this.active) {
+      const slot = { paneId: makePaneId(this.nextPane++), documentId: id };
+      this.state.panes = [this.active, slot]; this.state.activePane = slot.paneId;
+    } else this.activate(id);
+  }
   replace(previous: DocumentId, next: DocumentId): void {
     const index = this.state.tabs.indexOf(previous);
     if (index < 0 || this.has(next)) return;

@@ -108,7 +108,8 @@ Full method: `docs/specs/perf-harness.md`.
 
 Every implementer and reviewer brief includes this list.
 
-- No vault, file tree, backlinks, graph, tag database or crawler.
+- No vault, file tree, backlinks, graph or tag database.
+- No crawler or persistent index; Open Quickly queries Git and the OS search index on demand
 - No AI chat, completion, rewriting, embeddings or agent features.
 - No WYSIWYG document model or whole-document normalization.
 - No executing MDX, raw HTML, embedded apps or code.

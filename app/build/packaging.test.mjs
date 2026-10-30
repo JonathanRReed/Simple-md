@@ -88,6 +88,7 @@ describe("host-only packaging", () => {
     await validateConfiguration(config, new DebugLogger(false));
     expect(config.extraResources).toEqual([
       { from: "../LICENSE", to: "LICENSE" },
+      { from: "../THIRD_PARTY_NOTICES", to: "THIRD_PARTY_NOTICES" },
       ...unsignedConfig(plan).extraResources,
     ]);
     expect(config.mac.identity).toBe("-");
