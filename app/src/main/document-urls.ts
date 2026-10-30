@@ -47,3 +47,30 @@ export async function containedLocalFile(url: string, context: UrlContext): Prom
   if (relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative)) throw new Error("Local file is outside the document root.");
   return file;
 }
+
+// Route discovery reads filenames only and never evaluates project configuration.
+export async function astroRouteFile(url: string, context: UrlContext): Promise<string | null> {
+  if (!context.rootUrl || !containedFileRoot(url, context)) return null;
+  try {
+    const root = fileURLToPath(context.rootUrl);
+    const entries = await fs.promises.readdir(root);
+    let astro = false;
+    for (const name of entries) if (/^astro\.config\./.test(name) && (await fs.promises.lstat(path.join(root, name))).isFile()) { astro = true; break; }
+    if (!astro) return null;
+    const target = fileURLToPath(url);
+    const base = context.publicUrl ?? context.rootUrl;
+    const route = path.relative(fileURLToPath(base), target);
+    if (route === ".." || route.startsWith(".." + path.sep) || path.isAbsolute(route) || path.extname(route)) return null;
+    const parts = route.split(path.sep).filter(Boolean);
+    const locations = [path.join(root, "src/pages", ...parts)];
+    if (parts.length >= 2) locations.unshift(path.join(root, "src/content", ...parts));
+    for (const location of locations) for (const suffix of [".md", ".mdx", "/index.md", "/index.mdx"]) {
+      const candidate = pathToFileURL(location + suffix).href;
+      try {
+        const canonical = await containedLocalFile(candidate, { rootUrl: context.rootUrl });
+        if (/\.(md|mdx)$/i.test(canonical) && (await fs.promises.stat(canonical)).isFile()) return canonical;
+      } catch { /* Missing routes and symlinks outside the project grant no access. */ }
+    }
+  } catch { /* An unavailable project is not a local route. */ }
+  return null;
+}

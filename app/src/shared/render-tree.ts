@@ -45,5 +45,6 @@ export function isRenderedBlock(value: unknown): value is RenderedBlock {
   return isRenderedHtml(value) && "key" in value && typeof value.key === "string" &&
     "sourceRange" in value && Array.isArray(value.sourceRange) && value.sourceRange.length === 2 &&
     value.sourceRange.every((line: unknown) => typeof line === "number" && Number.isInteger(line) && line >= 0) &&
-    value.sourceRange[0] <= value.sourceRange[1];
+    value.sourceRange[0] <= value.sourceRange[1] &&
+    (!("itemRanges" in value) || value.itemRanges === undefined || Array.isArray(value.itemRanges) && value.itemRanges.every((range: unknown) => Array.isArray(range) && range.length === 2 && range.every((line: unknown) => typeof line === "number" && Number.isSafeInteger(line) && line >= 0) && range[0] <= range[1]));
 }

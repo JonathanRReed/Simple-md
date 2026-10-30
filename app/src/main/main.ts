@@ -686,7 +686,11 @@ async function openLink(href: string, intent: OpenIntent = "edit", newTab = fals
   const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
   if (!resolved || !resolved.startsWith("file:")) return false;
   try {
-    const canonical = await containedLocalFile(resolved, urlContext(path.dirname(current.path)));
+    const urls = urlContext(path.dirname(current.path));
+    const { astroRouteFile } = await import("./document-urls.js");
+    const route = await astroRouteFile(resolved, urls);
+    if (route) return openFile(route, intent, false, current.documentId, host);
+    const canonical = await containedLocalFile(resolved, urls);
     const target = fileURLToPath(resolved);
     return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host) : false;
   } catch {

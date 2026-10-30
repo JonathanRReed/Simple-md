@@ -5,7 +5,7 @@ export function readSearchRanges(root: HTMLElement, query: string): Range[] {
   let previousBlock: Element | null = null;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    if (!(node instanceof Text) || !node.parentElement || node.parentElement.closest("[hidden], script, style, button, svg")) continue;
+    if (!(node instanceof Text) || !node.parentElement || node.parentElement.closest("[hidden], script, style, button, svg, .katex-mathml")) continue;
     const block = node.parentElement.closest("p, li, pre, th, td, h1, h2, h3, h4, h5, h6, summary, .block") ?? root;
     if (block !== previousBlock) { groups.push([]); previousBlock = block; }
     groups.at(-1)!.push(node);

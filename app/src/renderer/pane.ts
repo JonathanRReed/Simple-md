@@ -49,7 +49,8 @@ export interface DormantDocument {
   editor?: EditorSnapshot;
   view: "read" | "edit";
   mode: EditMode;
-  scroll: number;
+  anchors: Partial<Record<ViewMode, SourceAnchor>>;
+  readBlocks: RenderedBlock[];
   back: NavigationEntry[];
   forward: NavigationEntry[];
   disk?: { text: string; reason?: string };
@@ -96,7 +97,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   let settings: Settings = DEFAULT_SETTINGS;
   let retainedEditor: EditorSnapshot | undefined;
-  let retainedScroll: number | undefined;
+  let anchors: Partial<Record<ViewMode, SourceAnchor>> = {};
+  let suspendedAnchor: SourceAnchor = { kind: "start" };
+  let retainedReadBlocks: RenderedBlock[] = [];
   let disposed = false;
   let outlineFrame = 0, outlineTimer = 0, outlineSequence = 0;
   const outlines = new Map<HTMLElement, ReturnType<typeof createOutlineRail>>();
@@ -162,7 +165,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   let scrollDriver: "editor" | "preview" = "editor";
   let readRestoreAnchor: SourceAnchor | undefined;
   let layoutFrame = 0;
-  const visibleAnchor = () => pane.view === "read" ? blockAnchor(docEl, readScroll) : pane.editor?.sourceAnchor() ?? syncAnchor;
+  const modeKey = (): ViewMode => pane.view === "read" ? "read" : pane.mode;
+  const visibleAnchor = (): SourceAnchor => disposed ? suspendedAnchor : pane.view === "read" ? blockAnchor(docEl, readScroll) : pane.editor?.sourceAnchor() ?? syncAnchor;
   function resyncPreview(): void {
     cancelAnimationFrame(layoutFrame);
     layoutFrame = requestAnimationFrame(() => {
@@ -329,7 +333,17 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       const blocks = [...article.querySelectorAll<HTMLElement>(":scope > .block")];
       for (const block of blocks) {
         const start = Number(block.dataset.sourceStart), end = Number(block.dataset.sourceEnd);
-        block.classList.toggle("change-highlight", changedBlock(start, end));
+        const items = block.querySelectorAll<HTMLElement>("li[data-source-start]");
+        block.classList.toggle("change-highlight", !items.length && changedBlock(start, end));
+        for (const item of items) {
+          let cursor = Number(item.dataset.sourceStart), changed = false;
+          for (const nested of item.querySelectorAll<HTMLElement>("li[data-source-start]")) {
+            const start = Number(nested.dataset.sourceStart);
+            if (cursor < start && changedBlock(cursor, start)) changed = true;
+            cursor = Math.max(cursor, Number(nested.dataset.sourceEnd));
+          }
+          item.classList.toggle("change-highlight", changed || changedBlock(cursor, Number(item.dataset.sourceEnd)));
+        }
       }
       const bySource = deleted.length ? [...blocks].sort((a, b) => Number(a.dataset.sourceStart) - Number(b.dataset.sourceStart)) : [];
       for (const line of deleted) {
@@ -372,6 +386,15 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     })().finally(() => { if (owner === pane) changeWork = undefined; });
     return changeWork;
   }
+  function refreshHeadOnFocus(): void {
+    if (disposed || !options.active() || highlights.kind !== "head") return;
+    const id = pane.documentId;
+    void simplemd.headChanges(id, true).then(() => {
+      if (!disposed && id === pane.documentId) return refreshChanges();
+    }).catch(error => console.warn("simplemd: HEAD refresh unavailable", error));
+  }
+  window.addEventListener("focus", refreshHeadOnFocus);
+
   function scheduleChanges(): void {
     ++changeSequence;
     clearTimeout(changeTimer);
@@ -391,6 +414,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     await refreshChanges();
   }
   function navigateChange(direction: number): void {
+    readRestoreAnchor = undefined;
     const lines = [...highlights.changes.changed.map(([start]) => start), ...highlights.changes.deleted].sort((a, b) => a - b);
     if (!lines.length) return;
     changeIndex = changeIndex < 0 ? direction > 0 ? 0 : lines.length - 1 : (changeIndex + direction + lines.length) % lines.length;
@@ -432,6 +456,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       node.dataset.fingerprint = block.fingerprint ?? block.key;
       node.dataset.sourceStart = String(block.sourceRange[0]);
       node.dataset.sourceEnd = String(block.sourceRange[1]);
+      const items = node.querySelectorAll<HTMLElement>("li");
+      block.itemRanges?.forEach(([start, end], index) => {
+        const item = items[index];
+        if (item) { item.dataset.sourceStart = String(start); item.dataset.sourceEnd = String(end); }
+      });
       prev.delete(block.key);
       next.set(block.key, node);
       if (node === cursor) {
@@ -443,6 +472,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     for (const stale of append ? [] : prev.values()) {
       destroyDiagrams(stale);
       stale.remove();
+    }
+    if (el === docEl) for (const box of el.querySelectorAll<HTMLInputElement>("input.task-list-item-checkbox")) {
+      box.disabled = isReadOnly() || !!doc.mdx?.error || !doc.meta.path;
+      box.setAttribute("aria-label", box.checked ? "Mark task incomplete" : "Mark task complete");
     }
     blockEls.set(el, next);
     paintChanges();
@@ -499,7 +532,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
             if (request.seq !== targetPane.readRenderSeq || disposed || request.id !== activeDocumentId() || request.revisionId !== state.revisionId) continue;
             mountBlocks(docEl, acceptRender(result, request.text));
             targetPane.mountedReadText = request.text;
-            if (top !== undefined) readScroll.scrollTop = top;
+            if (readRestoreAnchor) restoreBlockAnchor(docEl, readScroll, readRestoreAnchor);
+            else if (top !== undefined) readScroll.scrollTop = top;
             updateHint();
           } catch {
             if (request.seq === targetPane.readRenderSeq && request.id === activeDocumentId() && request.revisionId === state.revisionId) toast("Couldn't render this note.");
@@ -646,6 +680,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (disposed || owner !== pane || id !== pane.documentId) return null;
       pane.editor = createEditor(editorHost, {
         text: doc.readText,
+        filename: doc.meta.path ?? doc.meta.name,
         snapshot: retainedEditor,
         mdx: doc.mdx,
         mode: pane.mode,
@@ -655,7 +690,16 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
             // CodeMirror can mount widgets before its change listener publishes the edit.
             await Promise.resolve();
             if (id !== pane.documentId) throw new Error("This document has been replaced.");
-            return simplemd.renderFragment(text, id, doc.revisionId);
+            for (;;) {
+              if (disposed || id !== pane.documentId) throw new Error("This document has been replaced.");
+              const revision = doc.revisionId;
+              try { return await simplemd.renderFragment(text, id, revision); }
+              catch (error) {
+                if (revision === doc.revisionId || disposed || id !== pane.documentId) throw error;
+                // A valid widget may outlive edits elsewhere in the document.
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
+            }
           },
           baseUrl: () => doc.meta.baseUrl,
           remoteImages: () => settings.remoteImages,
@@ -701,15 +745,16 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   async function showEdit(initializing = false, prepared?: RenderedBlock[]): Promise<void> {
     if (!doc.hasDoc || (transitioning && !initializing) || isReadOnly()) return;
     closeReadFind();
+    const anchor = initializing ? anchors[pane.mode] ?? anchors.read ?? { kind: "start" } : visibleAnchor();
+    anchors[modeKey()] = anchor;
     pane.view = "edit";
     const id = pane.documentId;
     const owner = pane;
     const seq = ++pane.viewSeq;
-    const anchor = blockAnchor(docEl, readScroll);
     syncAnchor = anchor;
     readRestoreAnchor = undefined;
     scrollDriver = "editor";
-    const restoring = !!retainedEditor;
+    const restoring = initializing && !!retainedEditor;
     const ed = await ensureEditor();
     if (!ed || pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
     pane.view = "edit";
@@ -725,12 +770,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     }
     requestAnimationFrame(() => {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
-      if (!restoring) {
-        if (retainedScroll !== undefined) ed.scroller.scrollTop = retainedScroll;
-        else ed.restoreAnchor(anchor);
-      }
-      if (pane.mode === "split") { syncAnchor = restoring ? ed.sourceAnchor() : anchor; resyncPreview(); }
-      retainedScroll = undefined;
+      if (!restoring) ed.restoreAnchor(syncAnchor);
+      if (pane.mode === "split") resyncPreview();
       if (options.active() && !document.activeElement?.closest("#tabs")) ed.focus();
     });
   }
@@ -742,12 +783,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const id = pane.documentId;
     const owner = pane;
     const anchor = visibleAnchor();
+    anchors[modeKey()] = anchor;
+    anchors.read = anchor;
     doc.readText = currentText();
     pane.view = "read";
     updateChrome();
     await renderRead(doc.readText, false);
     if (pane !== owner || id !== pane.documentId || pane.view !== "read") return;
-    readRestoreAnchor = anchor;
+    readRestoreAnchor = anchor.kind === "start" ? undefined : anchor;
     restoreBlockAnchor(docEl, readScroll, anchor);
     if (settings.autosave) void saveNow(false, true);
   }
@@ -755,7 +798,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   // ───────── documents ─────────
 
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
+    const previousAnchor = visibleAnchor();
     disposed = false;
+    window.addEventListener("focus", refreshHeadOnFocus);
     layoutObserver.observe(previewEl);
     layoutObserver.observe(docEl);
     readRestoreAnchor = undefined;
@@ -780,7 +825,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     pane.readPending = null;
     pane.previewPending = false;
     closeOverlays();
-    const previousAnchor = visibleAnchor();
     const navigation = navigating;
     const navigationAnchor = navigation?.target.anchor;
     if (!navigation && !navigatingLink && !retained) { navBack.length = 0; navForward.length = 0; }
@@ -807,7 +851,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     pane.mode = mode;
     simplemd.paneMode(pane.paneId, mode);
     retainedEditor = retained?.editor;
-    retainedScroll = retained?.scroll;
+    anchors = retained?.anchors ?? {};
+    retainedReadBlocks = retained?.readBlocks ?? [];
+    if (navigationAnchor) anchors.read = anchors[mode] = navigationAnchor;
     if (!retained) {
       doc.readOnlyReason = payload.readOnlyReason;
       doc.mdx = payload.mdx;
@@ -833,16 +879,31 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     docEl.hidden = false;
     mountBlocks(previewEl, []);
     const sourceEdit = (retained ? retained.view === "edit" : payload.intent === "edit") && !isReadOnly();
-    mountBlocks(docEl, sourceEdit ? [] : doc.lastGoodBlocks ?? payload.blocks);
-    pane.mountedReadText = sourceEdit ? null : payload.text;
-    readScroll.scrollTop = retained?.scroll ?? 0;
+    mountBlocks(docEl, sourceEdit ? [] : doc.lastGoodBlocks ?? (retained?.readBlocks.length ? retained.readBlocks : payload.blocks));
+    pane.mountedReadText = sourceEdit || retained ? null : payload.text;
+    readScroll.scrollTop = 0;
     pane.view = "read";
     updateChrome();
+    const readAnchor = navigationAnchor ?? anchors.read;
+    if (retained && !sourceEdit) for (const block of docEl.children) {
+      if (block instanceof HTMLElement) block.style.contentVisibility = "visible";
+    }
+    if (!sourceEdit && readAnchor) {
+      readRestoreAnchor = readAnchor.kind === "start" ? undefined : readAnchor;
+      restoreBlockAnchor(docEl, readScroll, readAnchor);
+    }
     if (sourceEdit) {
       await showEdit(true, retained || !payload.blocks.length ? undefined : payload.blocks);
       if (disposed || pane !== owner || id !== pane.documentId) return;
     }
-    if (retained && !sourceEdit && !doc.lastGoodBlocks) await renderRead(doc.readText, false);
+    const pendingRead = retained && !sourceEdit && !doc.lastGoodBlocks;
+    if (pendingRead) void renderRead(doc.readText, false).then(() => {
+      if (disposed || pane !== owner || id !== pane.documentId) return;
+      root.dataset.renderComplete = payload.path ?? "";
+      root.dataset.fullyHighlighted = payload.path ?? "";
+      simplemd.perfMarker(id, "fully-highlighted");
+      resyncPreview();
+    });
     if (disposed || pane !== owner || id !== pane.documentId) return;
     simplemd.perfMarker(id, "renderer-mount");
     setTimeout(() => {
@@ -857,13 +918,13 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       root.dataset.firstReadable = payload.path ?? "";
       simplemd.perfMarker(id, "first-readable");
       if (!retained && payload.stream !== undefined) void appendStream(payload, id);
-      else {
+      else if (!pendingRead) {
         root.dataset.renderComplete = payload.path ?? "";
         if (payload.intent === "read" || isReadOnly() || pane.mode === "split") simplemd.perfMarker(id, "fully-highlighted");
       }
     }));
     if (navigationAnchor) {
-      if (pane.view === "read") { readRestoreAnchor = navigationAnchor; restoreBlockAnchor(docEl, readScroll, navigationAnchor); }
+      if (pane.view === "read") { readRestoreAnchor = navigationAnchor.kind === "start" ? undefined : navigationAnchor; restoreBlockAnchor(docEl, readScroll, navigationAnchor); }
       else pane.editor?.restoreAnchor(navigationAnchor);
       syncAnchor = navigationAnchor;
       resyncPreview();
@@ -1016,9 +1077,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   // ───────── commands & palette ─────────
 
-  // Click-to-check in the reading view. The checkbox inputs are disabled (and pointer-events:
-  // none), so clicks land on the <li>; we map the click back to the source by ordinal. The
-  // The parser maps rendered checkbox order, including relocated footnotes.
+  // Only generated task inputs can edit the source. Their order includes relocated footnotes.
   async function toggleTask(item: HTMLElement): Promise<void> {
     if (!doc.hasDoc || pane.view !== "read" || transitioning || isReadOnly() || doc.mdx?.error) return;
     if (!doc.meta.path) {
@@ -1065,7 +1124,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       const to = direction === "back" ? navForward : navBack;
       to.push({ path: doc.meta.path, anchor: visibleAnchor() });
       from.pop();
-      if (pane.view === "read") { readRestoreAnchor = target.anchor; restoreBlockAnchor(docEl, readScroll, target.anchor); }
+      if (pane.view === "read") { readRestoreAnchor = target.anchor.kind === "start" ? undefined : target.anchor; restoreBlockAnchor(docEl, readScroll, target.anchor); }
       else pane.editor?.restoreAnchor(target.anchor);
       syncAnchor = target.anchor;
       resyncPreview(); updateChrome();
@@ -1086,6 +1145,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   async function findInView(): Promise<void> {
+    readRestoreAnchor = undefined;
     const id = pane.documentId;
     const text = await simplemd.readFindText();
     if (disposed || pane.documentId !== id) return;
@@ -1282,7 +1342,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const id = pane.documentId;
     navigatingLink = !newTab;
     try {
-      if (await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, id) && fragment && !newTab) {
+      const opened = await simplemd.openLink(href, pane.view === "read" ? "read" : "edit", newTab, id);
+      if (!opened && !/^(https?:|mailto:)/i.test(href)) toast("No local document found for this link.");
+      if (opened && fragment && !newTab) {
         if (pane.documentId === id && from) { navBack.push(from); navForward.length = 0; }
         readRestoreAnchor = undefined;
         scrollToFragment(fragment); updateChrome();
@@ -1301,10 +1363,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       });
       return;
     }
-    // Task-list checkboxes toggle in place in the read view; links inside the item still win.
-    const taskItem = target.closest<HTMLElement>(".task-list-item");
-    if (taskItem && pane.view === "read" && docEl.contains(taskItem) && !target.closest("a")) {
-      void toggleTask(taskItem);
+    const checkbox = target.closest<HTMLInputElement>("input.task-list-item-checkbox");
+    if (checkbox && pane.view === "read" && docEl.contains(checkbox) && !checkbox.disabled) {
+      e.preventDefault();
+      const taskItem = checkbox.closest<HTMLElement>(".task-list-item");
+      if (taskItem) void toggleTask(taskItem);
       return;
     }
     const a = target.closest("a");
@@ -1378,6 +1441,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   function setMode(mode: EditMode): void {
     const anchor = visibleAnchor();
+    anchors[modeKey()] = anchor;
+    anchors[mode] = anchor;
     syncAnchor = anchor;
     scrollDriver = "editor";
     pane.mode = mode;
@@ -1389,6 +1454,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     updateChrome();
   }
   function suspend(): DormantDocument {
+    suspendedAnchor = visibleAnchor();
+    anchors[modeKey()] = suspendedAnchor;
     activeChanged(false);
     invalidateExport();
     doc.readText = currentText();
@@ -1405,13 +1472,19 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       };
       retained.saveQueue = retained.saveQueue.then(save, save).catch(error => console.error("simplemd: dormant autosave failed", error));
     }
+    const blocks = doc.lastGoodBlocks ?? retainedReadBlocks;
+    const anchor = anchors.read ?? suspendedAnchor;
+    const index = anchor.kind === "end" ? blocks.length - 1 : anchor.kind === "line"
+      ? Math.max(0, blocks.findIndex(block => block.sourceRange[1] > anchor.line)) : 0;
     const snapshot: DormantDocument = {
       state: doc, editor: pane.editor?.snapshot() ?? retainedEditor,
       view: pane.view, mode: pane.mode,
-      scroll: pane.view === "edit" ? pane.editor?.scroller.scrollTop ?? 0 : readScroll.scrollTop,
+      anchors: { ...anchors },
+      readBlocks: blocks.slice(Math.max(0, index - 12), index + 24),
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
+    window.removeEventListener("focus", refreshHeadOnFocus);
     clearOutlines();
     cancelAnimationFrame(layoutFrame);
     layoutObserver.disconnect();

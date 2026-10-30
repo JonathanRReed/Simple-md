@@ -310,6 +310,10 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
           return;
         }
         case "Link": {
+          if (node.getChild("Image") && !touches(from, to)) {
+            out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "html-inline", host) }).range(from, to));
+            return false;
+          }
           const marks = node.getChildren("LinkMark");
           const url = node.getChild("URL");
           if (marks.length < 4 || !url) return;

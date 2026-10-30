@@ -11,7 +11,7 @@ function imageHtmlEnd(source: string, from: number): number | null {
   const tags = /<!--[\s\S]*?(?:-->|$)|<\/?([a-z][a-z0-9:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/g;
   tags.lastIndex = from;
   const first = tags.exec(source);
-  if (!first || first.index !== from || !["img", "picture", "figure", "figcaption", "a"].includes(first[1] ?? "")) return null;
+  if (!first || first.index !== from || !["img", "picture", "figure", "figcaption", "a", "div", "p"].includes(first[1] ?? "")) return null;
   if (first[1] === "img") return tags.lastIndex;
   const stack = [first[1]];
   let image = false;

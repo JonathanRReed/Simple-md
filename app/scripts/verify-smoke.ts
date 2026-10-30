@@ -638,7 +638,7 @@ $x^2$
     evaluate(`await waitFor(() => document.querySelector('#doc details:not(.frontmatter) strong')?.textContent === 'Inside', 'Raw wrapper lost its Markdown children.');
       const doc = document.querySelector('#doc');
       await waitFor(() => doc.querySelector('details .shiki'), 'Nested Shiki code did not render.');
-      assert(doc.querySelector('details .shiki') && doc.querySelector('details .katex') && doc.querySelector('details input[type="checkbox"][disabled]'), 'Author policy removed generated nodes.');
+      assert(doc.querySelector('details .shiki') && doc.querySelector('details .katex') && doc.querySelector('details input[type="checkbox"]:enabled'), 'Author policy removed generated nodes.');
       assert(!doc.querySelector('script, style, [data-evil], [onerror], .mermaid') && !window.authorExecuted, 'Author content gained generated privileges.');
       assert(doc.querySelector('details').id === 'user-content-more' && doc.querySelector('a[href="#user-content-more"]'), 'Author IDs and fragments disagree.');
       assert(!doc.querySelector('img[alt="blocked"]').hasAttribute('src'), 'Author file URL survived.');
@@ -817,6 +817,11 @@ await test("tasks-source-mapping", async () => {
   await launch("tasks-source-mapping", file, [
     evaluate(`assert(document.querySelectorAll('#doc .task-list-item-checkbox').length === 3, 'Task fixture did not render three real checkboxes.');
       document.querySelector('#doc .task-list-item').click();
+      await new Promise(resolve => setTimeout(resolve, 180));
+      assert(!document.querySelector('#doc .task-list-item-checkbox').checked, 'Clicking task text toggled the checkbox');
+      const checkbox = document.querySelector('#doc .task-list-item-checkbox');
+      checkbox.focus();
+      checkbox.click();
       await waitFor(() => document.querySelector('#doc .task-list-item-checkbox')?.checked, 'Quoted task did not toggle.');
       window.simplemd.command('save');
       await waitFor(() => document.querySelector('#dirty').hidden, 'Task edit did not save.');`),
@@ -971,7 +976,7 @@ await test("bytes-task", async () => {
   const original = "\uFEFF# Tasks\r\n\r\n- [ ] first\r- [X] second\n- [ ] third";
   const file = fixture("bytes-task/note.md", original);
   await launch("bytes-task", file, [
-    evaluate(`document.querySelectorAll('#doc .task-list-item')[1].click();
+    evaluate(`document.querySelectorAll('#doc .task-list-item-checkbox')[1].click();
       await waitFor(() => !document.querySelector('#dirty').hidden, 'Task did not toggle.');`),
     { save: true },
     evaluate(`window.simplemd.command('undo');
@@ -1850,6 +1855,52 @@ await test("outline-rail-pointer-scrub", async () => {
     evaluate(`const scroll = document.querySelector('[data-element="read-scroll"]');
       await waitFor(() => scroll.scrollTop / (scroll.scrollHeight - scroll.clientHeight) > 0.95, 'Pointer scrub did not reach the end');
       await waitFor(() => document.querySelector('.outline-strip:last-child')?.dataset.inView === 'true', 'Scrub did not reveal the final heading');`),
+  ]);
+});
+
+await test("r2-reading-tab-anchors", async () => {
+  const text = Array.from({ length: 130 }, (_, i) => `## Section ${i}\n\n${"Reading text and source positions. ".repeat(26)}\n\n`).join("");
+  assert(text.length >= 100000, "Anchor fixture is smaller than 100k.");
+  const a = fixture("r2-reading-tabs/a.md", text), b = fixture("r2-reading-tabs/b.md", "# Other\n");
+  await launch("r2-reading-tab-anchors", a, [evaluate(`
+    window.anchorId = Number(document.documentElement.dataset.documentId);
+    const section = [...document.querySelectorAll('#doc h2')].find(h => h.textContent === 'Section 65');
+    section.scrollIntoView({ block: 'start' });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const read = document.querySelector('[data-element="read-scroll"]');
+    const savedTop = section.getBoundingClientRect().top - read.getBoundingClientRect().top;
+    await window.simplemd.openPath(${quote(b)}, 'read');
+    await window.simplemd.activateTab(window.anchorId);
+    await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.documentElement.dataset.renderComplete === ${quote(a)}, 'Reading tab did not finish restoring');
+    const restoredHeading = [...document.querySelectorAll('#doc h2')].find(h => h.textContent === 'Section 65');
+    await waitFor(() => Math.abs(restoredHeading.getBoundingClientRect().top - read.getBoundingClientRect().top - savedTop) < 4, 'Read lost its source block anchor');
+    window.simplemd.command('mode-live');
+    await waitFor(() => document.querySelector('.cm-editor[data-mode="live"]'));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const view = document.querySelector('.cm-content').cmTile.root.view;
+    view.dispatch({ selection: { anchor: 60000 }, scrollIntoView: true });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const snapshot = view.scrollSnapshot().value;
+    await window.simplemd.openPath(${quote(b)}, 'read');
+    await window.simplemd.activateTab(window.anchorId);
+    await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelector('.cm-editor[data-mode="live"]'));
+    const restored = document.querySelector('.cm-content').cmTile.root.view;
+    await waitFor(() => { const next = restored.scrollSnapshot().value; return next.range.head === snapshot.range.head && Math.abs(next.yMargin - snapshot.yMargin) < 4; }, 'Live lost its source anchor');
+  `)]);
+});
+
+await test("r2-astro-source-routes", async () => {
+  const start = fixture("r2-astro/src/content/blog/start.mdx", "# Start\n\n[Prompts](/blog/prompts/)\n");
+  const target = fs.realpathSync(fixture("r2-astro/src/content/blog/prompts.mdx", "# Prompts\n\n[Missing](/blog/missing/)\n"));
+  fixture("r2-astro/astro.config.mjs", 'throw new Error("Configuration must not execute");');
+  fs.mkdirSync(path.join(root, "r2-astro/public"));
+  await launch("r2-astro-source-routes", start, [
+    evaluate(`document.querySelector('#doc a').click();
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(target)}, 'Astro route did not open its collection source.');
+      assert(document.querySelectorAll('[role=tab]').length === 2, 'Astro route did not open in a tab.');
+      await waitFor(() => !document.querySelector('.document-pane[data-active="true"] [data-element="read"]').inert, 'Route tab stayed busy.');
+      document.querySelector('.document-pane[data-active="true"] [data-element="doc"] a').click();
+      await waitFor(() => document.querySelector('#toast').textContent.includes('No local document found'), 'Unresolved route failed silently.');`),
   ]);
 });
 

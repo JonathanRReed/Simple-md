@@ -57,6 +57,16 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Reflow lost the selected heading");
   articleForReflow.style.removeProperty("font-size");
   await pause();
+  const delayed = document.createElement("div"); delayed.style.height = "450px";
+  articleForReflow.firstElementChild!.append(delayed);
+  // Browser scroll anchoring may fire before ResizeObserver reports offscreen layout.
+  scroll.scrollTop += 40; scroll.dispatchEvent(new Event("scroll"));
+  await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "First jump was cancelled by offscreen layout scroll");
+  scroll.dispatchEvent(new WheelEvent("wheel"));
+  const released = scroll.scrollTop; delayed.style.height = "550px";
+  await pause(100);
+  assert(Math.abs(scroll.scrollTop - released) < 120, "User input did not release outline navigation");
+  delayed.remove();
   assert(rail.querySelector<HTMLElement>(".outline-viewport")!.style.transform.includes("scaleY("), "Viewport indicator missing");
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));

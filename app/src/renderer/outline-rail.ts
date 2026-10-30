@@ -39,8 +39,8 @@ export function createOutlineRail<T>(options: {
   let gesture: { id: number; y: number; top: number; height: number; dragging: boolean } | null = null;
   let suppressedClick = false;
   let navigation: { kind: "heading"; key: string } | { kind: "scrub"; progress: number } | null = null;
-  let ownedTop: number | null = null;
-  const writeTop = (top: number) => { scroller.scrollTop = top; ownedTop = scroller.scrollTop; };
+  let settleFrame = 0, navigationStarted = 0, stableSince = 0, lastTarget = -1;
+  const writeTop = (top: number) => { scroller.scrollTop = top; };
   const observed = new Map<Element, number>();
   const intersection = options.element ? new IntersectionObserver(entries => {
     for (const entry of entries) {
@@ -90,9 +90,27 @@ export function createOutlineRail<T>(options: {
     const index = intent.kind === "heading" ? items.findIndex(item => item.key === intent.key) : -1;
     if (intent.kind === "heading" && index < 0) { navigation = null; return; }
     writeTop(intent.kind === "scrub" ? outlineScroll(intent.progress, scroller.scrollHeight, scroller.clientHeight)
-      : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, offsets[index]! - 16)));
+      : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, options.offset(items[index]!.target) - 16)));
   }
-  function stopNavigation(): void { navigation = null; ownedTop = null; }
+  function stopNavigation(): void { navigation = null; cancelAnimationFrame(settleFrame); settleFrame = 0; }
+  function settleNavigation(): void {
+    if (settleFrame || !navigation || destroyed) return;
+    settleFrame = requestAnimationFrame(() => {
+      settleFrame = 0;
+      if (!navigation || destroyed) return;
+      restoreNavigation();
+      const top = scroller.scrollTop;
+      const now = performance.now();
+      if (Math.abs(top - lastTarget) > 0.5) { lastTarget = top; stableSince = now; }
+      const pending = [...content.querySelectorAll("img")].some(image => !image.complete) || document.fonts.status === "loading" || !!content.querySelector("pre.mermaid, .cm-math-inline:not(:has(.katex))");
+      if (now - navigationStarted > 10000 || (!pending && now - stableSince > 600)) stopNavigation();
+      else settleNavigation();
+    });
+  }
+  function startNavigation(): void {
+    navigationStarted = stableSince = performance.now(); lastTarget = -1;
+    settleNavigation();
+  }
   function jump(index: number): void {
     const item = items[index];
     if (!item) return;
@@ -100,6 +118,7 @@ export function createOutlineRail<T>(options: {
     navigation = { kind: "heading", key: item.key };
     options.navigate();
     writeTop(Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, target - 16)));
+    startNavigation();
   }
 
   function build(): void {
@@ -166,7 +185,6 @@ export function createOutlineRail<T>(options: {
   observer.observe(content);
   observer.observe(scroller);
   scroller.addEventListener("scroll", () => {
-    if (ownedTop !== null && Math.abs(scroller.scrollTop - ownedTop) > 1) { navigation = null; ownedTop = null; }
     scheduleViewport();
   }, { passive: true, signal });
   for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) scroller.addEventListener(event, stopNavigation, { passive: true, signal });
@@ -208,7 +226,7 @@ export function createOutlineRail<T>(options: {
     activate(outlineIndex(progress, items.length));
     if (!gesture || gesture.id !== event.pointerId) return;
     if (Math.abs(event.clientY - gesture.y) > 3) gesture.dragging = true;
-    if (gesture.dragging) { suppressedClick = true; navigation = { kind: "scrub", progress }; writeTop(scrubTop); }
+    if (gesture.dragging) { suppressedClick = true; navigation = { kind: "scrub", progress }; writeTop(scrubTop); startNavigation(); }
   }, { signal });
   rail.addEventListener("pointerup", event => {
     if (!gesture || gesture.id !== event.pointerId) return;
@@ -216,6 +234,7 @@ export function createOutlineRail<T>(options: {
       const progress = outlineProgress(event.clientY, gesture.top, gesture.height);
       navigation = { kind: "scrub", progress };
       writeTop(outlineScroll(progress, scroller.scrollHeight, scroller.clientHeight));
+      startNavigation();
     }
     gesture = null;
   }, { signal });
@@ -225,7 +244,7 @@ export function createOutlineRail<T>(options: {
     refresh,
     destroy() {
       destroyed = true; abort.abort(); observer.disconnect(); intersection?.disconnect(); observed.clear();
-      cancelAnimationFrame(frame); cancelAnimationFrame(buildFrame); cancelAnimationFrame(measureFrame); clearTimeout(buildTimer);
+      cancelAnimationFrame(settleFrame); cancelAnimationFrame(frame); cancelAnimationFrame(buildFrame); cancelAnimationFrame(measureFrame); clearTimeout(buildTimer);
       scroller.classList.remove("outline-scroll"); host.classList.remove("outline-host", "outline-present"); rail.remove();
     },
   };

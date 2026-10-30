@@ -160,7 +160,9 @@ body:not([data-platform="darwin"]) .tb-right {
 }
 
 #findbar {
-  position: fixed;
+  position: absolute;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
   top: 44px;
   right: 16px;
   z-index: 20;
@@ -194,7 +196,7 @@ body:not([data-platform="darwin"]) .tb-right {
   display: flex;
 }
 
-.scroller:focus-visible { outline: 1px solid color-mix(in srgb, var(--system-accent) 60%, transparent); outline-offset: -2px; }
+.scroller:focus-visible { outline: none; }
 
 .scroller {
   flex: 1;
@@ -509,8 +511,12 @@ body[data-platform="darwin"] .picker-card {
 .prose .task-list-item-checkbox {
   margin-inline-end: 0.5em;
   accent-color: var(--accent);
-  /* Disabled inputs swallow clicks, so the <li> handles toggling instead. */
-  pointer-events: none;
+  opacity: 1;
+}
+.prose .task-list-item-checkbox:enabled { cursor: pointer; }
+.prose .task-list-item-checkbox:focus {
+  outline: 2px solid var(--system-accent, Highlight);
+  outline-offset: 2px;
 }
 
 .markdown-alert {
@@ -1090,7 +1096,9 @@ code,
 #stage .prose a { text-decoration: underline; text-underline-offset: .14em; border-bottom: 0; }
 #stage .prose a:hover { text-decoration-thickness: 2px; }
 #stage .prose blockquote { border-inline-start: 2px solid var(--rule); }
-#stage .prose :is(code, pre), #stage .cm-code-text, #stage .cm-code-inline {
+#stage .prose :is(code, pre), #stage .cm-code-text, #stage .cm-code-inline,
+#stage .cm-code-font, #stage .cm-code-font-inline,
+#stage .cm-inline-code, #stage .cm-codeblock, #stage .cm-codeblock span, #stage .tok-monospace {
   font-family: var(--mono); font-size: calc(var(--code-size, 14px) * var(--zoom)); line-height: var(--code-line-height, 1.55); font-variant-ligatures: none;
 }
 #stage .prose pre { max-width: var(--code-width, 100ch); padding: 16px; border: 1px solid var(--rule); border-radius: 6px; }
@@ -1218,7 +1226,7 @@ body[data-tab-style="sidebar"] .tab[data-pane]:not([data-pane=""]) .tab-pane { d
 }
 #stage { display: flex; gap: 1px; min-width: 0; }
 #stage[data-axis="vertical"] { flex-direction: column; }
-.document-pane { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; background: var(--bg); overflow: hidden; }
+.document-pane { position: relative; display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; background: var(--bg); overflow: hidden; }
 .pane-toolbar {
   --bg: light-dark(#f5f5f5, #242424); --fg: CanvasText; --muted: GrayText;
   --rule: light-dark(#dedede, #484848); --code-bg: light-dark(#e6e6e6, #303030); --accent: var(--system-accent);
@@ -1262,7 +1270,7 @@ body.print .document-pane, body.print .pane-viewport, body.print .pane-content {
 .document-pane [data-element="banner"] button { border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: inherit; font-size: 12px; }
 
 /* Change marks use paint only, so updates do not move the reading position. */
-.prose > .block.change-highlight { box-shadow: -3px 0 0 color-mix(in srgb, var(--system-accent, Highlight) 60%, transparent); }
+.prose li.change-highlight, .prose > .block.change-highlight { box-shadow: -3px 0 0 color-mix(in srgb, var(--system-accent, Highlight) 60%, transparent); }
 .cm-line.change-highlight { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--system-accent, Highlight) 60%, transparent); }
 .prose > .change-deleted { position: relative; height: 0; }
 .prose > .change-deleted::before { content: ""; position: absolute; inset: 0 auto auto -8px; width: 24px; border-top: 2px solid color-mix(in srgb, #bd6855 75%, transparent); }
@@ -1401,3 +1409,5 @@ body[data-zen="true"][data-chrome-revealed="true"] .pane-controls { visibility: 
   body:not([data-platform="darwin"])[data-tab-style="top"] #tabs { inset-inline-end: calc(max(0px, 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)) + 223px); }
   .tb-title { inset-inline-end: 223px; }
 }
+
+#findbar #find-input { min-width: 0; width: 100%; }

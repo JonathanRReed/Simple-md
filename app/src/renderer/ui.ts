@@ -273,6 +273,9 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
   closeFind?.();
   const restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
   const bar = $("findbar");
+  const home = bar.parentElement!;
+  const pane = scope.closest<HTMLElement>(".document-pane");
+  if (pane) pane.append(bar);
   const input = $<HTMLInputElement>("find-input");
   const count = $("find-count");
   const previous = $<HTMLButtonElement>("find-previous");
@@ -293,6 +296,11 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
     count.textContent = `${range ? current + 1 : 0} of ${ranges.length}`;
     previous.disabled = next.disabled = !ranges.length;
     if (range && scroll) {
+      let ancestor = range.startContainer.parentElement;
+      while (ancestor && scope.contains(ancestor)) {
+        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
       const scroller = scope.closest<HTMLElement>(".scroller");
       const rect = range.getBoundingClientRect();
       if (scroller) {
@@ -312,6 +320,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
     closeFind = undefined;
     findOpen = false;
     bar.hidden = true;
+    home.append(bar);
     observer.disconnect();
     input.removeEventListener("keydown", onKey);
     input.removeEventListener("input", search);

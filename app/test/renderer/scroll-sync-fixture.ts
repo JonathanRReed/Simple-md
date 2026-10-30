@@ -24,8 +24,8 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
-    openLink: async (href: string) => { const file = href.split("#")[0]!; if (file !== pane.meta.path) await pane.load(payload(file, "read")); return true; },
-    openPath: async (file: string) => { calls.opened.push(file); await pane.load(payload(file, "read")); return true; },
+    openLink: async (href: string) => { const file = href.split("#")[0]!; if (file !== pane.meta.path) { pane.suspend(); await pane.load(payload(file, "read")); } return true; },
+    openPath: async (file: string) => { calls.opened.push(file); pane.suspend(); await pane.load(payload(file, "read")); return true; },
     prepareDragExport: async (_text: string, _id: number, _rev: number, format: string) => ({ token: format, name: `long.${format}`, expiresAt: Date.now() + 30000 }),
     exportPdf: async () => { calls.saves.push("pdf"); }, exportHtml: async () => { calls.saves.push("html"); },
     startDragExport: (_id: number, _rev: number, token: string) => calls.drags.push(token),
@@ -61,6 +61,34 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   pane.command("mode-source"); await settle(); pane.command("mode-read"); await settle();
   const roundTrip = blockAnchor(readArticle, read);
   assert(roundTrip.kind === "line" && roundTrip.line >= 98 && roundTrip.line <= 102, `Mode round trip lost position: ${JSON.stringify(roundTrip)}`);
+
+  // A real tab change suspends the pane before loading the next document.
+  const original = payload("/tmp/long.md", "read");
+  const savedReadAnchor = blockAnchor(readArticle, read);
+  const dormant = pane.suspend();
+  assert(dormant.readBlocks.length <= 36, "Dormant tab retained the entire rendered document");
+  await pane.load(payload("/tmp/other-tab.md", "read")); await settle();
+  let releaseRender: (() => void) | undefined;
+  const api = window.simplemd;
+  const render = api.renderBlocks;
+  api.renderBlocks = async () => { await new Promise<void>(resolve => { releaseRender = resolve; }); return input.rendered; };
+  await pane.load({ ...original, blocks: [] }, dormant); await frame();
+  const fastAnchor = blockAnchor(readArticle, read);
+  assert(savedReadAnchor.kind === "line" && fastAnchor.kind === "line" && Math.abs(savedReadAnchor.line - fastAnchor.line) <= 1, `Read remount waited for full render or lost its anchor: ${JSON.stringify({ savedReadAnchor, fastAnchor })}`);
+  assert(root.dataset.renderComplete !== original.path, "Partial remount claimed the full render was complete");
+  releaseRender?.(); api.renderBlocks = render; await settle();
+  const remountedAnchor = blockAnchor(readArticle, read);
+  assert(savedReadAnchor.kind === "line" && remountedAnchor.kind === "line" && Math.abs(savedReadAnchor.line - remountedAnchor.line) <= 1, "Full render moved the remounted reading anchor");
+  pane.command("mode-live"); await settle();
+  const liveScroller = root.querySelector<HTMLElement>(".cm-scroller")!;
+  liveScroller.dispatchEvent(new WheelEvent("wheel")); liveScroller.scrollTop *= 0.6;
+  liveScroller.dispatchEvent(new Event("scroll")); await settle();
+  const liveDormant = pane.suspend();
+  await pane.load(payload("/tmp/other-tab.md", "read")); await settle();
+  await pane.load({ ...original, blocks: [] }, liveDormant); await settle();
+  pane.command("mode-read"); await settle();
+  const liveRestored = blockAnchor(readArticle, read), expectedLive = liveDormant.anchors.live;
+  assert(expectedLive?.kind === "line" && liveRestored.kind === "line" && Math.abs(expectedLive.line - liveRestored.line) <= 2, `Live remount skewed the next Read switch: ${JSON.stringify({ expectedLive, liveRestored })}`);
 
   const before = blockAnchor(readArticle, read);
   const link = document.createElement("a"); link.href = "/tmp/other.md"; link.textContent = "Other"; readArticle.append(link); link.click();

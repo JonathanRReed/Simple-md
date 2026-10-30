@@ -18,7 +18,8 @@ class PrintWindow extends EventEmitter {
     setWindowOpenHandler() {},
     send: () => printWaiters.get(1)?.(),
     executeJavaScript: async (script: string) => {
-      if (script.startsWith("document.title = ")) this.pageTitle = JSON.parse(script.slice("document.title = ".length));
+      const title = /document\.title = ("(?:[^"\\]|\\.)*")/.exec(script)?.[1];
+      if (title) this.pageTitle = JSON.parse(title);
       else if (script.startsWith("Array.from")) return [];
       else return "<h1>Trip notes</h1>";
     },
@@ -28,7 +29,7 @@ class PrintWindow extends EventEmitter {
       return Buffer.from("PDF boundary");
     },
   });
-  constructor(readonly options: { show: boolean }) { super(); PrintWindow.last = this; }
+  constructor(readonly options: { show: boolean; title: string }) { super(); PrintWindow.last = this; }
   async loadFile() {}
   setTitle(title: string) { this.title = title; }
   isDestroyed() { return this.destroyed; }
@@ -51,8 +52,14 @@ test("print and HTML/PDF exports use the document title, with tagged PDF and out
       expect(PrintWindow.last.pageTitle).toBe("Trip notes");
       expect(PrintWindow.last.title).toBe("Trip notes");
       expect(PrintWindow.last.options.show).toBe(false);
+      expect(PrintWindow.last.options.title).toBe("Trip notes");
     });
     expect(PrintWindow.last.destroyed).toBe(true);
+    const metadataSource = { ...source, text: '---\ntitle: Trip notes\n---\n\nBody without an H1.' };
+    await jobs.withPrintWindow(metadataSource, async (_window, doc) => {
+      expect(doc.title).toBe("Trip notes");
+      expect(PrintWindow.last.pageTitle).toBe("Trip notes");
+    });
     await jobs.makePdf(source);
     expect(PrintWindow.last.pdfOptions).toMatchObject({ generateTaggedPDF: true, generateDocumentOutline: true });
     const html = await jobs.makeHtml(source);

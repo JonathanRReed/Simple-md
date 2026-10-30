@@ -21,6 +21,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { type EditMode, LIVE_MAX_CHARS } from "../shared/types.js";
 import { type LiveHost, clearLiveCache, frontmatterExtension, liveExtension } from "./live.js";
 import { tableKeymap } from "./tables.js";
+import { codeFont } from "./code-font.js";
 import { editorText } from "./editor-text.js";
 import { byteText, parseByteText, restoreByteText } from "./byte-text.js";
 
@@ -33,6 +34,7 @@ export interface EditorSnapshot {
 
 export interface EditorOptions {
   text: string;
+  filename?: string;
   snapshot?: EditorSnapshot;
   mdx?: MdxResult;
   mode: EditMode;
@@ -152,7 +154,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   let countFrame = 0;
   const insertions = new Set<{ from: number; to: number }>();
 
-  const liveFor = (m: EditMode, length: number) => (m === "live" && length <= LIVE_MAX_CHARS ? liveExtension(opts.host) : []);
+  const gitCommit = /(?:^|[/\\])(?:COMMIT_EDITMSG|MERGE_MSG|SQUASH_MSG|TAG_EDITMSG|NOTES_EDITMSG)$/.test(opts.filename ?? "");
+  const liveFor = (m: EditMode, length: number) => gitCommit ? [] : m === "live" && length <= LIVE_MAX_CHARS ? liveExtension(opts.host) : [codeFont];
 
   const view = new EditorView({
     parent,
@@ -172,8 +175,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         closeBrackets(),
         EditorState.allowMultipleSelections.of(true),
         search({ top: true }),
-        markdown({ base: markdownLanguage, codeLanguages: languages, htmlTagLanguage: html({ autoCloseTags: false, matchClosingTags: false }) }),
-        syntaxHighlighting(classHighlighter),
+        ...(!gitCommit ? [markdown({ base: markdownLanguage, codeLanguages: languages, htmlTagLanguage: html({ autoCloseTags: false, matchClosingTags: false }) }), syntaxHighlighting(classHighlighter)] : []),
         ...(opts.mdx ? [mdxSyntax(editorMdxRanges(opts.text, opts.mdx))] : []),
         frontmatterExtension,
         EditorView.lineWrapping,

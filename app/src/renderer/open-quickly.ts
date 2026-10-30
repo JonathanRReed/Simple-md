@@ -21,7 +21,8 @@ export function openQuickly(api: Pick<Bridge, "quicklyOpen" | "quicklyClose" | "
     toggleScope: () => sessionScope = scope = scope === "repo" ? "everywhere" : "repo",
     search: (query, update) => {
       const current = ++request; updateResults = update;
-      update(items(rankQuicklyFiles(mergeQuicklyFiles([instant], document.body.dataset.platform === "win32"), query)));
+      const local = scope === "repo" ? instant.map(file => ({ ...file, matchPath: file.path.split(/[\\/]/).at(-1) ?? file.path })) : instant;
+      update(items(rankQuicklyFiles(mergeQuicklyFiles([local], document.body.dataset.platform === "win32"), query)));
       void api.quicklyQuery(query, scope, current).then(matches => {
         if (!closed && current === request) update(items(matches));
       }).catch(() => {});

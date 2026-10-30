@@ -70,6 +70,7 @@ export interface RenderedBlock extends RenderedHtml {
   fingerprint?: string;
   /** Zero-based, end-exclusive source lines, including frontmatter offset. */
   sourceRange: [number, number];
+  itemRanges?: [number, number][];
 }
 export interface MdxResult { ranges: MdxRange[]; error?: MdxParseError }
 export interface RenderedBlocks { title: string; blocks: RenderedBlock[]; mdx?: MdxResult; stream?: number }
@@ -332,7 +333,9 @@ export function createRenderCore(services: RenderServices = {}) {
       seenKeys.set(key, seen + 1);
       const maps = group.flatMap((token) => token.map ? [token.map] : []);
       const sourceRange: [number, number] = maps.length ? [offset + sourceLine(Math.min(...maps.map((m) => m[0]))), offset + sourceLine(Math.max(...maps.map((m) => m[1])))] : [offset + lineCount - 1, offset + lineCount - 1];
-      blocks.push({ key: seen ? `${key}~${seen}` : key, fingerprint: hash(rendered.html + (rendered.content ? JSON.stringify(rendered.content) : "") + JSON.stringify(env.urls)), ...rendered, urls: env.urls, sourceRange });
+      blocks.push({ key: seen ? `${key}~${seen}` : key, fingerprint: hash(rendered.html + (rendered.content ? JSON.stringify(rendered.content) : "") + JSON.stringify(env.urls)), ...rendered, urls: env.urls, sourceRange,
+        ...(group.some(token => token.type === "list_item_open") ? { itemRanges: group.flatMap(token => token.type === "list_item_open" && token.map ? [[offset + sourceLine(token.map[0]), offset + sourceLine(token.map[1])] satisfies [number, number]] : []) } : {}),
+      });
       batchBytes += byteLength(rendered.html);
       if (batchBytes >= 64 * 1024) {
         yield result();
@@ -365,6 +368,7 @@ export function createRenderCore(services: RenderServices = {}) {
     const tokens = md.parse(text, env);
     await prepareMath(tokens);
     await services.prepareHighlighting?.(tokens);
+    highlighting = true;
     return { html: md.renderer.render(tokens, md.options, env), urls: env.urls,
       ...(hasAuthor(tokens) ? { content: planSequence(tokens, env, false) } : {}) };
   }

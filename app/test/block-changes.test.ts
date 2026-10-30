@@ -62,3 +62,17 @@ test("large documents skip change rendering with a quiet status note", async () 
   const { calculateBlockChanges } = await import("../src/main/block-changes");
   expect(await calculateBlockChanges("Small", "x".repeat(2 * 1024 * 1024 + 1), null)).toEqual({ changed: [], deleted: [], note: "Change highlights are off above 2 MB." });
 });
+
+
+test("lists report individual changed lines, including nested items", async () => {
+  const before = "# Plan\n\n- One\n- Two\n  - Nested\n- Three\n";
+  expect(await calculateBlockChanges(before, before.replace("Two", "Revised"), null)).toEqual({ changed: [[3, 4]], deleted: [] });
+  expect(await calculateBlockChanges(before, before.replace("Nested", "Changed nested"), null)).toEqual({ changed: [[4, 5]], deleted: [] });
+  expect(await calculateBlockChanges(before, before.replace("- Two\n", "- New\n- Two\n"), null)).toEqual({ changed: [[3, 4]], deleted: [] });
+});
+
+
+test("reference changes still mark a list whose source text stayed unchanged", async () => {
+  const source = "- [Link][target]\n\n[target]: https://before.example\n";
+  expect((await calculateBlockChanges(source, source.replace("before", "after"), null)).changed).toEqual([[0, 1]]);
+});

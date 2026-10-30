@@ -152,3 +152,11 @@ test("obsolete preview settings load, patch and save without retaining their key
     for (const key of ["shortcut", "spacePreview", "peekPrompted"]) expect(value).not.toHaveProperty(key);
   }
 });
+
+
+test("reading fonts include system serif and New York on macOS", async () => {
+  const { systemFonts } = await import("../src/main/system-fonts");
+  const { fonts } = await systemFonts();
+  expect(fonts).toContain("ui-serif");
+  if (process.platform === "darwin") expect(fonts).toContain("New York");
+});

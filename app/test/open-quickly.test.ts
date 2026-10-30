@@ -5,7 +5,7 @@ import path from "node:path";
 import { execFileSync, type ChildProcess } from "node:child_process";
 import { PassThrough } from "node:stream";
 import { EventEmitter } from "node:events";
-import { mergeQuicklyFiles, rankQuicklyFiles, type QuicklyFile } from "../src/shared/open-quickly";
+import { mergeQuicklyFiles, rankQuicklyFiles, QUICKLY_CANDIDATE_LIMIT, type QuicklyFile, type QuicklyMatch } from "../src/shared/open-quickly";
 import { indexedPaths, machineMarkdown, machinePathAllowed, QuicklySearch, repoMarkdown, spotlightArgs, walkMarkdown, type SearchSpawner } from "../src/main/open-quickly";
 import { git } from "../src/main/git-runner";
 import { configDefaults } from "../src/shared/config-schema";
@@ -77,11 +77,11 @@ function fakeSpawner(output: Buffer | Error, calls: { command: string; args: str
   }) as SearchSpawner;
 }
 test("Spotlight uses fixed argument arrays, escaped literals, minimal env and filters unsafe locations", async () => {
-  expect(spotlightArgs("a")[1]).not.toContain('&&');
+  expect(spotlightArgs("a").at(-1)!).not.toContain('&&');
   const args = spotlightArgs('ab"*?\\');
   expect(args[0]).toBe("-0");
-  expect(args[1]).toContain('net.daringfireball.markdown'); expect(args[1]).toContain('*.mdx');
-  expect(args[1]).toContain('ab\\"\\*\\?\\\\');
+  expect(args.at(-1)!).toContain('net.daringfireball.markdown'); expect(args.at(-1)!).toContain('*.mdx');
+  expect(args.at(-1)!).toContain('a*b*\\"*\\**\\?*\\\\');
   const calls: Parameters<typeof fakeSpawner>[1] = [];
   const spawner = fakeSpawner(Buffer.from(`/notes/yes.md\0${os.homedir()}/Library/no.md\0/Applications/A.app/no.md\0/tmp/cache/no.md\0/tmp/no.txt\0`), calls);
   expect(await machineMarkdown("ab", controller().signal, "darwin", spawner)).toEqual(["/notes/yes.md"]);
@@ -91,7 +91,7 @@ test("Spotlight uses fixed argument arrays, escaped literals, minimal env and fi
 });
 test("index streams cap results and bytes, and cancellation kills the process", async () => {
   const calls: Parameters<typeof fakeSpawner>[1] = [];
-  expect(await indexedPaths("test", [], controller().signal, fakeSpawner(Buffer.from(Array.from({ length: 500 }, (_, i) => `/notes/${i}.md\0`).join("")), calls))).toHaveLength(200);
+  expect(await indexedPaths("test", [], controller().signal, fakeSpawner(Buffer.from(Array.from({ length: QUICKLY_CANDIDATE_LIMIT + 1 }, (_, i) => `/notes/${i}.md\0`).join("")), calls))).toHaveLength(QUICKLY_CANDIDATE_LIMIT);
   expect(calls[0]?.killed).toBe(true);
   expect(await indexedPaths("test", [], controller().signal, fakeSpawner(Buffer.alloc(8 * 1024 * 1024 + 1), calls))).toEqual([]);
   const cancel = controller();
@@ -107,7 +107,7 @@ test("Windows skips machine search and Linux tries locate only when plocate is u
   expect(calls.map(x => x.command)).toEqual(["plocate", "locate"]);
   calls.length = 0;
   expect(await machineMarkdown("note", controller().signal, "linux", fakeSpawner(Buffer.from("/notes/note.mdx\0"), calls))).toEqual(["/notes/note.mdx"]);
-  expect(calls).toHaveLength(1); expect(calls[0]?.args).toContain("--"); expect(calls[0]?.args).toContain("--regex"); expect(calls[0]?.args.at(-1)).toBe("[^/]*note[^/]*\\.(md|mdx|markdown|mdown|mkd)$");
+  expect(calls).toHaveLength(1); expect(calls[0]?.args).toContain("--"); expect(calls[0]?.args).toContain("--regex"); expect(calls[0]?.args.at(-1)).toBe("[^/]*n[^/]*o[^/]*t[^/]*e[^/]*\\.(md|mdx|markdown|mdown|mkd)$");
 });
 test("closing or replacing a query cancels results; reopening refreshes the memory-only list", async () => temporary(async root => {
   const file = path.join(root, "active.md"); await writeFile(file, "# Note");
@@ -141,4 +141,24 @@ test("repo results publish before machine search completes and merged results de
   release(["/open.md", "/repo.md", "/machine.mdx"]);
   expect((await pending).map(x => [x.path, x.source])).toEqual([["/open.md", "tab"], ["/repo.md", "repo"], ["/machine.mdx", "machine"]]);
   search.close();
+});
+
+
+test("repo queries ignore the absolute parent path for repo files, tabs and recents", async () => temporary(async root => {
+  await mkdir(path.join(root, "docs"));
+  const file = path.join(root, "docs/active.md"); await writeFile(file, "# Note");
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  const search = new QuicklySearch(file);
+  const instant: QuicklyFile[] = [{ path: file, source: "tab" }];
+  expect(await search.search(path.basename(root), "repo", instant)).toEqual([]);
+  expect((await search.search("docs/active", "repo", instant)).map(file => file.path)).toEqual([file]);
+  expect((await search.search("active", "repo", instant))[0]?.parent).toBe(path.join(root, "docs"));
+  search.close();
+}));
+
+test("indexed candidates support noncontiguous filename queries before ranking", async () => {
+  const calls: Parameters<typeof fakeSpawner>[1] = [];
+  const candidates = await machineMarkdown("btrhlp", controller().signal, "darwin", fakeSpawner(Buffer.from("/notes/BetterHelp.mdx\0"), calls));
+  expect(calls[0]?.args.at(-1)).toContain('"*b*t*r*h*l*p*"cd');
+  expect(rankQuicklyFiles(candidates.map(path => ({ path, source: "machine" })), "btrhlp").map(file => file.name)).toEqual(["BetterHelp.mdx"]);
 });

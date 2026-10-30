@@ -4,7 +4,7 @@ import os from "node:os";
 import { spawn } from "node:child_process";
 import { setImmediate as yieldTurn } from "node:timers/promises";
 import { git } from "./git-runner.js";
-import { MARKDOWN_EXTENSIONS, QUICKLY_LIMIT, markdownPath, quicklyCandidate, quicklyMatches, type QuicklyFile, type QuicklyMatch, type QuicklyScope } from "../shared/open-quickly.js";
+import { MARKDOWN_EXTENSIONS, QUICKLY_CANDIDATE_LIMIT, QUICKLY_LIMIT, markdownPath, quicklyCandidate, quicklyMatches, type QuicklyFile, type QuicklyMatch, type QuicklyScope } from "../shared/open-quickly.js";
 import { insertRankedSearchResult, normalizeSearchQuery, type RankedSearchResult } from "../shared/search-ranking.js";
 
 const OUTPUT_BYTES = 8 * 1024 * 1024;
@@ -27,7 +27,7 @@ export async function walkMarkdown(root: string, signal: AbortSignal, limits = {
   await walk(root, 0);
   return files;
 }
-export async function repoMarkdown(activeFile: string | null, signal: AbortSignal): Promise<string[]> {
+export async function repoMarkdown(activeFile: string | null, signal: AbortSignal, onRoot?: (root: string) => void): Promise<string[]> {
   if (!activeFile) return [];
   const canonical = await fs.realpath(activeFile).catch(() => null);
   signal.throwIfAborted();
@@ -35,7 +35,8 @@ export async function repoMarkdown(activeFile: string | null, signal: AbortSigna
   const folder = path.dirname(canonical);
   let root: string;
   try { root = (await git(["rev-parse", "--show-toplevel"], folder, { signal })).trimEnd(); }
-  catch { signal.throwIfAborted(); return walkMarkdown(folder, signal); }
+  catch { signal.throwIfAborted(); onRoot?.(folder); return walkMarkdown(folder, signal); }
+  onRoot?.(root);
   try {
     const output = await git(["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...MARKDOWN_EXTENSIONS.map(ext => `:(icase)*.${ext}`)], root, { signal, timeout: 10000, maxBuffer: OUTPUT_BYTES });
     signal.throwIfAborted();
@@ -48,9 +49,9 @@ export async function repoMarkdown(activeFile: string | null, signal: AbortSigna
 
 export function spotlightArgs(rawQuery: string): string[] {
   // Spotlight has its own query language. Escape its literals and wildcard metacharacters.
-  const literal = rawQuery.trim().replace(/[\\"*?]/g, char => `\\${char}`).replace(/[\x00-\x1f\x7f]/g, " ");
+  const literal = [...rawQuery.trim()].map(char => char.replace(/[\\"*?]/g, char => `\\${char}`)).join("*").replace(/[\x00-\x1f\x7f]/g, " ");
   const types = ['kMDItemContentTypeTree == "net.daringfireball.markdown"', ...MARKDOWN_EXTENSIONS.map(ext => `kMDItemFSName == "*.${ext}"cd`)];
-  return ["-0", `(${types.join(" || ")})${rawQuery.trim().length >= 2 ? ` && kMDItemFSName == "*${literal}*"cd` : ""}`];
+  return ["-0", "-onlyin", os.homedir(), `(${types.join(" || ")})${rawQuery.trim().length >= 2 ? ` && kMDItemFSName == "*${literal}*"cd` : ""}`];
 }
 export function machinePathAllowed(file: string, home = os.homedir()): boolean {
   if (!path.isAbsolute(file) || !markdownPath(file)) return false;
@@ -91,7 +92,7 @@ export function indexedPaths(command: string, args: string[], signal: AbortSigna
       while ((at = pending.indexOf(0)) >= 0) {
         const file = pending.subarray(0, at).toString("utf8"); pending = pending.subarray(at + 1);
         if (machinePathAllowed(file)) files.push(file);
-        if (files.length >= QUICKLY_LIMIT) { finish(); return; }
+        if (files.length >= QUICKLY_CANDIDATE_LIMIT) { finish(); return; }
       }
     });
     if (signal.aborted) abort();
@@ -102,7 +103,7 @@ export async function machineMarkdown(query: string, signal: AbortSignal, platfo
   if (platform === "darwin") return indexedPaths("/usr/bin/mdfind", spotlightArgs(query), signal, spawner).catch(() => []);
   if (platform !== "linux") return [];
   // locate queries its existing database. It never starts updatedb or walks the filesystem.
-  const literal = query.trim().length >= 2 ? query.trim().replace(/[.*+?^${}()|[\]\\]/g, char => `\\${char}`) : "";
+  const literal = query.trim().length >= 2 ? [...query.trim()].map(char => char.replace(/[.*+?^${}()|[\]\\]/g, char => `\\${char}`)).join("[^/]*") : "";
   const expression = `[^/]*${literal}[^/]*\\.(${MARKDOWN_EXTENSIONS.join("|")})$`;
   for (const command of ["plocate", "locate"]) {
     try { return await indexedPaths(command, ["-0", "-i", "--regex", "--", expression], signal, spawner); }
@@ -113,9 +114,10 @@ export async function machineMarkdown(query: string, signal: AbortSignal, platfo
 export class QuicklySearch {
   private controller?: AbortController;
   private repo?: string[];
+  private repoRoot?: string;
   constructor(private readonly activeFile: string | null, private readonly sources = { repo: repoMarkdown, machine: machineMarkdown }) {}
   cancel(): void { this.controller?.abort(); this.controller = undefined; }
-  close(): void { this.cancel(); this.repo = undefined; }
+  close(): void { this.cancel(); this.repo = undefined; this.repoRoot = undefined; }
   async search(query: string, scope: QuicklyScope, instant: QuicklyFile[], publish: (matches: QuicklyMatch[]) => void = () => {}): Promise<QuicklyMatch[]> {
     this.cancel();
     const controller = new AbortController(); this.controller = controller;
@@ -132,14 +134,17 @@ export class QuicklySearch {
         const key = process.platform === "win32" ? file.path.replaceAll("\\", "/").toLowerCase() : file.path;
         if (seen.has(key)) continue;
         seen.add(key);
-        const candidate = quicklyCandidate(file, normalized, i);
+        const root = this.repoRoot;
+        const relative = root ? path.relative(root, file.path) : undefined;
+        const inRepo = relative !== undefined && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+        const candidate = quicklyCandidate({ ...file, matchPath: inRepo ? relative : scope === "repo" ? path.basename(file.path) : file.path }, normalized, i);
         if (candidate) insertRankedSearchResult(ranked, candidate, QUICKLY_LIMIT);
       }
       return quicklyMatches(ranked, normalized);
     };
     try {
       const machinePromise = scope === "everywhere" ? this.sources.machine(query, signal).catch(() => []) : Promise.resolve([]);
-      const repo = this.repo ?? await this.sources.repo(this.activeFile, signal);
+      const repo = this.repo ?? await this.sources.repo(this.activeFile, signal, root => { this.repoRoot = root; });
       signal.throwIfAborted(); this.repo = repo;
       const local: QuicklyFile[][] = [instant, repo.map(path => ({ path, source: "repo" }))];
       const matches = await rank(local);
