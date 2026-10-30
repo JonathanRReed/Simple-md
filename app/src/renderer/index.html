@@ -42,7 +42,7 @@
     <template id="pane-template">
       <div class="document-pane">
         <div class="pane-toolbar">
-          <div class="pane-name"><span id="name"></span><span id="dirty" title="Unsaved changes" role="status" hidden>Edited</span></div>
+          <div class="pane-name"><span id="name"></span></div>
           <div class="pane-controls">
           <button id="nav-back" type="button" class="pill" title="Go back to the previous document" aria-label="Back" hidden>←</button>
           <details id="reader-options" class="reader-options" hidden>
@@ -93,7 +93,7 @@
         </div>
       </section>
         </div></div>
-        <footer class="pane-status"><span id="hint" hidden></span>
+        <footer class="pane-status"><span id="dirty" title="Unsaved changes" role="status" hidden>Edited</span><span id="hint" hidden></span>
           <div class="drag-export-controls">
             <select id="export-format" aria-label="Export format"><option value="html">HTML</option><option value="pdf">PDF</option></select>
             <button id="drag-export" type="button" title="Save an exported file, or drag it out">Export</button>

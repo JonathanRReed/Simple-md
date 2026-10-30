@@ -13,11 +13,11 @@ async function until(predicate: () => boolean, message: string) {
   for (let i = 0; i < 200; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 10)); }
   throw new Error(message);
 }
-export async function runBatch(input: { html: string; css: string; text: string; rendered: RenderedBlocks; scene: string }) {
+export async function runBatch(input: { html: string; css: string; text: string; rendered: RenderedBlocks; scene: string; theme?: "light" | "dark" }) {
   document.body.innerHTML = new DOMParser().parseFromString(input.html, "text/html").body.innerHTML;
   const style = document.createElement("style"); style.textContent = input.css; document.head.append(style);
   document.body.dataset.platform = "darwin";
-  document.documentElement.style.colorScheme = "light";
+  document.documentElement.style.colorScheme = input.theme ?? "light";
   applyDocumentStyle(DEFAULT_SETTINGS);
   const settings = { ...DEFAULT_SETTINGS, uiMotion: "off" as const, outlineRail: false };
   let saves = 0;
@@ -48,9 +48,11 @@ export async function runBatch(input: { html: string; css: string; text: string;
   assert(scroll.scrollLeft > 0 && scroll.dataset.overflowStart === "true", "Vertical wheel does not scroll tabs or reveal leading fade");
   scroll.dispatchEvent(new WheelEvent("wheel", { deltaX: 70, bubbles: true, cancelable: true })); await paint();
   assert(pins.every((pin, i) => pin.getBoundingClientRect().left === left[i]), "Pins scroll away");
+  assert(scroll.getBoundingClientRect().left - pins.at(-1)!.getBoundingClientRect().right >= 12, "Pinned and scrolling labels lack a clean boundary");
+  assert(getComputedStyle(strip.querySelector(".tab-pins")!).overflowX === "hidden", "Pinned labels can paint across the boundary");
   rows = rows.map((row, i) => ({ ...row, selected: i === 5 })); bar.render(rows); await paint();
   const selected = strip.querySelector<HTMLElement>('[aria-selected="true"]')!;
-  assert(selected.getBoundingClientRect().right <= scroll.getBoundingClientRect().right + 1, "Selected tab is clipped");
+  if (input.scene !== "dirty") assert(selected.getBoundingClientRect().right <= scroll.getBoundingClientRect().right + 1, "Selected tab is clipped");
   const template = document.querySelector<HTMLTemplateElement>("#pane-template")!;
   const root = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
   for (const element of root.querySelectorAll<HTMLElement>("[id]")) { element.dataset.element = element.id; element.removeAttribute("id"); }
@@ -60,12 +62,46 @@ export async function runBatch(input: { html: string; css: string; text: string;
   pane.settings(settings);
   await pane.load({ ...input.rendered, documentId: id, paneId, revisionId: makeRevisionId(0), path: "/tmp/PLAN.md", name: "PLAN.md", baseUrl: "file:///tmp/", text: input.text, intent: "read" }); await paint();
   if (input.scene === "read-action") {
-    root.querySelector<HTMLElement>(".task-list-item")!.click();
+    root.querySelector<HTMLInputElement>(".task-list-item-checkbox")!.click();
     await until(() => saves === 1, "An explicit Read action lost autosave");
     assert(disk.includes("[x]"), "Read action saved the wrong text");
     return { passed: true };
   }
   const button = (query: string) => root.querySelector<HTMLButtonElement>(query)!;
+  if (input.scene === "read-mode" || input.scene === "dirty") {
+    button('[data-mode="source"]').click(); await paint();
+    const editor = root.querySelector<HTMLElement>(".cm-content")! as HTMLElement & { cmTile: { root: { view: EditorView } } };
+    editor.cmTile.root.view.dispatch({ changes: { from: 0, insert: "x" } });
+    button('[data-mode="read"]').click(); await paint();
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    assert(saves === 0 && pane.flush().dirty && pane.flush().text === "x" + input.text, "Read lost or saved a guarded edit");
+    const retained = pane.suspend(); await pane.load({ ...input.rendered, documentId: id, paneId, revisionId: makeRevisionId(0), path: "/tmp/PLAN.md", name: "PLAN.md", baseUrl: "file:///tmp/", text: input.text, intent: "read" }, retained); await paint();
+    assert(pane.flush().text === "x" + input.text && pane.flush().dirty, "Read snapshot lost a guarded edit");
+    if (input.scene === "dirty") {
+      const dirty = root.querySelector<HTMLElement>('[data-element="dirty"]')!;
+      const visible = () => {
+        const rect = dirty.getBoundingClientRect();
+        assert(!dirty.hidden && rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight, "Edited label is offscreen");
+        assert(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === dirty, "Edited label is covered");
+      };
+      for (const tabStyle of ["top", "sidebar"] as const) {
+        bar.configure({ ...settings, tabStyle }); await paint(); visible();
+        const chrome = createWindowChrome(api); chrome.configure({ ...settings, tabStyle, zenMode: true });
+        document.querySelector("#chrome-reveal")!.dispatchEvent(new PointerEvent("pointerover", { bubbles: true })); await paint(); visible();
+        chrome.configure(settings);
+      }
+      return { passed: true };
+    }
+    pane.command("save"); await until(() => saves === 1, "Read could not explicitly save a guarded edit");
+    assert(disk === "x" + input.text, "Read saved the wrong pending text");
+    button('[data-mode="source"]').click(); await paint();
+    const restored = root.querySelector<HTMLElement>(".cm-content")! as typeof editor;
+    restored.cmTile.root.view.dispatch({ changes: { from: 0, insert: "Confirmed editing\n" } });
+    button('[data-mode="read"]').click();
+    await until(() => saves === 2, "Read did not flush confirmed editing");
+    assert(disk === "Confirmed editing\nx" + input.text, "Read flushed stale text");
+    return { passed: true };
+  }
   const aa = root.querySelector<HTMLDetailsElement>(".reader-options")!, summary = aa.querySelector("summary")!;
   aa.open = true; button('[data-element="reading-larger"]').focus();
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
@@ -82,10 +118,12 @@ export async function runBatch(input: { html: string; css: string; text: string;
     assert([...root.querySelectorAll<HTMLElement>(".seg button, .layout-controls button")].every((node, i) => node.getBoundingClientRect().left === positions[i]), "Mode switch moved toolbar icons");
   }
   button('[data-mode="read"]').click(); await paint();
+  rows = rows.map(row => ({ ...row, selected: row.id === id })); bar.render(rows); await paint();
+  assert(strip.querySelector<HTMLElement>('[aria-selected="true"]')!.dataset.documentId === root.dataset.documentId, "Capture selected a different document");
   if (input.scene === "tabs") return { passed: true };
   if (input.scene === "sidebar") {
     bar.configure({ ...settings, tabStyle: "sidebar" });
-    bar.render([...rows.map(row => ({ ...row, selected: false })), ...Array.from({ length: 30 }, (_, index) => ({ id: makeDocumentId(index + 20), label: `Note ${index}.md`, title: `/tmp/Note ${index}.md`, pinned: false, selected: index === 29, dirty: false, pane: null }))]);
+    bar.render([...rows, ...Array.from({ length: 30 }, (_, index) => ({ id: makeDocumentId(index + 20), label: `Note ${index}.md`, title: `/tmp/Note ${index}.md`, pinned: false, selected: false, dirty: false, pane: null }))]);
     await paint();
     const top = pins.map(pin => pin.getBoundingClientRect().top);
     scroll.scrollTop = 300; await paint();

@@ -1161,8 +1161,9 @@ body:not([data-platform="darwin"]) #tabs {
   inset-inline-end: calc(max(0px, 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)) + 321px);
 }
 .tab-pins, .tab-scroll { display: flex; gap: var(--chrome-unit); min-width: 0; }
-.tab-pins { flex: none; }
+.tab-pins { flex: none; overflow: hidden; }
 .tab-pins:empty { display: none; }
+body[data-tab-style="top"] .tab-pins:not(:empty) + .tab-scroll:not(:empty) { margin-inline-start: 9px; border-inline-start: 1px solid var(--rule); padding-inline-start: 9px; }
 .tab-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tab-scroll[data-overflow-start="true"] { mask-image: linear-gradient(to right, transparent, #000 12px); }
 .tab-scroll[data-overflow-end="true"] { mask-image: linear-gradient(to left, transparent, #000 12px); }
@@ -1338,6 +1339,7 @@ body[data-zen="true"][data-tab-style="sidebar"] #workspace { margin-block-start:
 body[data-zen="true"][data-tab-style="sidebar"] #tabs { position: fixed; inset: 0 auto 0 0; }
 body[data-zen="true"] .pane-toolbar { position: absolute; inset: 34px 0 auto; z-index: 7; visibility: hidden; }
 body[data-zen="true"] .pane-status { display: none; }
+body[data-zen="true"][data-chrome-revealed="true"] .pane-status { display: flex; position: absolute; z-index: 7; inset: auto 0 0; background: var(--bg); }
 body[data-zen="true"][data-chrome-revealed="true"] :is(.titlebar, #tabs, .pane-toolbar) { visibility: visible; }
 body[data-zen="true"][data-chrome-revealed="true"] #tabs { z-index: 6; background: var(--bg); }
 body[data-zen="true"][data-tab-style="sidebar"][data-chrome-revealed="true"] #tabs { background: light-dark(#f5f5f5, #242424); }

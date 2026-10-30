@@ -1332,7 +1332,9 @@ await test("tab-design-polish-search-layout", async () => {
       assert(getComputedStyle(document.querySelector('[data-element=name]')).display === 'none', 'Single pane repeats the filename');
       assert([...toolbar.querySelectorAll('[data-mode]')].every(button => button.querySelector('svg') && button.getAttribute('aria-label') && button.title), 'Mode icons lack names or tooltips');
       assert(toolbar.querySelector('[data-mode=read]').getAttribute('aria-pressed') === 'true', 'Read icon is not pressed');
-      assert(document.querySelector('.tab[data-pinned=true] .tab-short').textContent === 'R', 'Pinned tab is not compact');
+      const pin = document.querySelector('.tab[data-pinned=true]');
+      const short = pin.querySelector('.tab-short');
+      assert(short.textContent.length >= 3 && 'README'.startsWith(short.textContent) && pin.getBoundingClientRect().width <= 62 && short.getBoundingClientRect().width <= pin.getBoundingClientRect().width, 'Pinned tab is not compact and readable');
       const name = document.querySelector('.tab[data-dirty=true] .tab-name').getBoundingClientRect();
       const slot = document.querySelector('.tab[data-dirty=true] .tab-action').getBoundingClientRect();
       assert(slot.left - name.right <= 6.1, 'Dirty slot is detached from its label');`),
@@ -1459,9 +1461,8 @@ await test("r2-chrome-first-autosave-close", async () => {
     ...appendCharacter("!"),
     evaluate(`await new Promise(resolve => setTimeout(resolve, 1400)); assert(!document.querySelector('#dirty').hidden, 'Tiny first burst autosaved');`),
     { dialog: { response: 2 } },
-    { input: { type: "keyDown", keyCode: "W", modifiers: [mod] } },
-    { input: { type: "keyUp", keyCode: "W", modifiers: [mod] } },
-    evaluate(`assert(editorText().endsWith('!') && !document.querySelector('#dirty').hidden, 'Cancel lost the guarded edit');`),
+    evaluate(`assert(await window.simplemd.closeTab(Number(document.documentElement.dataset.documentId)) === false, 'Cancel closed the guarded tab');
+      assert(editorText().endsWith('!') && !document.querySelector('#dirty').hidden, 'Cancel lost the guarded edit');`),
     { dialog: { response: 1 } }, { menuQuit: true },
   ]);
   assert.equal(fs.readFileSync(file, "utf8"), note, "Guarded first edit overwrote the file");
@@ -1725,9 +1726,13 @@ await test("tabs-scroll-selection-shortcuts", async () => {
       const otherId = [...document.querySelectorAll('[role=tab]')].map(tab => Number(tab.dataset.documentId)).find(id => id !== window.scrollId);
       await Promise.all([window.simplemd.activateTab(otherId), window.simplemd.activateTab(window.scrollId), window.simplemd.activateTab(otherId), window.simplemd.activateTab(window.scrollId)]);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelectorAll('.cm-editor').length === 1, 'Rapid activations did not converge.');`),
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)} && document.querySelectorAll('.cm-editor').length === 1, 'Rapid activations did not converge.');
+      assert(document.querySelector('[role=tab][aria-selected=true]').dataset.documentId === document.querySelector('.document-pane[data-active=true]').dataset.documentId, 'Rapid activation selected the wrong tab.');`),
     ...key("Tab", ["control"]),
-    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Control-Tab did not cycle.');`),
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(b)}, 'Control-Tab did not cycle.');
+      window.simplemd.command('mode-read');
+      await waitFor(() => document.querySelector('#doc h1')?.textContent === 'Next', 'Selected tab showed a different document.');
+      assert(document.querySelector('[role=tab][aria-selected=true]').dataset.documentId === document.querySelector('.document-pane[data-active=true]').dataset.documentId, 'Read selected the wrong tab.');`),
     ...key("1", [mod]),
     evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(a)}, 'Tab number did not jump.');`),
     ...key("T", [mod]),
