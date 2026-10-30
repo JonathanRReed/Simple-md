@@ -34,7 +34,7 @@ test("registry retains independent sessions and never reuses a removed identity"
 test("an old render reply after a newer edit cannot replace the current preview", async () => {
   const doc = registry().create(null, "old");
   const oldRevision = doc.revisionId, late = deferred<string>();
-  let preview = "initial";
+  let preview: string;
   const old = doc.render(oldRevision, () => late.promise).then((value) => { preview = value; });
   const outcome = old.catch((error: unknown) => error);
   expect(doc.edit("new", makeRevisionId(1))).toBe(true);

@@ -87,7 +87,7 @@ async function refresh() {
       method = "contents-api-html";
       const api = await get(`https://api.github.com/repos/${doc.repo}/contents/${doc.path}?ref=${doc.commit}`, "application/vnd.github.html+json");
       if (api.status !== 200 || !api.contentType?.includes("html") || !/^\s*</.test(api.text)) {
-        throw new Error(`${doc.id}: Contents API HTML failed: HTTP ${api.status}, ${api.contentType}`);
+        throw new Error(`${doc.id}: Contents API HTML failed: HTTP ${api.status}, ${api.contentType}`, { cause: error });
       }
       reference = api.text;
     }

@@ -17,7 +17,7 @@ import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   BrowserWindow,
   clipboard,
@@ -33,7 +33,7 @@ import {
   shell,
   systemPreferences,
 } from "electron";
-import { isDocumentId, isPaneId, isRevisionId, isRequestId, makePaneId, makeRequestId, type DocumentId, type RequestId, type RevisionId } from "../shared/types.js";
+import { isDocumentId, isPaneId, isRevisionId, isRequestId, makePaneId, makeRequestId, type DocumentId, type RevisionId } from "../shared/types.js";
 import { DocumentRegistry } from "./document-registry.js";
 import { DocumentSession } from "./document-session.js";
 import type {
@@ -403,9 +403,6 @@ async function settle(current = currentSession(), host = context()): Promise<boo
 }
 
 // ───────── documents ─────────
-
-const baseUrlOf = (file: string | null) =>
-  file ? pathToFileURL(path.dirname(file)).href.replace(/\/?$/, "/") : null;
 
 async function payloadFor(doc: DocumentSession, fromDisk = false, text = doc.text, intent = doc.intent, host = context()): Promise<DocPayload> {
   const file = doc.path;
@@ -826,7 +823,7 @@ function applyLoginItem(): void {
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(
           desktop,
-          `[Desktop Entry]\nType=Application\nName=SimpleMD\nExec=\"${process.execPath}\" --background\nX-GNOME-Autostart-enabled=true\n`,
+          `[Desktop Entry]\nType=Application\nName=SimpleMD\nExec="${process.execPath}" --background\nX-GNOME-Autostart-enabled=true\n`,
         );
       } else {
         fs.rmSync(desktop, { force: true });

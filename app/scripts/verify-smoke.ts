@@ -130,7 +130,7 @@ async function launch(name: string, file: string, steps: Step[], intent: "read" 
     if (poll) clearInterval(poll);
     const runtime = cliRuntime(profile);
     for (const name of ["state.json", "ipc.sock"]) fs.rmSync(path.join(runtime, name), { force: true });
-    try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error; }
+    try { fs.rmdirSync(runtime); } catch (error) { if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.warn(`could not remove ${runtime}`, error); }
   }
 }
 

@@ -37,7 +37,8 @@ export class TabLayout {
     if (pane) pane.documentId = next;
   }
   cycle(delta: number): void {
-    const index = this.state.tabs.indexOf(this.active?.documentId!);
+    const active = this.active?.documentId;
+    const index = active === undefined ? -1 : this.state.tabs.indexOf(active);
     const id = this.state.tabs[(index + delta + this.state.tabs.length) % this.state.tabs.length];
     if (id !== undefined) this.activate(id);
   }

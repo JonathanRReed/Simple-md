@@ -1,3 +1,4 @@
+/* global blocks, calls, command, doc, flushed, listeners, pending, until, wait -- provided by the editor test harness */
 await doc('editable MDX', 'note.MDX', 2, 'edit');
 await until(() => document.querySelector('.cm-content'));
 assert(!document.querySelector('#edit').hidden, 'MDX enters editing for edit intent');

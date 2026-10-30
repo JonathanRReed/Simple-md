@@ -2,7 +2,7 @@ import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makePaneId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 

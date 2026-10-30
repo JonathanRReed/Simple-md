@@ -14,6 +14,8 @@ const forbiddenAttrs = new Set(authorPolicy.FORBID_ATTR);
 const forbiddenContents = new Set("annotation-xml audio colgroup desc foreignobject head iframe math mi mn mo ms mtext noembed noframes noscript plaintext script selectedcontent style svg template thead title video xmp".split(" "));
 const urlAttrs = new Set(["href", "src", "srcset", "longdesc", "cite", "action", "itemtype"]);
 const uriSafeAttrs = new Set(["alt", "class", "for", "id", "label", "name", "pattern", "placeholder", "role", "summary", "title", "value", "style", "xmlns"]);
+// Copied verbatim from DOMPurify's IS_ALLOWED_URI to keep parity.
+// eslint-disable-next-line no-useless-escape
 const uriPattern = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 const attrWhitespace = /[\u0000-\u0020\u00a0\u1680\u180e\u2000-\u2029\u205f\u3000]/g;
 const unsafeAttribute = /((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i;

@@ -230,7 +230,6 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
   const sel = state.selection.ranges;
   const touches = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
   const lineTouches = (from: number, to: number) => touches(doc.lineAt(from).from, doc.lineAt(to).to);
-  const baseUrl = host.baseUrl();
   const fmEnd = frontmatterEnd(doc.sliceString(0, 4000));
   const blocked: Array<[number, number]> = getMdxRanges(state).map((range) => [range.start, range.end]); // ranges where inline scanning must not run
 
