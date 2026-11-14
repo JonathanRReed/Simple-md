@@ -48,6 +48,7 @@ interface DocumentState {
   readOnlyReason?: string;
   dirty: boolean;
   diskConflict: boolean;
+  unavailableReason?: string;
   diskSeq: number;
   saveQueue: Promise<void>;
   revisionId: RevisionId;
@@ -963,6 +964,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   function onSaved(result: SaveResult): void {
     if (result.documentId !== pane.documentId) return;
     noticeSaveMetadata(result);
+    const changedPath = doc.meta.path !== result.path;
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
       invalidateExport();
@@ -974,6 +976,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (pane.view === "read") void renderRead(currentText(), true);
       else if (pane.mode === "split") void renderPreview();
     }
+    if (result.unavailableReason) {
+      doc.savedText = result.text;
+      onDiskChanged({ kind: "unavailable", message: result.unavailableReason }, pane.documentId);
+      return;
+    }
+    if (doc.unavailableReason || changedPath) hideBanner();
+    doc.unavailableReason = undefined;
+    if (changedPath || pendingDisk?.kind === "unavailable") { doc.diskConflict = false; pendingDisk = undefined; }
     doc.firstAutosave.confirm();
     doc.savedText = result.text;
     doc.dirty = currentText() !== doc.savedText;
@@ -985,7 +995,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     clearTimeout(pane.autosaveTimer);
     const id = pane.documentId;
     const save = async () => {
-      if (!doc.hasDoc || id !== pane.documentId || isReadOnly() || transitioning || doc.diskConflict) return;
+      if (!doc.hasDoc || id !== pane.documentId || isReadOnly() || transitioning || (doc.diskConflict && !forceDialog)) return;
       const text = currentText();
       if (automatic && (!doc.firstAutosave.allowed || !doc.meta.path || text === doc.savedText)) return;
       if (!forceDialog && doc.meta.path && text === doc.savedText) return;
@@ -1032,12 +1042,33 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (pendingDisk?.kind === "text") { onDiskChanged({ ...pendingDisk, readOnlyReason: change.readOnlyReason }, id); return; }
       doc.readOnlyReason = change.readOnlyReason;
       pane.editor?.setEditable(!transitioning && !isReadOnly());
-      if (change.readOnlyReason) showBanner(change.readOnlyReason, []);
+      if (change.readOnlyReason && !doc.unavailableReason) showBanner(change.readOnlyReason, []);
       else if (!doc.diskConflict) { hideBanner(); scheduleAutosave(); }
       updateChrome();
       return;
     }
-    if (change.kind === "unavailable") return;
+    if (change.kind === "unavailable") {
+      pendingDisk = change;
+      closeComparison?.();
+      const seq = ++doc.diskSeq;
+      doc.unavailableReason = change.message;
+      doc.readOnlyReason = change.readOnlyReason;
+      pane.editor?.setEditable(!transitioning && !isReadOnly());
+      doc.diskConflict = true;
+      clearTimeout(pane.autosaveTimer);
+      setDirty(true);
+      const recover = async (saveAs: boolean) => {
+        const result = await simplemd.save(currentText(), saveAs, id, !saveAs);
+        if (result && id === pane.documentId && seq === doc.diskSeq) onSaved(result);
+        return false;
+      };
+      showBanner(change.message + " Your text is still here.", [
+        { label: "Recreate file", run: () => recover(false) },
+        { label: "Save As…", run: () => recover(true) },
+      ]);
+      updateChrome();
+      return;
+    }
     pendingDisk = change;
     const { text, readOnlyReason: reason } = change;
     closeComparison?.();
@@ -1081,6 +1112,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       }
       closeComparison?.();
       pendingDisk = undefined;
+      doc.unavailableReason = undefined;
       doc.diskConflict = false;
       doc.readOnlyReason = undefined;
       pane.editor?.setEditable(!transitioning && !isReadOnly());
@@ -1536,7 +1568,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         if (!result) return;
         noticeSaveMetadata(result);
         retained.savedText = result.text;
-        retained.dirty = retained.readText !== result.text;
+        retained.unavailableReason = result.unavailableReason;
+        retained.dirty = !!result.unavailableReason || retained.readText !== result.text;
         options.changed();
       };
       retained.saveQueue = retained.saveQueue.then(save, save).catch(error => console.error("simplemd: dormant autosave failed", error));
@@ -1629,7 +1662,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         }
       }
     },
-    flush() { return { revisionId: doc.revisionId, dirty: doc.dirty, text: currentText(), documentId: pane.documentId, conflict: doc.diskConflict }; },
+    flush() { return { revisionId: doc.revisionId, dirty: doc.dirty, text: currentText(), documentId: pane.documentId, conflict: doc.diskConflict, unavailable: !!doc.unavailableReason }; },
   };
 }
 export type PaneController = ReturnType<typeof createPane>;

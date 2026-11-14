@@ -33,17 +33,30 @@ interface SettleActions {
   flush(): Promise<FlushResult | null>;
   save(text: string): Promise<boolean>;
   choose(): Promise<"save" | "discard" | "cancel">;
+  resolveUnavailable?(): Promise<"saved" | "discard" | "cancel">;
 }
 
 export async function settleDocument(a: SettleActions): Promise<boolean> {
   const before = await a.flush();
   if (!before || before.documentId !== a.documentId) return false;
+  const resolveUnavailable = async (buffer: FlushResult): Promise<boolean> => {
+    const choice = await a.resolveUnavailable?.() ?? "cancel";
+    if (choice === "cancel") return false;
+    const after = await a.flush();
+    return after !== null && after.documentId === a.documentId && after.text === buffer.text &&
+      (choice === "discard" || (!after.dirty && !after.conflict && !after.unavailable));
+  };
+  if (before.unavailable) return resolveUnavailable(before);
   if (before.conflict) return false;
   if (!before.dirty) return true;
   const autosave = typeof a.autosave === "function" ? a.autosave() : a.autosave;
   const choice = autosave && a.hasPath ? "save" : await a.choose();
   if (choice === "cancel") return false;
-  if (choice === "save" && !(await a.save(before.text))) return false;
+  if (choice === "save" && !(await a.save(before.text))) {
+    const failed = await a.flush();
+    if (failed?.documentId === a.documentId && failed.unavailable) return resolveUnavailable(failed);
+    return false;
+  }
   const after = await a.flush();
   return after !== null && after.documentId === a.documentId && after.text === before.text &&
     !after.conflict && (choice === "discard" || !after.dirty);

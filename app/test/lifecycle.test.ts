@@ -138,3 +138,24 @@ test("normal opens settle before refresh and present the refreshed disk payload"
   expect(await openPreparedDocument(a)).toBe(true);
   expect(events).toEqual(["prepare", "settle", "refresh", "present after"]);
 });
+
+for (const choice of ["saved", "discard", "cancel"] as const) test(`missing files offer recovery before closing: ${choice}`, async () => {
+  const missing = { ...dirty, unavailable: true, conflict: true };
+  let offered = 0;
+  const a = { ...actions([missing, choice === "saved" ? { ...dirty, dirty: false } : missing]),
+    resolveUnavailable: async () => { offered++; return choice; } };
+  expect(await settleDocument(a)).toBe(choice !== "cancel");
+  expect(offered).toBe(1);
+});
+test("deletion discovered during autosave offers recovery instead of silently refusing quit", async () => {
+  let offered = false;
+  const missing = { ...dirty, unavailable: true, conflict: true };
+  const a = { ...actions([dirty, missing, missing]), save: async () => false,
+    resolveUnavailable: async () => { offered = true; return "discard" as const; } };
+  expect(await settleDocument(a)).toBe(true); expect(offered).toBe(true);
+});
+test("edits entered during missing-file recovery block discard", async () => {
+  const missing = { ...dirty, unavailable: true, conflict: true };
+  const a = { ...actions([missing, { ...missing, text: "new typing" }]), resolveUnavailable: async () => "discard" as const };
+  expect(await settleDocument(a)).toBe(false);
+});

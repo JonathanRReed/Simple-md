@@ -44,7 +44,7 @@ export interface Bridge {
   nextBlocks(stream: number, documentId: DocumentId): Promise<import("../shared/block-update.js").BlockUpdate>;
   renderBlocks(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<import("../shared/render-core.js").RenderedBlocks>;
   renderFragment(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<RenderedHtml>;
-  save(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null>;
+  save(text: string, forceDialog: boolean, documentId: DocumentId, recreate?: boolean): Promise<SaveResult | null>;
   saveCopy(text: string, documentId: DocumentId): Promise<string | null>;
   saveImage(bytes: Uint8Array, ext: string, documentId: DocumentId): Promise<string | null>;
   prepareDragExport(text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf"): Promise<{ token: string; name: string; expiresAt: number }>;

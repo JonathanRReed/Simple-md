@@ -213,8 +213,12 @@ async function boot(): Promise<void> {
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
     if (mounted) mounted.controller.saved(result);
     else if (tab?.retained) {
+      tab.retained.state.unavailableReason = result.unavailableReason;
+      tab.retained.state.diskConflict = !!result.unavailableReason;
+      tab.disk = result.unavailableReason ? { kind: "unavailable", message: result.unavailableReason } : undefined;
+      tab.retained.disk = undefined;
       tab.retained.state.savedText = result.text;
-      tab.retained.state.dirty = tab.retained.state.readText !== result.text;
+      tab.retained.state.dirty = !!result.unavailableReason || tab.retained.state.readText !== result.text;
       tab.retained.state.meta = result;
     }
     syncChrome();
@@ -232,7 +236,13 @@ async function boot(): Promise<void> {
         else if (!tab.disk) tab.disk = change;
       } else {
         tab.disk = change;
-        if (tab.retained) tab.retained.state.diskConflict = true;
+        if (tab.retained) {
+          tab.retained.state.diskConflict = true;
+          if (change.kind === "unavailable") {
+            tab.retained.state.unavailableReason = change.message;
+            tab.retained.state.dirty = true;
+          }
+        }
       }
     }
   });
@@ -290,7 +300,7 @@ async function boot(): Promise<void> {
     const tab = documents.get(id);
     const state = tab?.retained?.state;
     if (mounted) api.flushResponse(request, mounted.controller.flush());
-    else if (state) api.flushResponse(request, { documentId: id, revisionId: state.revisionId, dirty: state.dirty, conflict: state.diskConflict, text: state.readText });
+    else if (state) api.flushResponse(request, { documentId: id, revisionId: state.revisionId, dirty: state.dirty, conflict: state.diskConflict, unavailable: !!state.unavailableReason, text: state.readText });
   });
   const ready = await api.ready();
   search.title = document.querySelector<HTMLButtonElement>("#tab-search-button")!.title = ready.platform === "darwin" ? "Open Quickly (⌘⇧O)" : "Open Quickly (Ctrl+Shift+O)";

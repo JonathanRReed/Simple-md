@@ -15,10 +15,12 @@ export class DocumentSession {
   gitStatus: GitChangesStatus;
   conflict = false;
   dirty = false;
+  unavailableReason: string | undefined;
   private watcher: { close(): void } | undefined;
   private watchGeneration = 0;
   private disposed = false;
   private metadataWarningSent = false;
+  private unavailableSequence = 0;
   private onDiskChanged: ((change: DiskChange) => void) | undefined;
 
   constructor(
@@ -52,7 +54,7 @@ export class DocumentSession {
     }
     this.text = text;
     this.revisionId = revisionId;
-    this.dirty = text !== (this.diskText ?? "");
+    this.dirty = !!this.unavailableReason || text !== (this.diskText ?? "");
     return true;
   }
 
@@ -79,16 +81,28 @@ export class DocumentSession {
         if (generation !== this.watchGeneration || sequence !== checkSequence) return;
         const permissionsChanged = readOnlyReason !== this.readOnlyReason;
         this.readOnlyReason = readOnlyReason;
-        if (text === this.diskText) {
+        if (text === this.diskText && !this.unavailableReason) {
           if (permissionsChanged) changed({ kind: "permissions", readOnlyReason });
           return;
         }
         this.conflict = true;
         changed({ kind: "text", text, readOnlyReason });
-      }).catch((err) => console.error("simple-md: could not read changed note", err));
+      }).catch((err) => {
+        if (generation === this.watchGeneration && sequence === checkSequence) this.unavailable(err);
+      });
     };
     try { this.watcher = watchDocument(file, check); check(); }
     catch (err) { console.error("simple-md: could not watch note", err); }
+  }
+
+  private unavailable(error: unknown): void {
+    const missing = error instanceof Error && "code" in error && ["ENOENT", "ENOTDIR"].includes(String(error.code));
+    this.unavailableSequence++;
+    this.unavailableReason = missing ? "This file is missing or was moved." : "This file could not be read.";
+    this.conflict = true;
+    this.dirty = true;
+    if (this.readOnlyReason !== ENCODING_NOTICE) this.readOnlyReason = undefined;
+    this.onDiskChanged?.({ kind: "unavailable", message: this.unavailableReason, readOnlyReason: this.readOnlyReason });
   }
 
   markSeen(): void { this.baseline = null; this.baselineGeneration++; }
@@ -107,24 +121,29 @@ export class DocumentSession {
       this.baselineGeneration++;
     }
     this.diskText = text;
+    this.unavailableReason = undefined;
     this.conflict = false;
     this.readOnlyReason = latest.readOnlyReason;
     return true;
   }
 
-  save(target: string, revisionId: RevisionId, force = false): Promise<SaveResult | null> {
+  save(target: string, revisionId: RevisionId, force = false, recreate = false): Promise<SaveResult | null> {
     return this.saves.run(async () => {
-      if (!this.isCurrent(revisionId) || this.readOnlyReason || (this.conflict && !force)) return null;
+      if (!this.isCurrent(revisionId) || this.readOnlyReason || (this.conflict && !force && !recreate)) return null;
+      if (recreate && (target !== this.path || !this.unavailableReason)) return null;
       const text = this.text;
-      let metadataCopyFailed = false;
+      const unavailableSequence = this.unavailableSequence;
+      let metadataCopyFailed: boolean;
       try {
-        const expected = target === this.path ? this.diskText : await readDiskText(target);
+        const expected = recreate ? null : target === this.path ? this.diskText : await readDiskText(target);
         ({ metadataCopyFailed } = await writeAtomic(target, text, expected));
       } catch (err) {
+        if (target !== this.path) throw err;
+        const external = await readDocument(target).catch((error: unknown) => { this.unavailable(error); return null; });
+        if (!external) return null;
         if (!(err instanceof FileConflictError)) throw err;
         this.conflict = true;
-        const external = await readDiskText(target).catch(() => null);
-        if (external !== null) this.onDiskChanged?.({ kind: "text", text: external });
+        this.onDiskChanged?.({ kind: "text", ...external });
         return null;
       }
       const moved = target !== this.path;
@@ -135,12 +154,13 @@ export class DocumentSession {
       this.path = target;
       this.firstAutosave.confirm();
       this.diskText = text;
-      this.conflict = false;
-      this.dirty = this.text !== text;
+      if (moved || unavailableSequence === this.unavailableSequence) this.unavailableReason = undefined;
+      this.conflict = !!this.unavailableReason;
+      this.dirty = !!this.unavailableReason || this.text !== text;
       if (moved && this.onDiskChanged) this.watch(this.onDiskChanged);
       const showMetadataWarning = metadataCopyFailed && !this.metadataWarningSent;
       if (metadataCopyFailed) this.metadataWarningSent = true;
-      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, showMetadataWarning };
+      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, showMetadataWarning, unavailableReason: this.unavailableReason };
     });
   }
 

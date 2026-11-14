@@ -24,6 +24,29 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, mode: "source" });
   const payload = { ...input.rendered, documentId: id, paneId, revisionId: makeRevisionId(0), path: "/tmp/note.md", name: "note.md", baseUrl: "file:///tmp/", text: input.text, intent: "edit" as const };
   await pane.load(payload);
+  if (input.scenario.startsWith("missing")) {
+    let attempt = 0;
+    const requests: { text: string; saveAs: boolean; recreate: boolean }[] = [];
+    Object.assign((window as unknown as { simplemd: object }).simplemd, { save: async (text: string, saveAs: boolean, _id: number, recreate = false) => {
+      requests.push({ text, saveAs, recreate });
+      if (++attempt === 1) return null;
+      return { documentId: id, revisionId: pane.flush().revisionId, path: saveAs ? "/tmp/other.md" : payload.path, name: "note.md", baseUrl: payload.baseUrl, text };
+    } });
+    pane.diskChanged({ kind: "unavailable", message: "This file is missing or was moved." }, id);
+    assert(pane.flush().dirty && pane.flush().conflict && pane.flush().unavailable, "Missing file did not retain a dirty buffer");
+    assert(pane.flush().text === input.text, "Missing file changed the buffer");
+    const banner = root.querySelector<HTMLElement>("[data-element=banner]")!;
+    const buttons = [...banner.querySelectorAll("button")];
+    assert(buttons.map(button => button.textContent).join(",") === "Recreate file,Save As…", "Recovery actions are missing");
+    const button = buttons[input.scenario === "missing Save As" ? 1 : 0]!;
+    button.click(); await until(() => !button.disabled, "Cancelled recovery stayed busy");
+    assert(pane.flush().dirty && !banner.hidden, "Cancelled recovery discarded the buffer");
+    button.click(); await until(() => !pane.flush().dirty, "Recovery did not accept the saved buffer");
+    assert(requests.length === 2 && requests.every(request => request.text === input.text), "Recovery changed saved bytes");
+    assert(requests.every(request => request.saveAs === (input.scenario === "missing Save As") && request.recreate === (input.scenario === "missing recreate")), "Recovery used the wrong save policy");
+    assert(!pane.flush().conflict && !pane.flush().unavailable && banner.hidden, "Recovery left a missing-file conflict");
+    pane.suspend(); return true;
+  }
   if (input.scenario === "permissions") {
     const before = pane.flush();
     pane.diskChanged({ kind: "permissions", readOnlyReason: "This file is locked or not writable. Read only." }, id);

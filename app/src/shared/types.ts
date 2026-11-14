@@ -82,9 +82,10 @@ export interface DocPayload {
 export type DiskChange =
   | { kind: "text"; text: string; readOnlyReason?: string }
   | { kind: "permissions"; readOnlyReason?: string }
-  | { kind: "unavailable"; message: string };
+  | { kind: "unavailable"; message: string; readOnlyReason?: string };
 
 export interface FlushResult {
+  unavailable?: boolean;
   revisionId: RevisionId;
   documentId: DocumentId;
   conflict: boolean;
@@ -93,6 +94,7 @@ export interface FlushResult {
 }
 
 export interface SaveResult {
+  unavailableReason?: string;
   metadataCopyFailed?: boolean;
   showMetadataWarning?: boolean;
   revisionId: RevisionId;

@@ -419,6 +419,20 @@ async function settle(current = currentSession(), host = context()): Promise<boo
     hasPath: current.path !== null,
     flush: () => requestFlush(current, host),
     save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
+    resolveUnavailable: async () => {
+      reveal(host);
+      const { response } = await dialog.showMessageBox(host.win, {
+        type: "warning",
+        message: `“${current.name}” has not been saved.`,
+        detail: `${current.unavailableReason} Save your text before closing, or discard it.`,
+        buttons: ["Recreate file", "Save As…", "Discard", "Cancel"],
+        defaultId: 1,
+        cancelId: 3,
+      });
+      if (response === 2) { discarded = true; return "discard"; }
+      if (response === 3) return "cancel";
+      return await saveText(current.text, response === 1, current.documentId, host, response === 0) ? "saved" : "cancel";
+    },
     choose: async () => {
       reveal(host);
       const { response } = await dialog.showMessageBox(host.win, {
@@ -649,9 +663,9 @@ function openDialog(): Promise<boolean> {
   });
 }
 
-async function saveText(text: string, forceDialog: boolean, documentId: DocumentId, host = context()): Promise<SaveResult | null> {
+async function saveText(text: string, forceDialog: boolean, documentId: DocumentId, host = context(), recreate = false): Promise<SaveResult | null> {
   const doc = registry.get(documentId);
-  if (!doc || doc.text !== text || doc.readOnlyReason || (doc.conflict && !forceDialog)) return null;
+  if (!doc || doc.text !== text || doc.readOnlyReason || (doc.conflict && !forceDialog && !recreate)) return null;
   const revisionId = doc.revisionId;
   let target = doc.path;
   if (!target || forceDialog) {
@@ -666,7 +680,7 @@ async function saveText(text: string, forceDialog: boolean, documentId: Document
   const pinned = host.layout.isPinned(documentId);
   const moved = target !== previousPath;
   try {
-    const result = await doc.save(target, revisionId, forceDialog);
+    const result = await doc.save(target, revisionId, forceDialog, recreate);
     if (!result) return null;
     if (moved && pinned) applySettings({ pinnedPaths: settings.pinnedPaths.map(file => file === previousPath ? target : file) });
     if (moved) addRecent(target);
@@ -1067,7 +1081,7 @@ function registerIpc(): void {
     if (!mainSender(e) || !isRequestId(id) || !r || typeof r !== "object") return;
     if (!("text" in r) || typeof r.text !== "string" || !("dirty" in r) || typeof r.dirty !== "boolean" ||
         !("documentId" in r) || !isDocumentId(r.documentId) || !("conflict" in r) || typeof r.conflict !== "boolean" || !("revisionId" in r) || !isRevisionId(r.revisionId)) return;
-    flushWaiters.respond(e.sender.id, id, { text: r.text, dirty: r.dirty, documentId: r.documentId, revisionId: r.revisionId, conflict: r.conflict });
+    flushWaiters.respond(e.sender.id, id, { text: r.text, dirty: r.dirty, documentId: r.documentId, revisionId: r.revisionId, conflict: r.conflict, unavailable: "unavailable" in r && r.unavailable === true });
   });
   on("smd:dirty", (e, value: unknown, id: unknown) => {
     if (!mainSender(e) || !isDocumentId(id) || !context().layout.has(id) || typeof value !== "boolean") return;
@@ -1107,11 +1121,11 @@ function registerIpc(): void {
     const doc = ipcSession(id);
     return doc.render(ipcRevision(doc, revision), () => renderFragment(text, doc.path ? path.dirname(doc.path) : undefined));
   });
-  handle("smd:save", (value, forceDialog, id) => {
+  handle("smd:save", (value, forceDialog, id, recreate = false) => {
     const text = ipcText(value);
-    if (typeof forceDialog !== "boolean") throw new TypeError("Expected save option.");
+    if (typeof forceDialog !== "boolean" || typeof recreate !== "boolean") throw new TypeError("Expected save option.");
     const documentId = ipcDocument(id);
-    return documents.run(() => saveText(text, forceDialog, documentId));
+    return documents.run(() => saveText(text, forceDialog, documentId, context(), recreate));
   });
   handle("smd:accept-disk", (value, id, automatic) => {
     const text = ipcText(value);
