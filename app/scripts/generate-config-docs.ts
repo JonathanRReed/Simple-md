@@ -45,7 +45,8 @@ ${serializeConfig("# SimpleMD\n", configDefaults).trimEnd()}
 `;
 const file = path.resolve(import.meta.dir, "../../docs/config.md");
 const exampleFile = path.resolve(import.meta.dir, "../../docs/config.example");
-const example = serializeConfig("# SimpleMD\n", configDefaults);
+const { paperSize: _paperSize, ...exampleDefaults } = configDefaults;
+const example = serializeConfig("# SimpleMD\n", exampleDefaults);
 if (process.argv.includes("--check")) {
   if (await Bun.file(exampleFile).text() !== example) throw new Error("Regenerate docs/config.example from the config schema.");
   if (await Bun.file(file).text() !== output) throw new Error("Regenerate docs/config.md from the config schema.");

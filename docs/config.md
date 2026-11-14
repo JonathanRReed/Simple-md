@@ -30,6 +30,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `code-font-size` | `14` | 10 to 40 |
 | `code-line-height` | `1.55` | 1 to 2.5 |
 | `code-content-width` | `100` | 40 to 200 |
+| `paper-size` | `auto` | auto, a4, letter |
 | `mode` | `live` | live, split, source |
 | `open-quickly-scope` | `repo` | repo, everywhere |
 | `open-in` | `tab` | tab, window |
@@ -82,6 +83,7 @@ code-font-family = ui-monospace
 code-font-size = 14
 code-line-height = 1.55
 code-content-width = 100
+paper-size = auto
 mode = live
 open-quickly-scope = repo
 open-in = tab

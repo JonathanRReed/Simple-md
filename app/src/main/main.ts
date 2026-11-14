@@ -1,4 +1,5 @@
 import { linkLocation } from "../shared/link-location.js";
+import { paperSize } from "../shared/paper-size.js";
 import { existingPinnedPaths } from "./pinned-tabs.js";
 import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
 import type { DragExports, ExportFormat } from "./drag-export.js";
@@ -574,8 +575,8 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       await usable;
       if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
       else if (intent === "read") sendTo(host, "smd:cmd", "mode-read", existing);
-      return true;
       if (location) sendTo(host, "smd:navigate", existing, location);
+      return true;
     });
   }
   if (!quickly && !restoringPins && !inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
@@ -615,8 +616,8 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         }
         if (forceSource) payload.initialMode = "source";
         await present(payload, host, quickly?.otherPane);
-        addRecent(abs);
         if (location) sendTo(host, "smd:navigate", payload.documentId, location);
+        addRecent(abs);
       },
     });
   } catch (err) {
@@ -875,7 +876,7 @@ async function exportHtml(text: string): Promise<void> {
 async function printDoc(text: string): Promise<void> {
   await withPrintWindow(
     text,
-    (pw) => new Promise<void>((resolve, reject) => pw.webContents.print({ printBackground: true }, (ok, reason) => ok ? resolve() : reject(new Error(reason || "Printing was cancelled.")))),
+    (pw) => new Promise<void>((resolve, reject) => pw.webContents.print({ printBackground: true, pageSize: paperSize(settings.paperSize, app.getSystemLocale()) }, (ok, reason) => ok ? resolve() : reject(new Error(reason || "Printing was cancelled.")))),
   );
 }
 

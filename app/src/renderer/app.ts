@@ -1,3 +1,5 @@
+import { paperSize, printableHeight } from "../shared/paper-size.js";
+import { addPrintTitle } from "./print-title.js";
 import { tabRows } from "../shared/tab-presentation.js";
 import { createTabBar } from "./tab-bar.js";
 import { createWindowChrome } from "./window-chrome.js";
@@ -185,6 +187,8 @@ async function printView(): Promise<void> {
     for (const block of doc.blocks) {
       const node = document.createElement("div"); mountRenderedHtml(node, block, s.remoteImages); article.append(node);
     }
+    addPrintTitle(article, doc);
+    document.documentElement.style.setProperty("--printable-height", printableHeight(paperSize(s.paperSize, navigator.language)));
     updateFragments(article);
     void (async () => {
       await renderDiagrams(article);
