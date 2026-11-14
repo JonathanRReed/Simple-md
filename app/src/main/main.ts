@@ -747,9 +747,10 @@ async function duplicateFile(doc: DocumentSession): Promise<void> {
     await openCurrentFile(target, "edit", false, undefined, context(), true, opensInSource(target), { otherPane: false });
   } catch (error) { await fileActionError(String(error)); }
 }
-async function sameOpenDocument(target: string): Promise<boolean> {
+async function sameOpenDocument(target: string, except?: DocumentId): Promise<boolean> {
   const canonical = await fs.promises.realpath(target).catch(() => target);
   for (const host of windows.values()) for (const id of host.layout.state.tabs) {
+    if (id === except) continue;
     const file = registry.get(id)?.path;
     if (file && (file === target || await fs.promises.realpath(file).catch(() => file) === canonical)) return true;
   }
@@ -764,7 +765,7 @@ async function renameMove(doc: DocumentSession): Promise<void> {
   const result = await dialog.showSaveDialog(context().win, { defaultPath: previous });
   if (result.canceled || !result.filePath || result.filePath === previous) return;
   const target = path.resolve(result.filePath);
-  if (await sameOpenDocument(target)) { await fileActionError("Close the destination tab first."); return; }
+  if (await sameOpenDocument(target, doc.documentId)) { await fileActionError("Close the destination tab first."); return; }
   try {
     const moved = await doc.move(target, await destinationState(target));
     if (!moved) return;

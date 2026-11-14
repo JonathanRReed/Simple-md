@@ -59,7 +59,23 @@ export async function moveDocumentFile(source: string, target: string, text: str
   if ((await fs.promises.lstat(source)).isSymbolicLink()) throw new Error("Move the original file instead of its symbolic link.");
   if (expected.kind === "existing") {
     const stat = await fs.promises.stat(source);
-    if (stat.dev === expected.dev && stat.ino === expected.ino) throw new Error("Choose a different file.");
+    if (stat.dev === expected.dev && stat.ino === expected.ino) {
+      const name = path.basename(source), renamed = path.basename(target);
+      const sameFolder = await fs.promises.realpath(path.dirname(source)) === await fs.promises.realpath(path.dirname(target));
+      const entries = sameFolder ? await fs.promises.readdir(path.dirname(source)) : [];
+      if (!sameFolder || name === renamed || name.toLowerCase() !== renamed.toLowerCase() || entries.includes(renamed)) throw new Error("Choose a different file.");
+      // A case-insensitive filesystem names the same entry through both paths.
+      const temporary = path.join(path.dirname(source), `.${name}.${randomUUID()}.rename`);
+      await io.rename(source, temporary);
+      try { await io.rename(temporary, target); }
+      catch (error) {
+        try { await renameNoReplace(temporary, source); }
+        catch (restoreError) { throw new Error(`Restore the original file from ${temporary}.`, { cause: restoreError }); }
+        throw error;
+      }
+      await syncDirectory(target);
+      return;
+    }
   }
   await checkDestination(target, expected);
   const backup = expected.kind === "existing" ? path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.backup`) : null;

@@ -128,3 +128,16 @@ test("a clean read-only UTF-8 document can move without writing its contents", a
   expect((await doc.move(target, { kind: "absent" }))?.path).toBe(target);
   expect(await fs.readFile(target, "utf8")).toBe(exact);
 });
+
+test.skipIf(process.platform === "linux")("case-only renames work on a case-insensitive filesystem and restore the original name on failure", async () => {
+  const dir = await directory(), source = path.join(dir, "note.md"), target = path.join(dir, "Note.md");
+  await fs.writeFile(source, exact);
+  const alias = await destinationState(target);
+  if (alias.kind === "absent") return; // A case-sensitive test volume uses the ordinary rename path.
+  await moveDocumentFile(source, target, exact, alias);
+  expect(await fs.readdir(dir)).toEqual(["Note.md"]); expect(await fs.readFile(target, "utf8")).toBe(exact);
+  const io = crossVolume(target, source);
+  io.rename = async (a, b) => { if (b === source) throw new Error("rename failed"); await renameNoReplace(a, b); };
+  await expect(moveDocumentFile(target, source, exact, await destinationState(source), io)).rejects.toThrow("rename failed");
+  expect(await fs.readdir(dir)).toEqual(["Note.md"]); expect(await fs.readFile(target, "utf8")).toBe(exact);
+});
