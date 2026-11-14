@@ -1,4 +1,4 @@
-import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
+import { parse, type DefaultTreeAdapterMap } from "parse5";
 import { resolveAuthorUrl } from "./url-resolver.js";
 
 type Node = DefaultTreeAdapterMap["node"];
@@ -7,13 +7,20 @@ const element = (node: Node): node is Element => "tagName" in node;
 const children = (node: Node): Node[] => "childNodes" in node ? node.childNodes : [];
 const attr = (node: Element, name: string) => node.attrs.find(attribute => attribute.name === name)?.value ?? "";
 const rawText = (node: Node): string => "value" in node ? node.value : children(node).map(rawText).join("");
-const escape = (text: string) => text.replace(/[\\`*_[\]<>]/g, "\\$&").replace(/(^|\n)([ \t]*)(#{1,6}|>|[-+]|\d+[.)])(?=\s)/g, "$1$2\\$3");
+const escape = (text: string) => text.replace(/[\\`*_[\]<~$]/g, "\\$&");
+const ignored = new Set(["head", "title", "style", "script", "template"]);
+// Escape punctuation at the actual line start, after joining inline nodes and breaks.
+const proseLines = (text: string) => text.replace(/(^|\n)([ \t]*)(.*)/g, (_all, start: string, _space: string, line: string) => {
+  if (/^\d{1,9}[.)](?:\s|$)/.test(line)) line = line.replace(/^(\d{1,9})([.)])/, "$1\\$2");
+  else if (/^(?:#{1,6}(?:\s|$)|>|[-+](?:\s|$)|=+[ \t]*$|-+[ \t]*$)/.test(line)) line = "\\" + line;
+  return start + line;
+});
 const url = (value: string) => {
   if (/[\x00-\x1f\x7f]/.test(value)) return "";
   const encoded = value.trim().replace(/[ ()<>]/g, char => "%" + char.charCodeAt(0).toString(16).toUpperCase());
   return resolveAuthorUrl(encoded, "anchor", { publicUrl: "https://clipboard.invalid/" }) ? encoded : "";
 };
-const blocks = new Set(["p", "div", "section", "article", "header", "footer", "main", "figure", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "ul", "ol", "blockquote", "table", "hr"]);
+const blocks = new Set(["html", "body", "p", "div", "section", "article", "header", "footer", "main", "figure", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "ul", "ol", "blockquote", "table", "hr"]);
 const trim = (text: string) => text.replace(/^\n+|\n+$/g, "");
 
 function tablePipes(text: string): string {
@@ -27,6 +34,7 @@ function tablePipes(text: string): string {
 /** Deliberate HTML paste. No DOM, fetching, execution, or editor dependencies. */
 export function htmlToMarkdown(html: string): string {
   function inline(node: Node): string {
+    if (element(node) && ignored.has(node.tagName)) return "";
     if ("value" in node) return escape(node.value.replace(/\s+/g, " "));
     if (!element(node)) return children(node).map(inline).join("");
     const tag = node.tagName;
@@ -122,17 +130,17 @@ export function htmlToMarkdown(html: string): string {
     return text;
   }
   function flow(nodes: Node[]): string {
-    let result = "";
+    let result = "", pending = "";
+    const flush = () => { result += proseLines(pending); pending = ""; };
     for (const node of nodes) {
       if (element(node) && blocks.has(node.tagName)) {
+        flush();
         const content = render(node);
         if (content) result = result.trimEnd() + (result.trim() ? "\n\n" : "") + content + "\n\n";
-      } else {
-        const content = inline(node);
-        if (content.trim() || !result.endsWith("\n\n")) result += content;
-      }
+      } else pending += inline(node);
     }
+    flush();
     return result;
   }
-  return trim(flow(children(parseFragment(html)))).trim();
+  return trim(flow(children(parse(html)))).trim();
 }
