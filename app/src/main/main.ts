@@ -4,7 +4,7 @@ import { fileArgs, OpenRequests } from "./open-requests.js";
 import { ClosedTabs, tabsToClose, closeTabs } from "../shared/closed-tabs.js";
 import { OpenHistory } from "./open-history.js";
 import { saveSuggestion, duplicateSuggestion, duplicateDocumentFile, relativeGitPath, destinationState, hasRelativeResources } from "./file-actions.js";
-import { commandDefinitions } from "../shared/commands.js";
+import { writingCommand, paletteCommand, commandDefinitions } from "../shared/commands.js";
 import { insertDocumentImage, IMAGE_EXTENSIONS } from "./image-store.js";
 import { linkLocation } from "../shared/link-location.js";
 import { paperSize } from "../shared/paper-size.js";
@@ -180,13 +180,12 @@ function applySettings(patch: unknown, persist = true): void {
   refreshMenus();
 }
 
-const writingContexts = new WeakMap<DocumentSession, boolean>();
 function refreshWritingMenu(): void {
   const doc = registry.get(frontmost?.mainPane.documentId);
-  const editing = frontmost && frontmost.paneModes.get(frontmost.mainPane.paneId) !== "read";
-  for (const definition of commandDefinitions) if (definition.table) {
+  const editing = frontmost && ["live", "source", "split"].includes(frontmost.paneModes.get(frontmost.mainPane.paneId) ?? "read");
+  for (const definition of commandDefinitions) if (writingCommand(definition.id)) {
     const item = Menu.getApplicationMenu()?.getMenuItemById(definition.id);
-    if (item) item.enabled = !!doc && !doc.readOnlyReason && !!editing && writingContexts.get(doc) === true;
+    if (item) item.enabled = !!doc && !doc.readOnlyReason && !!editing;
   }
 }
 
@@ -1320,27 +1319,24 @@ function registerIpc(): void {
     const menu = Menu.getApplicationMenu();
     return commandDefinitions.flatMap(definition => {
       const item = menu?.getMenuItemById(definition.id);
-      return item && item.visible ? [{ id: definition.id, enabled: item.enabled, label: item.label }] : [];
+      return item && !item.role && paletteCommand(definition.id) && item.visible ? [{ id: definition.id, enabled: item.enabled, label: item.label }] : [];
     });
   });
   handle("smd:invoke-menu", id => {
-    if (typeof id !== "string" || !commandDefinitions.some(definition => definition.id === id)) throw new TypeError("Invalid command.");
+    if (typeof id !== "string" || !paletteCommand(id) || !commandDefinitions.some(definition => definition.id === id)) throw new TypeError("Invalid command.");
     const item = Menu.getApplicationMenu()?.getMenuItemById(id);
-    if (item?.enabled && item.visible) item.click(item, context().win, { triggeredByAccelerator: false });
-  });
-  on("smd:writing-context", (_event, table, id) => {
-    const doc = ipcSession(id);
-    if (typeof table !== "boolean" || currentSession()?.documentId !== doc.documentId) return;
-    writingContexts.set(doc, table);
-    refreshWritingMenu();
+    if (item?.enabled && item.visible && !item.role) item.click(item, context().win, { triggeredByAccelerator: false });
   });
   handle("smd:clipboard-render", async (value, id, revision) => {
     const text = ipcText(value), doc = ipcSession(id);
     const rendered = await doc.render(ipcRevision(doc, revision), () => renderBlocks(text, doc.path, /\.mdx$/i.test(doc.name)));
     return rendered.blocks;
   });
-  handle("smd:clipboard-html", async () => {
-    for (const item of await clipboard.read()) if (item.types.includes("text/html")) return (await item.getType("text/html")).text();
+  handle("smd:paste-markdown", async id => {
+    const doc = ipcSession(id);
+    if (doc.readOnlyReason || !["live", "source", "split"].includes(context().paneModes.get(context().mainPane.paneId) ?? "read") || currentSession() !== doc) return "";
+    const { htmlToMarkdown } = await import("../shared/html-to-markdown.js");
+    for (const item of await clipboard.read()) if (item.types.includes("text/html")) return htmlToMarkdown(await (await item.getType("text/html")).text());
     return "";
   });
   handle("smd:clipboard-write", (text, html) => {

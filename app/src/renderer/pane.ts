@@ -625,14 +625,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }, source => simplemd.proseCounts(source.text, source.selection, source.mdx, pane.documentId, doc.revisionId, source.selectedText));
   const selectionChanged = () => { if (options.active()) updateHint(); };
   document.addEventListener("selectionchange", selectionChanged);
-  let writingTimer: ReturnType<typeof setTimeout> | undefined;
   function updateHint(): void {
     hintEl.hidden = !doc.hasDoc;
     counter.schedule();
-    clearTimeout(writingTimer);
-    writingTimer = setTimeout(() => {
-      if (!disposed && options.active()) simplemd.writingContext(pane.view === "edit" && !!pane.editor?.inTable(), pane.documentId);
-    }, 100);
   }
 
   function updateChrome(): void {
@@ -802,9 +797,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       else await renderPreview();
     }
     if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq) return;
-    if (ed.liveFallback()) {
-      toast("This note is large, so Live Preview is off to keep typing fast.");
-    }
     requestAnimationFrame(() => {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
       if (!restoring) ed.restoreAnchor(syncAnchor);
@@ -1272,10 +1264,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   async function openPalette(): Promise<void> {
     const id = pane.documentId;
-    simplemd.writingContext(pane.view === "edit" && !!pane.editor?.inTable(), id);
     const available = await simplemd.menuCommands();
     if (disposed || id !== pane.documentId) return;
-    const items: PickerItem[] = available.filter(item => item.enabled).flatMap(item => {
+    const inTable = pane.view === "edit" && !!pane.editor?.inTable();
+    const items: PickerItem[] = available.filter(item => item.enabled && (!commandDefinition(item.id)?.table || inTable)).flatMap(item => {
       const definition = commandDefinition(item.id);
       return definition ? [{ label: item.label ?? (mac ? definition.macLabel ?? definition.label : definition.label), hint: shortcutHint(commandAccelerator(definition, mac), mac), run: () => void simplemd.invokeMenu(item.id) }] : [];
     });
@@ -1387,12 +1379,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       case "copy-markdown": case "copy-html": case "copy-formatted":
         void copyAs(cmd).catch(() => toast("Couldn't copy the selection.")); return;
       case "paste-markdown":
-        if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(async () => {
-          const html = await simplemd.readClipboardHtml();
-          if (!html) return null;
-          const { htmlToMarkdown } = await import("../shared/html-to-markdown.js");
-          return htmlToMarkdown(html);
-        });
+        if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(() => simplemd.pasteMarkdown(pane.documentId));
         return;
       case "mark-seen": void markSeen(); return;
       case "toggle-head-changes": void toggleHeadChanges().catch(error => toast(String(error))); return;
@@ -1684,7 +1671,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     };
     disposed = true;
     counter.destroy();
-    clearTimeout(writingTimer);
     document.removeEventListener("selectionchange", selectionChanged);
     window.removeEventListener("focus", refreshHead);
     stopReaderFocus();

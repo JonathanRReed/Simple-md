@@ -4,7 +4,7 @@ import { foldedRanges } from "@codemirror/language";
 import { createEditor } from "../../src/renderer/editor";
 import { createPane } from "../../src/renderer/pane";
 import { createRenderCore } from "../../src/shared/render-core";
-import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
+import { DEFAULT_SETTINGS, LIVE_MAX_CHARS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
 import { selectedReadProse, selectedSourceRanges } from "../../src/renderer/read-selection";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { closeOverlays } from "../../src/renderer/ui";
@@ -28,7 +28,7 @@ export async function runBatch(input: { html: string; css: string }) {
   const view = EditorView.findFromDOM(parent.querySelector(".cm-editor")!)!;
   editor.focus(); view.dispatch({ selection: { anchor: text.length } });
   await until(() => !!parent.querySelector(".cm-rendered-table"), "Live table never rendered");
-  await until(() => [...parent.querySelectorAll<HTMLElement>(".cm-foldGutter .cm-gutterElement")].filter(element => element.style.visibility !== "hidden" && element.textContent?.includes("⌄")).length >= 2, "Idle fold markers never appeared");
+  assert(!parent.querySelector(".cm-foldGutter"), "Folding added a gutter");
   view.dispatch({ selection: { anchor: text.indexOf("Needle") } }); editor.fold("fold");
   assert(foldedRanges(view.state).size === 1, "Heading did not fold from its body");
   await until(() => !parent.querySelector(".cm-rendered-table"), "Folded Live table still has a replacement");
@@ -54,7 +54,14 @@ export async function runBatch(input: { html: string; css: string }) {
   editor.setText(text);
   editor.setEditable(false); editor.block("heading-2"); editor.table("insert-table");
   assert(editor.getText() === text, "A writing command changed a read-only file");
-  editor.destroy(); parent.remove(); closeOverlays();
+  editor.destroy();
+  const fallback: boolean[] = [];
+  const large = createEditor(parent, { text: "x".repeat(LIVE_MAX_CHARS + 1), mode: "live", host, onChange() {}, onScroll() {}, onImages: async () => null, onLiveFallback: off => fallback.push(off) });
+  large.setEditable(true); large.setMode("live"); large.refreshLayout(); await pause();
+  assert(fallback.filter(Boolean).length === 1, "Large Live note reported its fallback more than once");
+  large.setMode("source"); large.setMode("live");
+  assert(fallback.join() === "true,false,true", "Fallback notifications did not follow mode transitions");
+  large.destroy(); parent.remove(); closeOverlays();
 
   const stage = document.querySelector<HTMLElement>("#stage")!; stage.dataset.panes = "1";
   const root = document.querySelector<HTMLTemplateElement>("#pane-template")!.content.firstElementChild!.cloneNode(true) as HTMLElement;
@@ -64,14 +71,14 @@ export async function runBatch(input: { html: string; css: string }) {
   let saved = true, saveCount = 0;
   const imageBytes: number[] = [];
   Object.assign(window, { simplemd: {
-    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {}, writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText),
+    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText),
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: (text: string) => core.renderBlocks(text, "/tmp/writing.md"), renderFragment: host.renderFragment,
     readFindText: async () => "", writeFindText: async () => {},
     menuCommands: async () => [], invokeMenu: async () => {},
     writeClipboard: async (text: string, html?: string) => { clipboard.push({ text, html }); },
     renderClipboard: async (text: string) => (await core.renderBlocks(text, "/tmp/writing.md")).blocks,
-    readClipboardHtml: async () => "<h2>Pasted</h2><p><strong>Text</strong></p>",
+    pasteMarkdown: async () => "## Pasted\n\n**Text**",
     save: async (text: string, _dialog: boolean, documentId: ReturnType<typeof makeDocumentId>) => {
       saveCount++;
       return saved ? { documentId, revisionId: makeRevisionId(0), path: "/tmp/draft.md", name: "draft.md", baseUrl: "file:///tmp/", text } : null;

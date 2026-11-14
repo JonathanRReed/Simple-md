@@ -1,3 +1,4 @@
+import { livePreviewOff } from "../shared/live-preview.js";
 import { inlineTransaction, type FormatKind } from "./inline-commands.js";
 export type { FormatKind } from "./inline-commands.js";
 import { writingDefaultKeymap } from "./editor-bindings.js";
@@ -27,7 +28,7 @@ import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, s
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
-import { type EditMode, LIVE_MAX_CHARS } from "../shared/types.js";
+import { type EditMode } from "../shared/types.js";
 import { type LiveHost, clearLiveCache, frontmatterExtension, liveExtension } from "./live.js";
 import { tableKeymap } from "./tables.js";
 import { codeFont } from "./code-font.js";
@@ -74,7 +75,6 @@ export interface EditorHandle {
   setText(text: string, addToHistory?: boolean): void;
   setEditable(editable: boolean): void;
   setMode(mode: EditMode): void;
-  liveFallback(): boolean;
   setVim(on: boolean): void;
   focus(): void;
   refreshLayout(): void;
@@ -129,7 +129,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   const insertions = new Set<{ from: number; to: number }>();
 
   const gitCommit = /(?:^|[/\\])(?:COMMIT_EDITMSG|MERGE_MSG|SQUASH_MSG|TAG_EDITMSG|NOTES_EDITMSG)$/.test(opts.filename ?? "");
-  const liveFor = (m: EditMode, length: number) => gitCommit ? [] : m === "live" && length <= LIVE_MAX_CHARS ? liveExtension(opts.host) : [codeFont];
+  let notifiedFallback = false;
+  const liveFor = (m: EditMode, length: number) => gitCommit ? [] : m === "live" && !livePreviewOff(length, m, gitCommit) ? liveExtension(opts.host) : [codeFont];
 
   const view = new EditorView({
     parent,
@@ -162,7 +163,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.snapshot?.state.doc.length ?? initial.text.length)),
         EditorState.transactionExtender.of(tr => {
-          if (!tr.docChanged || mode !== "live" || gitCommit || (tr.startState.doc.length > LIVE_MAX_CHARS) === (tr.newDoc.length > LIVE_MAX_CHARS)) return null;
+          if (!tr.docChanged || livePreviewOff(tr.startState.doc.length, mode, gitCommit) === livePreviewOff(tr.newDoc.length, mode, gitCommit)) return null;
           return { effects: liveSlot.reconfigure(liveFor(mode, tr.newDoc.length)) };
         }),
         EditorView.updateListener.of((update) => {
@@ -195,7 +196,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             range.from = update.changes.mapPos(range.from, 1);
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
-          if (update.docChanged && mode === "live" && !gitCommit && (update.startState.doc.length > LIVE_MAX_CHARS) !== (update.state.doc.length > LIVE_MAX_CHARS)) opts.onLiveFallback?.(update.state.doc.length > LIVE_MAX_CHARS);
+          const off = livePreviewOff(update.state.doc.length, mode, gitCommit);
+          if (off !== notifiedFallback) { notifiedFallback = off; opts.onLiveFallback?.(off); }
           if (update.docChanged || update.selectionSet) opts.onSelectionChange?.();
           if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
           if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state) || update.heightChanged) opts.onOutlineChange?.();
@@ -380,15 +382,11 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     setEditable(editable) {
       view.dispatch({ effects: editableSlot.reconfigure([EditorState.readOnly.of(!editable), EditorView.editable.of(editable)]) });
     },
-    liveFallback: () => !gitCommit && mode === "live" && view.state.doc.length > LIVE_MAX_CHARS,
     setMode(next) {
-      const wasOff = !gitCommit && mode === "live" && view.state.doc.length > LIVE_MAX_CHARS;
       mode = next;
       view.dom.dataset.mode = next;
       view.dispatch({ effects: liveSlot.reconfigure(liveFor(next, view.state.doc.length)) });
       view.requestMeasure();
-      const off = !gitCommit && mode === "live" && view.state.doc.length > LIVE_MAX_CHARS;
-      if (off !== wasOff) opts.onLiveFallback?.(off);
     },
     setVim(on) {
       vimOn = on;
