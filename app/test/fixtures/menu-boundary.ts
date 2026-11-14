@@ -45,6 +45,8 @@ test("file, recovery, default-app and update menu items follow document and syst
       expect(entries("File").find(item => item.label === "Rename or Move…")?.enabled).toBe(false);
       expect(entries("File").find(item => item.label === "Duplicate…")?.enabled).not.toBe(false);
       expect(entries("File").find(item => item.label === "Reopen Closed Tab")?.enabled).toBe(false);
+      const recent = entries("File").find(item => item.label === "Open Recent")!.submenu;
+      expect(Array.isArray(recent) && recent.some(item => item.label === "Clear Menu")).toBe(true);
       const appMenu = system === "darwin" ? "SimpleMD" : "Help";
       expect(entries(appMenu).find(item => item.label === "Restart to Install Update")?.enabled).toBe(false);
       saved = relative = closed = downloaded = true; state = { kind: "ready" }; buildMenu(actions);

@@ -7,10 +7,11 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 export function nativeFileHelper(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
+  const executable = process.platform === "win32" ? "simplemd-helper.exe" : "simplemd-helper";
   const candidates = [
-    path.join(process.resourcesPath ?? "", "native", "simplemd-helper"),
-    path.resolve(here, "../native/target/release/simplemd-helper"),
-    path.resolve(here, "../../native/target/release/simplemd-helper"),
+    path.join(process.resourcesPath ?? "", "native", executable),
+    path.resolve(here, "../native/target/release", executable),
+    path.resolve(here, "../../native/target/release", executable),
   ];
   const binary = candidates.find((candidate) => fs.existsSync(candidate));
   if (!binary) throw new Error("Build the native helper before saving: bun run build:native.");

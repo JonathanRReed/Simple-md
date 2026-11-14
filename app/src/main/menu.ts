@@ -49,7 +49,7 @@ export function buildMenu(a: MenuActions): void {
         { type: "separator" },
         { label: "Clear Menu", click: a.clearRecents },
       ]
-    : [{ label: "No Recent Files", enabled: false }];
+    : [{ label: "No Recent Files", enabled: false }, { type: "separator" }, { label: "Clear Menu", click: a.clearRecents }];
 
   const template: MenuItemConstructorOptions[] = [
     ...(mac
