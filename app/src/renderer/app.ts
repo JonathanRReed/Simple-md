@@ -213,12 +213,16 @@ async function boot(): Promise<void> {
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
     if (mounted) mounted.controller.saved(result);
     else if (tab?.retained) {
-      tab.retained.state.unavailableReason = result.unavailableReason;
-      tab.retained.state.diskConflict = !!result.unavailableReason;
-      tab.disk = result.unavailableReason ? { kind: "unavailable", message: result.unavailableReason } : undefined;
-      tab.retained.disk = undefined;
+      const changedPath = tab.retained.state.meta.path !== result.path;
+      const incomingText = tab.disk?.kind === "text" || tab.retained.disk?.kind === "text";
+      if (changedPath || !incomingText) {
+        tab.retained.state.unavailableReason = result.unavailableReason;
+        tab.retained.state.diskConflict = !!result.unavailableReason;
+        tab.disk = result.unavailableReason ? { kind: "unavailable", message: result.unavailableReason } : undefined;
+        tab.retained.disk = undefined;
+      }
       tab.retained.state.savedText = result.text;
-      tab.retained.state.dirty = !!result.unavailableReason || tab.retained.state.readText !== result.text;
+      tab.retained.state.dirty = !!tab.retained.state.unavailableReason || tab.retained.state.readText !== result.text;
       tab.retained.state.meta = result;
     }
     syncChrome();
