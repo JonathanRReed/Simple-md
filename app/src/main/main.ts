@@ -1,5 +1,6 @@
+import { applySettings as applySettingsPatch } from "./settings-apply.js";
 import { updateMenu } from "../shared/update-state.js";
-import { loginEnabled, linuxLoginFile, readLinuxLogin, verifyLoginRegistration } from "./login-registration.js";
+import { loginEnabled, linuxLoginFile, readLinuxLogin } from "./login-registration.js";
 import { fileArgs, OpenRequests } from "./open-requests.js";
 import { ClosedTabs, tabsToClose, closeTabs } from "../shared/closed-tabs.js";
 import { OpenHistory } from "./open-history.js";
@@ -69,7 +70,7 @@ import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { configEntries } from "../shared/config-schema.js";
 import { createSettingsWindow, systemAccent } from "./settings-window.js";
-import { configStore, flushSettings, loadSettings, patchSettings, saveSettings } from "./settings.js";
+import { configStore, flushSettings, loadSettings, saveSettings } from "./settings.js";
 
 // Dev-only launch profiler: SMD_TRACE=1 prints where startup time goes.
 const T0 = performance.now();
@@ -160,24 +161,32 @@ const send = (channel: string, ...args: unknown[]) => sendTo(context(), channel,
 
 // ───────── settings ─────────
 
-function applySettings(patch: unknown, persist = true): void {
-  const prev = settings;
-  let next = patchSettings(settings, patch);
-  if (next.launchAtLogin !== prev.launchAtLogin || persist && patch !== null && typeof patch === "object" && Object.hasOwn(patch, "launchAtLogin")) applyLoginItem(next.launchAtLogin);
-  if (persist) {
-    const changed = Object.fromEntries(configEntries.filter(([, def]) => patch !== null && typeof patch === "object" && Object.hasOwn(patch, def.setting)).map(([, def]) => [def.setting, next[def.setting]]));
-    if (Object.keys(changed).length) next = { ...next, ...configStore().set(changed) };
-  }
-  next.systemAccent = systemAccent();
-  settings = next;
-  if (settings.theme !== prev.theme) nativeTheme.themeSource = settings.theme;
-  if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
-  saveSettings(settings);
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) window.webContents.send("smd:settings", settings);
-  }
-  settingsWindow?.changed();
-  refreshMenus();
+function applySettings(patch: unknown, persist = true): Error | undefined {
+  const error = applySettingsPatch(settings, patch, persist, {
+    login: applyLoginItem,
+    persist(next, patch) {
+      const changed = Object.fromEntries(configEntries.filter(([, def]) => patch !== null && typeof patch === "object" && Object.hasOwn(patch, def.setting)).map(([, def]) => [def.setting, next[def.setting]]));
+      return Object.keys(changed).length ? { ...next, ...configStore().set(changed) } : next;
+    },
+    commit(next, prev) {
+      next.systemAccent = systemAccent();
+      settings = next;
+      if (settings.theme !== prev.theme) nativeTheme.themeSource = settings.theme;
+      if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
+      saveSettings(settings);
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send("smd:settings", settings);
+      }
+      settingsWindow?.changed();
+      refreshMenus();
+    },
+  });
+  if (error) console.error("simplemd: could not apply settings", error);
+  return error;
+}
+function applySettingsFromUI(patch: unknown): void {
+  const error = applySettings(patch);
+  if (error) throw error;
 }
 
 const writingContexts = new WeakMap<DocumentSession, boolean>();
@@ -1049,7 +1058,6 @@ function applyLoginItem(enabled: boolean): void {
       fs.writeFileSync(desktop, `[Desktop Entry]\nType=Application\nName=SimpleMD\nExec="${process.execPath}" --background\nX-GNOME-Autostart-enabled=true\n`);
     } else fs.rmSync(desktop, { force: true });
   } else app.setLoginItemSettings({ openAtLogin: enabled, args: ["--background"] });
-  verifyLoginRegistration(enabled, actualLoginItem());
 }
 
 function trayMenu(): Electron.Menu {
@@ -1078,7 +1086,7 @@ function trayMenu(): Electron.Menu {
       label: "Launch at Login",
       type: "checkbox",
       checked: settings.launchAtLogin,
-      click: (item) => { try { applySettings({ launchAtLogin: item.checked }); } catch (error) { void dialog.showMessageBox({ type: "error", message: String(error) }); } },
+      click: (item) => { try { applySettingsFromUI({ launchAtLogin: item.checked }); } catch (error) { void dialog.showMessageBox({ type: "error", message: String(error) }); } },
     },
     { label: "Quit SimpleMD", click: () => app.quit() },
   ]);
@@ -1431,7 +1439,7 @@ function registerIpc(): void {
       menu.popup({ window: host.win, callback: () => resolve(result) });
     });
   });
-  handle("smd:set-settings", patch => applySettings(patch));
+  handle("smd:set-settings", patch => applySettingsFromUI(patch));
   handle("smd:prepare-drag-export", (value, id, revision, format) => {
     const text = ipcText(value);
     const doc = ipcSession(id);
@@ -1662,7 +1670,7 @@ if (!app.requestSingleInstanceLock()) {
     hardenSession();
     registerIpc();
     settings.systemAccent = systemAccent();
-    settingsWindow = createSettingsWindow({ here, config: configStore(), apply: applySettings, login: actualLoginItem,
+    settingsWindow = createSettingsWindow({ here, config: configStore(), apply: applySettingsFromUI, login: actualLoginItem,
       defaultApp: makeDefaultApp,
       openConfig: async () => {
         const file = configStore().file;

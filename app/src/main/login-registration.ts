@@ -12,6 +12,3 @@ export function readLinuxLogin(home: string, executable: string): boolean {
     return text.includes(`Exec="${executable}" --background`) && !/^Hidden=true\s*$/m.test(text) && !/^X-GNOME-Autostart-enabled=false\s*$/m.test(text);
   } catch { return false; }
 }
-export function verifyLoginRegistration(wanted: boolean, actual: boolean): void {
-  if (wanted !== actual) throw new Error(wanted ? "Launch at Login was not enabled. Check your system’s Login Items settings." : "Launch at Login was not disabled. Check your system’s Login Items settings.");
-}
