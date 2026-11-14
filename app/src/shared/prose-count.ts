@@ -32,7 +32,10 @@ export function countProse(source: string, selection?: SourceSelection, mdx = fa
   // Mask imports/JSX before Markdown parsing so JSX children remain Markdown prose.
   const chars = source.split("");
   const mask = (range: { from: number; to: number }) => {
-    for (let i = range.from; i < range.to; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = i === range.from || source[i - 1] === "\n" || source[i - 1] === "\r" ? "x" : " ";
+    for (let i = range.from; i < range.to; i++) {
+      if (chars[i] === "\n" || chars[i] === "\r") continue;
+      chars[i] = i === 0 && source[i] === "\uFEFF" ? " " : i === range.from || source[i - 1] === "\n" || source[i - 1] === "\r" ? "x" : " ";
+    }
   };
   ranges.forEach(mask);
   let masked = chars.join("");

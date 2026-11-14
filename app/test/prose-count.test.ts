@@ -37,6 +37,7 @@ for (const [name, text, words, characters, mdx] of [
   ["HTML blocks", "<div><p>One</p><p>Two</p></div>", 2, 7],
   ["inert HTML", "<script>not prose</script>\n\nHello", 1, 5],
   ["BOM", "\uFEFFHello world\r\n", 2, 11],
+  ["BOM heading", "\uFEFF# Hello", 1, 5],
   ["MDX expressions", "Hello {name} world", 2, 11, true],
   ["MDX attributes", '<Thing title="Not prose" value={42}>Hello</Thing>', 1, 5, true],
   ["nested MDX", "<Card>\n\n# Hello\n\n<Inner>world</Inner>\n\n</Card>", 2, 11, true],
