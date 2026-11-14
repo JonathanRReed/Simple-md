@@ -47,7 +47,7 @@ for (const theme of documentThemes) test(`${theme.id}: MDX and alert titles meet
 test("paper size follows region with explicit overrides and one schema key", () => {
   expect(configSchema['paper-size'].options).toEqual(['auto', 'a4', 'letter']);
   expect(parseConfig('paper-size = letter').settings.paperSize).toBe('letter');
-  for (const locale of ['en-US', 'fr-CA', 'es-MX', 'en-PH', 'es-CR']) expect(paperSize('auto', locale)).toBe('Letter');
+  for (const region of ['BZ', 'CA', 'CL', 'CO', 'CR', 'GT', 'MX', 'NI', 'PA', 'PH', 'PR', 'SV', 'US', 'VE']) expect(paperSize('auto', `en-${region}`)).toBe('Letter');
   for (const locale of ['en-GB', 'de-DE', 'ja-JP', 'en-AU', 'fr-FR', 'invalid_locale!']) expect(paperSize('auto', locale)).toBe('A4');
   expect(paperSize('a4', 'en-US')).toBe('A4');
   expect(paperSize('letter', 'en-GB')).toBe('Letter');

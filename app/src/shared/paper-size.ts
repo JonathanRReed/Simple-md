@@ -1,6 +1,7 @@
 import type { UserSettings } from "./config-schema.js";
 
-const letterRegions = new Set(["US", "CA", "MX", "BZ", "CR", "SV", "GT", "HN", "NI", "PA", "CO", "VE", "CL", "PH", "PR", "VI", "GU", "AS", "MP"]);
+// Unicode CLDR supplementalData.xml, measurementData/paperSize.
+const letterRegions = new Set(["BZ", "CA", "CL", "CO", "CR", "GT", "MX", "NI", "PA", "PH", "PR", "SV", "US", "VE"]);
 export function paperSize(setting: UserSettings["paperSize"], locale: string): "A4" | "Letter" {
   if (setting !== "auto") return setting === "a4" ? "A4" : "Letter";
   try {
