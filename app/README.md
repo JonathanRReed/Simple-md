@@ -52,7 +52,7 @@ The Format menu holds the writing commands. Each one edits the Markdown source a
 - Code Block fences the selection and stays inside a surrounding quote or list item.
 - Horizontal Rule inserts a rule on its own line.
 - Insert Footnote adds the next unused number at the cursor and its definition at the end of the document. Existing footnotes are never renumbered.
-- Toggle Task flips `[ ]` and `[x]` on the current or selected lines. In Read view, click a checkbox, or focus it and press Space.
+- Toggle Task flips `[ ]` and `[x]` on the current or selected lines. In Read view it acts on the task you have focused or selected, and clicking a checkbox does the same.
 - Insert Image opens a file picker. An image already inside the project is linked where it is. Any other image is copied to the folder named by `image-folder`, which defaults to `assets` beside the document. In an Astro project, set `image-folder = public/images` to copy into `public/images` and insert `/images/name.png`.
 - Format > Table inserts a table, adds, deletes and moves rows, adds and deletes columns, and sets a column's alignment. Table commands change only the rows and cells they must; they never re-align the table. Tab and Shift+Tab move between cells.
 

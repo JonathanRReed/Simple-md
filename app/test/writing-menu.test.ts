@@ -51,7 +51,7 @@ test("writing menu items use the existing document and pane state", async () => 
     { get: () => doc }, { mainPane: { documentId: 1, paneId: 0 }, paneModes }, { getApplicationMenu: () => ({ getMenuItemById: (id: string) => items.get(id) }) }, commandDefinitions, writingCommand, new WeakMap());
   for (const [mode, readonly] of [['read', false], ['live', false], ['source', true], ['split', false]] satisfies [string, boolean][]) {
     paneModes.set(0, mode); doc.readOnlyReason = readonly ? 'Locked' : null; refresh();
-    for (const command of commandDefinitions.filter(command => writingCommand(command.id))) expect(items.get(command.id)?.enabled).toBe(mode !== 'read' && !readonly);
+    for (const command of commandDefinitions.filter(command => writingCommand(command.id))) expect(items.get(command.id)?.enabled).toBe((mode !== 'read' || command.id === 'toggle-task') && !readonly);
   }
 });
 

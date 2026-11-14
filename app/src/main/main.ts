@@ -193,7 +193,8 @@ function refreshWritingMenu(): void {
   const editing = frontmost && ["live", "source", "split"].includes(frontmost.paneModes.get(frontmost.mainPane.paneId) ?? "read");
   for (const definition of commandDefinitions) if (writingCommand(definition.id)) {
     const item = Menu.getApplicationMenu()?.getMenuItemById(definition.id);
-    if (item) item.enabled = !!doc && !doc.readOnlyReason && !!editing;
+    // Toggle Task also acts on a focused or selected task in Read view.
+    if (item) item.enabled = !!doc && !doc.readOnlyReason && (!!editing || definition.id === "toggle-task");
   }
 }
 
