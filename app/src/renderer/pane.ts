@@ -1086,6 +1086,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       const reload = async () => {
         if (!(await simplemd.acceptDisk(text, id)) || id !== pane.documentId || seq !== doc.diskSeq) return;
         pendingDisk = undefined;
+        doc.unavailableReason = undefined;
         doc.diskConflict = false;
         applyDiskText(text);
         showBanner(reason, []);

@@ -57,6 +57,12 @@ export async function runBatch(input: { scenario: string; text: string; incoming
     pane.diskChanged({ kind: "permissions" }, id);
     assert(root.querySelector(".cm-content")?.getAttribute("contenteditable") === "true", "Permission recovery left editor locked");
     assert(!pane.flush().conflict, "Permissions introduced a text conflict");
+    pane.diskChanged({ kind: "unavailable", message: "This file is missing or was moved." }, id);
+    pane.diskChanged({ kind: "text", text: input.incoming, readOnlyReason: "This file is locked or not writable. Read only." }, id);
+    const reload = [...root.querySelectorAll<HTMLButtonElement>("[data-element=banner] button")].find(button => button.textContent === "Reload");
+    assert(reload, "Reappearing read-only file lacks Reload"); reload.click();
+    await until(() => !pane.flush().conflict, "Read-only reload did not settle");
+    assert(!pane.flush().unavailable && pane.flush().text === input.incoming, "Read-only reload retained missing-file state");
     pane.suspend(); return true;
   }
   if (input.scenario === "metadata notice") {
