@@ -10,7 +10,7 @@ The renderer supports Shiki code highlighting, KaTeX math, Mermaid-compatible di
 
 Settings opens from the toolbar, app menu, or Command/Control+,. It controls appearance, editing defaults, text size, autosave, Vim, spellcheck, and login behavior. Changes apply immediately and persist. Old preview and shortcut settings are ignored on load and removed on the next save.
 
-The app includes find, outline navigation, Vim mode, spellcheck, table editing, theme and reading-width settings, PDF export, HTML export, and printing. Saved notes can keep pasted images in an adjacent `assets/` directory. Local Markdown links open in the app, with back and forward navigation.
+The app includes find and replace, outline navigation, section folding, Vim mode, spellcheck, table editing, theme and reading-width settings, PDF export, HTML export, and printing. Pasted images are copied to an `assets/` folder beside the document unless `image-folder` says otherwise. Local Markdown links open in the app, with back and forward navigation.
 
 Autosave is a setting. Check it before editing a file you want to keep unchanged. Clicking task checkboxes edits the note. External file changes require Reload or Keep mine when they conflict with local edits.
 
@@ -35,7 +35,47 @@ Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 - Outline: Command/Control+Alt+Shift+O
 - Editing modes: Command/Control+Alt+1, 2, or 3
 
-Command+L toggles a task and replaces the editor's Select Line binding.
+- Find and Replace: Command+Option+F on macOS, Control+H elsewhere
+- Go to Line: Control+G on macOS, Control+Alt+G elsewhere
+- Reopen Closed Tab: Command/Control+Shift+T
+- Headings 1 to 6 and Body: Control+Command+1 to 6 and 0 on macOS, Control+Shift+1 to 6 and 0 elsewhere
+- Toggle Task: Command/Control+L. This replaces the editor's Select Line binding.
+
+The command palette lists every menu command that applies to the current document, with its shortcut.
+
+## Write
+
+The Format menu holds the writing commands. Each one edits the Markdown source as a single undoable change and leaves the file's line endings and untouched lines alone. They are available while editing, not in Read view or in a read-only file.
+
+- Bold, Italic, Strikethrough, Code and Link wrap the selection.
+- Heading 1 to 6, Body, Bulleted List, Numbered List, Task List and Block Quote toggle on the current line or the selected lines. Blank lines are skipped.
+- Code Block fences the selection and stays inside a surrounding quote or list item.
+- Horizontal Rule inserts a rule on its own line.
+- Insert Footnote adds the next unused number at the cursor and its definition at the end of the document. Existing footnotes are never renumbered.
+- Toggle Task flips `[ ]` and `[x]` on the current or selected lines. In Read view, click a checkbox, or focus it and press Space.
+- Insert Image opens a file picker. An image already inside the project is linked where it is. Any other image is copied to the folder named by `image-folder`, which defaults to `assets` beside the document. In an Astro project, set `image-folder = public/images` to copy into `public/images` and insert `/images/name.png`.
+- Format > Table inserts a table, adds, deletes and moves rows, adds and deletes columns, and sets a column's alignment. Table commands change only the rows and cells they must; they never re-align the table. Tab and Shift+Tab move between cells.
+
+Pasting or dropping an image into a document that has not been saved yet asks you to save first, then inserts the image.
+
+Edit > Copy As copies the selection, or the whole document when nothing is selected, as Markdown, as HTML source, or as formatted text for Mail, Slack and documents. Paste as Markdown converts HTML on the clipboard, such as a web page or a chat reply, into Markdown. Ordinary Paste is unchanged.
+
+The pane footer shows words, characters and estimated reading time for the document, and for the selection when there is one. It counts prose only: frontmatter, fenced code, MDX imports, JSX tags, link URLs and HTML tags are left out.
+
+View > Fold and Unfold collapse the heading section, code fence or frontmatter at the cursor. Fold All Sections and Unfold All do the same for the whole document. Folding only changes the view, and Find opens a folded section when a match is inside it.
+
+## Files and tabs
+
+- File > Copy Path and Copy Relative Path. The relative path is from the Git repository root.
+- File > Duplicate saves the current text to a new file and opens it in a new tab.
+- File > Rename or Move moves the file on disk and keeps the tab, its undo history, scroll position and pin. It saves pending edits first and never replaces an existing file without the dialog's confirmation. If the document has relative links or images and the folder changes, a notice says so; links are not rewritten.
+- File > Reopen Closed Tab brings back the most recently closed saved document. The list lasts until you quit.
+- Right-click a tab for Close Other Tabs and Close Tabs Below (Close Tabs to the Right with top tabs). Pinned tabs stay open.
+- Open Quickly also searches the last 100 files you opened and shows when each was last opened. File > Open Recent > Clear Menu clears this history too.
+- Selecting several files in Finder or Explorer opens all of them.
+- A new document suggests the folder of the document you were working in when you save it.
+- Share saves pending edits before opening the share sheet.
+- Make SimpleMD the Default Markdown App, in the SimpleMD menu on macOS and the Help menu elsewhere, asks the system to open `.md`, `.markdown`, `.mdown`, `.mkd` and `.mdx` files with SimpleMD. macOS may ask you to confirm. On Windows it opens Default apps in Settings for you to choose SimpleMD.
 
 ## Quick Look on macOS
 

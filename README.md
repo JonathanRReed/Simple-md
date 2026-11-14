@@ -6,6 +6,8 @@ Choose Live, Source, or Side by side editing for Markdown and MDX. Read with syn
 
 Open Quickly with Command/Control+Shift+O finds Markdown and MDX files in the active repository or across your machine. Tab switches between This repo and Everywhere. Enter opens a tab; Command/Control+Enter opens in the other pane. Open files focus their existing tabs. Machine search uses Spotlight on macOS and an existing locate database on Linux. Windows currently searches tabs, recents and the repo. Print remains Command/Control+P.
 
+The Format menu adds headings, lists, tasks, quotes, code blocks, footnotes, images and table editing as plain edits to the Markdown source. Copy As puts Markdown, HTML or formatted text on the clipboard, and Paste as Markdown converts copied web content. File actions include Duplicate, Rename or Move, Copy Path and Reopen Closed Tab. See the [app guide](app/README.md) for the full list and shortcuts.
+
 Open **Settings** from the app menu, toolbar, or Command/Control+, to change the theme, editing defaults, text size, autosave, Vim, spelling, and launch behavior. Changes save automatically.
 
 Settings and recent documents migrate automatically from the old profile, without caches. You can remove an old Simple-md.app or Windows install by hand.
