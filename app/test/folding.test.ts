@@ -45,7 +45,7 @@ test("editing before an untouched frontmatter fold maps its closing range", () =
   expect(foldedRanges(view.state).iter().to).toBe(24);
 });
 
-test("frontmatter delimiter edits update only the affected lines", () => {
+test("fold commands read the current frontmatter delimiters on demand", () => {
   const text = "---\ntitle: Test\n---\n\nBody\n---";
   const view = editor(text, 8);
   view.dispatch({ changes: { from: text.indexOf("\n---") + 1, insert: "not " } });

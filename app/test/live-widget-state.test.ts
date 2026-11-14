@@ -30,11 +30,11 @@ test("real Live widgets carry reference context and invalidate on a distant defi
   let state = EditorState.create({ doc: source, selection: { anchor: source.length }, extensions: [markdown({ base: markdownLanguage }), field] });
   const before = widgets(state.field(field).decorations).filter(item => ['image', 'table'].includes(item.widget.kind ?? ''));
   expect(before).toHaveLength(2);
-  for (const { widget } of before) expect(widget.references).toContain('./old.png');
+  for (const { widget } of before) expect(widget.references).toContain(widget.kind === 'image' ? './old.png' : 'https://old.test');
   state = state.update({ changes: [...source.matchAll(/old/g)].map(match => ({ from: match.index, to: match.index + 3, insert: 'new' })) }).state;
   const after = widgets(state.field(field).decorations).filter(item => ['image', 'table'].includes(item.widget.kind ?? ''));
   expect(after).toHaveLength(2);
-  after.forEach(({ widget }, i) => { expect(widget.references).toContain('./new.png'); expect(widget.eq(before[i]!.widget)).toBe(false); });
+  after.forEach(({ widget }, i) => { expect(widget.references).toContain(widget.kind === 'image' ? './new.png' : 'https://new.test'); expect(widget.eq(before[i]!.widget)).toBe(false); });
 });
 test("real Live math widgets use Read extraction and reject code, metadata, destinations and MDX", () => {
   for (const raw of ['$x^2$', '$`x^2`$', '$$x^2$$', '$`\\sqrt{\\$4}`$']) {
@@ -59,4 +59,20 @@ test("moving a document invalidates Live resource URLs without changing source",
   base = 'file:///new/';
   const [after] = widgets(buildLiveDecorations(state, changingHost));
   expect(after!.widget.eq(before!.widget)).toBe(false);
+});
+
+test("a definition edit invalidates only the widgets that use it", () => {
+  const source = '![One][one]\n\n![Two][two]\n\n| Link |\n| --- |\n| [Site][site] |\n\n' + 'filler\n\n'.repeat(20) + '[one]: ./one.png\n[two]: ./two.png\n[site]: https://site.test\n\nEnd';
+  const field = liveDecorationField(host);
+  let state = EditorState.create({ doc: source, selection: { anchor: source.length }, extensions: [markdown({ base: markdownLanguage }), field] });
+  const before = widgets(state.field(field).decorations);
+  const at = source.indexOf('./one.png');
+  state = state.update({ changes: { from: at, to: at + 9, insert: './new.png' } }).state;
+  const after = widgets(state.field(field).decorations);
+  const invalidated = after.filter((item, i) => !item.widget.eq(before[i]!.widget));
+  console.log(`definition edit: ${invalidated.length}/${before.length} widgets require rendering`);
+  expect(before).toHaveLength(3); expect(after).toHaveLength(3); expect(invalidated).toHaveLength(1);
+  expect(after[0]!.widget.references).toBe('[one]: ./new.png');
+  expect(after[1]!.widget.references).toBe('[two]: ./two.png');
+  expect(after[2]!.widget.references).toBe('[site]: https://site.test');
 });
