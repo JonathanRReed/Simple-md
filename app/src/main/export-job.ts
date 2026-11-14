@@ -1,7 +1,8 @@
 import { perfMark } from "./perf.js";
 import fs from "node:fs";
 import path from "node:path";
-import { BrowserWindow } from "electron";
+import { paperSize } from "../shared/paper-size.js";
+import { BrowserWindow, app } from "electron";
 import { makeDocumentId, makePaneId, makeRevisionId, type DocPayload, type Settings } from "../shared/types.js";
 import { urlContext } from "./document-urls.js";
 import { embedKatexFonts, embedLocalImages, EXPORT_LIGHT_THEME } from "./export-html.js";
@@ -33,7 +34,9 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
         pw.once("closed", () => reject(new Error("The print window closed.")));
         printWaiters.set(id, (error) => error ? reject(new Error(error)) : resolve());
       });
-      pw.webContents.send("smd:print-doc", doc, getSettings());
+      const settings = getSettings();
+      const size = paperSize(settings.paperSize, app.getSystemLocale());
+      pw.webContents.send("smd:print-doc", doc, { ...settings, paperSize: size === "A4" ? "a4" : "letter" });
       await ready;
       pw.setTitle(doc.title);
       await pw.webContents.executeJavaScript(`(async () => {
@@ -50,7 +53,7 @@ export function createExportJobs(here: string, getSettings: () => Settings, rend
 
   function makePdf(source: ExportSource): Promise<Buffer> {
     return withPrintWindow(source, (pw) =>
-      pw.webContents.printToPDF({ printBackground: true, generateTaggedPDF: true, generateDocumentOutline: true, pageSize: "A4", margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
+      pw.webContents.printToPDF({ printBackground: true, generateTaggedPDF: true, generateDocumentOutline: true, pageSize: paperSize(getSettings().paperSize, app.getSystemLocale()), margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 } }),
     );
   }
 

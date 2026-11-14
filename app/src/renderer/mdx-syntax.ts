@@ -50,16 +50,11 @@ export function mdxSyntax(ranges: readonly MdxRange[] = []): Extension {
   return [
     mdxRangesField.init(() => syntaxState(ranges)),
     EditorView.baseTheme({
-      ".cm-mdx-esm": { color: "var(--mdx-esm, #795da3)" },
-      ".cm-mdx-tag-name": { color: "var(--mdx-tag, #22863a)" },
-      ".cm-mdx-attribute": { color: "var(--mdx-attribute, #6f42c1)" },
-      ".cm-mdx-expression": { color: "var(--mdx-expression, #b35c00)" },
-      ".cm-mdx-comment": { color: "var(--mdx-comment, #6a737d)" },
-      "&dark .cm-mdx-esm": { color: "var(--mdx-esm, #c9a7eb)" },
-      "&dark .cm-mdx-tag-name": { color: "var(--mdx-tag, #9cd69d)" },
-      "&dark .cm-mdx-attribute": { color: "var(--mdx-attribute, #d2a8ff)" },
-      "&dark .cm-mdx-expression": { color: "var(--mdx-expression, #efb366)" },
-      "&dark .cm-mdx-comment": { color: "var(--mdx-comment, #9da7b3)" },
+      ".cm-mdx-esm": { color: "var(--tok-keyword)" },
+      ".cm-mdx-tag-name": { color: "var(--tok-string)" },
+      ".cm-mdx-attribute": { color: "var(--tok-name)" },
+      ".cm-mdx-expression": { color: "var(--tok-type)" },
+      ".cm-mdx-comment": { color: "var(--tok-comment)" },
     }),
   ];
 }

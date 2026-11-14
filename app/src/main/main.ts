@@ -1,3 +1,5 @@
+import { linkLocation } from "../shared/link-location.js";
+import { paperSize } from "../shared/paper-size.js";
 import { existingPinnedPaths } from "./pinned-tabs.js";
 import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
 import type { DragExports, ExportFormat } from "./drag-export.js";
@@ -557,13 +559,13 @@ function reveal(host = context()): void {
   host.win.focus();
 }
 
-function openFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, origin = context()): Promise<boolean> {
+function openFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, origin = context(), location?: import("../shared/types.js").DocumentLocation): Promise<boolean> {
   if (!context() || context().win.isDestroyed()) createDocumentWindow();
   const host = inPlace ? origin : frontmost;
-  return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
+  return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host, false, opensInSource(file ?? ""), undefined, false, location)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? ""), quickly?: { otherPane: boolean }, restoringPins = false): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? ""), quickly?: { otherPane: boolean }, restoringPins = false, location?: import("../shared/types.js").DocumentLocation): Promise<boolean> {
   if (!file) {
     reveal(host);
     return true;
@@ -588,12 +590,13 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       await usable;
       if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
       else if (intent === "read") sendTo(host, "smd:cmd", "mode-read", existing);
+      if (location) sendTo(host, "smd:navigate", existing, location);
       return true;
     });
   }
   if (!quickly && !restoringPins && !inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
-    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource));
+    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource, undefined, restoringPins, location));
   }
   const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
@@ -628,6 +631,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         }
         if (forceSource) payload.initialMode = "source";
         await present(payload, host, quickly?.otherPane);
+        if (location) sendTo(host, "smd:navigate", payload.documentId, location);
         addRecent(abs);
       },
     });
@@ -708,10 +712,10 @@ async function openLink(href: string, intent: OpenIntent = "edit", newTab = fals
     const urls = urlContext(path.dirname(current.path));
     const { astroRouteFile } = await import("./document-urls.js");
     const route = await astroRouteFile(resolved, urls);
-    if (route) return openFile(route, intent, false, current.documentId, host);
+    if (route) return openFile(route, intent, !newTab, current.documentId, host, linkLocation(resolved));
     const canonical = await containedLocalFile(resolved, urls);
     const target = fileURLToPath(resolved);
-    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host) : false;
+    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host, linkLocation(resolved)) : false;
   } catch {
     return false;
   }
@@ -900,7 +904,7 @@ async function exportHtml(text: string): Promise<void> {
 async function printDoc(text: string): Promise<void> {
   await withPrintWindow(
     text,
-    (pw) => new Promise<void>((resolve, reject) => pw.webContents.print({ printBackground: true }, (ok, reason) => ok ? resolve() : reject(new Error(reason || "Printing was cancelled.")))),
+    (pw) => new Promise<void>((resolve, reject) => pw.webContents.print({ printBackground: true, pageSize: paperSize(settings.paperSize, app.getSystemLocale()) }, (ok, reason) => ok ? resolve() : reject(new Error(reason || "Printing was cancelled.")))),
   );
 }
 
@@ -1288,7 +1292,7 @@ function registerIpc(): void {
   on("smd:hide", (e, id: unknown) => { if (mainSender(e) && id === context().mainPane.documentId) void hideWindow(); });
   on("smd:command", (e, cmd: unknown, id: unknown) => {
     if (!mainSender(e) || typeof cmd !== "string" || !isDocumentId(id) || (!context().layout.has(id) && context().layout.state.tabs.length)) return;
-    const commands: readonly string[] = ["open-quickly", "toggle-zen", "toggle-pin-tab", "close-pinned-tab", "toggle-tab-sidebar", "mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
+    const commands: readonly string[] = ["open-quickly", "toggle-zen", "toggle-pin-tab", "close-pinned-tab", "toggle-tab-sidebar", "mark-seen", "toggle-head-changes", "next-change", "previous-change", "close-tab", "move-tab-window", "next-tab", "previous-tab", "split-panes", "stack-panes", "focus-pane", "preferences", "new", "save", "save-as", "toggle-edit", "mode-read", "mode-live", "mode-split", "mode-source", "undo", "redo", "find-next", "find-previous", "find", "use-selection-find", "palette", "outline", "zoom-in", "zoom-out", "zoom-reset", "export-pdf", "export-html", "print", "nav-back", "nav-forward", "toggle-task", "reveal", "format-bold", "format-italic", "format-link", "format-code", "format-strike"];
     if (commands.includes(cmd)) runCommand(cmd as Command, id);
   });
 }

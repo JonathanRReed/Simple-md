@@ -1,3 +1,4 @@
+import { readerFocus } from "./reader-focus.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import { showConflictComparison } from "./conflict-comparison.js";
 import type { createOutlineRail } from "./outline-rail.js";
@@ -6,8 +7,10 @@ import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-syn
 import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
+import { moveReadFind } from "./ui.js";
+import { inputHistory } from "./text-focus.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makeRevisionId, type DiskChange, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DiskChange, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 import { enterPanel, exitChrome } from "./motion.js";
@@ -386,6 +389,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         changePending = false;
         const id = pane.documentId, revision = doc.revisionId, sequence = ++changeSequence;
         try {
+          if (highlights.kind === "head") await simplemd.headChanges(id, true);
           const state = await simplemd.changes(id, revision);
           if (disposed || owner !== pane || id !== pane.documentId || revision !== doc.revisionId || sequence !== changeSequence) continue;
           highlights = state;
@@ -402,12 +406,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
   function refreshHeadOnFocus(): void {
     if (disposed || !options.active() || highlights.kind !== "head") return;
-    const id = pane.documentId;
-    void simplemd.headChanges(id, true).then(() => {
-      if (!disposed && id === pane.documentId) return refreshChanges();
-    }).catch(error => console.warn("simplemd: HEAD refresh unavailable", error));
+    void refreshChanges();
   }
   window.addEventListener("focus", refreshHeadOnFocus);
+  let stopReaderFocus = readerFocus(readScroll);
+  let headRefreshTimer = window.setInterval(() => { if (document.hasFocus()) refreshHeadOnFocus(); }, 5000);
 
   function scheduleChanges(): void {
     ++changeSequence;
@@ -731,6 +734,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           schedulePreview();
           scheduleAutosave();
         },
+        onLiveFallback(off) { if (off) toast("This note is large, so Live Preview is off to keep typing fast."); },
         onOutlineChange: () => { if (pane.mode === "live") scheduleOutlines(180); },
         onScroll() {
           if (pane.view === "edit" && pane.mode === "split" && pane.editor && scrollDriver === "editor") {
@@ -780,7 +784,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       else await renderPreview();
     }
     if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq) return;
-    if (pane.mode === "live" && doc.readText.length > LIVE_MAX_CHARS) {
+    if (ed.liveFallback()) {
       toast("This note is large, so Live Preview is off to keep typing fast.");
     }
     requestAnimationFrame(() => {
@@ -816,6 +820,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const previousAnchor = visibleAnchor();
     disposed = false;
     window.addEventListener("focus", refreshHeadOnFocus);
+    stopReaderFocus();
+    stopReaderFocus = readerFocus(readScroll);
+    clearInterval(headRefreshTimer);
+    headRefreshTimer = window.setInterval(() => { if (document.hasFocus()) refreshHeadOnFocus(); }, 5000);
     bindReaderOptions();
     closeComparison?.();
     layoutObserver.observe(previewEl);
@@ -1320,11 +1328,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       case "mode-live":
       case "mode-split":
       case "mode-source":
-        setMode(cmd === "mode-live" ? "live" : cmd === "mode-split" ? "split" : "source");
-        if (pane.view === "read") void showEdit();
+        selectMode(cmd === "mode-live" ? "live" : cmd === "mode-split" ? "split" : "source");
         break;
       case "use-selection-find":
         void simplemd.writeFindText(pane.view === "edit" ? pane.editor?.selection() ?? "" : window.getSelection()?.toString() ?? "");
+        break;
+      case "find-next":
+      case "find-previous":
+        if (!moveReadFind(cmd === "find-previous") && pane.view === "edit") pane.editor?.findNext(cmd === "find-previous");
         break;
       case "find":
         findInView();
@@ -1346,10 +1357,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         void navigate("forward");
         break;
       case "undo":
-        pane.editor?.undo();
+        if (!inputHistory("undo")) pane.editor?.undo();
         break;
       case "redo":
-        pane.editor?.redo();
+        if (!inputHistory("redo")) pane.editor?.redo();
         break;
       case "export-pdf":
         void simplemd.exportPdf(currentText(), pane.documentId);
@@ -1588,6 +1599,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     };
     disposed = true;
     window.removeEventListener("focus", refreshHeadOnFocus);
+    clearInterval(headRefreshTimer);
+    stopReaderFocus();
     clearOutlines();
     cancelAnimationFrame(layoutFrame);
     layoutObserver.disconnect();
@@ -1616,6 +1629,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       else await request();
     },
     activeChanged,
+    refreshHead: refreshHeadOnFocus,
     async navigate(target: import("../shared/types.js").DocumentLocation) {
       const id = pane.documentId;
       if (target.kind === "start") return;
@@ -1627,6 +1641,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         if (pane.documentId !== id || disposed) return;
       }
       if (target.kind === "heading") {
+        // An already-open target may still be switching from Source to Read.
+        await (pane.view === "read" ? pane.readWork : pane.previewWork);
+        if (pane.documentId !== id || disposed) return;
         const scope = pane.view === "read" ? docEl : previewEl;
         if (!fragmentTarget(scope, "#" + encodeURIComponent(target.heading)) || (pane.view === "edit" && pane.mode !== "split")) {
           const rendered = await simplemd.renderBlocks(currentText(), id, doc.revisionId);

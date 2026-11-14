@@ -1,3 +1,5 @@
+import { paperSize, printableHeight } from "../shared/paper-size.js";
+import { addPrintTitle } from "./print-title.js";
 import { tabRows } from "../shared/tab-presentation.js";
 import { createTabBar } from "./tab-bar.js";
 import { createWindowChrome } from "./window-chrome.js";
@@ -187,6 +189,8 @@ async function printView(): Promise<void> {
     for (const block of doc.blocks) {
       const node = document.createElement("div"); mountRenderedHtml(node, block, s.remoteImages); article.append(node);
     }
+    addPrintTitle(article, doc);
+    document.documentElement.style.setProperty("--printable-height", printableHeight(paperSize(s.paperSize, navigator.language)));
     updateFragments(article);
     void (async () => {
       await renderDiagrams(article);
@@ -211,7 +215,7 @@ async function boot(): Promise<void> {
     noticeSaveMetadata(result);
     const tab = documents.get(result.documentId);
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
-    if (mounted) mounted.controller.saved(result);
+    if (mounted) { mounted.controller.saved(result); mounted.controller.refreshHead(); }
     else if (tab?.retained) {
       const changedPath = tab.retained.state.meta.path !== result.path;
       const incomingText = tab.disk?.kind === "text" || tab.retained.disk?.kind === "text";
@@ -267,7 +271,7 @@ async function boot(): Promise<void> {
     // Paint tabs and recents synchronously, before fetching the lazy search module.
     openPicker("Open Quickly", instant.slice(0, 200).map(file => {
       const at = Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\"));
-      return { label: file.path.slice(at + 1), parent: file.path.slice(0, at), run: (otherPane?: boolean) => {
+      return { label: file.path.slice(at + 1), run: (otherPane?: boolean) => {
         void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file."));
       } };
     }), () => { closed = true; if (restore?.isConnected) restore.focus({ preventScroll: true }); });
@@ -277,7 +281,7 @@ async function boot(): Promise<void> {
     void import("./open-quickly.js").then(({ openQuickly }) => {
       if (closed) return;
       const query = document.querySelector<HTMLInputElement>("#picker-input")!.value.slice(0, 256);
-      openQuickly(api, settings.openQuicklyScope, instant, query);
+      openQuickly(api, settings.openQuicklyScope, instant, query, restore);
     }).finally(() => { quicklyLoading = false; });
   }
   document.querySelector("#tab-search-button")!.addEventListener("click", () => showQuickly());

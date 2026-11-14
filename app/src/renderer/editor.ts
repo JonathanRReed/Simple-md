@@ -1,3 +1,4 @@
+import { canPasteLink } from "./paste-context.js";
 import { deriveOutline, type OutlineItem } from "./outline-model.js";
 import type { SourceAnchor } from "./scroll-sync.js";
 import { changeMarks, setChangeMarks } from "./change-marks.js";
@@ -14,7 +15,7 @@ import { html } from "@codemirror/lang-html";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, syntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap } from "@codemirror/search";
+import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap, findNext, findPrevious } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
@@ -44,6 +45,7 @@ export interface EditorOptions {
   onChange(text: string): void;
   onScroll(): void;
   onOutlineChange?(): void;
+  onLiveFallback?(off: boolean): void;
   onImages(files: File[]): Promise<string | null>;
 }
 
@@ -64,12 +66,14 @@ export interface EditorHandle {
   setText(text: string, addToHistory?: boolean): void;
   setEditable(editable: boolean): void;
   setMode(mode: EditMode): void;
+  liveFallback(): boolean;
   setVim(on: boolean): void;
   focus(): void;
   refreshLayout(): void;
   format(kind: FormatKind): void;
   selection(): string;
   find(text?: string): void;
+  findNext(backwards?: boolean): void;
   undo(): void;
   redo(): void;
   headings(): Heading[];
@@ -175,7 +179,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         closeBrackets(),
         EditorState.allowMultipleSelections.of(true),
         search({ top: true }),
-        ...(!gitCommit ? [markdown({ base: markdownLanguage, codeLanguages: languages, htmlTagLanguage: html({ autoCloseTags: false, matchClosingTags: false }) }), syntaxHighlighting(classHighlighter)] : []),
+        ...(!gitCommit ? [markdown({ base: markdownLanguage, codeLanguages: languages, pasteURLAsLink: false, htmlTagLanguage: html({ autoCloseTags: false, matchClosingTags: false }) }), syntaxHighlighting(classHighlighter)] : []),
         ...(opts.mdx ? [mdxSyntax(editorMdxRanges(opts.text, opts.mdx))] : []),
         frontmatterExtension,
         EditorView.lineWrapping,
@@ -184,7 +188,11 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         tableKeymap,
         vimSlot.of([]),
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
-        liveSlot.of(liveFor(mode, opts.text.length)),
+        liveSlot.of(liveFor(mode, opts.snapshot?.state.doc.length ?? initial.text.length)),
+        EditorState.transactionExtender.of(tr => {
+          if (!tr.docChanged || mode !== "live" || gitCommit || (tr.startState.doc.length > LIVE_MAX_CHARS) === (tr.newDoc.length > LIVE_MAX_CHARS)) return null;
+          return { effects: liveSlot.reconfigure(liveFor(mode, tr.newDoc.length)) };
+        }),
         EditorView.updateListener.of((update) => {
           cancelAnimationFrame(countFrame);
           countFrame = requestAnimationFrame(() => {
@@ -206,13 +214,14 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             }
             const selection = view.state.selection.main;
             const current = searchMatches.findIndex(match => match.from === selection.from && match.to === selection.to);
-            count.textContent = `${current + 1} of ${searchMatches.length}`;
+            count.textContent = current < 0 ? `${searchMatches.length} ${searchMatches.length === 1 ? "match" : "matches"}` : `${current + 1} of ${searchMatches.length}`;
           });
           if (update.docChanged) for (const range of insertions) {
             const empty = range.from === range.to;
             range.from = update.changes.mapPos(range.from, 1);
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
+          if (update.docChanged && mode === "live" && !gitCommit && (update.startState.doc.length > LIVE_MAX_CHARS) !== (update.state.doc.length > LIVE_MAX_CHARS)) opts.onLiveFallback?.(update.state.doc.length > LIVE_MAX_CHARS);
           if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
           if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state) || update.heightChanged) opts.onOutlineChange?.();
         }),
@@ -232,6 +241,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             opts.onScroll();
           },
           paste(event, v) {
+            if (v.state.readOnly) return false;
             const data = event.clipboardData;
             if (!data) return false;
             const images = [...data.files].filter((f) => IMAGE_TYPES.test(f.type));
@@ -242,7 +252,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             }
             const text = data.getData("text/plain").trim();
             const sel = v.state.selection.main;
-            if (!sel.empty && /^https?:\/\/\S+$/.test(text)) {
+            if (canPasteLink(v.state) && /^https?:\/\/\S+$/.test(text)) {
               event.preventDefault();
               const label = v.state.sliceDoc(sel.from, sel.to);
               v.dispatch({ changes: { from: sel.from, to: sel.to, insert: `[${label}](${text})` }, userEvent: "input.paste" });
@@ -251,6 +261,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             return false;
           },
           drop(event, v) {
+            if (v.state.readOnly) return false;
             const images = [...(event.dataTransfer?.files ?? [])].filter((f) => IMAGE_TYPES.test(f.type));
             if (!images.length) return false;
             event.preventDefault();
@@ -359,11 +370,15 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     setEditable(editable) {
       view.dispatch({ effects: editableSlot.reconfigure([EditorState.readOnly.of(!editable), EditorView.editable.of(editable)]) });
     },
+    liveFallback: () => !gitCommit && mode === "live" && view.state.doc.length > LIVE_MAX_CHARS,
     setMode(next) {
+      const wasOff = !gitCommit && mode === "live" && view.state.doc.length > LIVE_MAX_CHARS;
       mode = next;
       view.dom.dataset.mode = next;
       view.dispatch({ effects: liveSlot.reconfigure(liveFor(next, view.state.doc.length)) });
       view.requestMeasure();
+      const off = !gitCommit && mode === "live" && view.state.doc.length > LIVE_MAX_CHARS;
+      if (off !== wasOff) opts.onLiveFallback?.(off);
     },
     setVim(on) {
       vimOn = on;
@@ -372,7 +387,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     focus: () => view.focus(),
     refreshLayout: () => view.requestMeasure(),
     format(kind) {
-      view.focus();
+      if (view.state.readOnly || view.root.activeElement !== view.contentDOM) return;
       if (kind === "link") insertLink(view);
       else toggleWrap(view, MARKS[kind]);
     },
@@ -382,8 +397,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       view.focus();
       openSearchPanel(view);
     },
-    undo: () => void undo(view),
-    redo: () => void redo(view),
+    findNext(backwards = false) { (backwards ? findPrevious : findNext)(view); },
+    undo: () => { if (!view.state.readOnly) void undo(view); },
+    redo: () => { if (!view.state.readOnly) void redo(view); },
     outlineItems(levels) {
       const headings: OutlineItem<number>[] = [];
       const blocks: OutlineItem<number>[] = [];

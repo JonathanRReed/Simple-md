@@ -213,6 +213,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   }
 
   function onKey(e: KeyboardEvent): void {
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Tab" && search) { e.preventDefault(); e.stopPropagation(); toggleScope(); }
     else if (e.key === "Escape") {
       e.preventDefault(); e.stopPropagation();
@@ -258,6 +259,12 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
 
 let closeFind: (() => void) | undefined;
 let findOpen = false;
+let moveFind: ((backwards: boolean) => void) | undefined;
+export function moveReadFind(backwards = false): boolean {
+  if (!moveFind) return false;
+  moveFind(backwards);
+  return true;
+}
 export const isFindOpen = () => findOpen;
 
 export function closeReadFind(): void {
@@ -318,6 +325,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
   observer.observe(scope, { subtree: true, childList: true, characterData: true });
   const close = () => {
     closeFind = undefined;
+    moveFind = undefined;
     findOpen = false;
     bar.hidden = true;
     home.append(bar);
@@ -333,6 +341,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
     onClose();
   };
   function onKey(e: KeyboardEvent): void {
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === "Enter") { e.preventDefault(); move(e.shiftKey); }
   }
@@ -344,6 +353,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
   next.addEventListener("click", forwards);
   closeButton.addEventListener("click", close);
   closeFind = close;
+  moveFind = move;
   search();
   input.focus();
   input.select();
