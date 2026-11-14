@@ -11,10 +11,10 @@ test("update menu reflects checks, download readiness and errors", () => {
   expect(updateMenu({ kind: "error", message: "Check Failed" }, false).checkLabel).toContain("Check Failed");
 });
 test("update staging happens after settlement without resource teardown and failure restores editing", async () => {
-  const calls: string[] = []; let failed!: (error: unknown) => void;
+  const calls: string[] = [];
   const install = new UpdateInstall({ settle: async () => { calls.push("settle"); return true; }, release: () => { calls.push("release"); }, failed: () => { calls.push("failed"); } });
-  await install.start(fail => { calls.push("stage"); failed = fail; }); expect(calls).toEqual(["settle", "stage"]); expect(install.active).toBe(true);
-  failed(new Error("stage failed")); expect(calls).toEqual(["settle", "stage", "release", "failed"]); expect(install.active).toBe(false);
+  await install.start(() => { calls.push("stage"); }); expect(calls).toEqual(["settle", "stage"]); expect(install.active).toBe(true);
+  install.failed(new Error("stage failed")); expect(calls).toEqual(["settle", "stage", "release", "failed"]); expect(install.active).toBe(false);
   await install.start(() => { throw new Error("launch failed"); }); expect(install.active).toBe(false); expect(calls.slice(-3)).toEqual(["settle", "release", "failed"]);
 });
 test("cancelled document settlement never hands off to the installer", async () => {

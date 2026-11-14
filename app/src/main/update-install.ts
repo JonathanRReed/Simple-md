@@ -2,17 +2,13 @@
 export class UpdateInstall {
   active = false;
   constructor(private readonly actions: { settle(): Promise<boolean>; release(): void; failed(error: unknown): void }) {}
-  async start(launch: (failed: (error: unknown) => void) => void | Promise<void>): Promise<void> {
+  async start(launch: () => void | Promise<void>): Promise<void> {
     if (this.active) return;
     this.active = true;
-    const fail = (error: unknown) => {
-      if (!this.active) return;
-      this.active = false; this.actions.release(); this.actions.failed(error);
-    };
     try {
       if (!await this.actions.settle()) { this.active = false; this.actions.release(); return; }
-      if (this.active) await launch(fail);
-    } catch (error) { fail(error); }
+      if (this.active) await launch();
+    } catch (error) { this.failed(error); }
   }
   failed(error: unknown): void {
     if (!this.active) return;
