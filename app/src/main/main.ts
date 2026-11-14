@@ -1676,12 +1676,10 @@ if (!app.requestSingleInstanceLock()) {
     if (app.isPackaged) void context().loaded.then(async () => {
       const { createUpdater } = await import("./updater.js");
       if (quitting) return;
-      updates = createUpdater(() => settings.autoUpdate, () => documents.run(settleAllWindows), releaseQuitWindows, refreshMenus, () => {
+      updates = createUpdater(() => settings.autoUpdate, () => documents.run(settleAllWindows), releaseQuitWindows, refreshMenus, async () => {
         updateQuitting = true;
-        void documents.run(async () => { await prepareQuit(); app.exit(0); }).catch(error => {
-          updateQuitting = false; releaseQuitWindows();
-          void dialog.showMessageBox({ type: "error", message: "Couldn’t restart to install the update.", detail: String(error) });
-        });
+        try { await documents.run(prepareQuit); }
+        catch (error) { updateQuitting = false; throw error; }
       });
       void updates.check();
     });

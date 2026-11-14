@@ -1,4 +1,4 @@
-import { UpdateInstall } from "./update-install.js";
+import { UpdateInstall, installMacUpdate } from "./update-install.js";
 import { updateMenu, type UpdateState } from "../shared/update-state.js";
 import { app, dialog, autoUpdater as nativeUpdater } from "electron";
 import fs from "node:fs";
@@ -7,7 +7,13 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { updateDecision, updateInterval } from "../shared/update-policy.js";
 
-export function createUpdater(enabled: () => boolean, beforeInstall: () => Promise<boolean>, release: () => void, changed: () => void, beginQuit: () => void) {
+async function verifyUpdateSignature(): Promise<void> {
+  await promisify(execFile)("/usr/bin/codesign", ["--verify", "--strict",
+    // The leading "=" makes codesign read an inline requirement, not a file path.
+    '-R=anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', path.resolve(process.execPath, "../../..")]);
+}
+
+export function createUpdater(enabled: () => boolean, beforeInstall: () => Promise<boolean>, release: () => void, changed: () => void, beginQuit: () => Promise<void>, verifySignature = verifyUpdateSignature) {
   const stateFile = path.join(app.getPath("userData"), "update-check.json");
   let lastCheck = 0;
   try {
@@ -23,14 +29,16 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
   let cancelStaging: (() => void) | undefined;
   let updater: typeof import("electron-updater")["autoUpdater"] | undefined;
   const notice = (message: string) => dialog.showMessageBox({ type: "info", message, buttons: ["OK"] });
-  const installation = new UpdateInstall({ settle: beforeInstall, release, failed(error) {
+  const installation = new UpdateInstall({ settle: async () => {
+    if (process.platform === "darwin") await stageMacUpdate();
+    return beforeInstall();
+  }, release, failed(error) {
     cancelStaging?.(); cancelStaging = undefined;
+    nativeUpdater.removeListener("before-quit-for-update", nativeQuit);
     setState({ kind: "error", message: "Install Failed" });
     void notice(`Couldn’t install the update. ${error instanceof Error ? error.message : String(error)}`);
   } });
-  let quitStarted = false;
-  const nativeQuit = () => { if (installation.active && !quitStarted) { quitStarted = true; beginQuit(); } };
-  nativeUpdater.on("before-quit-for-update", nativeQuit);
+  const nativeQuit = () => { void beginQuit().then(() => app.exit(0), error => installation.failed(error)); };
   async function check(manual = false): Promise<void> {
     if (busy || stopped || installation.active) return;
     busy = true;
@@ -40,9 +48,7 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
       // Verify the signature only when a check would otherwise run.
       if (process.platform === "darwin" && !signed && updateDecision({ ...gate, signed: true }) === "check") {
         try {
-          await promisify(execFile)("/usr/bin/codesign", ["--verify", "--strict",
-            // The leading "=" makes codesign read an inline requirement, not a file path.
-            '-R=anchor apple generic and certificate leaf[subject.OU] = "AJ9VWBRNZN"', path.resolve(process.execPath, "../../..")]);
+          await verifySignature();
           signed = true;
         } catch { /* unsigned: updates stay off */ }
       }
@@ -66,7 +72,7 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
           if (installation.active) installation.failed(error);
           else setState({ kind: "error", message: "Check Failed" });
         });
-        updater.on("update-downloaded", () => { downloaded = true; setState({ kind: "ready" }); });
+        updater.on("update-downloaded", () => { downloaded = true; if (!installation.active) setState({ kind: "ready" }); });
       }
       if (stopped) return;
       setState({ kind: "checking" });
@@ -86,6 +92,22 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
       if (manual && !stopped) await notice("Could not check for updates. Try again later.");
     } finally { busy = false; }
   }
+  function stageMacUpdate(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const finish = (error?: Error) => {
+        clearTimeout(timer);
+        nativeUpdater.removeListener("update-downloaded", ready);
+        cancelStaging = undefined;
+        if (error) reject(error); else resolve();
+      };
+      const ready = () => finish();
+      const timer = setTimeout(() => finish(new Error("macOS did not finish preparing the update. Try again.")), 60_000);
+      cancelStaging = () => finish(new Error("Update preparation stopped."));
+      nativeUpdater.once("update-downloaded", ready);
+      try { nativeUpdater.checkForUpdates(); }
+      catch (error) { finish(error instanceof Error ? error : new Error(String(error))); }
+    });
+  }
   const timer = setInterval(() => { void check(); }, updateInterval);
   timer.unref();
   return {
@@ -97,19 +119,10 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
       const { response } = await dialog.showMessageBox({ type: "question", message: "Restart SimpleMD to install the update?", buttons: ["Cancel", "Restart"], defaultId: 0, cancelId: 0 });
       if (response !== 1) return;
       const installer = updater;
-      await installation.start(failed => {
-        setState({ kind: "installing" });
-        if (process.platform !== "darwin") { installer.quitAndInstall(false, true); return; }
-        // MacUpdater's quitAndInstall installs a persistent native listener before
-        // staging. Stage explicitly so a failed attempt cannot later quit the app.
-        const ready = () => {
-          cancelStaging?.(); cancelStaging = undefined;
-          try { installer.quitAndInstall(false, true); } catch (error) { failed(error); }
-        };
-        const timer = setTimeout(() => failed(new Error("macOS did not finish preparing the update. Try again.")), 60_000);
-        cancelStaging = () => { clearTimeout(timer); nativeUpdater.removeListener("update-downloaded", ready); };
-        nativeUpdater.once("update-downloaded", ready);
-        nativeUpdater.checkForUpdates();
+      setState({ kind: "installing" });
+      await installation.start(async () => {
+        if (process.platform === "darwin") await installMacUpdate({ cleanup: beginQuit, install: () => installer.quitAndInstall(false, true), exit: () => app.exit(0) });
+        else { nativeUpdater.once("before-quit-for-update", nativeQuit); installer.quitAndInstall(false, true); }
       });
       if (!installation.active && state.kind === "installing") setState({ kind: "ready" });
     },

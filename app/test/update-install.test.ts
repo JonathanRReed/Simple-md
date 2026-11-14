@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { updateMenu } from "../src/shared/update-state";
-import { UpdateInstall } from "../src/main/update-install";
+import { UpdateInstall, installMacUpdate } from "../src/main/update-install";
 test("update menu reflects checks, download readiness and errors", () => {
   expect(updateMenu({ kind: "idle" }, false).installEnabled).toBe(false);
   expect(updateMenu({ kind: "current" }, false).checkLabel).toContain("Up to Date");
@@ -21,4 +21,21 @@ test("cancelled document settlement never hands off to the installer", async () 
   let launches = 0, released = 0;
   const install = new UpdateInstall({ settle: async () => false, release: () => { released++; }, failed: () => { throw new Error("unexpected failure"); } });
   await install.start(() => { launches++; }); expect(launches).toBe(0); expect(released).toBe(1); expect(install.active).toBe(false);
+});
+
+test("macOS hands off after cleanup and exits only on the ten-second fallback", async () => {
+  const calls: string[] = [];
+  let fallback = () => {};
+  await installMacUpdate({ cleanup: async () => { calls.push("cleanup"); }, install: () => { calls.push("Squirrel"); }, exit: () => { calls.push("exit"); } }, (exit, delay) => { expect(delay).toBe(10_000); fallback = exit; });
+  expect(calls).toEqual(["cleanup", "Squirrel"]);
+  fallback(); expect(calls).toEqual(["cleanup", "Squirrel", "exit"]);
+});
+test("asynchronous cleanup failure never arms Squirrel and permits another install", async () => {
+  let attempts = 0, launches = 0, released = 0;
+  const install = new UpdateInstall({ settle: async () => true, release() { released++; }, failed() {} });
+  const launch = () => installMacUpdate({ cleanup: async () => { if (++attempts === 1) throw new Error("cleanup failed"); }, install() { launches++; }, exit() {} }, () => {});
+  await install.start(launch);
+  expect(install.active).toBe(false); expect(launches).toBe(0); expect(released).toBe(1);
+  await install.start(launch);
+  expect(install.active).toBe(true); expect(launches).toBe(1);
 });
