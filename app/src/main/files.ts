@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { syncDirectory } from "./sync-directory.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { copyMetadata } from "./file-metadata.js";
@@ -131,6 +132,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
         await new Promise(resolve => setTimeout(resolve, 10 * 2 ** attempt));
       }
     }
+    await syncDirectory(target);
     return { metadataCopyFailed };
   } catch (err) {
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
