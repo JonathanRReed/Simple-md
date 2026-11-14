@@ -39,3 +39,11 @@ for (const html of [
   if (html.includes("language-python")) expect(converted).toContain("```python\nprint(1)\n```");
   if (html.includes("docs-internal")) expect(converted).toBe("**Title**\n\nA paragraph");
 });
+
+for (const [cell, expected] of [
+  ['a\\|b', 'a\\|b'],
+  ['<code>a\\|{b} *</code>', '<code>a\\|{b} *</code>'],
+]) test(`table conversion retains literal backslashes before pipes: ${cell}`, () => {
+  const converted = htmlToMarkdown(`<table><tr><th>Value</th></tr><tr><td>${cell}</td></tr></table>`);
+  expect(parser.render(converted)).toContain(`<td>${expected}</td>`);
+});

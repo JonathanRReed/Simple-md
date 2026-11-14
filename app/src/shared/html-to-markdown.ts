@@ -16,6 +16,14 @@ const url = (value: string) => {
 const blocks = new Set(["p", "div", "section", "article", "header", "footer", "main", "figure", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "ul", "ol", "blockquote", "table", "hr"]);
 const trim = (text: string) => text.replace(/^\n+|\n+$/g, "");
 
+function tablePipes(text: string): string {
+  return text.replace(/\|/g, (_pipe, at: number) => {
+    let slashes = 0;
+    for (let i = at - 1; text[i] === "\\"; i--) slashes++;
+    return slashes % 2 ? "|" : "\\|";
+  });
+}
+
 /** Deliberate HTML paste. No DOM, fetching, execution, or editor dependencies. */
 export function htmlToMarkdown(html: string): string {
   function inline(node: Node): string {
@@ -31,6 +39,15 @@ export function htmlToMarkdown(html: string): string {
     if (tag === "code") {
       const text = rawText(node).replace(/\r\n?|\n/g, " ");
       if (!text) return "";
+      // GFM consumes a backslash before a cell pipe even inside backticks.
+      // Entity-encoded inline HTML retains code that cannot round-trip as a span.
+      if ([...text.matchAll(/\\+\|/g)].some(match => (match[0].length - 1) % 2 === 1)) {
+        let parent = node.parentNode;
+        while (parent && element(parent)) {
+          if (parent.tagName === "table") return "<code>" + [...text].map(char => `&#${char.codePointAt(0)!};`).join("") + "</code>";
+          parent = parent.parentNode;
+        }
+      }
       const fence = "`".repeat(Math.max(1, ...[...text.matchAll(/`+/g)].map(match => match[0].length + 1)));
       const pad = text.startsWith("`") || text.endsWith("`") || text.startsWith(" ") && text.endsWith(" ") ? " " : "";
       return fence + pad + text + pad + fence;
@@ -78,7 +95,7 @@ export function htmlToMarkdown(html: string): string {
     const cells = rows.map(row => children(row).filter(element).filter(cell => cell.tagName === "th" || cell.tagName === "td"));
     const columns = Math.max(...cells.map(row => row.length));
     const line = (values: string[]) => "| " + Array.from({ length: columns }, (_, i) => values[i] ?? "").join(" | ") + " |";
-    const lines = cells.map(row => line(row.map(cell => trim(flow(children(cell))).trim().replace(/\n+/g, " ").replace(/(?<!\\)\|/g, "\\|"))));
+    const lines = cells.map(row => line(row.map(cell => tablePipes(trim(flow(children(cell))).trim().replace(/\n+/g, " ")))));
     lines.splice(1, 0, line((cells[0] ?? []).map((cell): string => {
       const align = (attr(cell, "align") || /text-align\s*:\s*(left|center|right)/i.exec(attr(cell, "style"))?.[1] || "").toLowerCase();
       return align === "center" ? ":---:" : align === "right" ? "---:" : align === "left" ? ":---" : "---";
