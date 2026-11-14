@@ -88,7 +88,8 @@ export async function readDiskText(file: string): Promise<string | null> {
   }
 }
 
-export async function writeAtomic(file: string, text: string, expectedText?: string | null): Promise<void> {
+export async function writeAtomic(file: string, text: string, expectedText?: string | null): Promise<{ metadataCopyFailed: boolean }> {
+  let metadataCopyFailed = false;
   const entry = await fs.promises.lstat(file).catch((err: unknown) => {
     if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
     throw err;
@@ -103,7 +104,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
     try {
       if (stat && process.platform === "darwin") {
         // Losing tags or xattrs is better than losing the save.
-        await copyMetadata(target, tmp).catch((err) => console.error("simplemd: could not preserve file metadata", err));
+        await copyMetadata(target, tmp).catch((err) => { metadataCopyFailed = true; console.error("simplemd: could not preserve file metadata", err); });
       }
       await handle.truncate(0);
       await handle.writeFile(text, "utf8");
@@ -130,6 +131,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
         await new Promise(resolve => setTimeout(resolve, 10 * 2 ** attempt));
       }
     }
+    return { metadataCopyFailed };
   } catch (err) {
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
     throw err;

@@ -24,6 +24,20 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, mode: "source" });
   const payload = { ...input.rendered, documentId: id, paneId, revisionId: makeRevisionId(0), path: "/tmp/note.md", name: "note.md", baseUrl: "file:///tmp/", text: input.text, intent: "edit" as const };
   await pane.load(payload);
+  if (input.scenario === "metadata notice") {
+    const result = { documentId: id, revisionId: makeRevisionId(0), path: payload.path, name: payload.name, baseUrl: payload.baseUrl, text: input.text, metadataCopyFailed: true };
+    pane.saved(result);
+    const toast = document.querySelector<HTMLElement>("#toast")!;
+    assert(toast.textContent?.includes("tags or extended attributes"), "Metadata warning is missing");
+    toast.textContent = "cleared";
+    pane.saved(result);
+    assert(toast.textContent === "cleared", "Metadata warning repeated");
+    const retained = pane.suspend();
+    await pane.load(payload, retained);
+    pane.saved(result);
+    assert(toast.textContent === "cleared", "Metadata warning repeated after tab restore");
+    pane.suspend(); return true;
+  }
   const edit = async () => { pane.command("mode-source"); await until(() => !!root.querySelector(".cm-content"), "Editor did not mount"); await new Promise(resolve => setTimeout(resolve, 20)); };
   const read = async () => { pane.command("mode-read"); await until(() => root.dataset.view === "read", "Read did not mount"); };
   await read();

@@ -4,7 +4,7 @@ import { createWindowChrome } from "./window-chrome.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
-import { createPane, type DormantDocument, type PaneController } from "./pane.js";
+import { createPane, noticeSaveMetadata, type DormantDocument, type PaneController } from "./pane.js";
 import { applyDocumentStyle } from "./document-style.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { renderDiagrams } from "./diagrams.js";
@@ -208,6 +208,7 @@ async function boot(): Promise<void> {
   api.onLayout(mountLayout);
   api.onClosed(id => { documents.delete(id); });
   api.onSaved(result => {
+    noticeSaveMetadata(result);
     const tab = documents.get(result.documentId);
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
     if (mounted) mounted.controller.saved(result);

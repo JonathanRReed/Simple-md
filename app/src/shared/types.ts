@@ -88,6 +88,8 @@ export interface FlushResult {
 }
 
 export interface SaveResult {
+  metadataCopyFailed?: boolean;
+  showMetadataWarning?: boolean;
   revisionId: RevisionId;
   documentId: DocumentId;
   path: string;

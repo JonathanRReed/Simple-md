@@ -18,6 +18,7 @@ export class DocumentSession {
   private watcher: { close(): void } | undefined;
   private watchGeneration = 0;
   private disposed = false;
+  private metadataWarningSent = false;
   private onDiskChanged: ((text: string, reason?: string) => void) | undefined;
 
   constructor(
@@ -109,9 +110,10 @@ export class DocumentSession {
     return this.saves.run(async () => {
       if (!this.isCurrent(revisionId) || this.readOnlyReason || (this.conflict && !force)) return null;
       const text = this.text;
+      let metadataCopyFailed = false;
       try {
         const expected = target === this.path ? this.diskText : await readDiskText(target);
-        await writeAtomic(target, text, expected);
+        ({ metadataCopyFailed } = await writeAtomic(target, text, expected));
       } catch (err) {
         if (!(err instanceof FileConflictError)) throw err;
         this.conflict = true;
@@ -130,7 +132,9 @@ export class DocumentSession {
       this.conflict = false;
       this.dirty = this.text !== text;
       if (moved && this.onDiskChanged) this.watch(this.onDiskChanged);
-      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text };
+      const showMetadataWarning = metadataCopyFailed && !this.metadataWarningSent;
+      if (metadataCopyFailed) this.metadataWarningSent = true;
+      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, showMetadataWarning };
     });
   }
 
