@@ -161,6 +161,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   const historySlot = new Compartment();
   const vimSlot = new Compartment();
   const editableSlot = new Compartment();
+  const edgeScrollSlot = new Compartment();
+  let edgeScrollSequence = 0;
+  let edgeScrollActive = false;
   let mode = opts.mode;
   let vimOn = opts.vim ?? false;
   let silent = false;
@@ -202,6 +205,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         keymap.of([...closeBracketsKeymap, ...writingDefaultKeymap, ...historyKeymap, ...searchKeymap.filter(binding => binding.key !== "Mod-f" && binding.key !== "Mod-g" && binding.key !== "Mod-Shift-g" && binding.key !== "Mod-Alt-g"), indentWithTab]),
         tableKeymap,
         writingFolding,
+        edgeScrollSlot.of([]),
         vimSlot.of([]),
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.snapshot?.state.doc.length ?? initial.text.length)),
@@ -497,12 +501,29 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       return { kind: "line", line: view.state.doc.lineAt(block.from).number - 1, offset: Math.max(0, Math.min(1, (top - block.top) / Math.max(1, block.height))) };
     },
     restoreAnchor(anchor) {
+      const sequence = ++edgeScrollSequence;
       if (anchor.kind !== "line") {
-        view.requestMeasure({ read: () => anchor.kind, write: kind => { view.scrollDOM.scrollTop = kind === "start" ? 0 : view.scrollDOM.scrollHeight; } });
+        const kind = anchor.kind, position = kind === "start" ? 0 : view.state.doc.length;
+        edgeScrollActive = true;
+        // Scroll targets run after CodeMirror has measured the new viewport and
+        // mounted its virtualized end. A measure-write runs too early after wrapping.
+        const handler = EditorView.scrollHandler.of((current, range, target) => {
+          if (range.head !== position || target.y !== kind) return false;
+          current.scrollDOM.scrollTop = kind === "start" ? 0 : current.scrollDOM.scrollHeight;
+          queueMicrotask(() => {
+            if (destroyed || sequence !== edgeScrollSequence) return;
+            edgeScrollActive = false;
+            view.dispatch({ effects: edgeScrollSlot.reconfigure([]) });
+          });
+          return true;
+        });
+        view.dispatch({ effects: [edgeScrollSlot.reconfigure(handler), EditorView.scrollIntoView(position, { y: kind, yMargin: 0 })] });
         return;
       }
       const pos = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, anchor.line + 1))).from;
-      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 0 }) });
+      const effects = [EditorView.scrollIntoView(pos, { y: "start", yMargin: 0 })];
+      if (edgeScrollActive) { edgeScrollActive = false; effects.push(edgeScrollSlot.reconfigure([])); }
+      view.dispatch({ effects });
       view.requestMeasure({
         read: () => {
           const block = view.lineBlockAt(pos);

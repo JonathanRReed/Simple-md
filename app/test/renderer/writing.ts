@@ -28,6 +28,7 @@ export async function runBatch(input: { html: string; css: string }) {
   const view = EditorView.findFromDOM(parent.querySelector(".cm-editor")!)!;
   editor.focus(); view.dispatch({ selection: { anchor: text.length } });
   await until(() => !!parent.querySelector(".cm-rendered-table"), "Live table never rendered");
+  await until(() => [...parent.querySelectorAll<HTMLElement>(".cm-foldGutter .cm-gutterElement")].filter(element => element.style.visibility !== "hidden" && element.textContent?.includes("⌄")).length >= 2, "Idle fold markers never appeared");
   view.dispatch({ selection: { anchor: text.indexOf("Needle") } }); editor.fold("fold");
   assert(foldedRanges(view.state).size === 1, "Heading did not fold from its body");
   await until(() => !parent.querySelector(".cm-rendered-table"), "Folded Live table still has a replacement");
