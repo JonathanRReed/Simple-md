@@ -7,6 +7,9 @@ const boolean = (setting: string, label: string, group: string, value: boolean) 
 const font = (setting: string, label: string, group: string, value: string) =>
   ({ setting, label, group, kind: "font" as const, default: value });
 
+const text = (setting: string, label: string, group: string, value: string) =>
+  ({ setting, label, group, kind: "text" as const, default: value });
+
 // This table owns config keys, runtime values, validation, controls and documentation.
 export const configSchema = {
   "theme-light": { ...choice("themeLight", "Light theme", "Appearance", "editorial-light", ["editorial-light", "github-light", "solarized-light", "contrast-light"]), setting: "themeLight" },
@@ -19,6 +22,7 @@ export const configSchema = {
   "content-width": { ...number("contentWidth", "Width (characters)", "Reading", 66, 40, 160, 1), setting: "contentWidth" },
   "outline-rail": { ...boolean("outlineRail", "Outline rail", "Behavior", true), setting: "outlineRail" },
   "outline-rail-levels": { ...number("outlineRailLevels", "Outline heading levels", "Behavior", 3, 1, 6, 1), setting: "outlineRailLevels" },
+  "image-folder": { ...text("imageFolder", "Image folder", "Writing", "assets"), setting: "imageFolder" },
   "writing-font-family": { ...font("writingFontFamily", "Font", "Writing", "system-ui"), setting: "writingFontFamily" },
   "writing-font-size": { ...number("writingFontSize", "Size (px)", "Writing", 17, 10, 40, 1), setting: "writingFontSize" },
   "writing-line-height": { ...number("writingLineHeight", "Line height", "Writing", 1.65, 1, 2.5, 0.05), setting: "writingLineHeight" },
@@ -60,6 +64,7 @@ export function validConfigValue(def: ConfigDefinition, value: unknown): boolean
     case "boolean": return typeof value === "boolean";
     case "number": return typeof value === "number" && Number.isFinite(value) && value >= def.min && value <= def.max && (def.setting !== "outlineRailLevels" || Number.isInteger(value));
     case "choice": return typeof value === "string" && def.options.some(option => option === value);
+    case "text": return typeof value === "string" && value.length <= 160 && value.length > 0 && !/^(?:[/]|[a-z]:)/i.test(value) && !/[\\\x00-\x1f\x7f]/.test(value) && value.split("/").every(part => part && part !== "." && part !== "..");
     case "font": return typeof value === "string" && value.trim().length > 0 && value.length <= 160 && !/[\x00-\x1f\x7f]/.test(value);
   }
 }

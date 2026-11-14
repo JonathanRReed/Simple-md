@@ -13,7 +13,8 @@ function makeControl(def: ConfigDefinition): HTMLInputElement | HTMLSelectElemen
     return select;
   }
   const input = document.createElement("input");
-  if (def.kind === "number") { input.type = "number"; input.min = String(def.min); input.max = String(def.max); input.step = String(def.step < 1 ? 0.01 : def.step); }
+  if (def.kind === "text") { input.type = "text"; input.maxLength = 160; }
+  else if (def.kind === "number") { input.type = "number"; input.min = String(def.min); input.max = String(def.max); input.step = String(def.step < 1 ? 0.01 : def.step); }
   else { input.type = "checkbox"; input.setAttribute("role", "switch"); }
   return input;
 }

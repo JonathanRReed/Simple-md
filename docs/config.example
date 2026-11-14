@@ -9,6 +9,7 @@ reading-line-height = 1.68
 content-width = 66
 outline-rail = true
 outline-rail-levels = 3
+image-folder = assets
 writing-font-family = system-ui
 writing-font-size = 17
 writing-line-height = 1.65

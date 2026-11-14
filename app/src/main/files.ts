@@ -156,23 +156,5 @@ export function watchDocument(file: string, changed: () => void, delay = 80): { 
   return { close() { clearTimeout(timer); watchers.forEach((watcher) => watcher.close()); } };
 }
 
-const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"]);
-
-/** Stores a pasted or dropped image beside the document and returns the relative path to link. */
-export async function saveImageNextTo(docPath: string, bytes: Uint8Array, ext: string): Promise<string | null> {
-  const safeExt = ext.toLowerCase().replace(/^\./, "");
-  if (!IMAGE_EXT.has(safeExt)) return null;
-  const dir = path.join(path.dirname(docPath), "assets");
-  await fs.promises.mkdir(dir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-  for (let i = 0; i < 100; i++) {
-    const name = `image-${stamp}${i ? `-${i}` : ""}.${safeExt}`;
-    try {
-      await fs.promises.writeFile(path.join(dir, name), bytes, { flag: "wx" });
-      return `assets/${name}`;
-    } catch (err) {
-      if (!(err instanceof Error && "code" in err && err.code === "EEXIST")) throw err;
-    }
-  }
-  return null;
-}
+// Kept as the existing import point for callers and byte-level tests.
+export { saveDocumentImage as saveImageNextTo } from "./image-store.js";
