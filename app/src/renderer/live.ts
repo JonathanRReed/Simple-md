@@ -31,6 +31,7 @@ export const clearLiveCache = () => blockCache.clear();
 const mathOptions = { throwOnError: false, trust: false, strict: "ignore", maxSize: 20, maxExpand: 1000 } as const;
 
 class RenderedBlock extends WidgetType {
+  readonly base: string | null;
   constructor(
     readonly source: string,
     readonly kind: string,
@@ -38,10 +39,11 @@ class RenderedBlock extends WidgetType {
     readonly references = "",
   ) {
     super();
+    this.base = host.baseUrl();
   }
 
   eq(other: RenderedBlock): boolean {
-    return other.kind === this.kind && other.source === this.source && other.references === this.references;
+    return other.base === this.base && other.kind === this.kind && other.source === this.source && other.references === this.references;
   }
 
   get estimatedHeight(): number {
@@ -49,7 +51,7 @@ class RenderedBlock extends WidgetType {
   }
 
   private key(): string {
-    return `${this.host.baseUrl()}\0${this.kind}\0${this.source}\0${this.references}`;
+    return `${this.base}\0${this.kind}\0${this.source}\0${this.references}`;
   }
 
   toDOM(view: EditorView): HTMLElement {

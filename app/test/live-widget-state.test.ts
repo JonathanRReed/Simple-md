@@ -50,3 +50,13 @@ test("real Live math widgets use Read extraction and reject code, metadata, dest
 test("plain Markdown HTML code excludes Live math, including multiline code elements", () => {
   for (const text of ['Before <code>$x$</code> after\n\nEnd', 'Before <code>\n$x$\n</code> after\n\nEnd']) expect(widgets(buildLiveDecorations(stateFor(text, false), host)).filter(item => item.widget.tex !== undefined)).toEqual([]);
 });
+
+test("moving a document invalidates Live resource URLs without changing source", () => {
+  const state = stateFor('![Logo](./logo.png)\n\nEnd');
+  let base = 'file:///old/';
+  const changingHost = { ...host, baseUrl: () => base };
+  const [before] = widgets(buildLiveDecorations(state, changingHost));
+  base = 'file:///new/';
+  const [after] = widgets(buildLiveDecorations(state, changingHost));
+  expect(after!.widget.eq(before!.widget)).toBe(false);
+});
