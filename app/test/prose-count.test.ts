@@ -48,3 +48,7 @@ test("rendered selection counts literal prose without reparsing it as Markdown",
   expect(countProse("First **words** and more", undefined, false, "*literal*").selection).toEqual({ words: 1, characters: 9 });
   expect(countProse("Document", undefined, false, "").selection).toEqual({ words: 0, characters: 0 });
 });
+
+test("reference-link labels are destinations rather than prose", () => {
+  expect(countProse("[Hello][site] world\n\n[site]: https://example.test").document).toEqual({ words: 2, characters: 11 });
+});

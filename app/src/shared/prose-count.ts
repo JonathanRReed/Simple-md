@@ -7,7 +7,7 @@ import { sourceLines, type SourceSelection } from "../renderer/source-edit.js";
 export type { ProseCount, ProseCounts } from "./prose-count-result.js";
 import type { ProseCount, ProseCounts } from "./prose-count-result.js";
 const markdown = parser.configure(GFM);
-const excluded = new Set(["FencedCode", "CodeBlock", "HTMLTag", "LinkMark", "URL", "LinkTitle", "EmphasisMark", "CodeMark", "HeaderMark", "QuoteMark", "ListMark", "TaskMarker", "TableDelimiter", "TableMark", "HorizontalRule", "LinkReference", "Escape"]);
+const excluded = new Set(["FencedCode", "CodeBlock", "HTMLTag", "LinkMark", "URL", "LinkTitle", "LinkLabel", "EmphasisMark", "CodeMark", "HeaderMark", "QuoteMark", "ListMark", "TaskMarker", "TableDelimiter", "TableMark", "HorizontalRule", "LinkReference", "Escape"]);
 const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
 /** Parser ranges remove non-prose; counting runs only in the counter worker. */

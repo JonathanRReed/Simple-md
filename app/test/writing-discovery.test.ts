@@ -13,8 +13,9 @@ test("shared command table has unique IDs and shortcuts on each platform", () =>
       expect(used.has(key)).toBe(false); used.add(key);
     }
   }
-  expect(shortcutHint(commandAccelerator(commandDefinition("block-heading-3")!, true), true)).toBe("⌘⇧3");
+  expect(shortcutHint(commandAccelerator(commandDefinition("block-heading-3")!, true), true)).toBe("⌃⌘3");
   expect(shortcutHint(commandAccelerator(commandDefinition("find-replace")!, false), false)).toBe("Ctrl+H");
+  for (const command of commandDefinitions) if (command.id.startsWith("block-heading-") || command.id === "block-body") expect(commandAccelerator(command, true)).toMatch(/^Control\+Command\+[0-6]$/);
   expect(commandAccelerator(commandDefinition("go-to-line")!, true)).toBe("Control+G");
 });
 test("CodeMirror yields collisions to the app and keeps macOS movement and Tab indentation", () => {
