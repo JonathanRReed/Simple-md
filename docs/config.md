@@ -22,6 +22,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `content-width` | `66` | 40 to 160 |
 | `outline-rail` | `true` | true, false |
 | `outline-rail-levels` | `3` | 1 to 6 |
+| `image-folder` | `assets` | Relative folder beside the document, or public/subfolder in an Astro project |
 | `writing-font-family` | `system-ui` | Installed font family or CSS generic family |
 | `writing-font-size` | `17` | 10 to 40 |
 | `writing-line-height` | `1.65` | 1 to 2.5 |
@@ -46,6 +47,8 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `launch-at-login` | `false` | true, false |
 
 The default appearance follows the system and selects the configured light or dark theme. Theme colors apply only to the document. Chrome, focus and selection use the system accent. GitHub style fixes reading typography at 16px system UI, line height 1.5 and a maximum width of 980px. Settings disables the reading font, size, line height and width controls while GitHub style is active, since those values have no effect. Config values remain saved and apply again when you switch back. Zoom still enlarges GitHub pages. Writing and code typography remain independent. Widths use characters of the selected font; code blocks scroll horizontally when needed. No fonts are bundled for these roles. KaTeX retains its math fonts.
+
+image-folder defaults to assets beside the document. A relative folder stays inside the document root. In an Astro project, public/subfolder copies into the existing public folder and inserts /subfolder/name. Existing project images selected through Insert Image are linked in place.
 
 Tabs appear across the top by default. Set tab-style = sidebar for a list of open documents on the leading edge. Drag its divider to resize, use Left and Right when the divider has focus, or double-click to reset to 180 px. sidebar-width clamps to 140 through 420 px. View > Show/Hide Tab Sidebar uses Control-Command-S on macOS and Control-Alt-S elsewhere, where Control-Shift-S remains Save As. sidebar-collapsed saves the hidden state. These settings apply to every open window without reloading documents. The search button before horizontal tabs and the field below the sidebar window controls open Open Quickly. View controls sit at the trailing end of the top row in both layouts.
 
@@ -75,6 +78,7 @@ reading-line-height = 1.68
 content-width = 66
 outline-rail = true
 outline-rail-levels = 3
+image-folder = assets
 writing-font-family = system-ui
 writing-font-size = 17
 writing-line-height = 1.65

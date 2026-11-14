@@ -24,6 +24,7 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   stage.append(root);
   let deferred = false;
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker(_id: number, marker: string) { if (marker === "first-readable") deferred = !root.querySelector(".outline-rail"); },
     documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),

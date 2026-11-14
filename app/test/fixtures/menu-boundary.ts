@@ -5,7 +5,13 @@ import { DEFAULT_SETTINGS } from "../../src/shared/types";
 import type { MenuItemConstructorOptions } from "electron";
 let template: MenuItemConstructorOptions[] = [];
 mock.module('electron', () => ({ app: { name: 'SimpleMD', isPackaged: false }, Menu: {
-  buildFromTemplate(items: MenuItemConstructorOptions[]) { template = items; return items; }, setApplicationMenu() {},
+  buildFromTemplate(items: MenuItemConstructorOptions[]) {
+    template = items;
+    function native(entries: MenuItemConstructorOptions[]): { items: unknown[] } {
+      return { items: entries.map(item => ({ ...item, submenu: Array.isArray(item.submenu) ? native(item.submenu) : item.submenu })) };
+    }
+    return native(items);
+  }, setApplicationMenu() {},
 } }));
 const { buildMenu } = await import('../../src/main/menu');
 test('Edit menu routes Find Next and Previous through app commands on every platform', () => {
@@ -48,7 +54,7 @@ test("file, recovery, default-app and update menu items follow document and syst
       const recent = entries("File").find(item => item.label === "Open Recent")!.submenu;
       expect(Array.isArray(recent) && recent.some(item => item.label === "Clear Menu")).toBe(true);
       const appMenu = system === "darwin" ? "SimpleMD" : "Help";
-      expect(entries(appMenu).find(item => item.label === "Restart to Install Update")?.enabled).toBe(false);
+      expect(entries(appMenu).find(item => item.label === "Restart to Install Update…")?.enabled).toBe(false);
       saved = relative = closed = downloaded = true; state = { kind: "ready" }; buildMenu(actions);
       expect(entries("File").find(item => item.label === "Copy Path")?.enabled).toBe(true);
       expect(entries("File").find(item => item.label === "Copy Relative Path")?.enabled).toBe(true);
@@ -57,7 +63,7 @@ test("file, recovery, default-app and update menu items follow document and syst
       reopen.click?.({} as never, undefined, {} as never);
       entries(appMenu).find(item => item.label === "Make SimpleMD the Default Markdown App…")!.click?.({} as never, undefined, {} as never);
       expect(commands).toEqual(["reopen-closed-tab", "default-markdown-app"]);
-      expect(entries(appMenu).find(item => item.label === "Restart to Install Update")?.enabled).toBe(true);
+      expect(entries(appMenu).find(item => item.label === "Restart to Install Update…")?.enabled).toBe(true);
       expect(entries(appMenu).some(item => item.label?.includes("Ready to Install"))).toBe(true);
     }
   } finally { Object.defineProperty(process, "platform", { value: platform }); }

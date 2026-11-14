@@ -29,6 +29,10 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
     command: (cmd: string) => { commands.push(cmd); },
+    // The palette lists what the native menu offers; these are the file and tab commands it carries.
+    menuCommands: async () => ["copy-path", "copy-relative-path", "duplicate-file", "rename-move", "reopen-closed-tab", "default-markdown-app"].map(id => ({ id, enabled: true })),
+    invokeMenu: async (id: string) => { commands.push(id); },
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }),
   };
   Object.assign(window, { simplemd: api });
   const id = makeDocumentId(1), pane = createPane(root, makePaneId(0), { active: () => true, changed() {}, tabs: () => [] });
@@ -46,7 +50,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   pane.command("undo"); assert(pane.flush().text === input.text, "Move lost undo history");
   pane.command("redo"); assert(pane.flush().text === text, "Move lost redo history");
   for (const [label, command] of [["Copy Path", "copy-path"], ["Copy Relative Path", "copy-relative-path"], ["Duplicate", "duplicate-file"], ["Rename or Move", "rename-move"], ["Reopen Closed Tab", "reopen-closed-tab"], ["Close Other Tabs", "close-other-tabs"], ["Close Tabs Below", "close-tabs-below"], ["Make SimpleMD the Default", "default-markdown-app"]]) {
-    pane.command("palette"); await paint();
+    pane.command("palette"); await paint(); await paint();
     const picker = document.querySelector<HTMLInputElement>("#picker-input")!;
     picker.value = label!; picker.dispatchEvent(new Event("input"));
     assert(document.querySelector("#picker-list")!.textContent!.includes(label!), `Palette omitted ${label}`);

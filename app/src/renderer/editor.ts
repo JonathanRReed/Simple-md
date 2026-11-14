@@ -1,3 +1,11 @@
+import { inlineTransaction, type FormatKind } from "./inline-commands.js";
+export type { FormatKind } from "./inline-commands.js";
+import { writingDefaultKeymap } from "./editor-bindings.js";
+import { blockEdit, type BlockCommand } from "./block-commands.js";
+import { tableEdit, type TableCommand } from "./table-source.js";
+import { sourceTransaction, sourceSelection, sourcePosition } from "./source-transaction.js";
+import { writingFolding, runFold, type FoldCommand } from "./folding.js";
+import { insertSource, type SourceSelection } from "./source-edit.js";
 import { canPasteLink } from "./paste-context.js";
 import { deriveOutline, type OutlineItem } from "./outline-model.js";
 import type { SourceAnchor } from "./scroll-sync.js";
@@ -10,13 +18,13 @@ import type { MdxResult } from "../shared/render-core.js";
 import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
 import { editorMdxRanges } from "./mdx-positions.js";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { html } from "@codemirror/lang-html";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, syntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap, findNext, findPrevious } from "@codemirror/search";
-import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
+import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap, findNext, findPrevious, gotoLine } from "@codemirror/search";
+import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { type EditMode, LIVE_MAX_CHARS } from "../shared/types.js";
@@ -26,8 +34,6 @@ import { codeFont } from "./code-font.js";
 import { editorText } from "./editor-text.js";
 import { byteText, parseByteText, restoreByteText } from "./byte-text.js";
 
-export type FormatKind = "bold" | "italic" | "code" | "strike" | "link";
-
 export interface EditorSnapshot {
   state: EditorState;
   scroll: ReturnType<EditorView["scrollSnapshot"]>;
@@ -36,6 +42,7 @@ export interface EditorSnapshot {
 export interface EditorOptions {
   text: string;
   filename?: string;
+  isMdx?(): boolean;
   snapshot?: EditorSnapshot;
   mdx?: MdxResult;
   mode: EditMode;
@@ -43,6 +50,7 @@ export interface EditorOptions {
   /** Modal vim key bindings; applies in every edit mode. Default off. */
   vim?: boolean;
   onChange(text: string): void;
+  onSelectionChange?(): void;
   onScroll(): void;
   onOutlineChange?(): void;
   onLiveFallback?(off: boolean): void;
@@ -71,6 +79,14 @@ export interface EditorHandle {
   focus(): void;
   refreshLayout(): void;
   format(kind: FormatKind): void;
+  block(command: BlockCommand): void;
+  table(command: TableCommand): void;
+  inTable(): boolean;
+  fold(command: FoldCommand): void;
+  sourceSelection(): SourceSelection;
+  insertAsync(getText: () => Promise<string | null>): Promise<void>;
+  replace(): void;
+  goToLine(): void;
   selection(): string;
   find(text?: string): void;
   findNext(backwards?: boolean): void;
@@ -87,57 +103,6 @@ export interface EditorHandle {
   destroy(): void;
 }
 
-const MARKS: Record<Exclude<FormatKind, "link">, string> = { bold: "**", italic: "*", code: "`", strike: "~~" };
-
-function toggleWrap(view: EditorView, mark: string): void {
-  view.dispatch(
-    view.state.changeByRange((range) => {
-      const { state } = view;
-      const len = mark.length;
-      const text = state.sliceDoc(range.from, range.to);
-      if (state.sliceDoc(range.from - len, range.from) === mark && state.sliceDoc(range.to, range.to + len) === mark) {
-        return {
-          changes: [
-            { from: range.from - len, to: range.from },
-            { from: range.to, to: range.to + len },
-          ],
-          range: EditorSelection.range(range.from - len, range.to - len),
-        };
-      }
-      if (text.length >= len * 2 && text.startsWith(mark) && text.endsWith(mark)) {
-        return {
-          changes: [
-            { from: range.from, to: range.from + len },
-            { from: range.to - len, to: range.to },
-          ],
-          range: EditorSelection.range(range.from, range.to - len * 2),
-        };
-      }
-      return {
-        changes: [
-          { from: range.from, insert: mark },
-          { from: range.to, insert: mark },
-        ],
-        range: EditorSelection.range(range.from + len, range.to + len),
-      };
-    }),
-  );
-}
-
-function insertLink(view: EditorView): void {
-  view.dispatch(
-    view.state.changeByRange((range) => {
-      const label = view.state.sliceDoc(range.from, range.to);
-      const insert = `[${label}](url)`;
-      const urlFrom = range.from + label.length + 3;
-      return {
-        changes: { from: range.from, to: range.to, insert },
-        range: EditorSelection.range(urlFrom, urlFrom + 3),
-      };
-    }),
-  );
-}
-
 const IMAGE_TYPES = /^image\/(png|jpe?g|gif|webp|svg\+xml|avif)$/;
 
 export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHandle {
@@ -146,6 +111,11 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   const historySlot = new Compartment();
   const vimSlot = new Compartment();
   const editableSlot = new Compartment();
+  const edgeScrollSlot = new Compartment();
+  let edgeScrollSequence = 0;
+  let edgeScrollActive = false;
+  let followEditorEnd = false;
+  let edgeScrollQueued = false;
   let mode = opts.mode;
   let vimOn = opts.vim ?? false;
   let silent = false;
@@ -184,8 +154,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         frontmatterExtension,
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ "aria-label": "Document", spellcheck: "true", autocapitalize: "sentences" }),
-        keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+        keymap.of([...closeBracketsKeymap, ...writingDefaultKeymap, ...historyKeymap, ...searchKeymap.filter(binding => binding.key !== "Mod-f" && binding.key !== "Mod-g" && binding.key !== "Mod-Shift-g" && binding.key !== "Mod-Alt-g"), indentWithTab]),
         tableKeymap,
+        writingFolding,
+        edgeScrollSlot.of([]),
         vimSlot.of([]),
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.snapshot?.state.doc.length ?? initial.text.length)),
@@ -194,6 +166,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
           return { effects: liveSlot.reconfigure(liveFor(mode, tr.newDoc.length)) };
         }),
         EditorView.updateListener.of((update) => {
+          if (update.docChanged) releaseEdgeScroll();
+          else if (update.geometryChanged) requestEndRestore();
           cancelAnimationFrame(countFrame);
           countFrame = requestAnimationFrame(() => {
             if (destroyed) return;
@@ -222,6 +196,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
           if (update.docChanged && mode === "live" && !gitCommit && (update.startState.doc.length > LIVE_MAX_CHARS) !== (update.state.doc.length > LIVE_MAX_CHARS)) opts.onLiveFallback?.(update.state.doc.length > LIVE_MAX_CHARS);
+          if (update.docChanged || update.selectionSet) opts.onSelectionChange?.();
           if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
           if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state) || update.heightChanged) opts.onOutlineChange?.();
         }),
@@ -238,6 +213,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             return false;
           },
           scroll: () => {
+            const scroller = view.scrollDOM;
+            if (followEditorEnd && scroller.scrollTop < scroller.scrollHeight - scroller.clientHeight - 1) requestEndRestore();
             opts.onScroll();
           },
           paste(event, v) {
@@ -273,19 +250,45 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     }),
   });
 
+  const edgeInputs = new AbortController();
+  for (const event of ["wheel", "pointerdown", "touchstart", "keydown"]) parent.addEventListener(event, releaseEdgeScroll, { capture: true, passive: true, signal: edgeInputs.signal });
+  function requestEndRestore(): void {
+    if (!followEditorEnd || edgeScrollQueued) return;
+    edgeScrollQueued = true;
+    const sequence = edgeScrollSequence;
+    queueMicrotask(() => {
+      edgeScrollQueued = false;
+      if (destroyed || !followEditorEnd || sequence !== edgeScrollSequence) return;
+      view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.length, { y: "end", yMargin: 0 }) });
+    });
+  }
+  function releaseEdgeScroll(): void {
+    if (!edgeScrollActive) return;
+    followEditorEnd = false;
+    const sequence = ++edgeScrollSequence;
+    queueMicrotask(() => {
+      if (destroyed || sequence !== edgeScrollSequence) return;
+      edgeScrollActive = false;
+      view.dispatch({ effects: edgeScrollSlot.reconfigure([]) });
+    });
+  }
+
   async function importImages(files: File[], at: number | null): Promise<void> {
+    await insertAsync(() => opts.onImages(files), at);
+  }
+
+  async function insertAsync(getText: () => Promise<string | null>, at: number | null = null): Promise<void> {
+    if (view.state.readOnly || at === null && view.root.activeElement !== view.contentDOM) return;
     const selection = view.state.selection.main;
     const range = at === null ? { from: selection.from, to: selection.to } : { from: at, to: at };
     insertions.add(range);
     try {
-      const text = await opts.onImages(files);
+      const text = await getText();
       if (!text || destroyed || view.state.readOnly) return;
-      view.dispatch({
-        changes: { ...range, insert: text },
-        selection: { anchor: range.from + text.length },
-        scrollIntoView: true,
-        userEvent: "input.paste",
-      });
+      const source = view.state.field(editorText).text;
+      const raw = { from: sourcePosition(view.state, range.from), to: sourcePosition(view.state, range.to) };
+      const transaction = sourceTransaction(view.state, insertSource(source, raw, text));
+      if (transaction) view.dispatch({ ...transaction, userEvent: "input.paste" });
       view.focus();
     } finally {
       insertions.delete(range);
@@ -304,6 +307,13 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   }
   if (vimOn) configureVim(true);
   view.dom.dataset.mode = mode;
+
+  function inTable(): boolean {
+    const position = view.state.selection.main.head;
+    let node = syntaxTree(view.state).resolveInner(position, position === view.state.doc.length ? -1 : 1);
+    while (node.parent && node.name !== "Table") node = node.parent;
+    return node.name === "Table";
+  }
 
   return {
     scroller: view.scrollDOM,
@@ -333,7 +343,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       return { scroll: view.scrollSnapshot(), state: retainEditorState(view.state) };
     },
     setChanges(changes) { view.dispatch({ effects: setChangeMarks.of(changes) }); },
-    scrollToLine(line) { view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from, { y: "center" }) }); },
+    scrollToLine(line) { releaseEdgeScroll(); view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from, { y: "center" }) }); },
     getText: () => view.state.field(editorText).text,
     setText(text, addToHistory = false) {
       if (view.state.field(editorText).text === text) return;
@@ -388,16 +398,37 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     refreshLayout: () => view.requestMeasure(),
     format(kind) {
       if (view.state.readOnly || view.root.activeElement !== view.contentDOM) return;
-      if (kind === "link") insertLink(view);
-      else toggleWrap(view, MARKS[kind]);
+      const transaction = inlineTransaction(view.state, kind);
+      if (transaction) view.dispatch(transaction);
     },
+    block(command) {
+      if (view.state.readOnly || view.root.activeElement !== view.contentDOM) return;
+      const selection = sourceSelection(view.state);
+      if (command === "footnote") selection.from = selection.to = sourcePosition(view.state, view.state.selection.main.head);
+      const spec = sourceTransaction(view.state, blockEdit(view.state.field(editorText).text, selection, command, opts.isMdx?.() ?? /\.mdx$/i.test(opts.filename ?? "")));
+      if (spec) { view.dispatch(spec); view.focus(); }
+    },
+    table(command) {
+      if (view.state.readOnly || view.root.activeElement !== view.contentDOM || command !== "insert-table" && !inTable()) return;
+      const head = sourcePosition(view.state, view.state.selection.main.head);
+      const selection = command === "insert-table" ? sourceSelection(view.state) : { from: head, to: head };
+      const spec = sourceTransaction(view.state, tableEdit(view.state.field(editorText).text, selection, command));
+      if (spec) { view.dispatch(spec); view.focus(); }
+    },
+    inTable,
+    fold(command) { releaseEdgeScroll(); runFold(view, command); view.focus(); },
+    sourceSelection: () => sourceSelection(view.state),
+    insertAsync,
+    replace() { releaseEdgeScroll(); view.focus(); openSearchPanel(view); view.dom.querySelector<HTMLInputElement>('[name="replace"]')?.focus(); },
+    goToLine() { releaseEdgeScroll(); gotoLine(view); },
     selection() { const range = view.state.selection.main; return view.state.sliceDoc(range.from, range.to); },
     find(text) {
+      releaseEdgeScroll();
       if (text) view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: text, literal: true })) });
       view.focus();
       openSearchPanel(view);
     },
-    findNext(backwards = false) { (backwards ? findPrevious : findNext)(view); },
+    findNext(backwards = false) { releaseEdgeScroll(); (backwards ? findPrevious : findNext)(view); },
     undo: () => { if (!view.state.readOnly) void undo(view); },
     redo: () => { if (!view.state.readOnly) void redo(view); },
     outlineItems(levels) {
@@ -440,6 +471,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       return found;
     },
     goTo(pos) {
+      releaseEdgeScroll();
       view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 24 }) });
       view.focus();
     },
@@ -452,12 +484,27 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       return { kind: "line", line: view.state.doc.lineAt(block.from).number - 1, offset: Math.max(0, Math.min(1, (top - block.top) / Math.max(1, block.height))) };
     },
     restoreAnchor(anchor) {
+      const sequence = ++edgeScrollSequence;
       if (anchor.kind !== "line") {
-        view.requestMeasure({ read: () => anchor.kind, write: kind => { view.scrollDOM.scrollTop = kind === "start" ? 0 : view.scrollDOM.scrollHeight; } });
+        const kind = anchor.kind, position = kind === "start" ? 0 : view.state.doc.length;
+        edgeScrollActive = true;
+        followEditorEnd = kind === "end";
+        // Scroll targets run after CodeMirror has measured the new viewport and
+        // mounted its virtualized end. A measure-write runs too early after wrapping.
+        const handler = EditorView.scrollHandler.of((current, range, target) => {
+          if (sequence !== edgeScrollSequence || range.head !== position || target.y !== kind) return false;
+          current.scrollDOM.scrollTop = kind === "start" ? 0 : current.scrollDOM.scrollHeight;
+          if (kind === "start") releaseEdgeScroll();
+          return true;
+        });
+        view.dispatch({ effects: [edgeScrollSlot.reconfigure(handler), EditorView.scrollIntoView(position, { y: kind, yMargin: 0 })] });
         return;
       }
+      followEditorEnd = false;
       const pos = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, anchor.line + 1))).from;
-      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 0 }) });
+      const effects = [EditorView.scrollIntoView(pos, { y: "start", yMargin: 0 })];
+      if (edgeScrollActive) { edgeScrollActive = false; effects.push(edgeScrollSlot.reconfigure([])); }
+      view.dispatch({ effects });
       view.requestMeasure({
         read: () => {
           const block = view.lineBlockAt(pos);
@@ -474,6 +521,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     },
     destroy: () => {
       destroyed = true;
+      edgeInputs.abort();
       cancelAnimationFrame(countFrame);
       ++vimSeq;
       view.destroy();

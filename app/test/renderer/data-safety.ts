@@ -15,6 +15,7 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   for (const element of root.querySelectorAll<HTMLElement>("[id]")) element.dataset.element = element.id;
   document.querySelector("#stage")!.append(root);
   const api = {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async (text: string) => text === input.incoming ? input.updated : input.rendered,

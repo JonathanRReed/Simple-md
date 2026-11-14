@@ -21,6 +21,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let nextId = 0;
   const payload = (file: string, intent: "read" | "edit") => ({ ...input.rendered, documentId: makeDocumentId(++nextId), paneId: makePaneId(0), revisionId: makeRevisionId(0), path: file, name: file.split("/").pop()!, baseUrl: "file:///tmp/", text: input.text, intent, initialMode: "source" as const });
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
@@ -37,11 +38,12 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   const editor = root.querySelector<HTMLElement>(".cm-scroller")!;
   assert(editor.scrollHeight > editor.clientHeight * 2, "Source fixture does not scroll");
   editor.scrollTop = editor.scrollHeight; editor.dispatchEvent(new Event("scroll")); await settle();
+  const beforeSplit = { top: editor.scrollTop, height: editor.scrollHeight, client: editor.clientHeight, width: editor.clientWidth };
   pane.command("mode-split");
   const preview = root.querySelector<HTMLElement>("#preview-scroll")!;
   const article = root.querySelector<HTMLElement>("#preview")!;
   await until(() => article.children.length > 100, "Side preview stayed blank"); await settle();
-  assert(preview.scrollTop > 0 && preview.scrollHeight - preview.clientHeight - preview.scrollTop < 3, "Source end did not show preview end");
+  assert(preview.scrollTop > 0 && preview.scrollHeight - preview.clientHeight - preview.scrollTop < 3, `Source end did not show preview end: ${JSON.stringify({ beforeSplit, editor: { top: editor.scrollTop, height: editor.scrollHeight, client: editor.clientHeight, width: editor.clientWidth }, preview: { top: preview.scrollTop, height: preview.scrollHeight, client: preview.clientHeight } })}`);
   const grow = document.createElement("div"); grow.style.height = "1600px"; article.firstElementChild!.append(grow); await settle();
   assert(preview.scrollHeight - preview.clientHeight - preview.scrollTop < 3, "Late preview layout lost the end anchor");
 

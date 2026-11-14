@@ -24,6 +24,8 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let edited = "";
   const setSettings = async (patch: Partial<Settings>) => { writes.push(patch); settings = { ...settings, ...patch }; onSettings!(settings); };
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }),
+    menuCommands: async () => [], invokeMenu: async () => {},
     setChromeVisible() {},
     moveTab: async () => {},
     ready: async () => ({ settings, platform: "darwin", accent: "#0055aa" }),
@@ -146,6 +148,9 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   await until(() => row(a).getAttribute("aria-selected") === "true", "Command-2 did not count pinned tabs first");
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true, cancelable: true }));
   await until(() => row(b).getAttribute("aria-selected") === "true", "Command-1 did not select the first pin");
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "2", metaKey: true, ctrlKey: true, bubbles: true, cancelable: true }));
+  await paint();
+  assert(row(b).getAttribute("aria-selected") === "true", "Control-Command-2 was stolen by tab switching");
   assert(row(b).getAttribute("aria-label")!.includes("pinned"), "Pin state is not accessible");
   layout = { tabs: [b], panes: [{ paneId: p0, documentId: b }], activePane: p0, axis: "horizontal" }; onLayout!(layout);
   await until(() => strip.querySelectorAll(".tab").length === 1, "Closed tab row remains");

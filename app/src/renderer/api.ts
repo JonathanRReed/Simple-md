@@ -47,6 +47,14 @@ export interface Bridge {
   renderFragment(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<RenderedHtml>;
   save(text: string, forceDialog: boolean, documentId: DocumentId, recreate?: boolean): Promise<SaveResult | null>;
   saveCopy(text: string, documentId: DocumentId): Promise<string | null>;
+  proseCounts(text: string, selection: import("./source-edit.js").SourceSelection | undefined, mdx: boolean, id: DocumentId, revision: RevisionId, selectedText?: string): Promise<import("../shared/prose-count.js").ProseCounts | null>;
+  menuCommands(): Promise<import("../shared/commands.js").MenuCommand[]>;
+  invokeMenu(id: string): Promise<void>;
+  writingContext(table: boolean, documentId: DocumentId): void;
+  renderClipboard(text: string, id: DocumentId, revision: RevisionId): Promise<import("../shared/types.js").RenderedBlock[]>;
+  readClipboardHtml(): Promise<string>;
+  writeClipboard(text: string, html?: string): Promise<void>;
+  pickImage(documentId: DocumentId): Promise<string | null>;
   saveImage(bytes: Uint8Array, ext: string, documentId: DocumentId): Promise<string | null>;
   prepareDragExport(text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf"): Promise<{ token: string; name: string; expiresAt: number }>;
   startDragExport(documentId: DocumentId, revisionId: RevisionId, token: string): void;

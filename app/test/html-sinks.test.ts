@@ -11,6 +11,8 @@ const approved = [
   "renderer/live.ts:el.innerHTML = katex.renderToString(this.tex, { ...mathOptions, displayMode: false });",
   // Serialization of the sanitized print DOM. This is a getter, never insertion.
   "main/export-job.ts:return clone.innerHTML;",
+  // Clipboard serialization reads DOM mounted through the same sanitized renderer.
+  "renderer/pane.ts:const html = holder.innerHTML;",
 ].sort();
 
 function sinks(directory: string, source?: string): string[] {

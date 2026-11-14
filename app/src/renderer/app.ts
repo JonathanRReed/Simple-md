@@ -330,7 +330,7 @@ async function boot(): Promise<void> {
     else if (mod && e.key.toLowerCase() === "w") command = "close-tab";
     else if (e.ctrlKey && e.key === "Tab") command = e.shiftKey ? "previous-tab" : "next-tab";
     else if (mod && e.shiftKey && (e.code === "BracketLeft" || e.code === "BracketRight")) command = e.code === "BracketLeft" ? "previous-tab" : "next-tab";
-    else if (mod && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key) && layout) {
+    else if (mod && !e.altKey && !e.shiftKey && (ready.platform === "darwin" ? !e.ctrlKey : !e.metaKey) && /^[1-9]$/.test(e.key) && layout) {
       e.preventDefault(); const index = Number(e.key) === 9 ? layout.tabs.length - 1 : Number(e.key) - 1;
       const id = layout.tabs[index]; if (id !== undefined) void api.activateTab(id); return;
     }

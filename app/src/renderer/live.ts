@@ -4,7 +4,7 @@ import { cellSourceOffset } from "./tables.js";
 import { getMdxRanges, isInMdxRange, setMdxRanges } from "./mdx-syntax.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
-import { syntaxTree } from "@codemirror/language";
+import { foldEffect, unfoldEffect, foldedRanges, syntaxTree } from "@codemirror/language";
 import { displayMath, expandRegion, imageHtmlRegions, codeHtmlRegions, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
 import { type EditorState, type Extension, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
@@ -503,7 +503,9 @@ export function liveDecorationField(host: LiveHost) {
       const math = tr.docChanged || mdxChanged || tree !== value.tree ? displayMath(tr.state, tree, markers, fmEnd) : value.math;
       const scope = expandRegion(tr.state, tree, viewport, math);
       const referencesChanged = tr.docChanged && referenceContext(tr.state, tree) !== (value.tree ? referenceContext(tr.startState, value.tree) : "");
-      const full = referencesChanged || tr.startState.readOnly !== tr.state.readOnly || viewportEffect || mdxChanged || !value.tree || (!tr.docChanged && tree !== value.tree);
+      const folds = foldedRanges(tr.state);
+      const foldsChanged = folds.size !== foldedRanges(tr.startState).size || tr.effects.some(effect => effect.is(foldEffect) || effect.is(unfoldEffect));
+      const full = foldsChanged || referencesChanged || tr.startState.readOnly !== tr.state.readOnly || viewportEffect || mdxChanged || !value.tree || (!tr.docChanged && tree !== value.tree);
       const dirty: Region[] = [];
       const add = (region: Region) => {
         const expanded = expandRegion(tr.state, tree, region, math);
@@ -569,7 +571,12 @@ export function liveDecorationField(host: LiveHost) {
         decorations = decorations.update({ filterFrom: region.from, filterTo: region.to,
           filter: (from, to) => to < region.from || from > region.to, add, sort: true });
       }
-      decorations = decorations.update({ filter: (from, to) => from >= scope.from && to <= scope.to });
+      decorations = decorations.update({ filter: (from, to) => {
+        if (from < scope.from || to > scope.to) return false;
+        let hidden = false;
+        folds.between(from, to, (a, b) => { if (a < to && b > from) hidden = true; });
+        return !hidden;
+      } });
       return { decorations, tree, markers, math, viewport };
     },
     provide: f => EditorView.decorations.from(f, value => value.decorations),

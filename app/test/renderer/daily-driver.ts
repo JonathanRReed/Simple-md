@@ -100,6 +100,7 @@ export async function runBatch(input: { html: string; css: string }) {
   const paneText = '# First\n\nalpha alpha\n\n# Last\n\nEnd';
   const rendered = await core.renderBlocks(paneText, '/tmp/plan.md');
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: 'head', generation: headReads, changes: { changed: committed ? [] : [[2, 3]], deleted: [] } }),
     headChanges: async () => { headReads++; return { available: true, active: true }; },
@@ -124,7 +125,9 @@ export async function runBatch(input: { html: string; css: string }) {
   pane.command('redo'); assert(pane.flush().text === beforeHistory && query.value === 'query', 'Redo reached the document behind Find');
   pane.command('format-bold'); assert(pane.flush().text === beforeHistory, 'Formatting reached the document behind Find');
   for (const cmd of ['palette', 'outline'] as const) {
-    pane.command(cmd); pane.command('undo'); pane.command('format-link');
+    pane.command(cmd);
+    if (cmd === 'palette') await until(isPickerOpen, 'Command palette did not open');
+    pane.command('undo'); pane.command('format-link');
     assert(pane.flush().text === beforeHistory, `${cmd} allowed document mutation`); closeOverlays();
   }
   delayRead = true; pane.command('mode-read');
