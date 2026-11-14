@@ -10,6 +10,19 @@ async function until(fn: () => boolean, message: string) {
   throw new Error(message);
 }
 export async function runBatch(input: { text: string; rendered: RenderedBlocks; html: string; css: string }) {
+  let phase = "initial", writes = 0;
+  const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
+  const trace = (event: string, element?: Element, extra = {}) => {
+    console.log("SCROLL_TRACE " + JSON.stringify({ event, phase, time: performance.now(), writes,
+      top: element?.scrollTop, height: element?.scrollHeight, client: element?.clientHeight,
+      width: element?.clientWidth, ...extra }));
+  };
+  Object.defineProperty(Element.prototype, "scrollTop", { ...scrollTop, set(value: number) {
+    const editor = this instanceof Element && this.classList.contains("cm-scroller");
+    if (editor) trace("write-before", this, { write: ++writes, requested: value, stack: new Error().stack?.split("\n").slice(1, 7).join(" | ") });
+    scrollTop.set!.call(this, value);
+    if (editor) trace("write-after", this);
+  } });
   document.body.innerHTML = new DOMParser().parseFromString(input.html, "text/html").body.innerHTML;
   const style = document.createElement("style"); style.textContent = input.css; document.head.append(style);
   let onDoc: Parameters<Bridge["onDoc"]>[0] | undefined;
@@ -120,6 +133,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert(Math.abs(document.querySelector("#stage")!.getBoundingClientRect().width - innerWidth) < 1, "Collapsed sidebar still takes space");
   await setSettings({ sidebarCollapsed: false });
 
+  phase = "mount-source";
   onCommand!("mode-source"); await until(() => !!document.querySelector(".cm-content"), "Editor did not mount");
   onCommand!("find"); await until(() => !!document.querySelector('.cm-search input[name="search"]'), "Editor find did not open");
   const search = document.querySelector<HTMLInputElement>('.cm-search input[name="search"]')!;
@@ -128,12 +142,19 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   replace.value = "Edited"; replace.dispatchEvent(new Event("change", { bubbles: true }));
   document.querySelector<HTMLButtonElement>('.cm-search button[name="replaceAll"]')!.click();
   await until(() => edited.includes("Edited"), "Editor did not retain an unsaved edit");
+  phase = "close-search";
   document.querySelector<HTMLButtonElement>('.cm-search button[name="close"]')!.click();
   const content = document.querySelector(".cm-content");
   const editorScroll = document.querySelector<HTMLElement>(".cm-scroller")!;
+  editorScroll.addEventListener("scroll", () => trace("scroll-event", editorScroll));
+  phase = "set-500"; trace("before-500", editorScroll);
   editorScroll.scrollTop = 500; await paint(); const editorTop = editorScroll.scrollTop;
+  trace("after-500-two-frames", editorScroll);
   for (const tabStyle of ["top", "sidebar", "top", "sidebar"] as const) {
+    phase = "style-" + tabStyle;
+    trace("before-style", editorScroll);
     await setSettings({ tabStyle }); await paint();
+    trace("after-style-two-frames", editorScroll, { expected: editorTop, sameContent: document.querySelector(".cm-content") === content, sameScroller: document.querySelector(".cm-scroller") === editorScroll });
     assert(document.querySelector(".cm-content") === content && editorScroll.scrollTop === editorTop, "Style switch remounted or scrolled the editor");
     assert(row(b).dataset.dirty === "true" && row(b).getAttribute("aria-selected") === "true", "Style switch lost dirty or active state");
     assert(!document.querySelector<HTMLElement>('[data-element="dirty"]')!.hidden, "Style switch hid Edited state");

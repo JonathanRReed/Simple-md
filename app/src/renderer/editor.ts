@@ -112,7 +112,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   const vimSlot = new Compartment();
   const editableSlot = new Compartment();
   const edgeScrollSlot = new Compartment();
-  let edgeScrollSequence = 0;
+  let edgeScrollSequence = 0, diagnosticScrollWrites = 0;
   let edgeScrollActive = false;
   let followEditorEnd = false;
   let edgeScrollQueued = false;
@@ -491,6 +491,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         // mounted its virtualized end. A measure-write runs too early after wrapping.
         const handler = EditorView.scrollHandler.of((current, range, target) => {
           if (sequence !== edgeScrollSequence || range.head !== position || target.y !== kind) return false;
+          console.log("EDGE_SCROLL_TRACE " + JSON.stringify({ writer: "edge-handler", write: ++diagnosticScrollWrites, kind, followEditorEnd, edgeScrollActive, sequence, top: current.scrollDOM.scrollTop, height: current.scrollDOM.scrollHeight, client: current.scrollDOM.clientHeight }));
           current.scrollDOM.scrollTop = kind === "start" ? 0 : current.scrollDOM.scrollHeight;
           if (kind === "start") releaseEdgeScroll();
           return true;
@@ -509,7 +510,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
           const base = view.documentTop - view.scrollDOM.getBoundingClientRect().top + view.scrollDOM.scrollTop;
           return base + block.top + anchor.offset * block.height;
         },
-        write: top => { view.scrollDOM.scrollTop = top; },
+        write: top => { console.log("EDGE_SCROLL_TRACE " + JSON.stringify({ writer: "line-anchor", write: ++diagnosticScrollWrites, top, before: view.scrollDOM.scrollTop, height: view.scrollDOM.scrollHeight, client: view.scrollDOM.clientHeight })); view.scrollDOM.scrollTop = top; },
       });
     },
     scrollFraction() {

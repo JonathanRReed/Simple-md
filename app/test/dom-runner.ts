@@ -23,6 +23,7 @@ export async function runDom(entrypoint: string, inputs: unknown, options: { med
       env, stdout: "ignore", stderr: "pipe", signal: AbortSignal.timeout(60_000),
     });
     const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    if (entrypoint.endsWith("tab-sidebar.ts")) console.log(stderr);
     if (code !== 0) throw new Error(`DOM process exited ${code}: ${stderr}`);
     return await Bun.file(output).json();
   } finally { await rm(temp, { recursive: true, force: true }); }
