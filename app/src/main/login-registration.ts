@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 export function loginEnabled(platform: NodeJS.Platform, state: { openAtLogin: boolean; executableWillLaunchAtLogin?: boolean; status?: string }): boolean {
   if (platform === "darwin") return state.openAtLogin && (state.status === undefined || state.status === "enabled");
-  if (platform === "win32") return state.openAtLogin && state.executableWillLaunchAtLogin === true;
+  if (platform === "win32") return state.executableWillLaunchAtLogin === true;
   return state.openAtLogin;
 }
 export function linuxLoginFile(home: string): string { return path.join(home, ".config/autostart/simplemd.desktop"); }

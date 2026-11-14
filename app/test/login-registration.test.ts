@@ -8,6 +8,7 @@ test("login display uses actual registration and failed changes report an error"
   expect(loginEnabled("darwin", { openAtLogin: true, status: "enabled" })).toBe(true);
   expect(loginEnabled("win32", { openAtLogin: true, executableWillLaunchAtLogin: false })).toBe(false);
   expect(loginEnabled("win32", { openAtLogin: true, executableWillLaunchAtLogin: true })).toBe(true);
+  expect(loginEnabled("win32", { openAtLogin: false, executableWillLaunchAtLogin: true })).toBe(true);
   expect(() => verifyLoginRegistration(true, false)).toThrow("not enabled"); expect(() => verifyLoginRegistration(false, true)).toThrow("not disabled");
 });
 test("Linux login query reads the registered entry, including system disables", () => {
