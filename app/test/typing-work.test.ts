@@ -43,7 +43,7 @@ test("prose counts parse a revision once and count only nonempty selections", ()
 
 test("typing and caret updates schedule no table menu IPC", async () => {
   // Execute the actual hint-update closure with a deterministic scheduler and IPC sink.
-  const pane = await Bun.file(new URL("../src/renderer/pane.ts", import.meta.url)).text();
+  const pane = (await Bun.file(new URL("../src/renderer/pane.ts", import.meta.url)).text()).replace(/\r\n/g, "\n");
   const from = pane.indexOf("  function updateHint(): void {");
   const body = pane.slice(from, pane.indexOf("\n  }", from) + 4).replace("(): void", "()");
   let messages = 0, counts = 0;

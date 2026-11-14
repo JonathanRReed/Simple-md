@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { commandDefinitions, paletteCommand, writingCommand } from "../src/shared/commands";
 import { DEFAULT_SETTINGS } from "../src/shared/types";
 import { htmlToMarkdown } from "../src/shared/html-to-markdown";
@@ -6,8 +7,8 @@ import { htmlToMarkdown } from "../src/shared/html-to-markdown";
 interface Item { id?: string; label?: string; role?: string; enabled?: boolean; submenu?: { items: Item[] } }
 async function menuModule() {
   const file = new URL('../src/main/menu.ts', import.meta.url);
-  const source = await Bun.file(file).text();
-  const built = await Bun.build({ entrypoints: [file.pathname], target: "bun", plugins: [{ name: "menu-without-electron", setup(build) {
+  const source = (await Bun.file(file).text()).replace(/\r\n/g, "\n");
+  const built = await Bun.build({ entrypoints: [fileURLToPath(file)], target: "bun", plugins: [{ name: "menu-without-electron", setup(build) {
     build.onResolve({ filter: /^electron$/ }, () => ({ path: "electron", namespace: "test" }));
     build.onLoad({ filter: /.*/, namespace: "test" }, () => ({ contents: `
       export const app = { name: 'SimpleMD', isPackaged: false };
@@ -16,12 +17,12 @@ async function menuModule() {
         static buildFromTemplate(items) { return { items: items.map(item => ({ ...item, submenu: Array.isArray(item.submenu) ? Menu.buildFromTemplate(item.submenu) : item.submenu })) }; }
         static setApplicationMenu(menu) { Menu.current = menu; }
       }`, loader: "js" }));
-    build.onLoad({ filter: /\/main\/menu\.ts$/ }, () => ({ contents: source + '\nexport { Menu as TestMenu };', loader: "ts" }));
+    build.onLoad({ filter: /[\\/]main[\\/]menu\.ts$/ }, () => ({ contents: source + '\nexport { Menu as TestMenu };', loader: "ts" }));
   } }] });
   expect(built.success).toBe(true);
   return import('data:text/javascript;base64,' + Buffer.from(await built.outputs[0]!.text()).toString('base64'));
 }
-const mainSource = () => Bun.file(new URL('../src/main/main.ts', import.meta.url)).text();
+const mainSource = async () => (await Bun.file(new URL('../src/main/main.ts', import.meta.url)).text()).replace(/\r\n/g, "\n");
 
 test("native labels come from shared definitions and retain dynamic labels", async () => {
   const { buildMenu, TestMenu } = await menuModule();
