@@ -46,10 +46,12 @@ export async function startCliServer(options: { binary: string; profile?: string
       stopTransport = () => { broker.kill(); };
       const clients = new Map<number, ReturnType<typeof handle>>();
       let drained = () => {};
+      let brokerError = "";
+      broker.stderr.on("data", chunk => { brokerError = (brokerError + String(chunk)).slice(-4096); });
       const lines = createInterface({ input: broker.stdout });
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("Private pipe did not start.")), 5000);
-        broker.once("error", reject); broker.once("exit", () => { clearTimeout(timer); reject(new Error("Private pipe stopped.")); for (const client of clients.values()) client.cleanup(); runtime.cleanup(); });
+        broker.once("error", reject); broker.once("exit", () => { clearTimeout(timer); reject(new Error(`Private pipe stopped. ${brokerError.trim()}`)); for (const client of clients.values()) client.cleanup(); runtime.cleanup(); });
         lines.on("line", line => {
           try {
             const value: unknown = JSON.parse(line);
@@ -76,7 +78,6 @@ export async function startCliServer(options: { binary: string; profile?: string
           } catch { broker.kill(); }
         });
       });
-      broker.stderr.on("data", () => {});
       return {
         async drain() {
           await Promise.all(pendingClosed);

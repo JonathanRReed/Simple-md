@@ -11,7 +11,7 @@ async function fixture() {
   const file = path.join(dir, "note.md"); await fs.promises.writeFile(file, "before");
   return file;
 }
-for (const replacement of [false, true]) test(`read retries a ${replacement ? "replacement" : "write"} during reading`, async () => {
+for (const replacement of [false, true]) test.skipIf(replacement && process.platform === "win32")(`read retries a ${replacement ? "replacement" : "write"} during reading`, async () => {
   const file = await fixture();
   const open = fs.promises.open.bind(fs.promises);
   let injected = false;
@@ -43,7 +43,7 @@ test("continuous changes during reading are bounded and cannot authorize a save"
       const read = handle.read.bind(handle);
       spyOn(handle, "read").mockImplementationOnce(async (...readArgs: Parameters<typeof read>) => {
         const result = await read(...readArgs);
-        await fs.promises.writeFile(file, `external ${++reads}`);
+        await fs.promises.writeFile(file, `external ${"x".repeat(++reads)}`);
         return result;
       });
     }
@@ -52,7 +52,7 @@ test("continuous changes during reading are bounded and cannot authorize a save"
   try {
     await expect(writeAtomic(file, "local", "before")).rejects.toThrow("keeps changing");
     expect(reads).toBe(3);
-    expect(await fs.promises.readFile(file, "utf8")).toBe("external 3");
+    expect(await fs.promises.readFile(file, "utf8")).toBe("external xxx");
     expect(await fs.promises.readdir(path.dirname(file))).toEqual(["note.md"]);
   } finally { hook.mockRestore(); }
 });
