@@ -67,7 +67,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   Object.assign(window, { simplemdSettings: { get: async () => snapshot, set: async () => snapshot, subscribe() {}, action: async (action: string) => { actions.push(action); } } });
   await import("../../src/renderer/settings"); await paint();
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("button")];
-  for (const label of ["Make SimpleMD the Default Markdown App…", "Config file", "Open Config File", "Reveal"]) {
+  for (const label of ["Make SimpleMD the Default Markdown App", "Config file", "Open Config File", "Reveal"]) {
     const button = buttons.find(button => button.textContent === label)!;
     assert(button, `Settings omitted ${label}`); button.click(); await paint();
   }
