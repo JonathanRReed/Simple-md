@@ -76,7 +76,7 @@ contextBridge.exposeInMainWorld("simplemd", {
   renderFragment: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-fragment", text, documentId, revisionId),
   save: (text: string, forceDialog: boolean, documentId: DocumentId, recreate = false) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId, recreate),
   saveCopy: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-copy", text, documentId),
-  proseCounts: (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, id: DocumentId, revision: RevisionId) => ipcRenderer.invoke("smd:prose-counts", text, selection, mdx, id, revision),
+  proseCounts: (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, id: DocumentId, revision: RevisionId, selectedText?: string) => ipcRenderer.invoke("smd:prose-counts", text, selection, mdx, id, revision, selectedText),
   menuCommands: () => ipcRenderer.invoke("smd:menu-commands"),
   invokeMenu: (id: string) => ipcRenderer.invoke("smd:invoke-menu", id),
   writingContext: (table: boolean, id: DocumentId) => ipcRenderer.send("smd:writing-context", table, id),

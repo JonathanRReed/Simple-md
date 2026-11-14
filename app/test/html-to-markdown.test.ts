@@ -6,6 +6,7 @@ const cases: [string, string, string][] = [
   ["marks", "<p><strong>bold</strong> <em>italic</em> <del>gone</del> <code>a|b</code></p>", "**bold** *italic* ~~gone~~ `a|b`"],
   ["Docs inline styles", '<b style="font-weight:normal"><span style="font-weight:700">Bold</span> <span style="font-style:italic;text-decoration:line-through">gone</span></b>', "**Bold** ~~*gone*~~"],
   ["URLs and images", '<p><a href="https://example.test/a?q=1&amp;b=2">Link</a><img src="https://example.test/a.png" alt="Image"></p>', "[Link](https://example.test/a?q=1&b=2)![Image](https://example.test/a.png)"],
+  ["URL punctuation", '<a href="https://example.test/a)b">Link</a>', "[Link](https://example.test/a%29b)"],
   ["blocked schemes become text", '<a href="javascript:alert(1)">Safe</a><img src="data:text/html,bad" alt="Alt">', "SafeAlt"],
   ["relative image", '<img src="/images/a b.png">', "![](/images/a%20b.png)"],
   ["language and backticks", '<div class="highlight"><pre><code class="language-ts">const a = `x`;\n```\n</code></pre></div>', "````ts\nconst a = `x`;\n```\n````"],

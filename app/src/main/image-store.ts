@@ -6,7 +6,7 @@ import { containedFileRoot, resolveAuthorUrl } from "../shared/url-resolver.js";
 
 export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"];
 const inside = (root: string, file: string) => { const relative = path.relative(root, file); return relative !== ".." && !relative.startsWith(".." + path.sep) && !path.isAbsolute(relative); };
-const encodePath = (value: string) => value.split(path.sep).map(part => encodeURIComponent(part).replace(/\(/g, "%28").replace(/\)/g, "%29")).join("/");
+const encodePath = (value: string) => value.split(/[\\/]/).map(part => encodeURIComponent(part).replace(/\(/g, "%28").replace(/\)/g, "%29")).join("/");
 
 /** Canonical containment is checked before creating each directory, including symlink ancestors. */
 export async function saveDocumentImage(docPath: string, bytes: Uint8Array, ext: string, folder = "assets"): Promise<string | null> {

@@ -11,7 +11,7 @@ const excluded = new Set(["FencedCode", "CodeBlock", "HTMLTag", "LinkMark", "URL
 const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
 /** Parser ranges remove non-prose; counting runs only in the counter worker. */
-export function countProse(source: string, selection?: SourceSelection, mdx = false): ProseCounts {
+export function countProse(source: string, selection?: SourceSelection, mdx = false, selectedText?: string): ProseCounts {
   const lines = sourceLines(source);
   const ranges: { from: number; to: number; insert?: string }[] = [];
   if (source.startsWith("\uFEFF")) ranges.push({ from: 0, to: 1 });
@@ -69,9 +69,13 @@ export function countProse(source: string, selection?: SourceSelection, mdx = fa
       cursor = Math.max(cursor, range.to);
     }
     if (cursor < to) parts.push(source.slice(cursor, to));
-    const prose = parts.join("").replace(/\s+/g, " ").trim();
-    return { words: [...prose.matchAll(wordPattern)].length, characters: [...prose].length };
+    return countProseText(parts.join(""));
   }
   const document = count(0, source.length);
-  return { document, ...(selection && selection.from !== selection.to ? { selection: count(selection.from, selection.to) } : {}), minutes: Math.max(1, Math.ceil(document.words / 230)) };
+  return { document, ...(selectedText !== undefined ? { selection: countProseText(selectedText) } : selection && selection.from !== selection.to ? { selection: count(selection.from, selection.to) } : {}), minutes: Math.max(1, Math.ceil(document.words / 230)) };
+}
+
+function countProseText(text: string): ProseCount {
+  const prose = text.replace(/\s+/g, " ").trim();
+  return { words: [...prose.matchAll(wordPattern)].length, characters: [...prose].length };
 }

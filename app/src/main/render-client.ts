@@ -91,8 +91,8 @@ export class RenderClient {
     return response.value;
   }
 
-  async proseCounts(text: string, selection: SourceSelection | undefined, mdx: boolean): Promise<ProseCounts | null> {
-    const response = await this.request({ kind: "counts", text, selection, mdx });
+  async proseCounts(text: string, selection: SourceSelection | undefined, mdx: boolean, selectedText?: string): Promise<ProseCounts | null> {
+    const response = await this.request({ kind: "counts", text, selection, mdx, selectedText });
     if (response === null) return null;
     if (response.kind !== "counts") throw new Error("Invalid prose count response");
     return response.value;
@@ -238,4 +238,4 @@ export const nextBlocks = (stream: number) => client.nextBlocks(stream);
 
 export const blockChanges = (before: string, text: string, filePath: string | null, baselineKey: string) => client.changes(before, text, filePath, baselineKey);
 
-export const proseCounts = (text: string, selection: SourceSelection | undefined, mdx: boolean) => client.proseCounts(text, selection, mdx);
+export const proseCounts = (text: string, selection: SourceSelection | undefined, mdx: boolean, selectedText?: string) => client.proseCounts(text, selection, mdx, selectedText);

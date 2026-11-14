@@ -1,7 +1,7 @@
 import { commandDefinition, commandAccelerator, shortcutHint } from "../shared/commands.js";
 import type { BlockCommand } from "./block-commands.js";
 import type { TableCommand } from "./table-source.js";
-import { selectedSource, selectedSourceRanges } from "./read-selection.js";
+import { selectedSource, selectedReadProse } from "./read-selection.js";
 import { createProseCounter } from "./prose-counter.js";
 import { htmlToMarkdown } from "../shared/html-to-markdown.js";
 import { readerFocus } from "./reader-focus.js";
@@ -619,9 +619,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const counter = createProseCounter(hintEl, () => {
     if (disposed || !doc.hasDoc) return null;
     const text = currentText();
-    const ranges = pane.view === "edit" ? [] : selectedSourceRanges(docEl, text, window.getSelection());
-    return { text, mdx: isMdx(), selection: pane.view === "edit" ? pane.editor?.sourceSelection() : ranges.length ? { from: ranges[0]!.from, to: ranges.at(-1)!.to } : undefined };
-  }, source => simplemd.proseCounts(source.text, source.selection, source.mdx, pane.documentId, doc.revisionId));
+    return { text, mdx: isMdx(), selection: pane.view === "edit" ? pane.editor?.sourceSelection() : undefined,
+      selectedText: pane.view === "read" ? selectedReadProse(docEl, window.getSelection()) : undefined };
+  }, source => simplemd.proseCounts(source.text, source.selection, source.mdx, pane.documentId, doc.revisionId, source.selectedText));
   const selectionChanged = () => { if (options.active()) updateHint(); };
   document.addEventListener("selectionchange", selectionChanged);
   let writingTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1334,6 +1334,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const html = holder.innerHTML;
     if (command === "copy-html") await simplemd.writeClipboard(html);
     else {
+      for (const cell of holder.querySelectorAll("td,th")) cell.append(document.createTextNode("\t"));
+      for (const line of holder.querySelectorAll("br")) line.replaceWith(document.createTextNode("\n"));
+      for (const image of holder.querySelectorAll("img")) image.replaceWith(document.createTextNode(image.alt));
       for (const block of holder.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,tr,hr")) block.append(document.createTextNode("\n"));
       await simplemd.writeClipboard(holder.textContent?.trim() ?? "", html);
     }

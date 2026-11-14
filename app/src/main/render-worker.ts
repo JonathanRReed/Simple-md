@@ -12,7 +12,7 @@ import { parentPort } from "node:worker_threads";
 import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
-  | { kind: "counts"; text: string; selection?: SourceSelection; mdx: boolean }
+  | { kind: "counts"; text: string; selection?: SourceSelection; mdx: boolean; selectedText?: string }
   | { kind: "changes"; before: string; text: string; filePath: string | null; baselineKey: string }
   | { kind: "blocks"; text: string; filePath: string | null; mdx?: boolean; known?: { key: string; fingerprint?: string }[] }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
@@ -50,7 +50,7 @@ port.on("message", async (request: RenderRequest) => {
     switch (request.kind) {
       case "counts": {
         const { countProse } = await import("../shared/prose-count.js");
-        response = { id: request.id, kind: "counts", value: countProse(request.text, request.selection, request.mdx) };
+        response = { id: request.id, kind: "counts", value: countProse(request.text, request.selection, request.mdx, request.selectedText) };
         break;
       }
       case "changes": {

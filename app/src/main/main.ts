@@ -1188,16 +1188,17 @@ function registerIpc(): void {
     refreshMenus();
     return doc.gitStatus;
   });
-  handle("smd:prose-counts", (text, selection, mdx, id, revision) => {
+  handle("smd:prose-counts", (text, selection, mdx, id, revision, selectedText) => {
     const doc = ipcSession(id);
     const revisionId = ipcRevision(doc, revision);
     if (typeof text !== "string" || text !== doc.text || typeof mdx !== "boolean") throw new TypeError("Invalid count source.");
+    if (selectedText !== undefined && (typeof selectedText !== "string" || selectedText.length > 50_000_000)) throw new TypeError("Invalid selected prose.");
     let range: { from: number; to: number } | undefined;
     if (selection !== undefined) {
       if (typeof selection !== "object" || selection === null || !("from" in selection) || !("to" in selection) || typeof selection.from !== "number" || typeof selection.to !== "number" || !Number.isSafeInteger(selection.from) || !Number.isSafeInteger(selection.to) || selection.from < 0 || selection.to < selection.from || selection.to > text.length) throw new TypeError("Invalid count selection.");
       range = { from: selection.from, to: selection.to };
     }
-    return doc.render(revisionId, () => proseCounts(text, range, mdx));
+    return doc.render(revisionId, () => proseCounts(text, range, mdx, selectedText));
   });
   // Writing commands use the current native menu for availability and dispatch.
   handle("smd:menu-commands", () => {

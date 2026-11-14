@@ -43,3 +43,8 @@ for (const [name, text, words, characters, mdx] of [
 ] satisfies [string, string, number, number, boolean?][]) test(name, () => {
   expect(countProse(text, undefined, mdx).document).toEqual({ words, characters });
 });
+
+test("rendered selection counts literal prose without reparsing it as Markdown", () => {
+  expect(countProse("First **words** and more", undefined, false, "*literal*").selection).toEqual({ words: 1, characters: 9 });
+  expect(countProse("Document", undefined, false, "").selection).toEqual({ words: 0, characters: 0 });
+});

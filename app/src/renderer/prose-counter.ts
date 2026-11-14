@@ -6,7 +6,7 @@ export function displayCounts(output: HTMLElement, counts: ProseCounts): void {
   output.textContent = (counts.selection ? `${format(counts.selection)} selected / ` : "") + `${format(counts.document)} · ${counts.minutes} min read`;
   output.title = output.textContent;
 }
-interface CounterSnapshot { text: string; selection?: SourceSelection; mdx: boolean }
+interface CounterSnapshot { text: string; selection?: SourceSelection; mdx: boolean; selectedText?: string }
 export function createProseCounter(output: HTMLElement, snapshot: () => CounterSnapshot | null, count: (source: CounterSnapshot) => Promise<ProseCounts | null>) {
   let timer: ReturnType<typeof setTimeout> | undefined, sequence = 0, running = false, pending = false, disposed = false;
   async function compute(expected: number): Promise<void> {

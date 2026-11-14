@@ -10,7 +10,7 @@ const rawText = (node: Node): string => "value" in node ? node.value : children(
 const escape = (text: string) => text.replace(/[\\`*_[\]<>]/g, "\\$&").replace(/(^|\n)([ \t]*)(#{1,6}|>|[-+]|\d+[.)])(?=\s)/g, "$1$2\\$3");
 const url = (value: string) => {
   if (/[\x00-\x1f\x7f]/.test(value)) return "";
-  const encoded = value.trim().replace(/[ ()<>]/g, char => encodeURIComponent(char));
+  const encoded = value.trim().replace(/[ ()<>]/g, char => "%" + char.charCodeAt(0).toString(16).toUpperCase());
   return resolveAuthorUrl(encoded, "anchor", { publicUrl: "https://clipboard.invalid/" }) ? encoded : "";
 };
 const blocks = new Set(["p", "div", "section", "article", "header", "footer", "main", "figure", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "ul", "ol", "blockquote", "table", "hr"]);

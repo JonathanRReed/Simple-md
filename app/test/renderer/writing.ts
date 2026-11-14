@@ -5,7 +5,7 @@ import { createEditor } from "../../src/renderer/editor";
 import { createPane } from "../../src/renderer/pane";
 import { createRenderCore } from "../../src/shared/render-core";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
-import { selectedSourceRanges } from "../../src/renderer/read-selection";
+import { selectedReadProse, selectedSourceRanges } from "../../src/renderer/read-selection";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { closeOverlays } from "../../src/renderer/ui";
 
@@ -50,7 +50,7 @@ export async function runBatch(input: { html: string; css: string }) {
   let saved = true, saveCount = 0;
   const imageBytes: number[] = [];
   Object.assign(window, { simplemd: {
-    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {}, writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean) => countProse(text, selection, mdx),
+    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {}, writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText),
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: (text: string) => core.renderBlocks(text, "/tmp/writing.md"), renderFragment: host.renderFragment,
     readFindText: async () => "", writeFindText: async () => {},
@@ -87,6 +87,13 @@ export async function runBatch(input: { html: string; css: string }) {
   pane.command("copy-formatted"); await until(() => clipboard.length === 3, "Formatted copy did not write");
   assert(clipboard[2]!.html?.includes("<strong>words</strong>") && clipboard[2]!.text.includes("First words link"), "Formatted copy lacks rich or plain formats");
   await until(() => hint.textContent?.includes("selected") === true, "Read selection count did not update");
+  const partial = document.createRange(); partial.selectNodeContents(paragraph.querySelector("strong")!);
+  selection.removeAllRanges(); selection.addRange(partial);
+  assert(selectedReadProse(article, selection) === "words", "Partial Read selection counted its whole block");
+  await until(() => hint.textContent?.startsWith("1 word · 5 characters selected") === true, "Partial Read selection count is wrong");
+  const codeRange = document.createRange(); codeRange.selectNodeContents(article.querySelector("pre code")!);
+  selection.removeAllRanges(); selection.addRange(codeRange);
+  assert(selectedReadProse(article, selection) === "", "Selected code counted as prose");
   selection.removeAllRanges();
   const task = article.querySelector<HTMLElement>(".task-list-item")!;
   task.focus(); pane.command("toggle-task");
@@ -130,3 +137,5 @@ export async function runBatch(input: { html: string; css: string }) {
   pane.suspend(); root.remove();
   return { counter: true, folding: true, copy: true, images: true, panels: true };
 }
+
+Object.assign(globalThis, { CorpusBrowser: { runBatch } });

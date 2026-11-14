@@ -3,7 +3,13 @@ import { DEFAULT_SETTINGS } from "../../src/shared/types";
 import type { MenuItemConstructorOptions } from "electron";
 let template: MenuItemConstructorOptions[] = [];
 mock.module('electron', () => ({ app: { name: 'SimpleMD', isPackaged: false }, Menu: {
-  buildFromTemplate(items: MenuItemConstructorOptions[]) { template = items; return items; }, setApplicationMenu() {},
+  buildFromTemplate(items: MenuItemConstructorOptions[]) {
+    template = items;
+    function native(entries: MenuItemConstructorOptions[]): { items: unknown[] } {
+      return { items: entries.map(item => ({ ...item, submenu: Array.isArray(item.submenu) ? native(item.submenu) : item.submenu })) };
+    }
+    return native(items);
+  }, setApplicationMenu() {},
 } }));
 const { buildMenu } = await import('../../src/main/menu');
 test('Edit menu routes Find Next and Previous through app commands on every platform', () => {
