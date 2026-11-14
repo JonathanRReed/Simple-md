@@ -1,3 +1,4 @@
+import { matchesOpenPath } from "./open-path.js";
 import { applySettings as applySettingsPatch } from "./settings-apply.js";
 import { updateMenu } from "../shared/update-state.js";
 import { loginEnabled, linuxLoginFile, readLinuxLogin } from "./login-registration.js";
@@ -619,8 +620,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     let existing: DocumentId | undefined;
     for (const id of host.layout.state.tabs) {
       const session = registry.get(id);
-      const file = session?.path ?? session?.draftPath;
-      if (file && (file === abs || await fs.promises.realpath(file).catch(() => file) === canonical)) { existing = id; break; }
+      if (session && await matchesOpenPath(session, abs, canonical)) { existing = id; break; }
     }
     if (existing !== undefined) return windowScope.run(host, async () => {
       const usable = waitUntilUsable(existing, host);
