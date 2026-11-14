@@ -1,3 +1,4 @@
+import { cacheBudget } from "./cache-budget.js";
 import type { ProseCounts } from "../shared/prose-count-result.js";
 import type { SourceSelection } from "../renderer/source-edit.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
@@ -50,7 +51,7 @@ port.on("message", async (request: RenderRequest) => {
     let response: RenderResponse;
     switch (request.kind) {
       case "counts": {
-        countProse ??= (await import("../shared/prose-count.js")).createProseCountCache();
+        countProse ??= (await import("../shared/prose-count.js")).createProseCountCache(cacheBudget);
         response = { id: request.id, kind: "counts", value: countProse(request.documentId, request.revision, request.text, request.selection, request.mdx, request.selectedText) };
         break;
       }

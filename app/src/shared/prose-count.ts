@@ -1,3 +1,4 @@
+import { ByteCache, CacheBudget } from "./byte-cache.js";
 import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import { parser, GFM } from "@lezer/markdown";
 import { findMdxRanges } from "./mdx-ranges.js";
@@ -11,7 +12,7 @@ const excluded = new Set(["FencedCode", "CodeBlock", "HTMLTag", "LinkMark", "URL
 const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
 /** Parser ranges remove non-prose; counting runs only in the counter worker. */
-export function prepareProseCount(source: string, mdx = false): (selection?: SourceSelection, selectedText?: string) => ProseCounts {
+export function prepareProseCount(source: string, mdx = false) {
   const lines = sourceLines(source);
   const ranges: { from: number; to: number; insert?: string }[] = [];
   if (source.startsWith("\uFEFF")) ranges.push({ from: 0, to: 1 });
@@ -78,7 +79,8 @@ export function prepareProseCount(source: string, mdx = false): (selection?: Sou
     return countProseText(parts.join(""));
   }
   const document = count(0, source.length);
-  return (selection, selectedText) => ({ document, ...(selectedText ? { selection: countProseText(selectedText) } : selection && selection.from !== selection.to ? { selection: count(selection.from, selection.to) } : {}), minutes: Math.max(1, Math.ceil(document.words / 230)) });
+  const countSelection = (selection?: SourceSelection, selectedText?: string): ProseCounts => ({ document, ...(selectedText ? { selection: countProseText(selectedText) } : selection && selection.from !== selection.to ? { selection: count(selection.from, selection.to) } : {}), minutes: Math.max(1, Math.ceil(document.words / 230)) });
+  return Object.assign(countSelection, { bytes: source.length * 2 + ranges.length * 64 });
 }
 
 function countProseText(text: string): ProseCount {
@@ -90,15 +92,14 @@ export function countProse(source: string, selection?: SourceSelection, mdx = fa
   return prepareProseCount(source, mdx)(selection, selectedText);
 }
 
-/** One revision per document. Bound retained text/ranges across closed tabs. */
-export function createProseCountCache() {
-  const documents = new Map<number, { revision: number; mdx: boolean; count: ReturnType<typeof prepareProseCount> }>();
+/** One revision per document, within the existing shared byte budget. */
+export function createProseCountCache(budget = new CacheBudget()) {
+  const documents = new ByteCache<{ revision: number; mdx: boolean; count: ReturnType<typeof prepareProseCount> }>(budget);
   return (id: number, revision: number, source: string, selection?: SourceSelection, mdx = false, selectedText?: string) => {
-    let cached = documents.get(id);
+    let cached = documents.get(String(id));
     if (!cached || cached.revision !== revision || cached.mdx !== mdx) {
-      if (documents.size >= 16) documents.delete(documents.keys().next().value!);
       cached = { revision, mdx, count: prepareProseCount(source, mdx) };
-      documents.set(id, cached);
+      documents.set(String(id), cached, cached.count.bytes);
     }
     return cached.count(selection, selectedText);
   };
