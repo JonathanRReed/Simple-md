@@ -997,6 +997,15 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function applyDiskText(text: string): void {
+    if (text !== currentText()) {
+      retainedEditor = undefined;
+      retainedReadBlocks = [];
+      doc.lastGoodBlocks = null;
+      doc.mdx = undefined;
+      anchors = {};
+      syncAnchor = { kind: "start" };
+      readRestoreAnchor = undefined;
+    }
     doc.firstAutosave.baseline(text);
     doc.savedText = text;
     doc.readText = text;
