@@ -131,3 +131,10 @@ export function shortcutHint(accelerator: string | undefined, mac: boolean): str
   return resolved.replace(/Command\+/g, "⌘").replace(/Cmd\+/g, "⌘").replace(/Ctrl\+/g, "⌃").replace(/Alt\+/g, "⌥").replace(/Shift\+/g, "⇧").replace(/Right$/, "→").replace(/Left$/, "←").replace(/Up$/, "↑").replace(/Down$/, "↓");
 }
 export interface MenuCommand { id: string; enabled: boolean; label?: string }
+
+export function writingCommand(id: string): boolean {
+  return /^(?:format-|block-|table-)/.test(id) || ["toggle-task", "insert-image", "paste-markdown", "fold", "unfold", "fold-all", "unfold-all"].includes(id);
+}
+export function paletteCommand(id: string): boolean {
+  return !["cut", "copy", "paste", "selectAll", "about", "hide", "hideOthers", "unhide", "minimize", "zoom", "front", "togglefullscreen", "toggleDevTools"].includes(id);
+}

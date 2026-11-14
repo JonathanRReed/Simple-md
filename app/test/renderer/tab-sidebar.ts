@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import type { RenderedBlocks } from "../../src/shared/render-core";
 import type { Bridge } from "../../src/renderer/api";
 import type { TabLayoutState } from "../../src/shared/tab-layout";
@@ -131,10 +132,20 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   document.querySelector<HTMLButtonElement>('.cm-search button[name="close"]')!.click();
   const content = document.querySelector(".cm-content");
   const editorScroll = document.querySelector<HTMLElement>(".cm-scroller")!;
-  editorScroll.scrollTop = 500; await paint(); const editorTop = editorScroll.scrollTop;
+  const editor = EditorView.findFromDOM(editorScroll);
+  assert(editor, "Source editor view is missing");
+  const viewport = editorScroll.closest(".pane-viewport")!;
+  const measureEditor = async () => {
+    await until(() => editorScroll.clientHeight > 0, "Source editor has no visible viewport");
+    await Promise.all(viewport.getAnimations().map(animation => animation.finished.catch(() => {})));
+    await new Promise<void>(resolve => editor.requestMeasure({ read: () => undefined, write: () => resolve() }));
+  };
+  await measureEditor();
+  editorScroll.scrollTop = 500; await measureEditor(); const editorTop = editorScroll.scrollTop;
+  assert(editorTop === 500, "Source editor did not establish the requested scroll position");
   for (const tabStyle of ["top", "sidebar", "top", "sidebar"] as const) {
-    await setSettings({ tabStyle }); await paint();
-    assert(document.querySelector(".cm-content") === content && editorScroll.scrollTop === editorTop, "Style switch remounted or scrolled the editor");
+    await setSettings({ tabStyle }); await measureEditor();
+    assert(document.querySelector(".cm-content") === content && document.querySelector(".cm-scroller") === editorScroll && editorScroll.scrollTop === editorTop, "Style switch remounted or scrolled the editor");
     assert(row(b).dataset.dirty === "true" && row(b).getAttribute("aria-selected") === "true", "Style switch lost dirty or active state");
     assert(!document.querySelector<HTMLElement>('[data-element="dirty"]')!.hidden, "Style switch hid Edited state");
   }

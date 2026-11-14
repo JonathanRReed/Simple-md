@@ -9,7 +9,7 @@ import { displayMath, expandRegion, imageHtmlRegions, codeHtmlRegions, liveTree,
 import { type EditorState, type Extension, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { LIVE_MAX_CHARS } from "../shared/types.js";
+import { livePreviewOff } from "../shared/live-preview.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 
 /** Live Preview hides markdown syntax away from the cursor and renders heavy blocks in place. */
@@ -240,11 +240,11 @@ function frontmatterEnd(doc: string): number {
 
 export function buildLiveDecorations(state: EditorState, host: LiveHost, region?: Region, math?: readonly Region[]): DecorationSet {
   const doc = state.doc;
-  if (doc.length > LIVE_MAX_CHARS) return Decoration.none;
+  if (livePreviewOff(doc.length)) return Decoration.none;
   const tree = liveTree(state);
   if (!tree) return Decoration.none;
 
-  const references = referenceContext(state, tree);
+  const references = (source: string) => referenceContext(state, tree, source);
   const scope = region ?? { from: 0, to: doc.length };
   const out: Range<Decoration>[] = [];
   const sel = state.selection.ranges;
@@ -268,13 +268,13 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
     if (!touches(from, to)) {
       const standalone = !doc.lineAt(from).text.slice(0, from - doc.lineAt(from).from).trim() &&
         !doc.lineAt(to).text.slice(to - doc.lineAt(to).from).trim();
-      out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), standalone ? "html" : "html-inline", host, references), block: standalone }).range(from, to));
+      out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), standalone ? "html" : "html-inline", host, references(doc.sliceString(from, to))), block: standalone }).range(from, to));
     }
   }
 
   const block = (from: number, to: number, kind: string, source: string) => {
     blocked.push([from, to]);
-    out.push(Decoration.replace({ widget: new RenderedBlock(source, kind, host, kind === "table" ? references : ""), block: true }).range(from, to));
+    out.push(Decoration.replace({ widget: new RenderedBlock(source, kind, host, kind === "table" ? references(source) : ""), block: true }).range(from, to));
   };
 
   tree.iterate({
@@ -325,7 +325,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
         }
         case "Link": {
           if (node.getChild("Image") && !touches(from, to)) {
-            out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "html-inline", host, references) }).range(from, to));
+            out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "html-inline", host, references(doc.sliceString(from, to))) }).range(from, to));
             return false;
           }
           const marks = node.getChildren("LinkMark");
@@ -346,7 +346,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
         }
         case "Image": {
           if (touches(from, to)) return;
-          out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "image", host, references) }).range(from, to));
+          out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "image", host, references(doc.sliceString(from, to))) }).range(from, to));
           return false;
         }
         case "Blockquote": {
@@ -494,7 +494,7 @@ export function liveDecorationField(host: LiveHost) {
       const viewport = viewportEffect?.value ?? mapRegion(value.viewport, tr.changes);
       const mdxChanged = tr.effects.some(e => e.is(setMdxRanges));
       const markers = tr.docChanged ? mathLines(tr.state, value.markers, tr) : value.markers;
-      const tree = tr.state.doc.length > LIVE_MAX_CHARS ? null
+      const tree = livePreviewOff(tr.state.doc.length) ? null
         : tr.docChanged || viewportEffect || syntaxTree(tr.state) !== syntaxTree(tr.startState) ? liveTree(tr.state) : value.tree;
       // Keep delimiter positions current while parsing is incomplete or Live is
       // suspended. A missing tree forces a fresh visible set when it recovers.

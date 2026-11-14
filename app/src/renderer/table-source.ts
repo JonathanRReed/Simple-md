@@ -3,19 +3,11 @@ import { parser, GFM } from "@lezer/markdown";
 import { changedSelection, dominantEnding, preserveFinalNewline, sourceLines, type SourceEdit, type SourceSelection, type SourceLine } from "./source-edit.js";
 
 export interface CellRange { from: number; to: number }
-/** Pipes in escaped text and matched code spans are cell contents. */
+/** Only escaped pipes are cell contents, including inside code spans. */
 export function rowCells(line: string): CellRange[] {
   const pipes: number[] = [];
   for (let i = 0; i < line.length; i++) {
     if (line[i] === "\\") { i++; continue; }
-    if (line[i] === "`") {
-      let end = i + 1; while (line[end] === "`") end++;
-      const run = line.slice(i, end);
-      let close = line.indexOf(run, end);
-      while (close >= 0 && (line[close - 1] === "`" || line[close + run.length] === "`")) close = line.indexOf(run, close + run.length);
-      if (close >= 0) { i = close + run.length - 1; continue; }
-      i = end - 1; continue;
-    }
     if (line[i] === "|") pipes.push(i);
   }
   const cells: CellRange[] = [];

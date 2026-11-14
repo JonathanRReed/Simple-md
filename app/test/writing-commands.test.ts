@@ -54,9 +54,9 @@ test("code fence exceeds embedded runs and puts caret at language", () => {
   expect(result("", "code-block").text).toBe("```\n\n```");
   expect(result("```\n```", "code-block").text).toBe("");
 });
-test("rule toggle and insertion do not add a final newline", () => {
+test("rule insertion do not add a final newline", () => {
   expect(result("text", "rule", 2, 2).text).toBe("text\n\n---");
-  for (const rule of ["---", "****", "_ _ _", "- - -"]) expect(result(`${rule}\r\nnext`, "rule", 0, 0).text).toBe("\r\nnext");
+  for (const rule of ["****", "_ _ _", "- - -"]) expect(result(`${rule}\r\nnext`, "rule", 0, 0).text).toBe(`${rule}\r\n\r\n---\r\n\r\nnext`);
 });
 test("empty and EOF footnotes remain separated from their reference", () => {
   expect(result("", "footnote").text).toBe("[^1]\n\n[^1]: ");
@@ -117,8 +117,25 @@ test("task toggling leaves an incomplete MDX expression alone", () => {
 });
 
 for (const eol of ["\n", "\r\n"]) test(`empty last blocks preserve a missing final newline ${JSON.stringify(eol)}`, () => {
-  expect(result(`Intro${eol}---`, "rule", 5 + eol.length, 5 + eol.length).text).toBe("Intro");
+  expect(result(`Intro${eol}---`, "rule", 5 + eol.length, 5 + eol.length).text).toBe(`Intro${eol}---${eol}${eol}---`);
   expect(result(`Intro${eol}# `, "body", 5 + eol.length, 5 + eol.length).text).toBe("Intro");
   expect(result(`Intro${eol}#`, "heading-1", 5 + eol.length, 5 + eol.length).text).toBe("Intro");
   expect(result(`Intro${eol}\`\`\`${eol}\`\`\``, "code-block", 5 + eol.length).text).toBe("Intro");
+});
+
+for (const command of ["heading-2", "body", "bullet-list", "number-list", "task-list", "quote", "code-block", "rule", "footnote", "toggle-task"] satisfies BlockCommand[]) test(`byte fidelity and one undo step for ${command}`, () => {
+  const source = "\uFEFFIntro\r\n\n- [ ] Body\rEnd\n";
+  const parsed = parseByteText(source);
+  const at = source.indexOf("Body") - 1;
+  let state = EditorState.create({ doc: parsed.text, selection: { anchor: at }, extensions: [history(), byteText.init(() => parsed.format), editorText] });
+  const spec = sourceTransaction(state, blockEdit(source, sourceSelection(state), command));
+  if (!spec) return;
+  state = state.update(spec).state;
+  const next = exactText(state);
+  expect(next.startsWith("\uFEFFIntro\r\n\n")).toBe(true);
+  expect(next.endsWith("\n")).toBe(true);
+  expect(undoDepth(state)).toBe(1);
+  const view = { get state() { return state; }, dispatch(tr: Parameters<EditorState["update"]>[0]) { state = state.update(tr).state; } };
+  expect(undo(view)).toBe(true); expect(exactText(state)).toBe(source);
+  expect(redo(view)).toBe(true); expect(exactText(state)).toBe(next);
 });

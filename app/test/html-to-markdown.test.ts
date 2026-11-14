@@ -18,7 +18,7 @@ const cases: [string, string, string][] = [
   ["ordered starts", "<ol start='4'><li>Four</li><li value='8'>Eight</li></ol>", "4. Four\n8. Eight"],
   ["table pipes and alignment", '<table><tr><th>A</th><th style="text-align:RIGHT">B</th></tr><tr><td>a|b</td><td><strong>yes</strong></td></tr></table>', "| A | B |\n| --- | ---: |\n| a\\|b | **yes** |"],
   ["unknown elements", "<unknown>Keep <mark>this</mark></unknown>", "Keep this"],
-  ["entities and escaping", "<p>&lt;script&gt; &amp; *plain* [word]</p>", "\\<script\\> & \\*plain\\* \\[word\\]"],
+  ["entities and escaping", "<p>&lt;script&gt; &amp; *plain* [word]</p>", "\\<script> & \\*plain\\* \\[word\\]"],
   ["empty HTML", "<!--comment--><p></p>", ""],
 ];
 for (const [name, html, markdown] of cases) test(name, () => expect(htmlToMarkdown(html)).toBe(markdown));
@@ -46,4 +46,22 @@ for (const [cell, expected] of [
 ]) test(`table conversion retains literal backslashes before pipes: ${cell}`, () => {
   const converted = htmlToMarkdown(`<table><tr><th>Value</th></tr><tr><td>${cell}</td></tr></table>`);
   expect(parser.render(converted)).toContain(`<td>${expected}</td>`);
+});
+
+test("clipboard drops page metadata, executable content and comments", () => {
+  expect(htmlToMarkdown('<html><head><title>Doc1</title><style>p {margin:0}</style></head><body><!-- Word --><p>Hello <b>world</b></p><script>alert(1)</script><template>Hidden</template></body></html>')).toBe('Hello **world**');
+  for (const tag of ['title', 'style', 'script', 'template']) expect(htmlToMarkdown(`<${tag}>Junk</${tag}><p>Body</p>`)).toBe('Body');
+});
+test("plain paragraph starts stay prose after hard breaks and inline boundaries", () => {
+  for (const text of ['1. text', '2) text', '# heading', '> quote', '- item', '+ item', '---', '===', '~~~', '    code']) {
+    const html = `<p>Previous<br>${text}</p>`;
+    const converted = htmlToMarkdown(html);
+    const rendered = parser.render(converted);
+    expect(rendered).toContain('<p>Previous<br>');
+    for (const tag of ['<h', '<ul', '<ol', '<blockquote', '<pre', '<hr']) expect(rendered).not.toContain(tag);
+    expect(rendered).toContain(text.trim().replace(/>/g, "&gt;"));
+  }
+  expect(htmlToMarkdown('<p>1. text</p>')).toBe('1\\. text');
+  expect(parser.render(htmlToMarkdown('<p><span>1</span>. text</p>'))).toContain('<p>1. text</p>');
+  expect(parser.render(htmlToMarkdown('<p>~~literal~~ and $5 and $6</p>'))).not.toContain('<s>');
 });

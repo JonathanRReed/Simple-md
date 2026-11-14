@@ -45,3 +45,12 @@ test("reference definitions inside containers keep their destinations and multil
     expect(rendered.html).toContain('title="Nested title"');
   }
 });
+
+test("widget context excludes code, explicit destinations and unused alt labels", () => {
+  const source = '[alt]: ./unused.png\n[one]: ./one.png\n[two]: ./two.png\n\nEnd';
+  const state = stateFor(source), tree = ensureSyntaxTree(state, state.doc.length, 1000)!;
+  expect(referenceContext(state, tree, '![alt][ONE]')).toBe('[one]: ./one.png');
+  expect(referenceContext(state, tree, '![alt](./inline.png)')).toBe('');
+  expect(referenceContext(state, tree, '`[one]` [two][]')).toBe('[two]: ./two.png');
+  expect(referenceContext(state, tree, '[one]')).toBe('[one]: ./one.png');
+});

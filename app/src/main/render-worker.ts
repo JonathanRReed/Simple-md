@@ -1,3 +1,4 @@
+import { cacheBudget } from "./cache-budget.js";
 import type { ProseCounts } from "../shared/prose-count-result.js";
 import type { SourceSelection } from "../renderer/source-edit.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
@@ -12,7 +13,7 @@ import { parentPort } from "node:worker_threads";
 import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
-  | { kind: "counts"; text: string; selection?: SourceSelection; mdx: boolean; selectedText?: string }
+  | { kind: "counts"; documentId: number; revision: number; text: string; selection?: SourceSelection; mdx: boolean; selectedText?: string }
   | { kind: "changes"; before: string; text: string; filePath: string | null; baselineKey: string }
   | { kind: "blocks"; text: string; filePath: string | null; mdx?: boolean; known?: { key: string; fingerprint?: string }[] }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
@@ -34,6 +35,7 @@ export type RenderResponse =
   | { id: number; kind: "warmup" }
   | { id: number; kind: "error"; message: string };
 
+let countProse: ReturnType<typeof import("../shared/prose-count.js").createProseCountCache> | undefined;
 const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
@@ -49,8 +51,8 @@ port.on("message", async (request: RenderRequest) => {
     let response: RenderResponse;
     switch (request.kind) {
       case "counts": {
-        const { countProse } = await import("../shared/prose-count.js");
-        response = { id: request.id, kind: "counts", value: countProse(request.text, request.selection, request.mdx, request.selectedText) };
+        countProse ??= (await import("../shared/prose-count.js")).createProseCountCache(cacheBudget);
+        response = { id: request.id, kind: "counts", value: countProse(request.documentId, request.revision, request.text, request.selection, request.mdx, request.selectedText) };
         break;
       }
       case "changes": {
