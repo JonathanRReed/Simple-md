@@ -64,7 +64,8 @@ export function githubMath(md: MarkdownIt): void {
   md.core.ruler.push("github_inline_math", (state) => {
     for (const block of state.tokens) {
       if (!block.children || !block.content.includes("$")) continue;
-      const matches = inlineMath(block.content);
+      // GitHub leaves "$$…$$ trailing text" at the start of a paragraph as text.
+      const matches = inlineMath(block.content).filter(match => !match.raw.startsWith("$$") || match.from > 0);
       const codeCandidates = new Set(matches.map(match => match.raw));
       const candidates = new Set(matches.map(match => md.utils.unescapeAll(match.raw)));
       let codeDepth = 0;

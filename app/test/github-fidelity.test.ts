@@ -59,6 +59,13 @@ test("all GitHub math forms render with source annotations and isolated macros",
   expect(await html("$\\href{https://example.org}{unsafe}$")).not.toContain("<a ");
 });
 
+test("double-dollar math followed by text at the start of a paragraph stays text, as on GitHub", async () => {
+  const labelled = await html("$$\\mathbf{x} = 1.$$ :eqlabel:`eq_x`");
+  expect(labelled).not.toContain("katex");
+  expect(labelled).toContain("$$\\mathbf{x} = 1.$$");
+  expect(await html("The value $$x^2$$ is inline.")).toContain('encoding="application/x-tex">x^2</annotation>');
+});
+
 test("references share URL resolution and footnotes preserve first-use order and repeated backrefs", async () => {
   const result = await html("[Next][n] ![Image][i]\n\nFirst[^b], repeat[^b], second[^a].\n\n[n]: other.md#Caf%C3%A9\n[i]: image.png#gh-dark-mode-only\n[^a]: Alpha\n[^b]: Bravo");
   expect(result).toContain('href="file:///project/docs/other.md#Caf%C3%A9"');
