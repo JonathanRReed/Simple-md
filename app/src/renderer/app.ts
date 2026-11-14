@@ -24,6 +24,7 @@ let layout: TabLayoutState | undefined;
 let firstPane = true;
 const documents = new Map<DocumentId, { payload: DocPayload; retained?: DormantDocument; disk?: { text: string; reason?: string } }>();
 const panes = new Map<PaneId, { element: HTMLElement; controller: PaneController }>();
+let windowTransition = false;
 let contextTarget: PaneController | undefined;
 document.addEventListener("contextmenu", event => {
   contextTarget = [...panes.values()].find(p => event.target instanceof Node && p.element.contains(event.target))?.controller;
@@ -138,6 +139,7 @@ function mountLayout(next: TabLayoutState): void {
       entry = { element, controller }; panes.set(slot.paneId, entry);
       new MutationObserver(syncChrome).observe(element, { attributes: true, attributeFilter: ["data-document-path", "data-document-painted", "data-first-readable", "data-fully-highlighted", "data-render-complete", "data-document-id", "data-revision-id"] });
       controller.settings(settings);
+      controller.transition(windowTransition);
     }
     if (entry.controller.documentId !== slot.documentId) {
       if (entry.element.dataset.documentId !== undefined) stash(entry);
@@ -221,7 +223,7 @@ async function boot(): Promise<void> {
     if (mounted) mounted.controller.diskChanged(text, id, reason);
     else { const tab = documents.get(id); if (tab) { tab.disk = { text, reason }; if (tab.retained) tab.retained.state.diskConflict = true; } }
   });
-  api.onTransition(busy => { for (const pane of panes.values()) pane.controller.transition(busy); });
+  api.onTransition(busy => { windowTransition = busy; for (const pane of panes.values()) pane.controller.transition(busy); });
   let quicklyLoading = false;
   function showQuickly(initialQuery = ""): void {
     if (quicklyLoading) return;

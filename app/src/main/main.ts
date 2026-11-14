@@ -88,6 +88,7 @@ let cliStartup: Promise<void> | undefined;
 const registry = new DocumentRegistry(id => cliWaiters.closed(id));
 const documents = new DocumentQueue();
 interface WindowContext {
+  quitFrozen?: boolean;
   win: BrowserWindow;
   layout: TabLayout;
   paneModes: Map<ReturnType<typeof makePaneId>, import("../shared/types.js").ViewMode>;
@@ -404,7 +405,7 @@ async function transition<T>(operation: () => Promise<T>, host = context()): Pro
   try {
     return await operation();
   } finally {
-    sendTo(host, "smd:transition", false);
+    if (!host.quitFrozen) sendTo(host, "smd:transition", false);
   }
 }
 
@@ -432,7 +433,7 @@ async function settle(current = currentSession(), host = context()): Promise<boo
       return response === 0 ? "save" : response === 1 ? "discard" : "cancel";
     },
   });
-  if (settled && discarded) cliWaiters.closed(current.documentId);
+  if (settled && discarded && !host.quitFrozen) cliWaiters.closed(current.documentId);
   return settled;
 }
 
@@ -738,7 +739,18 @@ async function moveTabWindow(): Promise<void> {
   windowScope.run(origin, () => { send("smd:closed", doc.documentId); syncLayout(); });
   if (!origin.layout.state.tabs.length) origin.win.destroy();
 }
+function releaseQuitWindows(): void {
+  for (const host of windows.values()) {
+    host.quitFrozen = false;
+    sendTo(host, "smd:transition", false);
+  }
+}
+
 async function settleAllWindows(): Promise<boolean> {
+  for (const host of windows.values()) {
+    host.quitFrozen = true;
+    sendTo(host, "smd:transition", true);
+  }
   for (const host of windows.values()) {
     const accepted = await windowScope.run(host, async () => {
       for (const id of host.layout.state.tabs) if (!(await transition(() => settle(registry.get(id)!)))) return false;
@@ -1403,6 +1415,7 @@ if (!app.requestSingleInstanceLock()) {
     quitRequest = documents.run(() => quitAfterSettle({
       settle: settleAllWindows,
       cleanup: prepareQuit,
+      cancel: releaseQuitWindows,
       exit: () => app.exit(0),
     })).finally(() => { quitRequest = undefined; });
     void quitRequest.catch((err) => console.error("simple-md: could not quit", err));
@@ -1460,9 +1473,7 @@ if (!app.requestSingleInstanceLock()) {
       const { createUpdater } = await import("./updater.js");
       if (quitting) return;
       updates = createUpdater(() => settings.autoUpdate, () => documents.run(async () => {
-        if (!await settleAllWindows()) return false;
-        await prepareQuit();
-        return true;
+        return quitAfterSettle({ settle: settleAllWindows, cleanup: prepareQuit, cancel: releaseQuitWindows, exit() {} });
       }));
       void updates.check();
     });

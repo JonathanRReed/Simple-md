@@ -53,9 +53,14 @@ export async function quitAfterSettle(a: {
   settle(): Promise<boolean>;
   cleanup(): Promise<void>;
   exit(): void;
+  cancel?(): void;
 }): Promise<boolean> {
-  if (!(await a.settle())) return false;
-  await a.cleanup();
-  a.exit();
-  return true;
+  let completed = false;
+  try {
+    if (!(await a.settle())) return false;
+    await a.cleanup();
+    a.exit();
+    completed = true;
+    return true;
+  } finally { if (!completed) a.cancel?.(); }
 }
