@@ -56,8 +56,6 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   await pause(1000);
   const articleForReflow = root.querySelector<HTMLElement>('[data-element="doc"]')!;
   articleForReflow.style.fontSize = "23px";
-  console.log("OUTLINE before", JSON.stringify({ heading: heading.getBoundingClientRect().top, scroll: scroll.scrollTop, height: scroll.scrollHeight, font: getComputedStyle(articleForReflow).fontFamily }));
-  setTimeout(() => console.log("OUTLINE after", JSON.stringify({ heading: heading.getBoundingClientRect().top, scroll: scroll.scrollTop, height: scroll.scrollHeight })), 1000);
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Reflow lost the selected heading");
   articleForReflow.style.removeProperty("font-size");
   await pause();

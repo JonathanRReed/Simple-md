@@ -20,17 +20,17 @@ app.whenReady().then(async () => {
     await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: options.media });
   }
   const [input, bundle, output] = process.argv.slice(-3);
-  console.error("DOM start", bundle, readFileSync(input, "utf8").slice(-150));
-  setInterval(() => {
-    window.webContents.executeJavaScript(`JSON.stringify({ visibility: document.visibilityState, focus: document.hasFocus(), frames: globalThis.diagnosticFrames, elapsed: performance.now() })`).then(value => console.error("DOM heartbeat", value));
-  }, 10000).unref();
-  await window.webContents.executeJavaScript(`globalThis.diagnosticFrames = 0; requestAnimationFrame(function tick() { globalThis.diagnosticFrames++; requestAnimationFrame(tick); });`);
   const loadError = await window.webContents.executeJavaScript(`try { ${readFileSync(bundle, "utf8")}
  null; } catch (error) { String(error.stack); }`);
   if (loadError) throw new Error(loadError);
   const batch = `(async () => { try { return await CorpusBrowser.runBatch(${readFileSync(input, "utf8")}); } catch (error) { return { error: String(error.stack) }; } })()`;
   const results = await window.webContents.executeJavaScript(batch);
   if (results.error) throw new Error(results.error);
+  async function capture(file) {
+    const image = await window.webContents.capturePage();
+    if (image.isEmpty()) throw new Error("DOM screenshot is empty");
+    writeFileSync(file, image.toPNG());
+  }
   if (options.frames) {
     mkdirSync(options.frames.directory, { recursive: true });
     for (const time of options.frames.times) {
@@ -41,11 +41,11 @@ app.whenReady().then(async () => {
         }
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       })()`);
-      writeFileSync(path.join(options.frames.directory, `${time}ms.png`), (await window.webContents.capturePage()).toPNG());
+      await capture(path.join(options.frames.directory, `${time}ms.png`));
     }
     await window.webContents.executeJavaScript("globalThis.CorpusBrowser.afterFrames?.()");
   }
-  if (options.screenshot) writeFileSync(options.screenshot.path, (await window.webContents.capturePage()).toPNG());
+  if (options.screenshot) await capture(options.screenshot.path);
   writeFileSync(output, JSON.stringify(results));
   window.destroy();
   app.quit();

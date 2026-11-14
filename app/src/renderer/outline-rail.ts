@@ -103,8 +103,9 @@ export function createOutlineRail<T>(options: {
       const now = performance.now();
       if (Math.abs(top - lastTarget) > 0.5) { lastTarget = top; stableSince = now; }
       const pending = [...content.querySelectorAll("img")].some(image => !image.complete) || document.fonts.status === "loading" || !!content.querySelector("pre.mermaid, .cm-math-inline:not(:has(.katex))");
-      if (now - navigationStarted > 10000 || (!pending && now - stableSince > 600)) stopNavigation();
-      else settleNavigation();
+      // Stop polling settled layout, but retain the target for later resize events.
+      if (now - navigationStarted > 10000 || (!pending && now - stableSince > 600)) return;
+      settleNavigation();
     });
   }
   function startNavigation(): void {
