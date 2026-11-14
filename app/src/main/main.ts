@@ -1,3 +1,4 @@
+import { linkLocation } from "../shared/link-location.js";
 import { existingPinnedPaths } from "./pinned-tabs.js";
 import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
 import type { DragExports, ExportFormat } from "./drag-export.js";
@@ -542,13 +543,13 @@ function reveal(host = context()): void {
   host.win.focus();
 }
 
-function openFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, origin = context()): Promise<boolean> {
+function openFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, origin = context(), location?: import("../shared/types.js").DocumentLocation): Promise<boolean> {
   if (!context() || context().win.isDestroyed()) createDocumentWindow();
   const host = inPlace ? origin : frontmost;
-  return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host)));
+  return windowScope.run(host, () => documents.run(() => openCurrentFile(file, intent, inPlace, documentId, host, false, opensInSource(file ?? ""), undefined, false, location)));
 }
 
-async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? ""), quickly?: { otherPane: boolean }, restoringPins = false): Promise<boolean> {
+async function openCurrentFile(file: string | undefined, intent: OpenIntent, inPlace = false, documentId?: DocumentId, host = context(), cli = false, forceSource = opensInSource(file ?? ""), quickly?: { otherPane: boolean }, restoringPins = false, location?: import("../shared/types.js").DocumentLocation): Promise<boolean> {
   if (!file) {
     reveal(host);
     return true;
@@ -574,11 +575,12 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
       if (forceSource) sendTo(host, "smd:cmd", "mode-source", existing);
       else if (intent === "read") sendTo(host, "smd:cmd", "mode-read", existing);
       return true;
+      if (location) sendTo(host, "smd:navigate", existing, location);
     });
   }
   if (!quickly && !restoringPins && !inPlace && settings.openIn === "window" && host.layout.state.tabs.length) {
     const host = createDocumentWindow();
-    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource));
+    return windowScope.run(host, () => openCurrentFile(abs, intent, false, undefined, host, cli, forceSource, undefined, restoringPins, location));
   }
   const replaced = inPlace ? documentId ?? host.mainPane.documentId : undefined;
   perfMark("file-open-arrival", { path: abs });
@@ -614,6 +616,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
         if (forceSource) payload.initialMode = "source";
         await present(payload, host, quickly?.otherPane);
         addRecent(abs);
+        if (location) sendTo(host, "smd:navigate", payload.documentId, location);
       },
     });
   } catch (err) {
@@ -693,10 +696,10 @@ async function openLink(href: string, intent: OpenIntent = "edit", newTab = fals
     const urls = urlContext(path.dirname(current.path));
     const { astroRouteFile } = await import("./document-urls.js");
     const route = await astroRouteFile(resolved, urls);
-    if (route) return openFile(route, intent, false, current.documentId, host);
+    if (route) return openFile(route, intent, !newTab, current.documentId, host, linkLocation(resolved));
     const canonical = await containedLocalFile(resolved, urls);
     const target = fileURLToPath(resolved);
-    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host) : false;
+    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host, linkLocation(resolved)) : false;
   } catch {
     return false;
   }
