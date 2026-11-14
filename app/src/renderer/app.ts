@@ -139,7 +139,7 @@ function mountLayout(next: TabLayoutState): void {
       entry = { element, controller }; panes.set(slot.paneId, entry);
       new MutationObserver(syncChrome).observe(element, { attributes: true, attributeFilter: ["data-document-path", "data-document-painted", "data-first-readable", "data-fully-highlighted", "data-render-complete", "data-document-id", "data-revision-id"] });
       controller.settings(settings);
-      controller.transition(windowTransition);
+      if (windowTransition) controller.transition(true);
     }
     if (entry.controller.documentId !== slot.documentId) {
       if (entry.element.dataset.documentId !== undefined) stash(entry);
