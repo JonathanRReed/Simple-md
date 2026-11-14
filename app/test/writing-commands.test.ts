@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { EditorState } from "@codemirror/state";
-import { history, undo, redo } from "@codemirror/commands";
+import { history, undo, redo, undoDepth } from "@codemirror/commands";
 import { byteText, exactText, parseByteText } from "../src/renderer/byte-text";
 import { editorText } from "../src/renderer/editor-text";
 import { sourceTransaction, sourceSelection } from "../src/renderer/source-transaction";
@@ -95,4 +95,30 @@ test("task toggling ignores code, frontmatter, imports and JSX attributes", () =
   const text = '---\ntext: "- [ ] metadata"\n---\n\n```\n- [ ] code\n```\n\nimport X from "x";\n\n<Card title="- [ ] attribute">\n\n- [ ] prose\n\n</Card>';
   const edit = blockEdit(text, { from: 0, to: text.length }, "toggle-task", true);
   expect(applySourceChanges(text, edit.changes)).toBe(text.replace("- [ ] prose", "- [x] prose"));
+});
+
+test("a footnote after a selected phrase keeps the phrase intact", () => {
+  expect(result("Selected words.", "footnote", 0, 14).text).toBe("Selected words[^1].\n\n[^1]: ");
+});
+
+test("Body on plain prose does not create an undo step", () => {
+  let state = EditorState.create({ doc: "Plain prose", extensions: [history(), byteText, editorText] });
+  const edit = blockEdit("Plain prose", { from: 0, to: 0 }, "body");
+  const spec = sourceTransaction(state, edit);
+  if (spec) state = state.update(spec).state;
+  expect(exactText(state)).toBe("Plain prose");
+  expect(undoDepth(state)).toBe(0);
+});
+
+test("task toggling leaves an incomplete MDX expression alone", () => {
+  const text = "- [ ] Actual\n\n{items.map(() => {\n- [ ] Literal";
+  const edit = blockEdit(text, { from: 0, to: text.length }, "toggle-task", true);
+  expect(applySourceChanges(text, edit.changes)).toBe(text.replace("[ ] Actual", "[x] Actual"));
+});
+
+for (const eol of ["\n", "\r\n"]) test(`empty last blocks preserve a missing final newline ${JSON.stringify(eol)}`, () => {
+  expect(result(`Intro${eol}---`, "rule", 5 + eol.length, 5 + eol.length).text).toBe("Intro");
+  expect(result(`Intro${eol}# `, "body", 5 + eol.length, 5 + eol.length).text).toBe("Intro");
+  expect(result(`Intro${eol}#`, "heading-1", 5 + eol.length, 5 + eol.length).text).toBe("Intro");
+  expect(result(`Intro${eol}\`\`\`${eol}\`\`\``, "code-block", 5 + eol.length).text).toBe("Intro");
 });

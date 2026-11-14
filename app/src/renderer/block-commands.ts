@@ -1,6 +1,6 @@
 import { taskMarkerPositions } from "./tasks.js";
 import { findMdxRanges } from "../shared/mdx-ranges.js";
-import { changedSelection, dominantEnding, sourceLines, type SourceEdit, type SourceSelection } from "./source-edit.js";
+import { changedSelection, dominantEnding, preserveFinalNewline, sourceLines, type SourceEdit, type SourceSelection } from "./source-edit.js";
 
 export type BlockCommand = "body" | `heading-${1 | 2 | 3 | 4 | 5 | 6}` | "bullet-list" | "number-list" | "task-list" | "quote" | "code-block" | "rule" | "footnote" | "toggle-task";
 
@@ -8,10 +8,10 @@ export type BlockCommand = "body" | `heading-${1 | 2 | 3 | 4 | 5 | 6}` | "bullet
 function prefix(line: string) {
   const quote = /^(?:[ \t]*>[ \t]?)*[ \t]*/.exec(line)![0];
   const rest = line.slice(quote.length);
-  const mark = /^(?:#{1,6}[ \t]+|(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?)/.exec(rest)?.[0] ?? "";
+  const mark = /^(?:#{1,6}(?:[ \t]+|$)|(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?)/.exec(rest)?.[0] ?? "";
   return { quote, mark, rest };
 }
-export function blockEdit(text: string, selection: SourceSelection, command: BlockCommand, mdx = false): SourceEdit {
+function blockEditRaw(text: string, selection: SourceSelection, command: BlockCommand, mdx = false): SourceEdit {
   const lines = sourceLines(text);
   const first = lines.findIndex(line => selection.from <= line.to);
   const last = lines.findIndex((line, index) => Math.max(selection.from, selection.to - 1) < line.end || index === lines.length - 1);
@@ -20,13 +20,13 @@ export function blockEdit(text: string, selection: SourceSelection, command: Blo
   if (command === "footnote") {
     const used = new Set([...text.matchAll(/\[\^(\d+)\]/g)].map(match => Number(match[1])));
     let n = 1; while (used.has(n)) n++;
-    const reference = `[^${n}]`;
+    const reference = `[^${n}]`, referenceAt = selection.to;
     const final = /[\r\n]$/.test(text);
-    const definition = `${selection.from === text.length ? eol + eol : text.length > (text.startsWith("\uFEFF") ? 1 : 0) ? final ? eol : eol + eol : ""}[^${n}]: `;
+    const definition = `${referenceAt === text.length ? eol + eol : text.length > (text.startsWith("\uFEFF") ? 1 : 0) ? final ? eol : eol + eol : ""}[^${n}]: `;
     // Two insertions at EOF must be ordered explicitly.
-    const changes = selection.from === text.length
+    const changes = referenceAt === text.length
       ? [{ from: text.length, to: text.length, insert: reference + definition + (final ? eol : "") }]
-      : [{ from: selection.from, to: selection.from, insert: reference }, { from: text.length, to: text.length, insert: definition + (final ? eol : "") }];
+      : [{ from: referenceAt, to: referenceAt, insert: reference }, { from: text.length, to: text.length, insert: definition + (final ? eol : "") }];
     const at = text.length + reference.length + definition.length;
     return { changes, selection: { from: at, to: at } };
   }
@@ -52,10 +52,11 @@ export function blockEdit(text: string, selection: SourceSelection, command: Blo
   }
   if (command === "toggle-task") {
     const from = selected[0]!.from, to = selected.at(-1)!.to;
-    const positions = taskMarkerPositions(text, mdx ? findMdxRanges(text) : undefined);
-    return changedSelection(selection, positions.filter(at => at >= from && at <= to).sort((a, b) => a - b).map(at => ({ from: at, to: at + 1, insert: text[at] === " " ? "x" : " " })));
+    const ranges = mdx ? findMdxRanges(text) : undefined;
+    const positions = taskMarkerPositions(text, ranges);
+    return changedSelection(selection, positions.filter(at => at >= from && at <= to && (!ranges?.error || at < ranges.error.start || at >= ranges.error.end)).sort((a, b) => a - b).map(at => ({ from: at, to: at + 1, insert: text[at] === " " ? "x" : " " })));
   }
-  const matches = (mark: string) => command.startsWith("heading-") ? new RegExp(`^#{${Number(command.slice(-1))}}[ \t]+$`).test(mark)
+  const matches = (mark: string) => command.startsWith("heading-") ? new RegExp(`^#{${Number(command.slice(-1))}}[ \t]*$`).test(mark)
     : command === "bullet-list" ? /^[-+*]\s+$/.test(mark)
     : command === "number-list" ? /^\d+[.)]\s+$/.test(mark)
     : command === "task-list" ? /^[-+*]\s+\[[ xX]\]\s+$/.test(mark) : false;
@@ -74,4 +75,10 @@ export function blockEdit(text: string, selection: SourceSelection, command: Blo
     return [{ from: line.from + quote.length, to: line.from + quote.length + mark.length, insert }];
   });
   return changedSelection(selection, changes);
+}
+
+export function blockEdit(text: string, selection: SourceSelection, command: BlockCommand, mdx = false): SourceEdit {
+  const bom = text.startsWith("\uFEFF") ? 1 : 0;
+  selection = { from: Math.max(bom, selection.from), to: Math.max(bom, selection.to) };
+  return preserveFinalNewline(text, blockEditRaw(text, selection, command, mdx));
 }

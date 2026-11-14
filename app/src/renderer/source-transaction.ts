@@ -2,7 +2,7 @@ import { EditorSelection, type EditorState, type TransactionSpec } from "@codemi
 import { isolateHistory } from "@codemirror/commands";
 import { byteText, parseByteText, restoreByteText } from "./byte-text.js";
 import { editorText } from "./editor-text.js";
-import { applySourceChanges, type SourceEdit, type SourceSelection } from "./source-edit.js";
+import { applySourceChanges, preserveFinalNewline, type SourceEdit, type SourceSelection } from "./source-edit.js";
 
 export function sourcePosition(state: EditorState, position: number): number {
   const value = state.field(editorText), line = state.doc.lineAt(position).number;
@@ -16,7 +16,9 @@ const normalizedPosition = (text: string, position: number) => parseByteText(tex
 export function sourceTransaction(state: EditorState, edit: SourceEdit | null): TransactionSpec | null {
   if (!edit || !edit.changes.length || state.readOnly) return null;
   const source = state.field(editorText).text;
+  edit = preserveFinalNewline(source, edit);
   const next = applySourceChanges(source, edit.changes);
+  if (next === source) return null;
   const normalized = parseByteText(next);
   return {
     changes: edit.changes.map(change => ({ from: normalizedPosition(source, change.from), to: normalizedPosition(source, change.to), insert: parseByteText(change.insert).text })),
