@@ -16,9 +16,12 @@ export async function startCliServer(options: { binary: string; profile?: string
   let stopTransport = () => {};
   try {
     const active = new Set<() => void>();
+    const pendingClosed = new Set<Promise<void>>();
     const handle = (send: (value: object) => void, end: () => void) => {
       const controller = new AbortController(); let remove: (() => void) | undefined; let id = "invalid"; let closed = false;
-      const cleanup = () => { controller.abort(); remove?.(); active.delete(cleanup); };
+      let delivered = () => {};
+      const closedReply = new Promise<void>(resolve => { delivered = resolve; });
+      const cleanup = () => { controller.abort(); remove?.(); active.delete(cleanup); pendingClosed.delete(closedReply); delivered(); };
       active.add(cleanup);
       let accepted = false;
       const complete = () => {
@@ -28,7 +31,7 @@ export async function startCliServer(options: { binary: string; profile?: string
       return { cleanup, async request(request: CliRequest, stdin: string) {
         id = request.id;
         try {
-          remove = await options.dispatch(request, stdin, () => { closed = true; if (accepted) complete(); }, controller.signal);
+          remove = await options.dispatch(request, stdin, () => { if (controller.signal.aborted) return; closed = true; pendingClosed.add(closedReply); if (accepted) complete(); }, controller.signal);
           if (controller.signal.aborted) { remove?.(); return; }
           send({ version: CLI_VERSION, id, status: "accepted" }); accepted = true;
           if (request.command === "export" || !request.wait) { cleanup(); end(); return; }
@@ -76,6 +79,7 @@ export async function startCliServer(options: { binary: string; profile?: string
       broker.stderr.on("data", () => {});
       return {
         async drain() {
+          await Promise.all(pendingClosed);
           await new Promise<void>(resolve => {
             const timer = setTimeout(() => { console.error("simplemd: CLI drain timed out"); resolve(); }, 2000);
             drained = () => { clearTimeout(timer); resolve(); };
@@ -128,6 +132,7 @@ export async function startCliServer(options: { binary: string; profile?: string
     let closed = false;
     return {
       async drain() {
+        await Promise.all(pendingClosed);
         server.close();
         await Promise.all([...sockets].map(socket => new Promise<void>(resolve => {
           if (socket.destroyed || socket.writableFinished) { resolve(); return; }

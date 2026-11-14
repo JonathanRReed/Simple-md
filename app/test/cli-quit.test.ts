@@ -51,3 +51,27 @@ test("quit cleanup completes waiters and drains transport before closing it", as
   await cleanup();
   expect(events).toEqual(["closed frames", "drain", "transport close"]);
 });
+
+test.skipIf(process.platform === "win32")("quit completion queued before acceptance drains in protocol order", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-early-close-")), runtime = cliRuntime(root);
+  const waiters = new DocumentWaiters();
+  let dispatched!: () => void, release!: () => void;
+  const entered = new Promise<void>(resolve => { dispatched = resolve; });
+  const dispatchGate = new Promise<void>(resolve => { release = resolve; });
+  const server = await startCliServer({ binary: "unused", profile: root, dispatch: async (_request, _stdin, closed) => {
+    const remove = waiters.add(makeDocumentId(1), closed); dispatched(); await dispatchGate; return remove;
+  } });
+  const socket = net.createConnection(path.join(runtime, "ipc.sock")), statuses: string[] = [], reader = new FrameReader();
+  const ended = new Promise<void>(resolve => socket.once("end", resolve));
+  socket.on("data", chunk => reader.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk, data => statuses.push(JSON.parse(data.toString()).status)));
+  try {
+    await new Promise<void>(resolve => socket.once("connect", resolve));
+    const state = JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8"));
+    socket.write(frame(Buffer.from(JSON.stringify({ version: 1, id: "early-close", secret: state.secret, command: "open", path: path.join(root, "note.md"), wait: true }))));
+    await entered;
+    waiters.closeAll();
+    const drain = server.drain();
+    release(); await drain; server.close(); await ended;
+    expect(statuses).toEqual(["accepted", "closed"]);
+  } finally { release(); socket.destroy(); server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+});
