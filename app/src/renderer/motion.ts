@@ -132,6 +132,7 @@ export function flipPaneBounds(before: ReturnType<typeof capturePaneBounds>): vo
     const previousStyle = content.getAttribute("style");
     const overflow = pane.style.overflow;
     // The viewport clips a fixed-size document. Only its frame changes each tick.
+    console.log("PANE_LAYOUT_TRACE " + JSON.stringify({ time: performance.now(), documentId: pane.dataset.documentId, oldWidth: old.width, oldHeight: old.height, width: content.offsetWidth, height: content.offsetHeight, previousStyle, boundsHeight: bounds.height, oldBoundsHeight: old.bounds.height }));
     content.style.cssText += `;flex:none;width:${old.width}px;height:${old.height}px;transform-origin:top left`;
     pane.style.overflow = "visible";
     const frames: Keyframe[] = [], counter: Keyframe[] = [];

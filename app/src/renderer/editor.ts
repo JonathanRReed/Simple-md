@@ -159,6 +159,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         tableKeymap,
         writingFolding,
         edgeScrollSlot.of([]),
+        EditorView.scrollHandler.of((current, range, target) => {
+          console.log("CM_SCROLL_TARGET " + JSON.stringify({ time: performance.now(), head: range.head, y: target.y, yMargin: target.yMargin, top: current.scrollDOM.scrollTop, height: current.scrollDOM.scrollHeight, client: current.scrollDOM.clientHeight, followEditorEnd, edgeScrollActive }));
+          return false;
+        }),
         vimSlot.of([]),
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.snapshot?.state.doc.length ?? initial.text.length)),

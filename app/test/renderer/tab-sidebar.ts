@@ -15,7 +15,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   const trace = (event: string, element?: Element, extra = {}) => {
     console.log("SCROLL_TRACE " + JSON.stringify({ event, phase, time: performance.now(), writes: scrollWrites,
       top: element?.scrollTop, height: element?.scrollHeight, client: element?.clientHeight,
-      width: element?.clientWidth, ...extra }));
+      width: element?.clientWidth, ancestors: element ? [...(function* () { for (let node = element.parentElement; node && node.id !== "stage"; node = node.parentElement) yield node; })()].map(node => ({ tag: node.tagName, class: node.className, id: node.dataset.element ?? node.id, client: node.clientHeight, height: node.getBoundingClientRect().height, style: node.getAttribute("style"), hidden: node.hidden })) : [], ...extra }));
   };
   Object.defineProperty(Element.prototype, "scrollTop", { ...scrollTopProperty, set(value: number) {
     const editor = this instanceof Element && this.classList.contains("cm-scroller");
