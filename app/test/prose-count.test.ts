@@ -47,15 +47,15 @@ for (const [name, text, words, characters, mdx] of [
 
 test("rendered selection counts literal prose without reparsing it as Markdown", () => {
   expect(countProse("First **words** and more", undefined, false, "*literal*").selection).toEqual({ words: 1, characters: 9 });
-  expect(countProse("Document", undefined, false, "").selection).toEqual({ words: 0, characters: 0 });
+  expect(countProse("Document", undefined, false, "").selection).toBeUndefined();
 });
 
 test("reference-link labels are destinations rather than prose", () => {
   expect(countProse("[Hello][site] world\n\n[site]: https://example.test").document).toEqual({ words: 2, characters: 11 });
 });
 
-test("footnote prose counts without reference labels or definition markers", () => {
+test("footnote labels use the same approximate Markdown count as other prose", () => {
   const text = "Hello[^1].\n\n[^1]: First **note**.\n\n    Second paragraph.";
-  expect(countProse(text).document).toEqual({ words: 5, characters: 36 });
-  expect(countProse(text, { from: 5, to: 9 }).selection).toEqual({ words: 0, characters: 0 });
+  expect(countProse(text).document).toEqual({ words: 5, characters: 24 });
+  expect(countProse(text, { from: 5, to: 9 }).selection).toEqual({ words: 1, characters: 2 });
 });

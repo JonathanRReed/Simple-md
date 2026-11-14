@@ -65,7 +65,7 @@ describe("persistent Node render worker", () => {
         const text = '# Heading\\n\\n' + 'Hello **world**. '.repeat(6500) + '\\n\\n~~~ts\\nnot prose\\n~~~';
         let ticks = 0;
         const timer = setInterval(() => ticks++, 1);
-        const counts = await client.proseCounts(text, { from: 2, to: 9 }, false);
+        const counts = await client.proseCounts(1, 1, text, { from: 2, to: 9 }, false);
         clearInterval(timer);
         assert.deepEqual(counts.document, { words: 13001, characters: 84507 });
         assert.deepEqual(counts.selection, { words: 1, characters: 7 });

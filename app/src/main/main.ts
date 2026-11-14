@@ -1313,7 +1313,7 @@ function registerIpc(): void {
       if (typeof selection !== "object" || selection === null || !("from" in selection) || !("to" in selection) || typeof selection.from !== "number" || typeof selection.to !== "number" || !Number.isSafeInteger(selection.from) || !Number.isSafeInteger(selection.to) || selection.from < 0 || selection.to < selection.from || selection.to > text.length) throw new TypeError("Invalid count selection.");
       range = { from: selection.from, to: selection.to };
     }
-    return doc.render(revisionId, () => proseCounts(text, range, mdx, selectedText));
+    return doc.render(revisionId, () => proseCounts(doc.documentId, revisionId, text, range, mdx, selectedText));
   });
   // Writing commands use the current native menu for availability and dispatch.
   handle("smd:menu-commands", () => {
