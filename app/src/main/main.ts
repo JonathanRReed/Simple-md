@@ -1306,7 +1306,7 @@ function registerIpc(): void {
     if (host.win.isDestroyed() || host.quicklyGeneration !== generation) return [];
     host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null);
     const tabs = host.layout.state.tabs.flatMap(id => { const file = registry.get(id)?.path; return file ? [{ path: file, source: "tab" as const }] : []; });
-    const matches = await host.quickly.search(raw, scope, [...tabs, ...history.encountered().map(entry => ({ ...entry, source: "recent" as const }))], matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
+    const matches = await host.quickly.search(raw, scope, [...tabs, ...history.searchFiles(settings.recents)], matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
     return host.quicklyGeneration === generation ? matches : [];
   });
   on("smd:quickly-close", () => {

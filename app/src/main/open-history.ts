@@ -1,3 +1,4 @@
+import type { QuicklyFile } from "../shared/open-quickly.js";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -41,6 +42,15 @@ export class OpenHistory {
     const valid = entries.filter(entry => { try { return fs.statSync(entry.path).isFile(); } catch { return false; } });
     if (valid.length !== entries.length) { this.entries = valid; this.schedule(); }
     return valid;
+  }
+  searchFiles(recents: readonly string[]): QuicklyFile[] {
+    const entries = this.encountered();
+    const seen = new Set(entries.map(entry => entry.path));
+    return [...entries.map(entry => ({ ...entry, source: "recent" as const })), ...recents.flatMap(file => {
+      if (seen.has(file)) return [];
+      seen.add(file);
+      try { return fs.statSync(file).isFile() ? [{ path: file, source: "recent" as const }] : []; } catch { return []; }
+    })];
   }
   moved(previous: string, target: string): void {
     this.entries = this.load().filter(entry => entry.path !== target).map(entry => entry.path === previous ? { ...entry, path: target } : entry);

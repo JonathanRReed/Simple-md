@@ -24,3 +24,15 @@ test("history is lazy, stores times, prunes missing files, follows moves and cle
 test("history result times are short and relative", () => {
   expect(relativeTime(0, 3 * 86400 * 1000)).toBe("3 days ago"); expect(relativeTime(0, 3600000)).toBe("1 hour ago"); expect(relativeTime(0, 61000)).toBe("1 minute ago"); expect(relativeTime(10000, 0)).toBe("just now");
 });
+
+test("legacy short recents remain searchable without inventing last-opened times", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smd-legacy-history-"));
+  const history = new OpenHistory(path.join(dir, "history.json"));
+  const known = path.join(dir, "known.md"), legacy = path.join(dir, "legacy.mdx");
+  try {
+    fs.writeFileSync(known, "known"); fs.writeFileSync(legacy, "legacy"); history.opened(known, 123);
+    expect(history.searchFiles([known, legacy, path.join(dir, "missing.md")])).toEqual([
+      { path: known, lastOpened: 123, source: "recent" }, { path: legacy, source: "recent" },
+    ]);
+  } finally { history.clear(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
