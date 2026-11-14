@@ -13,6 +13,24 @@ export function verifyExtensionVersion(host, extension) {
   }
 }
 
+export function verifyExtensionDeclaration(info, kind) {
+  const extension = info.NSExtension;
+  if (extension?.NSExtensionPointIdentifier !== `com.apple.quicklook.${kind}`) {
+    throw new Error(`Unexpected Quick Look extension point: ${kind}`);
+  }
+  const principalClass = kind === "preview" ? "PreviewProvider" : "ThumbnailProvider";
+  if (extension.NSExtensionPrincipalClass !== principalClass) {
+    throw new Error(`Unexpected Quick Look principal class: ${kind}`);
+  }
+  const attributes = extension.NSExtensionAttributes;
+  if (JSON.stringify(attributes?.QLSupportedContentTypes) !== JSON.stringify([
+    "net.daringfireball.markdown", "public.markdown", "com.jonathanreed.simplemd.mdx", "com.fluxmarkdown.mdx",
+  ])) throw new Error(`Unexpected Quick Look supported types: ${kind}`);
+  if (kind === "thumbnail" && attributes.QLThumbnailMinimumDimension !== 32) {
+    throw new Error("Unexpected Quick Look thumbnail minimum dimension");
+  }
+}
+
 function signature(bundle) {
   const result = spawnSync("/usr/bin/codesign", ["-d", "--verbose=4", bundle], { encoding: "utf8" });
   if (result.status !== 0) throw new Error(result.stderr);
@@ -37,10 +55,7 @@ export function verifyQuickLook(app) {
     const kind = extension === extensions[0] ? "preview" : "thumbnail";
     if (info.CFBundleIdentifier !== `com.jonathanreed.simplemd.${kind}`) throw new Error(`Unexpected extension ID in ${bundle}`);
     if (info.LSMinimumSystemVersion !== "13.0") throw new Error(`Unexpected deployment target: ${bundle}`);
-    const types = info.NSExtension.NSExtensionAttributes.QLSupportedContentTypes;
-    if (JSON.stringify(types) !== JSON.stringify([
-      "net.daringfireball.markdown", "public.markdown", "com.jonathanreed.simplemd.mdx", "com.fluxmarkdown.mdx",
-    ])) throw new Error(`Unexpected supported types: ${bundle}`);
+    verifyExtensionDeclaration(info, kind);
     const signing = signature(bundle);
     if (!/flags=.*\([^)]*runtime/.test(signing)) throw new Error(`Missing hardened runtime: ${bundle}`);
     if (authority) {

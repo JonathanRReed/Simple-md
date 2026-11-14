@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { appDir, nativePlan, currentNativePlan } from "./native.mjs";
 import { localEnvironment, packageMode, unsignedConfig, packagingConfig } from "./local-pack.mjs";
 import { releaseConfig } from "./release-config.mjs";
-import { verifyExtensionVersion } from "./quicklook-verify.mjs";
+import { verifyExtensionDeclaration, verifyExtensionVersion } from "./quicklook-verify.mjs";
 import { desktopEntry } from "../integrations/linux/desktop-entry.mjs";
 
 describe("host-only packaging", () => {
@@ -194,6 +194,7 @@ describe("Quick Look packaging", () => {
     expect(pkg.build.mac.minimumSystemVersion).toBe("13.0");
     const mdx = pkg.build.mac.extendInfo.UTExportedTypeDeclarations.find(type => type.UTTypeIdentifier === "com.jonathanreed.simplemd.mdx");
     expect(mdx.UTTypeTagSpecification["public.filename-extension"]).toContain("mdx");
+    expect(mdx.UTTypeConformsTo).toEqual(["public.plain-text"]);
     const markdown = pkg.build.mac.extendInfo.UTImportedTypeDeclarations.find(type => type.UTTypeIdentifier === "net.daringfireball.markdown");
     expect(markdown.UTTypeConformsTo).toEqual(["public.plain-text"]);
     expect(markdown.UTTypeTagSpecification["public.filename-extension"]).toEqual(["md", "markdown", "mdown", "mkd"]);
@@ -204,6 +205,7 @@ describe("Quick Look packaging", () => {
     expect(entitlements).toEqual({ "com.apple.security.app-sandbox": true });
     for (const kind of ["preview", "thumbnail"]) {
       const info = readPlist(path.join(appDir, `native/quicklook/${kind}/Info.plist`));
+      verifyExtensionDeclaration(info, kind);
       expect(info.CFBundleIdentifier).toBe(`com.jonathanreed.simplemd.${kind}`);
       expect(info.LSMinimumSystemVersion).toBe("13.0");
       const attributes = info.NSExtension.NSExtensionAttributes;
@@ -212,6 +214,24 @@ describe("Quick Look packaging", () => {
       ]);
       if (kind === "preview") expect(attributes.QLIsDataBasedPreview).toBe(true);
     }
+  });
+  test.skipIf(process.platform !== "darwin")("rejects thumbnail declarations that cannot reach the provider", async () => {
+    const { readPlist } = await import("./quicklook-verify.mjs");
+    const info = readPlist(path.join(appDir, "native/quicklook/thumbnail/Info.plist"));
+    for (const [key, value, error] of [
+      ["NSExtensionPointIdentifier", "com.apple.quicklook.preview", "extension point"],
+      ["NSExtensionPrincipalClass", "MissingProvider", "principal class"],
+    ]) {
+      const changed = structuredClone(info);
+      changed.NSExtension[key] = value;
+      expect(() => verifyExtensionDeclaration(changed, "thumbnail")).toThrow(error);
+    }
+    const parentOnly = structuredClone(info);
+    parentOnly.NSExtension.NSExtensionAttributes.QLSupportedContentTypes = ["public.plain-text"];
+    expect(() => verifyExtensionDeclaration(parentOnly, "thumbnail")).toThrow("supported types");
+    const highMinimum = structuredClone(info);
+    highMinimum.NSExtension.NSExtensionAttributes.QLThumbnailMinimumDimension = 512;
+    expect(() => verifyExtensionDeclaration(highMinimum, "thumbnail")).toThrow("minimum dimension");
   });
   test.skipIf(!process.env.SIMPLEMD_PACKAGED_APP)("verifies the exact packaged layout, signatures and entitlements", async () => {
     const { verifyQuickLook } = await import("./quicklook-verify.mjs");
