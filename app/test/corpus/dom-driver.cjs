@@ -3,6 +3,8 @@ const { mkdirSync, readFileSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 
 if (process.platform === "darwin") app.setActivationPolicy("accessory");
+// Offscreen software rendering supplies frames without a visible native compositor.
+app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
   // Only an empty page and bundled application code run here. No reference assets load.
@@ -10,7 +12,7 @@ app.whenReady().then(async () => {
     done({ cancel: request.url !== "about:blank" });
   });
   const options = JSON.parse(process.env.SMD_DOM_OPTIONS || "{}");
-  const window = new BrowserWindow({ show: false, ...(options.screenshot ? { width: options.screenshot.width, height: options.screenshot.height } : {}), webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
+  const window = new BrowserWindow({ show: false, focusable: false, ...(options.screenshot ? { width: options.screenshot.width, height: options.screenshot.height } : {}), webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, offscreen: true } });
   window.webContents.on("console-message", (event) => console.error(event.message, event.lineNumber, event.sourceId));
   await window.loadURL("about:blank");
   if (options.media?.length) {
