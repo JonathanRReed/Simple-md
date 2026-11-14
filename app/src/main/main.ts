@@ -496,7 +496,7 @@ function updateTitle(host = context()): void {
 }
 
 function watch(doc: DocumentSession, host = context()): void {
-  doc.watch((text, reason) => sendTo(host, "smd:disk-changed", text, doc.documentId, reason));
+  doc.watch(change => sendTo(host, "smd:disk-changed", change, doc.documentId));
 }
 
 const documentWaiters = new Map<string, Set<() => void>>();

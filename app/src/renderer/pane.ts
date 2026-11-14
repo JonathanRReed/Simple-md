@@ -7,7 +7,7 @@ import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DiskChange, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 import { enterPanel, exitChrome } from "./motion.js";
@@ -63,7 +63,7 @@ export interface DormantDocument {
   readBlocks: RenderedBlock[];
   back: NavigationEntry[];
   forward: NavigationEntry[];
-  disk?: { text: string; reason?: string };
+  disk?: DiskChange;
   seenOnReturn?: RevisionId;
 }
 interface NavigationEntry { path: string; anchor: SourceAnchor }
@@ -1026,9 +1026,20 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     updateChrome();
   }
 
-  function onDiskChanged(text: string, id: DocumentId, reason?: string): void {
-    pendingDisk = { text, reason };
+  function onDiskChanged(change: DiskChange, id: DocumentId): void {
     if (disposed || id !== pane.documentId) return;
+    if (change.kind === "permissions") {
+      if (pendingDisk?.kind === "text") { onDiskChanged({ ...pendingDisk, readOnlyReason: change.readOnlyReason }, id); return; }
+      doc.readOnlyReason = change.readOnlyReason;
+      pane.editor?.setEditable(!transitioning && !isReadOnly());
+      if (change.readOnlyReason) showBanner(change.readOnlyReason, []);
+      else if (!doc.diskConflict) { hideBanner(); scheduleAutosave(); }
+      updateChrome();
+      return;
+    }
+    if (change.kind === "unavailable") return;
+    pendingDisk = change;
+    const { text, readOnlyReason: reason } = change;
     closeComparison?.();
     const seq = ++doc.diskSeq;
     const saveCopy = { label: "Save mine as…", run: async () => {

@@ -1,7 +1,7 @@
 import type { HighlightState, GitChangesStatus } from "../shared/change-highlights.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
-import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
+import type { DiskChange, DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
   setChromeVisible(visible: boolean): void;
@@ -34,7 +34,7 @@ export interface Bridge {
   headChanges(documentId: DocumentId, enabled: boolean): Promise<GitChangesStatus>;
   onSettings(cb: (s: Settings) => void): void;
   onCommand(cb: (cmd: Command, documentId?: DocumentId) => void): void;
-  onDiskChanged(cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void): void;
+  onDiskChanged(cb: (change: DiskChange, documentId: DocumentId) => void): void;
   onFlushRequest(cb: (id: RequestId, documentId: DocumentId) => void): void;
   onPrintDoc(cb: (doc: DocPayload, settings: Settings) => void): void;
   flushResponse(id: RequestId, result: FlushResult): void;

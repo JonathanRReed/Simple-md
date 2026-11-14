@@ -2,7 +2,7 @@ import { FirstAutosave } from "../shared/first-autosave.js";
 import type { ChangeBaseline, GitChangesStatus } from "../shared/change-highlights.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { makeRevisionId, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
+import { makeRevisionId, type DiskChange, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
 import { DocumentQueue } from "./lifecycle.js";
 import { ENCODING_NOTICE, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
 
@@ -19,7 +19,7 @@ export class DocumentSession {
   private watchGeneration = 0;
   private disposed = false;
   private metadataWarningSent = false;
-  private onDiskChanged: ((text: string, reason?: string) => void) | undefined;
+  private onDiskChanged: ((change: DiskChange) => void) | undefined;
 
   constructor(
     readonly documentId: DocumentId,
@@ -66,19 +66,25 @@ export class DocumentSession {
     return result;
   }
 
-  watch(changed: (text: string, reason?: string) => void): void {
+  watch(changed: (change: DiskChange) => void): void {
     this.stopWatching();
     this.onDiskChanged = changed;
     if (!this.path) return;
     const file = this.path;
     const generation = this.watchGeneration;
+    let checkSequence = 0;
     const check = () => {
+      const sequence = ++checkSequence;
       void readDocument(file).then(({ text, readOnlyReason }) => {
-        if (generation !== this.watchGeneration) return;
-        if (readOnlyReason) this.readOnlyReason = readOnlyReason;
-        if (!readOnlyReason && text === this.diskText) return;
+        if (generation !== this.watchGeneration || sequence !== checkSequence) return;
+        const permissionsChanged = readOnlyReason !== this.readOnlyReason;
+        this.readOnlyReason = readOnlyReason;
+        if (text === this.diskText) {
+          if (permissionsChanged) changed({ kind: "permissions", readOnlyReason });
+          return;
+        }
         this.conflict = true;
-        changed(text, readOnlyReason);
+        changed({ kind: "text", text, readOnlyReason });
       }).catch((err) => console.error("simple-md: could not read changed note", err));
     };
     try { this.watcher = watchDocument(file, check); check(); }
@@ -118,7 +124,7 @@ export class DocumentSession {
         if (!(err instanceof FileConflictError)) throw err;
         this.conflict = true;
         const external = await readDiskText(target).catch(() => null);
-        if (external !== null) this.onDiskChanged?.(external);
+        if (external !== null) this.onDiskChanged?.({ kind: "text", text: external });
         return null;
       }
       const moved = target !== this.path;

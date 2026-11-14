@@ -2,7 +2,7 @@ import { tabRows } from "../shared/tab-presentation.js";
 import { createTabBar } from "./tab-bar.js";
 import { createWindowChrome } from "./window-chrome.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
-import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
+import { DEFAULT_SETTINGS, type Command, type DiskChange, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { createPane, noticeSaveMetadata, type DormantDocument, type PaneController } from "./pane.js";
 import { applyDocumentStyle } from "./document-style.js";
@@ -22,7 +22,7 @@ const template = document.querySelector<HTMLTemplateElement>("#pane-template")!;
 let settings: Settings = DEFAULT_SETTINGS;
 let layout: TabLayoutState | undefined;
 let firstPane = true;
-const documents = new Map<DocumentId, { payload: DocPayload; retained?: DormantDocument; disk?: { text: string; reason?: string } }>();
+const documents = new Map<DocumentId, { payload: DocPayload; retained?: DormantDocument; disk?: DiskChange }>();
 const panes = new Map<PaneId, { element: HTMLElement; controller: PaneController }>();
 let windowTransition = false;
 let contextTarget: PaneController | undefined;
@@ -151,7 +151,7 @@ function mountLayout(next: TabLayoutState): void {
       void entry.controller.load(tab.payload, tab.retained).then(() => {
         const disk = tab.disk ?? tab.retained?.disk;
         if (disk && entry?.controller.documentId === slot.documentId) {
-          entry.controller.diskChanged(disk.text, slot.documentId, disk.reason); tab.disk = undefined;
+          entry.controller.diskChanged(disk, slot.documentId); tab.disk = undefined;
           if (tab.retained) tab.retained.disk = undefined;
         }
         syncChrome();
@@ -219,10 +219,22 @@ async function boot(): Promise<void> {
     }
     syncChrome();
   });
-  api.onDiskChanged((text, id, reason) => {
+  api.onDiskChanged((change, id) => {
     const mounted = [...panes.values()].find(p => p.controller.documentId === id);
-    if (mounted) mounted.controller.diskChanged(text, id, reason);
-    else { const tab = documents.get(id); if (tab) { tab.disk = { text, reason }; if (tab.retained) tab.retained.state.diskConflict = true; } }
+    if (mounted) mounted.controller.diskChanged(change, id);
+    else {
+      const tab = documents.get(id);
+      if (!tab) return;
+      if (change.kind === "permissions") {
+        tab.payload.readOnlyReason = change.readOnlyReason;
+        if (tab.retained) tab.retained.state.readOnlyReason = change.readOnlyReason;
+        if (tab.disk?.kind === "text") tab.disk.readOnlyReason = change.readOnlyReason;
+        else if (!tab.disk) tab.disk = change;
+      } else {
+        tab.disk = change;
+        if (tab.retained) tab.retained.state.diskConflict = true;
+      }
+    }
   });
   api.onTransition(busy => { windowTransition = busy; for (const pane of panes.values()) pane.controller.transition(busy); });
   let quicklyLoading = false;

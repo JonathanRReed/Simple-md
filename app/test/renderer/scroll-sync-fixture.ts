@@ -123,7 +123,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   content.focus(); document.execCommand("insertText", false, "Mine "); await frame();
   assert(pane.flush().dirty, "Conflict fixture did not edit the document");
   const mine = pane.flush().text;
-  pane.diskChanged("Incoming\n", pane.documentId);
+  pane.diskChanged({ kind: "text", text: "Incoming\n" }, pane.documentId);
   const banner = root.querySelector<HTMLElement>("#banner")!;
   const saveCopy = [...banner.querySelectorAll("button")].find(button => button.textContent === "Save mine as…");
   assert(saveCopy, "Conflict copy action is missing"); saveCopy.click(); await frame();

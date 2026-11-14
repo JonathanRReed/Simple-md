@@ -24,6 +24,16 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, mode: "source" });
   const payload = { ...input.rendered, documentId: id, paneId, revisionId: makeRevisionId(0), path: "/tmp/note.md", name: "note.md", baseUrl: "file:///tmp/", text: input.text, intent: "edit" as const };
   await pane.load(payload);
+  if (input.scenario === "permissions") {
+    const before = pane.flush();
+    pane.diskChanged({ kind: "permissions", readOnlyReason: "This file is locked or not writable. Read only." }, id);
+    assert(root.querySelector(".cm-content")?.getAttribute("contenteditable") === "false", "Read-only transition left editor writable");
+    assert(pane.flush().text === before.text, "Permissions replaced the buffer");
+    pane.diskChanged({ kind: "permissions" }, id);
+    assert(root.querySelector(".cm-content")?.getAttribute("contenteditable") === "true", "Permission recovery left editor locked");
+    assert(!pane.flush().conflict, "Permissions introduced a text conflict");
+    pane.suspend(); return true;
+  }
   if (input.scenario === "metadata notice") {
     const result = { documentId: id, revisionId: makeRevisionId(0), path: payload.path, name: payload.name, baseUrl: payload.baseUrl, text: input.text, metadataCopyFailed: true };
     pane.saved(result);
@@ -44,7 +54,7 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   const retained = pane.suspend();
   assert(retained.editor, "Test did not retain an editor");
   await pane.load(payload, retained);
-  pane.diskChanged(input.incoming, id);
+  pane.diskChanged({ kind: "text", text: input.incoming }, id);
   await until(() => pane.flush().text === input.incoming, "Incoming text was not accepted");
   await edit();
   assert(pane.flush().text === input.incoming, "Retained editor replaced accepted disk bytes");

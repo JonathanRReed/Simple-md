@@ -79,6 +79,11 @@ export interface DocPayload {
   baseUrl: string | null;
 }
 
+export type DiskChange =
+  | { kind: "text"; text: string; readOnlyReason?: string }
+  | { kind: "permissions"; readOnlyReason?: string }
+  | { kind: "unavailable"; message: string };
+
 export interface FlushResult {
   revisionId: RevisionId;
   documentId: DocumentId;
