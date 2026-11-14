@@ -7,6 +7,9 @@ import { findMdxRanges } from "../src/shared/mdx-ranges";
 
 const editor = await Bun.file(new URL("../src/renderer/editor.ts", import.meta.url)).text();
 const pasteSource = editor.slice(editor.indexOf("          paste(event, v) {"), editor.indexOf("          drop(event, v) {"));
+const dropStart = editor.indexOf("          drop(event, v) {");
+const dropSource = editor.slice(dropStart, editor.indexOf("        }),", dropStart));
+const drop = new Function("IMAGE_TYPES", "importImages", `return ({${dropSource}}).drop;`)(/^image\//, () => { throw new Error("Unexpected image"); });
 const paste = new Function("IMAGE_TYPES", "importImages", "canPasteLink", `return ({${pasteSource}}).paste;`)(/^image\//, () => { throw new Error("Unexpected image"); }, canPasteLink);
 
 for (const [name, text, allowed] of [
@@ -34,4 +37,5 @@ for (const [name, text, allowed] of [
 test("read-only paste does not import image files", () => {
   const state = EditorState.create({ doc: "Locked", extensions: EditorState.readOnly.of(true) });
   expect(paste({ clipboardData: { files: [{ type: "image/png" }], getData: () => "" } }, { state })).toBe(false);
+  expect(drop({ dataTransfer: { files: [{ type: "image/png" }] } }, { state })).toBe(false);
 });
