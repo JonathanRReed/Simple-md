@@ -4,7 +4,9 @@
 
 ## Install
 
-On macOS, choose SimpleMD > Install Command Line Tool. It creates `/usr/local/bin/simplemd` when that directory is writable. Otherwise it uses `~/.local/bin/simplemd` and tells you to add that directory to PATH. It never runs sudo or replaces an existing file or a different symlink.
+On macOS, choose SimpleMD > Install Command Line Tool. It creates `/usr/local/bin/simplemd` when that directory is writable. Otherwise it uses `~/.local/bin/simplemd` and tells you to add that directory to PATH. It never runs sudo or replaces an existing file or a different symlink. Install the app in Applications first. If you move it later, inspect the old link with `ls -l /usr/local/bin/simplemd` and `ls -l ~/.local/bin/simplemd`. Remove only a link that you confirm belongs to the old SimpleMD location, then run Install Command Line Tool again. Do not remove an unrelated file.
+
+Check the installed folder is on PATH with `command -v simplemd`. For the fallback folder, add `export PATH="$HOME/.local/bin:$PATH"` to your shell startup file and open a new terminal. Raycast and Alfred may not inherit your shell PATH; use the installed CLI's absolute path in their scripts.
 
 The Windows installer adds the bundled CLI directory to your user PATH. Open a new terminal after installation. DEB packages install `/usr/bin/simplemd`; the Electron executable is `simplemd-app`. An unpacked Linux app includes the CLI at `resources/native/simplemd`. For AppImage, extract the bundle to a stable directory before linking its CLI onto PATH, and register its desktop entry as described in [Linux integration](../app/integrations/linux/README.md).
 
@@ -21,6 +23,8 @@ simplemd COMMIT_EDITMSG
 simplemd -- -starts-with-a-dash.md
 simplemd --help
 ```
+
+On Windows, CLI and URL opens reject UNC network-share and device paths. Use a local drive path. Windows release installers target x64 only.
 
 The CLI resolves paths against the caller's working directory. Files must exist and contain UTF-8 text. Explicit CLI opens accept text files with any extension or no extension. Directories, devices, FIFOs and binary input are rejected. Existing tabs are focused. New tabs or windows follow the `open-in` setting. Files open in Read. Use the mode control or Command/Control-E to edit. `COMMIT_EDITMSG`, files without an extension and `--wait` buffers open in Source.
 
@@ -104,7 +108,7 @@ Percent-encode the absolute path. `open` is the only action. The decoded path mu
 
 The CLI is a second binary in the existing native crate. It shares the Rust toolchain, lockfile and packaging build with `simplemd-helper`; the two executables have separate entry points and responsibilities.
 
-On macOS and Linux, the socket lives at `/tmp/smd-<uid>/ipc.sock` inside a directory owned by that user with mode 0700. The state file and socket use mode 0600. Isolated development profiles use a hashed suffix. Windows uses `\\.\pipe\simplemd-<user-SID>` with an explicit current-user DACL and rejects remote pipe clients. Its connection state lives in a protected directory under LocalAppData. A Rust broker provides the Windows ACL, and Electron owns the broker through stdio.
+On macOS, the socket lives at `<per-user-temp>/smd-<uid>/ipc.sock`. On Linux, it uses `$XDG_RUNTIME_DIR/smd-<uid>/ipc.sock` when XDG_RUNTIME_DIR is absolute, otherwise `~/.cache/simplemd-cli/smd-<uid>/ipc.sock`. The containing directory belongs to that user with mode 0700. The state file and socket use mode 0600. Isolated development profiles use a hashed suffix. Windows uses `\\.\pipe\simplemd-<user-SID>` with an explicit current-user DACL and rejects remote pipe clients. Its connection state lives in a protected directory under LocalAppData. A Rust broker provides the Windows ACL, and Electron owns the broker through stdio.
 
 Each request carries version 1, a request ID and a random 256-bit connection secret. Frames have a four-byte big-endian byte length. JSON request and response frames are capped at 1 MiB. An authenticated stdin header declares the exact length of one following raw UTF-8 frame, capped at 10 MiB. Empty stdin needs no payload frame. Each connection carries one command. The server caps concurrent connections and initial read time.
 

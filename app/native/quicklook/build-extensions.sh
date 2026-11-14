@@ -1,11 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-    echo "Usage: $0 new-output-directory [signing-identity-or--]" >&2
+if [[ $# -lt 1 || $# -gt 4 ]]; then
+    echo "Usage: $0 new-output-directory [signing-identity-or--] [app-version] [bundle-version]" >&2
     exit 2
 fi
 source_dir="$(cd "$(dirname "$0")" && pwd)"
+version="${3:-$(bun -e 'console.log(require(process.argv[1]).version)' "$source_dir/../../package.json")}"
+bundle_version="${4:-$version}"
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$bundle_version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+    echo "Expected numeric app and bundle versions" >&2
+    exit 2
+fi
 mkdir "$1"
 output="$(cd "$1" && pwd)"
 identity="${2:--}"
@@ -30,6 +36,8 @@ for kind in Preview Thumbnail; do
         sources=("$source_dir/thumbnail/ThumbnailCard.swift" "$source_dir/thumbnail/ThumbnailProvider.swift")
         frameworks=(-framework Foundation -framework QuickLookThumbnailing -framework CoreText -framework CoreGraphics)
     fi
+    plutil -replace CFBundleShortVersionString -string "$version" "$extension/Contents/Info.plist"
+    plutil -replace CFBundleVersion -string "$bundle_version" "$extension/Contents/Info.plist"
     plutil -lint "$extension/Contents/Info.plist" "$source_dir/extension.entitlements"
     for arch in arm64 x86_64; do
         xcrun swiftc -O -sdk "$sdk" -target "$arch-apple-macos13.0" \

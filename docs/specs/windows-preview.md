@@ -58,3 +58,11 @@ None of these establishes low-integrity Explorer rendering. The owner follows
 
 WebView2's host-script behavior is documented in Microsoft's
 [IsScriptEnabled reference](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2settings).
+
+## User-visible limits
+
+Windows releases target x64 only and require Windows 10 or later, following [Electron's platform support](https://github.com/electron/electron/blob/main/README.md#platform-support). Explorer's preview pane uses Alt+P. This is not a Space-key preview or a thumbnail provider.
+
+Formatted previews need the Microsoft Evergreen WebView2 runtime. Missing runtime, a deadline or oversized input/output falls back to source. Previews never load neighboring or remote images.
+
+Explorer supplies a stream without a filename. The renderer therefore uses Markdown parsing even for `.mdx`: imports may remain visible and JSX lacks the labeled MDX representation used by the app and Mac Quick Look. Document code remains inert. Open the file in SimpleMD for its MDX view.

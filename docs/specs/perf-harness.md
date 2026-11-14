@@ -46,7 +46,7 @@ A wrong-file or failed render fails the run. Screenshots and text assertions hap
 | Gate | Statistic |
 | --- | --- |
 | Warm open to first readable, normal files | p95 of at least 20 samples < 150 ms |
-| First screen readable, files up to 20 MB | p95 of at least 20 samples < 200 ms. Files over 20 MB open in Source mode with no gate. |
+| First screen readable, files up to 20 MB | p95 of at least 20 samples < 200 ms. Files over 20 MB have no rendering gate; accepted files can still open in Read. Entering Live editing above 250,000 characters switches to Source. |
 | Cold launch to first readable | p95 of at least 20 samples < 800 ms |
 | Switch to an already-open 100k-character tab | Read and Live measured separately, p95 < 50 ms each |
 | Typing, 100k-character document, one pane and two visible panes | Event Timing API `duration` (input to next paint) for keydown and beforeinput at the top, middle and end of the file, in live, source and side-by-side modes. Gate: conservative p95 editor excess over a matched empty-textarea control is at most one display frame plus 8 ms, from at least 40 trusted keys per case. Unreported sub-16 ms events count as under 16 ms. Raw values stay in the receipt. |
@@ -61,7 +61,7 @@ Typing runs also cover burst input, selection movement, backspace, undo, paste a
 
 - Set `SMD_MAX_GUI_LOAD=12` to admit each performance Electron process only when macOS reports a lower one-minute load. Smoke and CLI runs accept the same opt-in guard, using `20`. It reads `sysctl -n vm.loadavg` and waits 60 seconds between checks while the host exceeds the limit. Admission happens before the timed region.
 - Absolute gates run on the owner's MacBook. Never register that machine as a self-hosted runner on this public repository.
-- Hosted CI runs the same harness only to catch relative regressions beyond a noise band measured from repeated control runs. It also catches missing output and broken markers.
+- Hosted macOS CI compiles the harness and runs its protocol, fixture and statistics tests with continue-on-error. It measures neither relative performance nor absolute gates and does not block merges on performance.
 - Until the end of milestone 3, a PR must not regress any gate. From then on, the gates block merges.
 - Milestone 0 measures the real app's physical footprint, and the owner reconfirms the 200 MB target before it becomes blocking.
 

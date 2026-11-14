@@ -1,10 +1,16 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { extensions, packagedApp } from "./quicklook.mjs";
+import { extensions, packagedApp, readPlist } from "./quicklook.mjs";
 
-export function readPlist(file) {
-  return JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", file], { encoding: "utf8" }));
+export { readPlist } from "./quicklook.mjs";
+
+export function verifyExtensionVersion(host, extension) {
+  for (const key of ["CFBundleShortVersionString", "CFBundleVersion"]) {
+    if (typeof host[key] !== "string" || !host[key] || extension[key] !== host[key]) {
+      throw new Error(`Quick Look ${key} must match the host bundle`);
+    }
+  }
 }
 
 function signature(bundle) {
@@ -18,14 +24,15 @@ export function verifyQuickLook(app) {
   if (!existsSync(cli)) throw new Error("Missing bundled CLI");
   const help = execFileSync(cli, ["--help"], { encoding: "utf8" });
   if (!help.includes("Usage: simplemd")) throw new Error("Invalid bundled CLI");
-  const info = readPlist(path.join(app, "Contents/Info.plist"));
-  if (!info.CFBundleURLTypes?.some(type => type.CFBundleURLSchemes?.includes("simplemd"))) throw new Error("Missing open URL protocol");
+  const host = readPlist(path.join(app, "Contents/Info.plist"));
+  if (!host.CFBundleURLTypes?.some(type => type.CFBundleURLSchemes?.includes("simplemd"))) throw new Error("Missing open URL protocol");
   execFileSync("/usr/bin/codesign", ["--verify", "--deep", "--strict", "--verbose=2", app], { stdio: "inherit" });
   const outer = signature(app);
   const authority = outer.match(/^Authority=(Developer ID Application: .+)$/m)?.[1];
   for (const extension of extensions) {
     const bundle = path.join(app, "Contents/PlugIns", extension);
     const info = readPlist(path.join(bundle, "Contents/Info.plist"));
+    verifyExtensionVersion(host, info);
     const kind = extension === extensions[0] ? "preview" : "thumbnail";
     if (info.CFBundleIdentifier !== `com.jonathanreed.simplemd.${kind}`) throw new Error(`Unexpected extension ID in ${bundle}`);
     if (info.LSMinimumSystemVersion !== "13.0") throw new Error(`Unexpected deployment target: ${bundle}`);

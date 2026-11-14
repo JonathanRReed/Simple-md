@@ -22,7 +22,7 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
     if (busy || stopped) return;
     busy = true;
     try {
-      const gate = { packaged: app.isPackaged, platform: process.platform, appImage: !!process.env.APPIMAGE,
+      const gate = { packaged: app.isPackaged, metadata: fs.existsSync(path.join(process.resourcesPath, "app-update.yml")), platform: process.platform, appImage: !!process.env.APPIMAGE,
         enabled: enabled(), manual, now: Date.now(), lastCheck };
       // Verify the signature only when a check would otherwise run.
       if (process.platform === "darwin" && !signed && updateDecision({ ...gate, signed: true }) === "check") {

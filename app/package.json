@@ -91,21 +91,6 @@
         "to": "THIRD_PARTY_NOTICES"
       }
     ],
-    "fileAssociations": [
-      {
-        "ext": [
-          "md",
-          "markdown",
-          "mdown",
-          "mkd",
-          "mdx"
-        ],
-        "name": "Markdown document",
-        "role": "Editor",
-        "description": "Markdown document",
-        "mimeType": "text/markdown"
-      }
-    ],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "../resources/icon0.icns",
@@ -121,7 +106,7 @@
           {
             "CFBundleTypeName": "Markdown document",
             "CFBundleTypeRole": "Editor",
-            "LSHandlerRank": "Alternate",
+            "LSHandlerRank": "Default",
             "LSItemContentTypes": [
               "net.daringfireball.markdown",
               "public.markdown",
@@ -186,7 +171,22 @@
       "target": [
         "nsis"
       ],
-      "signExecutable": false
+      "signExecutable": false,
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkd",
+            "mdx"
+          ],
+          "name": "Markdown document",
+          "role": "Editor",
+          "description": "Markdown document",
+          "mimeType": "text/markdown"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -219,7 +219,22 @@
           "StartupNotify": "true"
         }
       },
-      "maintainer": "Jonathan R. Reed <130617826+JonathanRReed@users.noreply.github.com>"
+      "maintainer": "Jonathan R. Reed <130617826+JonathanRReed@users.noreply.github.com>",
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkd",
+            "mdx"
+          ],
+          "name": "Markdown document",
+          "role": "Editor",
+          "description": "Markdown document",
+          "mimeType": "text/markdown"
+        }
+      ]
     },
     "forceCodeSigning": false,
     "publish": null,
