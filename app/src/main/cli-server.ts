@@ -9,7 +9,7 @@ import { prepareCliRuntime } from "./cli-runtime.js";
 perfMark("cli-module-loaded");
 
 export type CliDispatch = (request: CliRequest, stdin: string, closed: () => void, signal: AbortSignal) => Promise<(() => void) | undefined>;
-export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }): Promise<{ close(): void }> {
+export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }): Promise<{ close(): void; drain(): Promise<void> }> {
   perfMark("cli-runtime-start");
   const runtime = await prepareCliRuntime(options.binary, options.profile);
   perfMark("cli-runtime-ready");
@@ -42,6 +42,7 @@ export async function startCliServer(options: { binary: string; profile?: string
       const broker = spawn(options.binary, ["--ipc-broker"], { env: options.profile ? { ...process.env, SMD_CLI_RUNTIME: runtime.directory } : process.env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
       stopTransport = () => { broker.kill(); };
       const clients = new Map<number, ReturnType<typeof handle>>();
+      let drained = () => {};
       const lines = createInterface({ input: broker.stdout });
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("Private pipe did not start.")), 5000);
@@ -50,6 +51,7 @@ export async function startCliServer(options: { binary: string; profile?: string
           try {
             const value: unknown = JSON.parse(line);
             if (!value || typeof value !== "object") throw new Error("Invalid broker message.");
+            if ("drained" in value && value.drained === true) { drained(); return; }
             if ("ready" in value && value.ready === true) { clearTimeout(timer); resolve(); return; }
             if (!("connection" in value) || typeof value.connection !== "number") throw new Error("Missing pipe connection.");
             const connection = value.connection;
@@ -72,7 +74,16 @@ export async function startCliServer(options: { binary: string; profile?: string
         });
       });
       broker.stderr.on("data", () => {});
-      return { close() { for (const cleanup of active) cleanup(); broker.kill(); runtime.cleanup(); } };
+      return {
+        async drain() {
+          await new Promise<void>(resolve => {
+            const timer = setTimeout(() => { console.error("simplemd: CLI drain timed out"); resolve(); }, 2000);
+            drained = () => { clearTimeout(timer); resolve(); };
+            broker.stdin.write(JSON.stringify({ drain: true }) + "\n", error => { if (error) drained(); });
+          });
+        },
+        close() { for (const cleanup of active) cleanup(); broker.kill(); runtime.cleanup(); },
+      };
     }
     const sockets = new Set<net.Socket>();
     const unauthenticated = new Set<net.Socket>();
@@ -115,7 +126,19 @@ export async function startCliServer(options: { binary: string; profile?: string
     fs.chmodSync(runtime.endpoint, 0o600);
     perfMark("cli-listening");
     let closed = false;
-    return { close() { if (closed) return; closed = true; for (const cleanup of active) cleanup(); for (const socket of sockets) socket.destroy(); stopTransport(); runtime.cleanup(); } };
+    return {
+      async drain() {
+        server.close();
+        await Promise.all([...sockets].map(socket => new Promise<void>(resolve => {
+          if (socket.destroyed || socket.writableFinished) { resolve(); return; }
+          const done = () => { clearTimeout(timer); socket.off("close", done); resolve(); };
+          const timer = setTimeout(() => { console.error("simplemd: CLI drain timed out"); done(); }, 2000);
+          socket.once("close", done);
+          socket.end(done);
+        })));
+      },
+      close() { if (closed) return; closed = true; for (const cleanup of active) cleanup(); for (const socket of sockets) socket.destroy(); stopTransport(); runtime.cleanup(); },
+    };
   } catch (error) { stopTransport(); runtime.cleanup(); throw error; }
 }
 

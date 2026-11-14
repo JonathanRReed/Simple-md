@@ -320,6 +320,10 @@ pub fn broker() -> Result<(), String> {
             let Ok(value) = serde_json::from_str::<Value>(&line) else {
                 break;
             };
+            if value["drain"] == true {
+                emit(json!({"drained":true}));
+                continue;
+            }
             let Some(id) = value["connection"].as_u64() else {
                 break;
             };
@@ -329,6 +333,12 @@ pub fn broker() -> Result<(), String> {
                     &serde_json::to_vec(&value["response"]).unwrap_or_default(),
                     FRAME_CAP,
                 );
+                if value["response"]["status"] == "closed" {
+                    // Wait until the client consumes its completion before the parent stops us.
+                    unsafe {
+                        FlushFileBuffers(file.as_raw_handle());
+                    }
+                }
             }
         }
         std::process::exit(1);

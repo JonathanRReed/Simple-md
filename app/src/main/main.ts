@@ -1386,8 +1386,9 @@ async function prepareQuit(): Promise<void> {
   tray?.destroy();
   tray = undefined;
   await cliStartup;
+  cliWaiters.closeAll();
+  await cliServer?.drain();
   cliServer?.close();
-  cliWaiters.clear();
   registry.dispose();
   configStore().close();
   settingsWindow?.close();
