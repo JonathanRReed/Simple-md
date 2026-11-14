@@ -180,9 +180,10 @@ export class DocumentSession {
     });
   }
 
-  move(target: string, expected: Destination): Promise<SaveResult | null> {
+  move(target: string, expected: Destination): Promise<SaveResult> {
     return this.saves.run(async () => {
-      if (!this.path || this.dirty || this.conflict || this.unavailableReason) return null;
+      if (!this.path) throw new Error("Save the file before moving it.");
+      if (this.dirty || this.conflict || this.unavailableReason) throw new Error("The document changed. Save it and try again.");
       const previous = this.path;
       this.stopWatching();
       try {

@@ -61,7 +61,7 @@ import type {
   SaveResult,
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
-import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
+import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument, saveChangesPrompt } from "./lifecycle.js";
 import { writeConflictCopy } from "./conflict-copy.js";
 import { checkExportDestination, writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
@@ -451,7 +451,7 @@ async function transition<T>(operation: () => Promise<T>, host = context()): Pro
   }
 }
 
-async function settle(current = currentSession(), host = context(), preserve = false): Promise<boolean> {
+async function settle(current = currentSession(), host = context(), preserve: "move" | "share" | false = false): Promise<boolean> {
   await host.loaded;
   if (!current) return true;
   let discarded = false;
@@ -478,14 +478,8 @@ async function settle(current = currentSession(), host = context(), preserve = f
     },
     choose: async () => {
       reveal(host);
-      const { response } = await dialog.showMessageBox(host.win, {
-        type: "warning",
-        message: `Save changes to “${current.name}”?`,
-        detail: "Your changes will be lost if you don't save them.",
-        buttons: ["Save", "Don't Save", "Cancel"],
-        defaultId: 0,
-        cancelId: 2,
-      });
+      const { response } = await dialog.showMessageBox(host.win, saveChangesPrompt(current.name, preserve));
+      if (preserve) return response === 0 ? "save" : "cancel";
       discarded = response === 1;
       return response === 0 ? "save" : response === 1 ? "discard" : "cancel";
     },
@@ -780,7 +774,7 @@ async function fileActionError(message: string): Promise<void> {
   await dialog.showMessageBox(context().win, { type: "error", message });
 }
 async function renameMove(doc: DocumentSession): Promise<void> {
-  if (!doc.path || !await settle(doc, context(), true)) return;
+  if (!doc.path || !await settle(doc, context(), "move")) return;
   const previous = doc.path;
   const result = await dialog.showSaveDialog(context().win, { defaultPath: previous });
   if (result.canceled || !result.filePath || result.filePath === previous) return;
@@ -788,7 +782,6 @@ async function renameMove(doc: DocumentSession): Promise<void> {
   if (await sameOpenDocument(target, doc.documentId)) { await fileActionError("Close the destination tab first."); return; }
   try {
     const moved = await doc.move(target, await destinationState(target));
-    if (!moved) return;
     invalidateUrlContext(path.dirname(previous)); invalidateUrlContext(path.dirname(target));
     history.moved(previous, target);
     moveRecentDocument(recentOS, process.platform, previous, target);
@@ -896,7 +889,7 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
     case "duplicate-file": if (current) void documents.run(() => transition(() => duplicateFile(current))); return;
     case "rename-move": if (current?.path) void documents.run(() => transition(() => renameMove(current))); return;
     case "share": if (current) void documents.run(() => transition(async () => {
-      if (await settle(current, context(), true) && current.path && !current.dirty && !current.conflict) shareDocument(context().win, current.path);
+      if (await settle(current, context(), "share") && current.path && !current.dirty && !current.conflict) shareDocument(context().win, current.path);
     })); return;
     case "reopen-closed-tab": void documents.run(async () => {
       let file: string | undefined;

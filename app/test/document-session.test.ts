@@ -191,3 +191,13 @@ test("explicit reading actions keep normal autosave", async () => {
   expect(await doc.save(file, doc.revisionId)).not.toBeNull();
   expect(await fs.readFile(file, "utf8")).toBe("- [x] Review\n");
 });
+
+test("a document edited after settlement explains why Rename cannot proceed", async () => {
+  const dir = await directory(), file = path.join(dir, "old.md"), target = path.join(dir, "new.md");
+  await fs.writeFile(file, "saved");
+  const doc = registry().create(file, "saved"); doc.edit("new edit", makeRevisionId(1));
+  await expect(doc.move(target, { kind: "absent" })).rejects.toThrow("The document changed. Save it and try again.");
+  expect(await fs.readFile(file, "utf8")).toBe("saved");
+  expect(await fs.stat(target).catch(() => null)).toBeNull();
+  expect(doc.text).toBe("new edit");
+});

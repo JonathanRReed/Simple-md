@@ -78,3 +78,14 @@ export async function quitAfterSettle(a: {
     return true;
   } finally { if (!completed) a.cancel?.(); }
 }
+
+export function saveChangesPrompt(name: string, preserve: "move" | "share" | false = false) {
+  return {
+    type: "warning" as const,
+    message: preserve ? `Save “${name}” before ${preserve === "move" ? "moving" : "sharing"}?` : `Save changes to “${name}”?`,
+    detail: preserve ? "" : "Your changes will be lost if you don't save them.",
+    buttons: preserve ? ["Save", "Cancel"] : ["Save", "Don't Save", "Cancel"],
+    defaultId: 0,
+    cancelId: preserve ? 1 : 2,
+  };
+}
