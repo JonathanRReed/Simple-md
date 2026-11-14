@@ -81,7 +81,7 @@ export const commandDefinitions: readonly CommandDefinition[] = [
   {id: "duplicate-file", label: "Duplicate…"},
   {id: "rename-move", label: "Rename or Move…"},
   {id: "reopen-closed-tab", label: "Reopen Closed Tab", accelerator: "CommandOrControl+Shift+T"},
-  {id: "default-markdown-app", label: "Make SimpleMD the Default Markdown App…"},
+  {id: "default-markdown-app", label: "Make SimpleMD the Default Markdown App"},
   {id: "find-replace", label: "Find and Replace…", accelerator: "Control+H", mac: "Command+Alt+F"},
   {id: "go-to-line", label: "Go to Line…", accelerator: "Control+Alt+G", mac: "Control+G"},
   {id: "block-heading-1", label: "Heading 1", accelerator: "CommandOrControl+Shift+1", mac: "Control+Command+1"},

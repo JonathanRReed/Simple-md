@@ -67,7 +67,7 @@ export function buildMenu(a: MenuActions): void {
               { type: "separator" },
               cmd("Settings…", "preferences"),
               { id: "install-cli", label: "Install Command Line Tool", click: a.installCli },
-              cmd("Make SimpleMD the Default Markdown App…", "default-markdown-app"),
+              cmd("Make SimpleMD the Default Markdown App", "default-markdown-app"),
               { type: "separator" },
               { id: "hide", role: "hide" },
               { id: "hideOthers", role: "hideOthers" },
@@ -249,7 +249,7 @@ export function buildMenu(a: MenuActions): void {
     },
     { role: "windowMenu" },
     ...(mac ? [] : [{ label: "Help", submenu: [
-      cmd("Make SimpleMD the Default Markdown App…", "default-markdown-app"),
+      cmd("Make SimpleMD the Default Markdown App", "default-markdown-app"),
       { id: "check-updates", label: update.checkLabel, enabled: update.checkEnabled, click: a.checkUpdates },
       { id: "install-update", label: "Restart to Install Update…", enabled: update.installEnabled, click: a.installUpdate },
     ] } satisfies MenuItemConstructorOptions]),

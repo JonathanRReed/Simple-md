@@ -316,7 +316,7 @@ test("Quick Look versions must match both host version fields", () => {
   }
 });
 
-test("electron-builder emits one Default Markdown and MDX document declaration", async () => {
+test("electron-builder emits Default Markdown, MDX and extension-only document declarations", async () => {
   const { getConfig } = await import("app-builder-lib/out/util/config/config.js");
   await import("electron-builder");
   const { createMacApp } = await import("app-builder-lib/out/electron/electronMac.js");
@@ -346,7 +346,8 @@ test("electron-builder emits one Default Markdown and MDX document declaration",
     };
     await createMacApp(packager, dir, null, false);
     const info = await parsePlistFile(path.join(dir, "SimpleMD.app/Contents/Info.plist"));
-    expect(info.CFBundleDocumentTypes).toHaveLength(1);
+    expect(info.CFBundleDocumentTypes).toHaveLength(2);
+    expect(info.CFBundleDocumentTypes[1]).toEqual({ CFBundleTypeName: "Markdown document", CFBundleTypeRole: "Editor", LSHandlerRank: "Default", CFBundleTypeExtensions: ["mdown", "mkd"] });
     expect(info.CFBundleDocumentTypes[0]).toEqual({
       CFBundleTypeName: "Markdown document", CFBundleTypeRole: "Editor", LSHandlerRank: "Default",
       CFBundleTypeExtensions: ["md", "markdown", "mdown", "mkd", "mdx"],
@@ -367,4 +368,6 @@ test("macOS ships the arm64 default-app helper built with Command Line Tools", (
   const helper = readFileSync(path.join(appDir, "native/default-app/DefaultApp.swift"), "utf8");
   expect(helper).toContain("NSWorkspace.shared.setDefaultApplication"); expect(helper).toContain("urlForApplication(toOpen:");
   expect(helper).toContain('--query');
+  expect(helper).toContain('supported.contains(type.identifier) && type.isDeclared');
+  expect(helper).toContain('extensions.contains(ext) && type.isDynamic');
 });

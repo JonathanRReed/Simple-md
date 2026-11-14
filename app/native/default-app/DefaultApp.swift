@@ -27,9 +27,14 @@ struct DefaultApp {
             exit(2)
         }
         let application = URL(fileURLWithPath: arguments[1]).resolvingSymlinksInPath()
+        let declarations = Bundle(url: application)?.infoDictionary?["CFBundleDocumentTypes"] as? [[String: Any]] ?? []
+        let supported = Set(declarations.flatMap { $0["LSItemContentTypes"] as? [String] ?? [] })
+        let extensions = Set(declarations.filter { $0["LSItemContentTypes"] == nil }
+            .flatMap { $0["CFBundleTypeExtensions"] as? [String] ?? [] })
         var types: [String: (UTType, [String])] = [:]
         for ext in ["md", "markdown", "mdown", "mkd", "mdx"] {
-            for type in UTType.types(tag: ext, tagClass: .filenameExtension, conformingTo: nil) {
+            for type in UTType.types(tag: ext, tagClass: .filenameExtension, conformingTo: nil)
+                where supported.contains(type.identifier) && type.isDeclared || extensions.contains(ext) && type.isDynamic {
                 var entry = types[type.identifier] ?? (type, [])
                 entry.1.append(ext)
                 types[type.identifier] = entry

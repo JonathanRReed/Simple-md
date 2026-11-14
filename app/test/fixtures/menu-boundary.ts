@@ -61,7 +61,7 @@ test("file, recovery, default-app and update menu items follow document and syst
       const reopen = entries("File").find(item => item.label === "Reopen Closed Tab")!;
       expect(reopen.enabled).toBe(true); expect(reopen.accelerator).toBe("CommandOrControl+Shift+T");
       reopen.click?.({} as never, undefined, {} as never);
-      entries(appMenu).find(item => item.label === "Make SimpleMD the Default Markdown App…")!.click?.({} as never, undefined, {} as never);
+      entries(appMenu).find(item => item.label === "Make SimpleMD the Default Markdown App")!.click?.({} as never, undefined, {} as never);
       expect(commands).toEqual(["reopen-closed-tab", "default-markdown-app"]);
       expect(entries(appMenu).find(item => item.label === "Restart to Install Update…")?.enabled).toBe(true);
       expect(entries(appMenu).some(item => item.label?.includes("Ready to Install"))).toBe(true);

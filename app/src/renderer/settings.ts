@@ -105,7 +105,7 @@ const actionButton = (label: string, action: "default-app" | "open-config" | "re
 const configActions = document.createElement("span"); configActions.className = "config-actions";
 configActions.append(actionButton("Open Config File", "open-config"), actionButton("Reveal", "reveal-config"));
 configDetails.append(configActions);
-advancedGroup.append(actionButton("Make SimpleMD the Default Markdown App…", "default-app"), configButton, configDetails); advanced.append(advancedTitle, advancedGroup); form.append(advanced);
+advancedGroup.append(actionButton("Make SimpleMD the Default Markdown App", "default-app"), configButton, configDetails); advanced.append(advancedTitle, advancedGroup); form.append(advanced);
 form.addEventListener("submit", event => event.preventDefault());
 bridge.subscribe(sync);
 void bridge.get().then(sync).catch(error => { const target = document.querySelector<HTMLElement>("#save-error")!; target.hidden = false; target.textContent = String(error); });
