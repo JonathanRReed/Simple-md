@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { SettingsBridge, SettingsSnapshot } from "./shared/settings-window.js";
 const bridge: SettingsBridge = {
+  action: action => ipcRenderer.invoke("smd:settings-window:action", action),
   get: () => ipcRenderer.invoke("smd:settings-window:get"),
   set: patch => ipcRenderer.invoke("smd:settings-window:set", patch),
   subscribe(callback) {

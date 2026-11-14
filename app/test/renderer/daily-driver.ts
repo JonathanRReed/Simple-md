@@ -104,7 +104,7 @@ export async function runBatch(input: { html: string; css: string }) {
     changes: async () => ({ kind: 'head', generation: headReads, changes: { changed: committed ? [] : [[2, 3]], deleted: [] } }),
     headChanges: async () => { headReads++; return { available: true, active: true }; },
     renderBlocks: async () => { if (delayRead) { delayRead = false; await new Promise<void>(resolve => { releaseRead = resolve; }); } return rendered; }, renderFragment: host.renderFragment,
-    readFindText: async () => '', writeFindText: async () => {},
+    relativePath: async () => null, readFindText: async () => '', writeFindText: async () => {},
   } });
   const pane = createPane(root, makePaneId(0), { active: () => true, changed() {}, tabs: () => [] });
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, outlineRail: false });

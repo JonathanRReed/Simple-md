@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("simplemd", {
     if (isDocumentId(documentId)) activeDocumentId = documentId;
   },
   closeTab: (id: DocumentId) => ipcRenderer.invoke("smd:close-tab", id),
+  relativePath: (id: DocumentId) => ipcRenderer.invoke("smd:relative-path", id),
   tabContextMenu: (id: DocumentId) => ipcRenderer.invoke("smd:tab-context-menu", id),
   onDoc: (cb: (doc: { documentId: DocumentId }) => void) => on("smd:doc", (doc: { documentId: DocumentId }) => { activeDocumentId = doc.documentId; cb(doc); }),
   onSettings: (cb: (s: unknown) => void) => on("smd:settings", cb),

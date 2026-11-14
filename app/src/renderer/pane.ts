@@ -1,3 +1,4 @@
+import { fileCommands } from "../shared/file-commands.js";
 import { readerFocus } from "./reader-focus.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import { showConflictComparison } from "./conflict-comparison.js";
@@ -976,7 +977,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
       invalidateExport();
-      void refreshChanges();
+      if (!result.moved) void refreshChanges();
     }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
     if (moved) {
@@ -1255,9 +1256,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function openPalette(): void {
+    const paletteDocument = pane.documentId;
     const set = (patch: Partial<Settings>) => () => { if (patch.mode) selectMode(patch.mode); else void simplemd.setSettings(patch); };
     const cmd = (c: Command) => () => handleCommand(c);
     const items: PickerItem[] = [
+      ...fileCommands(settings, doc.meta.path).map(({ label, command }) => ({ label, run: () => simplemd.command(command, pane.documentId) })),
       ...tabCommands(settings, doc.meta.path).map(({ label, command }) => ({ label, run: () => simplemd.command(command) })),
       { label: "Mark Seen", run: cmd("mark-seen") },
       { label: "Next Change", run: cmd("next-change") },
@@ -1303,12 +1306,21 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         items.push({ label: heading.textContent ?? "", hint: "Heading", run: () => heading.scrollIntoView({ block: "start" }) });
       }
     }
-    openPicker("Search commands, tabs, recent files and headings…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
+    const updateItems = openPicker("Search commands, tabs, recent files and headings…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
+    if (doc.meta.path) void simplemd.relativePath(paletteDocument).then(relative => {
+      if (relative && !disposed && paletteDocument === pane.documentId) {
+        items.push({ label: "Copy Relative Path", run: () => simplemd.command("copy-relative-path", paletteDocument) });
+        updateItems(items);
+      }
+    }).catch(() => {});
   }
 
   function handleCommand(cmd: Command): void {
     if (transitioning && ["toggle-edit", "undo", "redo", "save", "save-as", "format-bold", "format-italic", "format-code", "format-link", "format-strike"].includes(cmd)) return;
     switch (cmd) {
+      case "copy-path": case "copy-relative-path": case "duplicate-file": case "rename-move":
+      case "reopen-closed-tab": case "close-other-tabs": case "close-tabs-below": case "default-markdown-app": case "share":
+        closeOverlays(); simplemd.command(cmd, pane.documentId); return;
       case "mark-seen": void markSeen(); return;
       case "toggle-head-changes": void toggleHeadChanges().catch(error => toast(String(error))); return;
       case "next-change": navigateChange(1); return;

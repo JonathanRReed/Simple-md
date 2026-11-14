@@ -24,7 +24,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
-    readFindText: async () => "", writeFindText: async () => {},
+    relativePath: async () => null, readFindText: async () => "", writeFindText: async () => {},
     setSettings: async (patch: unknown) => { calls.settings.push(patch); },
     activateTab: async (id: number) => { calls.tabs.push(id); },
     command: (cmd: string) => calls.commands.push(cmd),
