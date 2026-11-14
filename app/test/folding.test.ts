@@ -44,3 +44,15 @@ test("editing before an untouched frontmatter fold maps its closing range", () =
   runFold(view, "fold");
   expect(foldedRanges(view.state).iter().to).toBe(24);
 });
+
+test("frontmatter delimiter edits update only the affected lines", () => {
+  const text = "---\ntitle: Test\n---\n\nBody\n---";
+  const view = editor(text, 8);
+  view.dispatch({ changes: { from: text.indexOf("\n---") + 1, insert: "not " } });
+  runFold(view, "fold");
+  expect(foldedRanges(view.state).iter().to).toBe(view.state.doc.length);
+  runFold(view, "unfold-all");
+  view.dispatch({ changes: { from: 4, insert: "---\n" }, selection: { anchor: 0 } });
+  runFold(view, "fold");
+  expect(foldedRanges(view.state).iter().to).toBe(7);
+});

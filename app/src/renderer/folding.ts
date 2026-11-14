@@ -1,31 +1,43 @@
-import { codeFolding, foldEffect, foldGutter, foldedRanges, foldService, syntaxTree, unfoldCode, unfoldAll, ensureSyntaxTree } from "@codemirror/language";
-import { type EditorState, StateField } from "@codemirror/state";
+import { codeFolding, foldEffect, foldGutter, foldService, syntaxTree, unfoldCode, unfoldAll, ensureSyntaxTree } from "@codemirror/language";
+import { type EditorState, RangeSet, RangeValue, StateField } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
-function frontmatter(state: EditorState): { from: number; to: number } | null {
-  if (state.doc.line(1).text !== "---") return null;
-  for (let i = 2; i <= state.doc.lines; i++) {
+class Delimiter extends RangeValue {}
+const delimiter = new Delimiter();
+function delimiters(state: EditorState, from: number, to: number) {
+  const found = [];
+  const first = state.doc.lineAt(from).number, last = state.doc.lineAt(to).number;
+  for (let i = first; i <= last; i++) {
     const line = state.doc.line(i);
-    if (line.text === "---" || line.text === "...") return { from: state.doc.line(1).to, to: line.to };
+    if (line.length === 3 && (line.text === "---" || line.text === "...")) found.push(delimiter.range(line.from));
   }
-  return null;
+  return found;
 }
+function frontmatter(state: EditorState, markers: RangeSet<Delimiter>): { from: number; to: number } | null {
+  const first = state.doc.line(1);
+  if (first.text !== "---") return null;
+  const next = markers.iter(first.to + 1);
+  return next.value ? { from: first.to, to: state.doc.lineAt(next.from).to } : null;
+}
+// Index delimiters once, then update only changed lines. Typing never scans the document.
 const frontmatterFold = StateField.define({
-  create: frontmatter,
+  create(state) {
+    const markers = RangeSet.of(delimiters(state, 0, state.doc.length));
+    return { markers, range: frontmatter(state, markers) };
+  },
   update(value, tr) {
     if (!tr.docChanged) return value;
-    let delimiterChanged = false;
-    const first = tr.startState.doc.line(1);
-    const last = value ? tr.startState.doc.lineAt(value.to) : first;
-    tr.changes.iterChanges((from, to, _a, _b, insert) => {
-      if (from <= first.to || from <= last.to && to >= last.from || insert.toString().split("\n").some(line => line === "---" || line === "...")) delimiterChanged = true;
+    let markers = value.markers.map(tr.changes);
+    tr.changes.iterChangedRanges((_a, _b, from, to) => {
+      const start = tr.state.doc.lineAt(from).from, end = tr.state.doc.lineAt(to).to;
+      markers = markers.update({ filterFrom: start, filterTo: end, filter: (at) => at < start || at > end, add: delimiters(tr.state, start, end), sort: true });
     });
-    return delimiterChanged ? frontmatter(tr.state) : value ? { from: tr.changes.mapPos(value.from), to: tr.changes.mapPos(value.to) } : null;
+    return { markers, range: frontmatter(tr.state, markers) };
   },
 });
 export const writingFolding = [
   frontmatterFold,
-  foldService.of((state, start) => start === 0 ? state.field(frontmatterFold) : null),
+  foldService.of((state, start) => start === 0 ? state.field(frontmatterFold).range : null),
   codeFolding(),
   foldGutter({ openText: "⌄", closedText: "›" }),
 ];
@@ -35,7 +47,7 @@ export function runFold(view: EditorView, command: FoldCommand): void {
   ensureSyntaxTree(view.state, view.state.doc.length, 100);
   if (command === "fold-all") {
     const effects = [];
-    const fm = view.state.field(frontmatterFold);
+    const fm = view.state.field(frontmatterFold).range;
     if (fm) effects.push(foldEffect.of(fm));
     const headings: { from: number; to: number; level: number }[] = [];
     syntaxTree(view.state).iterate({ enter(node) {
@@ -52,7 +64,7 @@ export function runFold(view: EditorView, command: FoldCommand): void {
     view.dispatch({ effects }); return;
   }
   const head = view.state.selection.main.head;
-  const fm = view.state.field(frontmatterFold);
+  const fm = view.state.field(frontmatterFold).range;
   let node = syntaxTree(view.state).resolveInner(head, -1);
   while (node.parent && !/^(?:FencedCode|ATXHeading\d|SetextHeading\d)$/.test(node.name)) node = node.parent;
   if (command === "unfold") {
@@ -77,4 +89,3 @@ export function runFold(view: EditorView, command: FoldCommand): void {
     if (to > from) view.dispatch({ effects: foldEffect.of({ from, to }), selection: { anchor: from } });
   }
 }
-export function foldedCount(state: EditorState): number { return foldedRanges(state).size; }
