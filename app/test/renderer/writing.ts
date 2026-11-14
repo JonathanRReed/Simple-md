@@ -81,7 +81,7 @@ export async function runBatch(input: { html: string; css: string }) {
   const sourceRanges = selectedSourceRanges(article, readText, selection);
   assert(sourceRanges.length === 1 && readText.slice(sourceRanges[0]!.from, sourceRanges[0]!.to).startsWith("First **words**"), "Read selection lacks original source range");
   pane.command("copy-markdown"); await until(() => clipboard.length === 1, "Read Markdown copy did not write");
-  assert(clipboard[0]!.text === "First **words** [link](https://example.test)\n\n", "Read copy lost markup or copied unrelated blocks");
+  assert(clipboard[0]!.text === "First **words** [link](https://example.test)\n", "Read copy lost markup or copied unrelated blocks");
   pane.command("copy-html"); await until(() => clipboard.length === 2, "HTML copy did not write");
   assert(clipboard[1]!.text.includes("<strong>words</strong>") && clipboard[1]!.html === undefined, "HTML copy is not HTML text");
   pane.command("copy-formatted"); await until(() => clipboard.length === 3, "Formatted copy did not write");
@@ -115,6 +115,16 @@ export async function runBatch(input: { html: string; css: string }) {
   closeOverlays();
   pane.command("go-to-line");
   await until(() => !!root.querySelector(".cm-gotoLine"), "Go to Line panel did not open");
+
+  pane.suspend();
+  const hostile = 'Hello **bold**\n\n<img src="https://example.test/a.png" onerror="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)">Link</a>';
+  const hostileBlocks = await core.renderBlocks(hostile, "/tmp/clipboard.md");
+  pane.settings({ ...DEFAULT_SETTINGS, autosave: false, outlineRail: false, remoteImages: false });
+  await pane.load({ ...hostileBlocks, documentId: makeDocumentId(3), paneId: makePaneId(0), revisionId: makeRevisionId(0), path: "/tmp/clipboard.md", name: "clipboard.md", baseUrl: "file:///tmp/", text: hostile, intent: "read" });
+  const copied = clipboard.length; pane.command("copy-html");
+  await until(() => clipboard.length > copied, "Author-HTML copy did not write");
+  assert(!/<script|onerror|javascript:/i.test(clipboard.at(-1)!.text), "Clipboard serialization bypassed author HTML sanitization");
+  assert(clipboard.at(-1)!.text.includes("<strong>bold</strong>"), "Sanitized copy lost generated Markdown");
 
   // The browser File remains alive across Save, and cancellation leaves the source alone.
   pane.suspend();
