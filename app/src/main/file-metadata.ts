@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-export async function copyMetadata(source: string, target: string): Promise<void> {
+export function nativeFileHelper(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
     path.join(process.resourcesPath ?? "", "native", "simplemd-helper"),
@@ -14,5 +14,19 @@ export async function copyMetadata(source: string, target: string): Promise<void
   ];
   const binary = candidates.find((candidate) => fs.existsSync(candidate));
   if (!binary) throw new Error("Build the native helper before saving: bun run build:native.");
-  await run(binary, ["--copy-metadata", source, target], { timeout: 5000, killSignal: "SIGKILL", maxBuffer: 64 * 1024 });
+  return binary;
+}
+export async function copyMetadata(source: string, target: string): Promise<void> {
+  await run(nativeFileHelper(), ["--copy-metadata", source, target], { timeout: 5000, killSignal: "SIGKILL", maxBuffer: 64 * 1024 });
+}
+
+export async function renameNoReplace(source: string, target: string): Promise<void> {
+  try { await run(nativeFileHelper(), ["--move-no-replace", source, target], { timeout: 5000, maxBuffer: 64 * 1024 }); }
+  catch (error) {
+    if (error instanceof Error && "stderr" in error && typeof error.stderr === "string") {
+      if (error.stderr.startsWith("EXDEV:")) throw Object.assign(new Error(error.stderr, { cause: error }), { code: "EXDEV" });
+      if (error.stderr.startsWith("EEXIST:")) throw Object.assign(new Error("The destination already exists.", { cause: error }), { code: "EEXIST" });
+    }
+    throw error;
+  }
 }

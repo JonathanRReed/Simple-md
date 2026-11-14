@@ -1,7 +1,23 @@
 mod file_metadata;
+mod file_move;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.len() == 3 && args[0] == "--move-no-replace" {
+        if let Err(error) = file_move::move_file(
+            std::path::Path::new(&args[1]),
+            std::path::Path::new(&args[2]),
+        ) {
+            let code = match error.kind() {
+                std::io::ErrorKind::CrossesDevices => "EXDEV",
+                std::io::ErrorKind::AlreadyExists => "EEXIST",
+                _ => "MOVE_FAILED",
+            };
+            eprintln!("{code}: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() != 3 || args[0] != "--copy-metadata" {
         eprintln!("Usage: simplemd-helper --copy-metadata <src> <dst>");
         std::process::exit(1);

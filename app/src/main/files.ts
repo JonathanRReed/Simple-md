@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { syncDirectory } from "./sync-directory.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { copyMetadata } from "./file-metadata.js";
+import { copyMetadata, renameNoReplace } from "./file-metadata.js";
 
 export const MARKDOWN_EXT = new Set([".md", ".markdown", ".mdown", ".mkd", ".mdx", ".txt"]);
 export const isMarkdown = (p: string) => MARKDOWN_EXT.has(path.extname(p).toLowerCase());
@@ -124,7 +124,14 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
         if (latest?.isSymbolicLink()) throw new FileConflictError();
       }
       if (expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
-      try { await fs.promises.rename(tmp, target); break; }
+      try {
+        if (expectedText === null) {
+          // Exclusive publication prevents a new draft from replacing a file that
+          // appeared between the revision check and publication.
+          await renameNoReplace(tmp, target);
+        } else await fs.promises.rename(tmp, target);
+        break;
+      }
       catch (err) {
         // Windows can hold the destination briefly during concurrent renames.
         // Recheck the disk revision and symlinks after each bounded delay.
