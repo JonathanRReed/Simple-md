@@ -425,7 +425,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
     },
     table(command) {
       if (view.state.readOnly || view.root.activeElement !== view.contentDOM || command !== "insert-table" && !inTable()) return;
-      const spec = sourceTransaction(view.state, tableEdit(view.state.field(editorText).text, sourceSelection(view.state), command));
+      const head = sourcePosition(view.state, view.state.selection.main.head);
+      const selection = command === "insert-table" ? sourceSelection(view.state) : { from: head, to: head };
+      const spec = sourceTransaction(view.state, tableEdit(view.state.field(editorText).text, selection, command));
       if (spec) { view.dispatch(spec); view.focus(); }
     },
     inTable,
