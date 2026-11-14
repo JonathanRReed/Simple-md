@@ -16,11 +16,11 @@ export async function saveDocumentImage(docPath: string, bytes: Uint8Array, ext:
   if (!folder || path.isAbsolute(folder) || folder.includes("\\") || folder.split("/").some(part => !part || part === "." || part === "..") || /[\x00-\x1f\x7f]/.test(folder)) throw new Error("Choose an image folder inside the document root.");
   const context = urlContext(path.dirname(docPath));
   const root = await fs.realpath(fileURLToPath(context.rootUrl ?? context.baseUrl!));
-  const publicFolder = folder.startsWith("public/") && context.publicUrl;
+  const publicFolder = (folder === "public" || folder.startsWith("public/")) && context.publicUrl;
   const base = publicFolder ? fileURLToPath(context.publicUrl!) : path.dirname(docPath);
   const relative = publicFolder ? folder.slice(7) : folder;
   const destination = path.resolve(base, relative);
-  const authorPath = publicFolder ? "/" + encodePath(relative) : encodePath(folder);
+  const authorPath = publicFolder ? (relative ? "/" + encodePath(relative) : "") : encodePath(folder);
   const resolved = resolveAuthorUrl(authorPath + "/placeholder.png", "resource", context);
   if (!resolved || !containedFileRoot(resolved, context) || !inside(root, destination)) throw new Error("The image folder is outside the document root.");
   let directory = root;
@@ -60,6 +60,10 @@ export async function insertDocumentImage(docPath: string, imagePath: string, fo
   const root = await fs.realpath(fileURLToPath(context.rootUrl ?? context.baseUrl!));
   if (inside(root, image)) {
     await containedLocalFile(pathToFileURL(image).href, context);
+    if (context.publicUrl) {
+      const publicRoot = await fs.realpath(fileURLToPath(context.publicUrl));
+      if (inside(publicRoot, image)) return "/" + encodePath(path.relative(publicRoot, image));
+    }
     const relative = encodePath(path.relative(path.dirname(docPath), image));
     if (resolveAuthorUrl(relative, "resource", context)) return relative;
   }
