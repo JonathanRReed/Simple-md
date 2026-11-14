@@ -10,17 +10,17 @@ async function until(fn: () => boolean, message: string) {
   throw new Error(message);
 }
 export async function runBatch(input: { text: string; rendered: RenderedBlocks; html: string; css: string }) {
-  let phase = "initial", writes = 0;
-  const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
+  let phase = "initial", scrollWrites = 0;
+  const scrollTopProperty = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
   const trace = (event: string, element?: Element, extra = {}) => {
-    console.log("SCROLL_TRACE " + JSON.stringify({ event, phase, time: performance.now(), writes,
+    console.log("SCROLL_TRACE " + JSON.stringify({ event, phase, time: performance.now(), writes: scrollWrites,
       top: element?.scrollTop, height: element?.scrollHeight, client: element?.clientHeight,
       width: element?.clientWidth, ...extra }));
   };
-  Object.defineProperty(Element.prototype, "scrollTop", { ...scrollTop, set(value: number) {
+  Object.defineProperty(Element.prototype, "scrollTop", { ...scrollTopProperty, set(value: number) {
     const editor = this instanceof Element && this.classList.contains("cm-scroller");
-    if (editor) trace("write-before", this, { write: ++writes, requested: value, stack: new Error().stack?.split("\n").slice(1, 7).join(" | ") });
-    scrollTop.set!.call(this, value);
+    if (editor) trace("write-before", this, { write: ++scrollWrites, requested: value, stack: new Error().stack?.split("\n").slice(1, 7).join(" | ") });
+    scrollTopProperty.set!.call(this, value);
     if (editor) trace("write-after", this);
   } });
   document.body.innerHTML = new DOMParser().parseFromString(input.html, "text/html").body.innerHTML;
