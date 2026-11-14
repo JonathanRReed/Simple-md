@@ -1,3 +1,4 @@
+import path from "node:path";
 import { expect, test } from "bun:test";
 import { inlineMath, displayMathAt } from "../src/shared/github-math";
 import { createMarkdownParser } from "../src/shared/markdown-parser";
@@ -57,9 +58,11 @@ test("font choices exclude symbol, emoji and braille families without excluding 
   for (const font of ['New York', 'Charter', 'Noto Sans', 'Arial', 'Lexicon', 'STIX Two Text', 'ui-serif', 'SF Pro Text']) expect(isTextFont(font), font).toBe(true);
 });
 test("picker paths are repo relative or home abbreviated with correct highlight positions", () => {
-  expect(quicklyDisplayPath('/home/me/repo/docs/plan.md', '/home/me/repo', '/home/me')).toBe('docs/plan.md');
-  expect(quicklyDisplayPath('/home/me/repo-other/plan.md', '/home/me/repo', '/home/me')).toBe('~/repo-other/plan.md');
-  expect(quicklyDisplayPath('/elsewhere/plan.md', '/home/me/repo', '/home/me')).toBe('/elsewhere/plan.md');
+  const home = path.resolve('/home/me'), repo = path.join(home, 'repo');
+  expect(quicklyDisplayPath(path.join(repo, 'docs/plan.md'), repo, home)).toBe(path.join('docs', 'plan.md'));
+  expect(quicklyDisplayPath(path.join(home, 'repo-other/plan.md'), repo, home)).toBe(path.join('~', 'repo-other', 'plan.md'));
+  const elsewhere = path.resolve('/elsewhere/plan.md');
+  expect(quicklyDisplayPath(elsewhere, repo, home)).toBe(elsewhere);
   const [file] = rankQuicklyFiles([{ path: '/home/me/repo/docs/plan.md', matchPath: 'docs/plan.md', displayPath: 'docs/plan.md', source: 'repo' }], 'docs');
   expect(file?.parent).toBe('docs');
   expect(file?.parentIndices).toEqual([0, 1, 2, 3]);
