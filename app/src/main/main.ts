@@ -744,7 +744,7 @@ async function duplicateFile(doc: DocumentSession): Promise<void> {
   try {
     const expected = await destinationState(target);
     await duplicateDocumentFile(target, doc.text, expected);
-    await openCurrentFile(target, "edit", false, undefined, context(), true);
+    await openCurrentFile(target, "edit", false, undefined, context(), true, opensInSource(target), { otherPane: false });
   } catch (error) { await fileActionError(String(error)); }
 }
 async function sameOpenDocument(target: string): Promise<boolean> {
@@ -881,7 +881,14 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
     case "reopen-closed-tab": void documents.run(async () => {
       let file: string | undefined;
       while ((file = closedTabs.take())) {
-        if (await fs.promises.stat(file).then(stat => stat.isFile(), () => false)) { await openCurrentFile(file, fileOpenIntent(file), false, undefined, context(), false, opensInSource(file), { otherPane: false }); break; }
+        if (await fs.promises.stat(file).then(stat => stat.isFile(), () => false)) {
+          const previousTabs = new Set([...windows.values()].flatMap(host => host.layout.state.tabs));
+          await openCurrentFile(file, fileOpenIntent(file), false, undefined, context(), false, opensInSource(file), { otherPane: false });
+          for (const host of windows.values()) for (const id of host.layout.state.tabs) {
+            if (!previousTabs.has(id) && registry.get(id)?.path === file && host.layout.isPinned(id)) pinTab(id, false, host);
+          }
+          break;
+        }
       }
       refreshMenus();
     }); return;
@@ -1454,6 +1461,7 @@ const dispatchCli: CliDispatch = async (request, stdin, closed, signal) => {
         }
         if (doc) { host.layout.activate(doc.documentId); syncLayout(host); reveal(host); }
         else {
+          if (settings.openIn === "window" && host.layout.state.tabs.length) host = createDocumentWindow();
           doc = registry.create(null, "", "edit"); doc.draftPath = target.path; doc.displayName = path.basename(target.path);
           const payload = await payloadFor(doc, false, doc.text, "edit", host); payload.initialMode = "source";
           reveal(host); await present(payload, host);
@@ -1492,7 +1500,6 @@ async function openUrl(value: string): Promise<void> {
     await dispatchCli({ id: "url", command: "open", path: target.path, location: target.location, wait: false }, "", () => {}, new AbortController().signal);
   } catch (error) { console.error("simplemd: rejected open URL", error instanceof Error ? error.message : String(error)); }
 }
-
 
 function scheduleCliServer(): void {
   if (cliStartup || quitting) return;

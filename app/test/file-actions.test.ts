@@ -119,3 +119,12 @@ test("rollback preserves external destination edits and reports the replacement 
   const backup = (await fs.readdir(dir)).find(file => file.endsWith(".backup")); expect(backup).toBeDefined();
   expect(await fs.readFile(path.join(dir, backup!), "utf8")).toBe("old destination");
 });
+
+test("a clean read-only UTF-8 document can move without writing its contents", async () => {
+  const dir = await directory(), source = path.join(dir, "old.md"), target = path.join(dir, "new.md");
+  await fs.writeFile(source, exact);
+  const registry = new DocumentRegistry(); registries.push(registry);
+  const doc = registry.create(source, exact, "read", "This file is locked or not writable. Read only.");
+  expect((await doc.move(target, { kind: "absent" }))?.path).toBe(target);
+  expect(await fs.readFile(target, "utf8")).toBe(exact);
+});

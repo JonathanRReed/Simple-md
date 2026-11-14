@@ -45,9 +45,9 @@ test("quit cleanup completes waiters and drains transport before closing it", as
   const code = source.slice(source.indexOf("async function prepareQuit()"), source.indexOf("\nif (!app.requestSingleInstanceLock()"));
   const compiled = new Bun.Transpiler({ loader: "ts" }).transformSync(code);
   const events: string[] = [];
-  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
+  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "history", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
     () => {}, undefined, undefined, Promise.resolve(), { drain: async () => events.push("drain"), close: () => events.push("transport close") },
-    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => {} }, () => ({ close() {} }), undefined, () => {}, undefined, async () => {}, new Map());
+    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => {} }, () => ({ close() {} }), undefined, () => {}, undefined, async () => {}, new Map(), { flush() {} });
   await cleanup();
   expect(events).toEqual(["closed frames", "drain", "transport close"]);
 });
@@ -81,9 +81,9 @@ test("failed asynchronous quit cleanup preserves sessions and leaves CLI clients
   const code = source.slice(source.indexOf("async function prepareQuit()"), source.indexOf("\nif (!app.requestSingleInstanceLock()"));
   const compiled = new Bun.Transpiler({ loader: "ts" }).transformSync(code);
   const events: string[] = [];
-  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
+  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "history", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
     () => {}, undefined, undefined, Promise.resolve(), { drain: async () => {}, close: () => events.push("transport close") },
-    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => events.push("disposed") }, () => ({ close() {} }), undefined, () => {}, { dispose: async () => { throw new Error("cleanup failed"); } }, async () => {}, new Map());
+    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => events.push("disposed") }, () => ({ close() {} }), undefined, () => {}, { dispose: async () => { throw new Error("cleanup failed"); } }, async () => {}, new Map(), { flush() {} });
   await expect(cleanup()).rejects.toThrow("cleanup failed");
   expect(events).toEqual([]);
 });

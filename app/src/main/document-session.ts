@@ -182,7 +182,7 @@ export class DocumentSession {
 
   move(target: string, expected: Destination): Promise<SaveResult | null> {
     return this.saves.run(async () => {
-      if (!this.path || this.dirty || this.conflict || this.unavailableReason || this.readOnlyReason) return null;
+      if (!this.path || this.dirty || this.conflict || this.unavailableReason) return null;
       const previous = this.path;
       this.stopWatching();
       try {
