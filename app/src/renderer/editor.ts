@@ -241,6 +241,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             opts.onScroll();
           },
           paste(event, v) {
+            if (v.state.readOnly) return false;
             const data = event.clipboardData;
             if (!data) return false;
             const images = [...data.files].filter((f) => IMAGE_TYPES.test(f.type));
@@ -260,6 +261,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             return false;
           },
           drop(event, v) {
+            if (v.state.readOnly) return false;
             const images = [...(event.dataTransfer?.files ?? [])].filter((f) => IMAGE_TYPES.test(f.type));
             if (!images.length) return false;
             event.preventDefault();

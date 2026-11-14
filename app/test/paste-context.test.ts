@@ -30,3 +30,8 @@ for (const [name, text, allowed] of [
   if (!handled) pasted = pasted.update({ changes: { from, to: from + 3, insert: "https://example.test" } }).state;
   expect(pasted.doc.toString()).toBe(text.slice(0, from) + (allowed ? "[old](https://example.test)" : "https://example.test") + text.slice(from + 3));
 });
+
+test("read-only paste does not import image files", () => {
+  const state = EditorState.create({ doc: "Locked", extensions: EditorState.readOnly.of(true) });
+  expect(paste({ clipboardData: { files: [{ type: "image/png" }], getData: () => "" } }, { state })).toBe(false);
+});
