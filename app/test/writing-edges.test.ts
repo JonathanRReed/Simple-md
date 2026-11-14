@@ -46,3 +46,10 @@ for (const eol of ["\n", "\r\n"]) {
     }
   });
 }
+
+for (const eol of ["\n", "\r\n"]) test(`protected endpoints and YAML fences ${JSON.stringify(eol)}`, () => {
+  const text = ['---', 'title: x', '- [ ] metadata', '```', 'yaml', '```', '...', '', 'Body', '', '```', 'code', '```'].join(eol);
+  expect(run(text, 'toggle-task')).toBe(text);
+  expect(run(text, 'code-block', text.indexOf('```'), text.indexOf('...') - eol.length)).toBe(text);
+  expect(run(text, 'footnote', text.indexOf('Body'), text.indexOf('code') + 2)).toBe(text);
+});
