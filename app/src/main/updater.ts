@@ -29,10 +29,7 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
   let cancelStaging: (() => void) | undefined;
   let updater: typeof import("electron-updater")["autoUpdater"] | undefined;
   const notice = (message: string) => dialog.showMessageBox({ type: "info", message, buttons: ["OK"] });
-  const installation = new UpdateInstall({ settle: async () => {
-    if (process.platform === "darwin") await stageMacUpdate();
-    return beforeInstall();
-  }, release, failed(error) {
+  const installation = new UpdateInstall({ settle: beforeInstall, release, failed(error) {
     cancelStaging?.(); cancelStaging = undefined;
     nativeUpdater.removeListener("before-quit-for-update", nativeQuit);
     setState({ kind: "error", message: "Install Failed" });
@@ -121,7 +118,10 @@ export function createUpdater(enabled: () => boolean, beforeInstall: () => Promi
       const installer = updater;
       setState({ kind: "installing" });
       await installation.start(async () => {
-        if (process.platform === "darwin") await installMacUpdate({ cleanup: beginQuit, install: () => installer.quitAndInstall(false, true), exit: () => app.exit(0) });
+        if (process.platform === "darwin") {
+          await stageMacUpdate();
+          await installMacUpdate({ cleanup: beginQuit, install: () => installer.quitAndInstall(false, true), exit: () => app.exit(0) });
+        }
         else { nativeUpdater.once("before-quit-for-update", nativeQuit); installer.quitAndInstall(false, true); }
       });
       if (!installation.active && state.kind === "installing") setState({ kind: "ready" });
