@@ -65,9 +65,14 @@ export function tableEdit(text: string, selection: SourceSelection, command: Tab
   if (!table) return null;
   const row = lines[index]!, col = columnAt(row.text, selection.from - row.from);
   const count = rowCells(lines[table.start]!.text).length;
-  const newRow = () => `${/^[ \t]*/.exec(row.text)![0]}${row.text.trimStart().startsWith("|") ? "|" : ""}${Array<string>(count).fill("  ").join("|")}${row.text.trimEnd().endsWith("|") ? "|" : ""}`;
+  const newRow = () => `${/^[ \t]*/.exec(row.text)![0]}|${Array<string>(count).fill("  ").join("|")}|`;
   if (command === "row-above" || command === "row-below") {
-    // Headers and delimiters remain fixed; insertion there creates the first body row.
+    if (index === table.start && command === "row-above") {
+      const blank = newRow(), delimiter = lines[table.start + 1]!;
+      const cursor = row.from + contentOffset(blank, col);
+      return { changes: [{ from: row.from, to: row.to, insert: blank }, { from: delimiter.to, to: delimiter.to, insert: eol + row.text }], selection: { from: cursor, to: cursor } };
+    }
+    // Inserting on the delimiter creates the first body row.
     const target = Math.max(table.start + 2, index + (command === "row-below" ? 1 : 0));
     const before = target > table.end;
     const at = before ? lines[table.end]!.to : lines[target]!.from;
@@ -93,8 +98,10 @@ export function tableEdit(text: string, selection: SourceSelection, command: Tab
     return { changes: [change], selection: { from: change.from, to: change.from } };
   }
   if (command === "row-up" || command === "row-down") {
-    const other = index + (command === "row-up" ? -1 : 1);
-    if (index <= table.start + 1 || other <= table.start + 1 || other > table.end) return null;
+    if (index === table.start + 1) return null;
+    let other = index + (command === "row-up" ? -1 : 1);
+    if (other === table.start + 1) other += command === "row-up" ? -1 : 1;
+    if (other < table.start || other > table.end) return null;
     const target = lines[other]!;
     const changes = [{ from: row.from, to: row.to, insert: target.text }, { from: target.from, to: target.to, insert: row.text }].sort((a, b) => a.from - b.from);
     const cursor = target.from + (other > index ? target.text.length - row.text.length : 0) + Math.min(selection.from - row.from, row.text.length);
@@ -128,7 +135,7 @@ export function tableEdit(text: string, selection: SourceSelection, command: Tab
     const right = command === "column-right";
     const at = line.from + (right ? cell.to : cell.from);
     const content = offset === 1 ? " --- " : "  ";
-    return [{ from: at, to: at, insert: right ? "|" + content : content + "|" }];
+    return [{ from: at, to: at, insert: right ? "|" + content + (col === cells.length - 1 && !line.text.trimEnd().endsWith("|") ? "|" : "") : (col === 0 && !line.text.trimStart().startsWith("|") ? "|" : "") + content + "|" }];
   });
   return changedSelection(selection, changes);
 }

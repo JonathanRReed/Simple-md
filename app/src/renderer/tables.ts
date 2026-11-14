@@ -52,7 +52,7 @@ export function moveCell(view: EditorView, dir: 1 | -1): boolean {
   if (newRow) {
     const last = state.doc.line(table.end + 1);
     const indent = /^[ \t]*/.exec(last.text)![0];
-    const row = /^\s*\|/.test(last.text) ? `${indent}|${" |".repeat(cols)}` : `${indent}${Array<string>(cols).fill(" ").join("|")}`;
+    const row = `${indent}|${" |".repeat(cols)}`;
     view.dispatch({
       changes: { from: last.to, insert: `\n${row}` },
       selection: { anchor: last.to + 1 + cellOffset(row, targetCol) },

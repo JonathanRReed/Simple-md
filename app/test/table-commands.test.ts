@@ -32,7 +32,7 @@ for (const eol of ["\n", "\r\n"]) for (const final of ["", eol]) for (const outs
     const deleted = edit(text, "delete-column")!.text;
     expect(deleted).toContain("`a|b`"); expect(deleted).toContain("x\\|y"); expect(deleted).not.toContain("one");
     expect(edit(text, "delete-row", header.length + eol.length + 2)).toBeNull();
-    expect(edit(text, "row-up")).toBeNull();
+    expect(edit(text, "row-up")?.text).toBe([one, divider, header, two].join(eol) + final);
   });
 }
 test("table lexer protects escaped pipes, even slashes and matched code spans", () => {
@@ -64,4 +64,20 @@ test("pipe-less Tab/Shift-Tab navigate, skip delimiter and append", () => {
 test("deleting the header promotes the first body row and preserves delimiter padding", () => {
   expect(edit("| H | B |\r\n| :--- | ---: |\r\n| one | two |\r\n| last | end |", "delete-row", 2)?.text).toBe("| one | two |\r\n| :--- | ---: |\r\n| last | end |");
   expect(edit("A | B\n--- | ---\none | two", "delete-column")?.text).toBe("| B|\n| ---|\n| two|");
+});
+
+test("header insertion and movement keep the delimiter in its structural position", () => {
+  const text = "| H | B |\n| --- | --- |\n| one | two |";
+  expect(edit(text, "row-above", 2)?.text).toBe("|  |  |\n| --- | --- |\n| H | B |\n| one | two |");
+  expect(edit(text, "row-down", 2)?.text).toBe("| one | two |\n| --- | --- |\n| H | B |");
+});
+
+test("empty outside columns and new rows retain a valid number of cells in pipe-less tables", () => {
+  const source = "A | B\n--- | ---\none | two";
+  for (const command of ["row-above", "row-below"] satisfies TableCommand[]) {
+    const next = edit(source, command)!;
+    expect(next.text.split("\n").map(row => rowCells(row).length)).toEqual([2, 2, 2, 2]);
+  }
+  expect(edit(source, "column-left")!.text.split("\n").map(row => rowCells(row).length)).toEqual([3, 3, 3]);
+  expect(edit(source, "column-right", source.indexOf("two"))!.text.split("\n").map(row => rowCells(row).length)).toEqual([3, 3, 3]);
 });
