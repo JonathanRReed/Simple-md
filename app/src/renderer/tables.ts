@@ -2,7 +2,7 @@ import { syntaxTree } from "@codemirror/language";
 import { Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 
-import { rowCells, separator, tableAt, columnAt, contentOffset } from "./table-source.js";
+import { rowCells, separator, tableAt, columnAt, contentOffset, continuationPrefix } from "./table-source.js";
 export const isTableLine = (line: string): boolean => /^\s*\|/.test(line);
 export const isSeparatorLine = separator;
 export const findTable = tableAt;
@@ -15,53 +15,34 @@ export function moveCell(view: EditorView, dir: 1 | -1): boolean {
   const { state } = view;
   if (state.readOnly) return false;
   const pos = state.selection.main.head;
-  const cursorLine = state.doc.lineAt(pos);
-  const lines: string[] = [];
-  for (let i = 1; i <= state.doc.lines; i++) lines.push(state.doc.line(i).text);
-  const table = findTable(lines, cursorLine.number - 1);
-  if (!table) return false;
-
-  let node = syntaxTree(state).resolveInner(pos, pos === state.doc.length ? -1 : 1);
-  while (node.name !== "Table" && node.parent) node = node.parent;
-  if (node.name !== "Table") return false;
-
-  const cols = Math.max(...lines.slice(table.start, table.end + 1).map((line) => splitRow(line).length));
-  const row = cursorLine.number - 1;
-  const rowCols = splitRow(cursorLine.text).length;
-  let col = cellIndexAt(cursorLine.text, pos - cursorLine.from);
-  col = Math.min(col, rowCols - 1);
-
-  let targetRow = row;
-  let targetCol = col + dir;
-  let newRow = false;
-  if (targetCol >= rowCols) {
-    targetCol = 0;
-    targetRow++;
-    if (targetRow === table.start + 1) targetRow++; // skip the separator
-    if (targetRow > table.end) {
-      newRow = true;
-      targetRow = table.end + 1;
+  let row = syntaxTree(state).resolveInner(pos, pos === state.doc.length ? -1 : 1);
+  if (row.name === "Table") row = syntaxTree(state).resolveInner(pos, -1);
+  while (row.parent && row.parent.name !== "Table") row = row.parent;
+  const table = row.parent;
+  if (table?.name !== "Table" || !table.firstChild) return false;
+  const source = state.sliceDoc(row.from, row.to), cols = splitRow(source).length;
+  const col = Math.min(cellIndexAt(source, pos - row.from), cols - 1);
+  let target = row, targetCol = col + dir;
+  if (targetCol >= cols) {
+    let next = row.nextSibling;
+    if (next?.name === "TableDelimiter") next = next.nextSibling;
+    if (!next) {
+      const header = state.sliceDoc(table.firstChild.from, table.firstChild.to);
+      const last = state.doc.lineAt(table.to), current = state.doc.lineAt(row.from);
+      const prefix = continuationPrefix(current.text.slice(0, row.from - current.from));
+      const content = `|${" |".repeat(splitRow(header).length)}`;
+      view.dispatch({ changes: { from: last.to, insert: `\n${prefix}${content}` }, selection: { anchor: last.to + 1 + prefix.length + cellOffset(content, 0) }, userEvent: "input.table" });
+      return true;
     }
+    target = next; targetCol = 0;
   } else if (targetCol < 0) {
-    targetRow--;
-    if (targetRow === table.start + 1) targetRow--;
-    if (targetRow < table.start) return true; // already at the first cell; swallow, don't indent
-    targetCol = splitRow(lines[targetRow]!).length - 1;
+    let previous = row.prevSibling;
+    if (previous?.name === "TableDelimiter") previous = previous.prevSibling;
+    if (!previous) return true;
+    target = previous; targetCol = splitRow(state.sliceDoc(target.from, target.to)).length - 1;
   }
-
-  if (newRow) {
-    const last = state.doc.line(table.end + 1);
-    const indent = /^[ \t]*/.exec(last.text)![0];
-    const row = `${indent}|${" |".repeat(cols)}`;
-    view.dispatch({
-      changes: { from: last.to, insert: `\n${row}` },
-      selection: { anchor: last.to + 1 + cellOffset(row, targetCol) },
-      userEvent: "input.table",
-    });
-  } else {
-    const target = state.doc.line(targetRow + 1);
-    view.dispatch({ selection: { anchor: target.from + cellOffset(target.text, targetCol) } });
-  }
+  const text = state.sliceDoc(target.from, target.to);
+  view.dispatch({ selection: { anchor: target.from + cellOffset(text, targetCol) } });
   return true;
 }
 

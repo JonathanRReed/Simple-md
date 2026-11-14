@@ -81,3 +81,29 @@ test("empty outside columns and new rows retain a valid number of cells in pipe-
   expect(edit(source, "column-left")!.text.split("\n").map(row => rowCells(row).length)).toEqual([3, 3, 3]);
   expect(edit(source, "column-right", source.indexOf("two"))!.text.split("\n").map(row => rowCells(row).length)).toEqual([3, 3, 3]);
 });
+
+test("removing the final table does not turn preceding separators into a final newline", () => {
+  const text = "Intro\r\n\r\n| H |\r\n| --- |\r\n| one |";
+  expect(edit(text, "delete-column")?.text).toBe("Intro");
+});
+
+test("quoted and list-contained table commands retain their containers", () => {
+  const quote = "> | H | B |\r\n> | --- | --- |\r\n> | one | two |";
+  expect(edit(quote, "align-right")?.text).toBe("> | H | B |\r\n> | ---: | --- |\r\n> | one | two |");
+  expect(edit(quote, "row-below")?.text).toBe(quote + "\r\n> |  |  |");
+  const list = "- A | B\n  --- | ---\n  one | two";
+  expect(edit(list, "row-below")?.text).toBe(list + "\n  |  |  |");
+  expect(edit(list, "delete-row")?.text).toBe("- A | B\n  --- | ---");
+});
+test("a following list with a pipe is outside table editing", () => {
+  const source = "A | B\n--- | ---\none | two\n- Next | item";
+  expect(edit(source, "column-right")?.text).toEndWith("\n- Next | item");
+});
+test("quoted table Tab uses parser rows and appends a quoted row", () => {
+  const text = "> A | B\n> --- | ---\n> one | two";
+  let state = EditorState.create({ doc: text, selection: { anchor: text.indexOf("one") }, extensions: [markdown({ base: markdownLanguage })] });
+  ensureSyntaxTree(state, text.length, 1000);
+  const view = { get state() { return state; }, dispatch(spec: Parameters<EditorState["update"]>[0]) { state = state.update(spec).state; } } as unknown as EditorView;
+  expect(moveCell(view, 1)).toBe(true); expect(state.sliceDoc(state.selection.main.head)).toBe("two");
+  expect(moveCell(view, 1)).toBe(true); expect(state.doc.toString()).toEndWith("\n> | | |");
+});
