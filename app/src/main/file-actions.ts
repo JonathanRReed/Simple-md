@@ -80,8 +80,15 @@ export async function moveDocumentFile(source: string, target: string, text: str
       await io.remove(source); originalMoved = true;
     }
   } catch (error) {
-    if (published && !originalMoved) await fs.promises.unlink(target);
-    if (backedUp && backup) await renameNoReplace(backup, target);
+    if (published && !originalMoved) {
+      const latest = await readRegularFile(target).catch(() => null);
+      if (!latest?.equals(bytes)) throw new Error(`The destination changed during the move. The original is still at ${source}.${backup ? ` The previous destination is at ${backup}.` : ""}`, { cause: error });
+      await fs.promises.unlink(target);
+    }
+    if (backedUp && backup) {
+      try { await renameNoReplace(backup, target); }
+      catch (restoreError) { throw new Error(`The original is still at ${source}. Restore the previous destination from ${backup}.`, { cause: restoreError }); }
+    }
     throw error;
   } finally { await fs.promises.rm(temporary, { force: true }).catch(() => {}); }
   // Publication and removal succeeded. Cleanup cannot turn this into a failed move.

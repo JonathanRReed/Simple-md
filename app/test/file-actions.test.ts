@@ -109,3 +109,13 @@ test("a move replaces the native recent path without adding a second stale entry
   moveRecentDocument(os, "darwin", "/a.md", "/renamed.md");
   expect(os.getRecentDocuments()).toEqual(["/b.md", "/renamed.md"]);
 });
+
+test("rollback preserves external destination edits and reports the replacement backup", async () => {
+  const dir = await directory(), source = path.join(dir, "old.md"), target = path.join(dir, "new.md");
+  await fs.writeFile(source, exact); await fs.writeFile(target, "old destination");
+  const io = crossVolume(source, target, { remove: async () => { await fs.writeFile(target, "external edit"); throw new Error("remove failed"); } });
+  await expect(moveDocumentFile(source, target, exact, await destinationState(target), io)).rejects.toThrow("previous destination is at");
+  expect(await fs.readFile(source, "utf8")).toBe(exact); expect(await fs.readFile(target, "utf8")).toBe("external edit");
+  const backup = (await fs.readdir(dir)).find(file => file.endsWith(".backup")); expect(backup).toBeDefined();
+  expect(await fs.readFile(path.join(dir, backup!), "utf8")).toBe("old destination");
+});

@@ -357,3 +357,14 @@ test("electron-builder emits one Default Markdown and MDX document declaration",
     expect(info.CFBundleURLTypes[0].CFBundleURLSchemes).toEqual(["simplemd"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }, 30_000);
+
+
+test("macOS ships the arm64 default-app helper built with Command Line Tools", () => {
+  const plan = nativePlan("aarch64-apple-darwin", "darwin", "arm64");
+  expect(unsignedConfig(plan).extraResources).toContainEqual({ from: plan.defaultAppBinary, to: "native/simplemd-default-app" });
+  const script = readFileSync(path.join(appDir, "native/default-app/build-helper.sh"), "utf8");
+  expect(script).toContain("xcrun swiftc"); expect(script).toContain("arm64-apple-macos13.0"); expect(script).not.toContain("xcodebuild");
+  const helper = readFileSync(path.join(appDir, "native/default-app/DefaultApp.swift"), "utf8");
+  expect(helper).toContain("NSWorkspace.shared.setDefaultApplication"); expect(helper).toContain("urlForApplication(toOpen:");
+  expect(helper).toContain('--query');
+});

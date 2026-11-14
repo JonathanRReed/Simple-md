@@ -438,6 +438,7 @@ async function settle(current = currentSession(), host = context(), preserve = f
     documentId: current.documentId,
     autosave: () => settings.autosave && current.firstAutosave.allowed,
     hasPath: current.path !== null,
+    allowDiscard: !preserve,
     flush: () => requestFlush(current, host),
     save: async (text) => (await saveText(text, false, current.documentId, host)) !== null,
     resolveUnavailable: async () => {
@@ -468,7 +469,6 @@ async function settle(current = currentSession(), host = context(), preserve = f
       return response === 0 ? "save" : response === 1 ? "discard" : "cancel";
     },
   });
-  if (preserve && discarded) return false;
   if (settled && discarded && !host.quitFrozen) cliWaiters.closed(current.documentId);
   return settled;
 }

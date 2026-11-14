@@ -160,3 +160,22 @@ test("edits entered during missing-file recovery block discard", async () => {
   const a = { ...actions([missing, { ...missing, text: "new typing" }]), resolveUnavailable: async () => { offered = true; return "discard" as const; } };
   expect(await settleDocument(a)).toBe(false); expect(offered).toBe(true);
 });
+
+
+test("Share and Move settle current bytes and stop when saving is cancelled or declined", async () => {
+  const documentId = makeDocumentId(0);
+  for (const choice of ["discard", "cancel"] as const) {
+    let saves = 0;
+    const result = await settleDocument({ documentId, autosave: false, hasPath: true, allowDiscard: false,
+      flush: async () => ({ documentId, revisionId: makeRevisionId(0), dirty: true, conflict: false, text: "current edits" }),
+      choose: async () => choice, save: async () => { saves++; return true; },
+    });
+    expect(result).toBe(false); expect(saves).toBe(0);
+  }
+  let dirty = true, saved: string | undefined;
+  expect(await settleDocument({ documentId, autosave: true, hasPath: true, allowDiscard: false,
+    flush: async () => ({ documentId, revisionId: makeRevisionId(0), dirty, conflict: false, text: "current edits\r\n" }),
+    choose: async () => "cancel", save: async text => { saved = text; dirty = false; return true; },
+  })).toBe(true);
+  expect(saved).toBe("current edits\r\n");
+});
