@@ -1390,6 +1390,10 @@ async function prepareQuit(): Promise<void> {
   quitting = true;
   await cliStartup;
   await dragExports?.dispose();
+  // Finish with CLI clients before stopping anything the app needs: the drain can time out, and a cancelled quit must leave a working app.
+  cliWaiters.closeAll();
+  await cliServer?.drain();
+  cliServer?.close();
   await disposeRenderer();
   trace("quit-worker-stopped");
   configStore().close();
@@ -1398,9 +1402,6 @@ async function prepareQuit(): Promise<void> {
   updates?.stop();
   tray?.destroy();
   tray = undefined;
-  cliWaiters.closeAll();
-  await cliServer?.drain();
-  cliServer?.close();
   registry.dispose();
   trace("quit-resources-closed");
   for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();

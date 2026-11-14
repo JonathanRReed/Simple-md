@@ -389,7 +389,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         changePending = false;
         const id = pane.documentId, revision = doc.revisionId, sequence = ++changeSequence;
         try {
-          if (highlights.kind === "head") await simplemd.headChanges(id, true);
           const state = await simplemd.changes(id, revision);
           if (disposed || owner !== pane || id !== pane.documentId || revision !== doc.revisionId || sequence !== changeSequence) continue;
           highlights = state;
@@ -404,13 +403,16 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     })().finally(() => { if (owner === pane) changeWork = undefined; });
     return changeWork;
   }
-  function refreshHeadOnFocus(): void {
+  /** Re-reads the commit baseline. Only Git moves HEAD, so this follows focus, tab activation and reloads, never typing or saves. */
+  function refreshHead(): void {
     if (disposed || !options.active() || highlights.kind !== "head") return;
-    void refreshChanges();
+    const id = pane.documentId;
+    void simplemd.headChanges(id, true).then(() => {
+      if (!disposed && id === pane.documentId) return refreshChanges();
+    }).catch(error => console.warn("simplemd: HEAD refresh unavailable", error));
   }
-  window.addEventListener("focus", refreshHeadOnFocus);
+  window.addEventListener("focus", refreshHead);
   let stopReaderFocus = readerFocus(readScroll);
-  let headRefreshTimer = window.setInterval(() => { if (document.hasFocus()) refreshHeadOnFocus(); }, 5000);
 
   function scheduleChanges(): void {
     ++changeSequence;
@@ -819,11 +821,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
     const previousAnchor = visibleAnchor();
     disposed = false;
-    window.addEventListener("focus", refreshHeadOnFocus);
+    window.addEventListener("focus", refreshHead);
     stopReaderFocus();
     stopReaderFocus = readerFocus(readScroll);
-    clearInterval(headRefreshTimer);
-    headRefreshTimer = window.setInterval(() => { if (document.hasFocus()) refreshHeadOnFocus(); }, 5000);
     bindReaderOptions();
     closeComparison?.();
     layoutObserver.observe(previewEl);
@@ -934,7 +934,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     setTimeout(() => {
       if (disposed || pane !== owner || id !== pane.documentId) return;
       if (active && seenOnReturn !== undefined) { void markSeen(true, seenOnReturn); seenOnReturn = undefined; }
-      else void refreshChanges();
+      else void refreshChanges().then(refreshHead);
     }, 0);
     // This marker does not await fonts, highlighting completion checks or diagram work.
 
@@ -1126,7 +1126,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       doc.readOnlyReason = undefined;
       pane.editor?.setEditable(!transitioning && !isReadOnly());
       hideBanner();
-      if (reload) { applyDiskText(text); void refreshChanges(); }
+      if (reload) { applyDiskText(text); void refreshChanges().then(refreshHead); }
       else {
         doc.savedText = text;
         setDirty(currentText() !== doc.savedText);
@@ -1134,7 +1134,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       }
       return true;
     };
-    if (text === observedText || !doc.dirty) void accept(true, true);
+    // Compare text, not the dirty flag: a missing-file notice marks an untouched note dirty.
+    if (text === observedText || observedText === doc.savedText) void accept(true, true);
     else offerChoice();
   }
 
@@ -1598,8 +1599,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
-    window.removeEventListener("focus", refreshHeadOnFocus);
-    clearInterval(headRefreshTimer);
+    window.removeEventListener("focus", refreshHead);
     stopReaderFocus();
     clearOutlines();
     cancelAnimationFrame(layoutFrame);
@@ -1629,7 +1629,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       else await request();
     },
     activeChanged,
-    refreshHead: refreshHeadOnFocus,
     async navigate(target: import("../shared/types.js").DocumentLocation) {
       const id = pane.documentId;
       if (target.kind === "start") return;

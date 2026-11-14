@@ -144,8 +144,9 @@ export async function runBatch(input: { html: string; css: string }) {
   await until(() => root.querySelector('#change-count')?.textContent === '1 change', 'Initial HEAD change missing');
   committed = true;
   pane.saved({ revisionId: makeRevisionId(0), documentId: makeDocumentId(1), path: '/tmp/plan.md', name: 'plan.md', baseUrl: 'file:///tmp/', text: pane.flush().text });
-  pane.refreshHead();
-  await until(() => headReads > 0 && root.querySelector<HTMLElement>('#changes')!.hidden, 'Save did not refresh HEAD without a focus event');
+  const readsBeforeFocus = headReads;
+  window.dispatchEvent(new Event('focus'));
+  await until(() => headReads > readsBeforeFocus && root.querySelector<HTMLElement>('#changes')!.hidden, 'Focus did not refresh HEAD after a commit');
   await pane.navigate({ kind: 'heading', heading: 'last' });
   assert(article.querySelector('#user-content-last'), 'New-tab heading target did not mount');
 

@@ -215,7 +215,7 @@ async function boot(): Promise<void> {
     noticeSaveMetadata(result);
     const tab = documents.get(result.documentId);
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
-    if (mounted) { mounted.controller.saved(result); mounted.controller.refreshHead(); }
+    if (mounted) mounted.controller.saved(result);
     else if (tab?.retained) {
       const changedPath = tab.retained.state.meta.path !== result.path;
       const incomingText = tab.disk?.kind === "text" || tab.retained.disk?.kind === "text";
