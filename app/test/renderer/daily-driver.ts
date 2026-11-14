@@ -1,4 +1,3 @@
-import { countProse } from "../../src/shared/prose-count";
 import { EditorView } from "@codemirror/view";
 import { createEditor } from "../../src/renderer/editor";
 import { createPane } from "../../src/renderer/pane";
@@ -101,7 +100,7 @@ export async function runBatch(input: { html: string; css: string }) {
   const paneText = '# First\n\nalpha alpha\n\n# Last\n\nEnd';
   const rendered = await core.renderBlocks(paneText, '/tmp/plan.md');
   Object.assign(window, { simplemd: {
-    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText), menuCommands: async () => [], invokeMenu: async () => {},
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: 'head', generation: headReads, changes: { changed: committed ? [] : [[2, 3]], deleted: [] } }),
     headChanges: async () => { headReads++; return { available: true, active: true }; },

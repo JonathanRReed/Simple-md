@@ -3,7 +3,6 @@ import type { BlockCommand } from "./block-commands.js";
 import type { TableCommand } from "./table-source.js";
 import { selectedSource, selectedReadProse, selectedRenderedBlocks } from "./read-selection.js";
 import { createProseCounter } from "./prose-counter.js";
-import { htmlToMarkdown } from "../shared/html-to-markdown.js";
 import { readerFocus } from "./reader-focus.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import { showConflictComparison } from "./conflict-comparison.js";
@@ -1384,7 +1383,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       case "paste-markdown":
         if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(async () => {
           const html = await simplemd.readClipboardHtml();
-          return html ? htmlToMarkdown(html) : null;
+          if (!html) return null;
+          const { htmlToMarkdown } = await import("../shared/html-to-markdown.js");
+          return htmlToMarkdown(html);
         });
         return;
       case "mark-seen": void markSeen(); return;

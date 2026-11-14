@@ -1,4 +1,3 @@
-import { countProse } from "../../src/shared/prose-count";
 import type { RenderedBlocks } from "../../src/shared/render-core";
 import type { Bridge } from "../../src/renderer/api";
 import type { TabLayoutState } from "../../src/shared/tab-layout";
@@ -25,7 +24,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let edited = "";
   const setSettings = async (patch: Partial<Settings>) => { writes.push(patch); settings = { ...settings, ...patch }; onSettings!(settings); };
   Object.assign(window, { simplemd: {
-    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText),
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }),
     menuCommands: async () => [], invokeMenu: async () => {},
     setChromeVisible() {},
     moveTab: async () => {},

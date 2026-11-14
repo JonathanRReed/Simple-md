@@ -1,4 +1,3 @@
-import { countProse } from "../../src/shared/prose-count";
 import type { RenderedBlocks } from "../../src/shared/render-core";
 import type { Bridge } from "../../src/renderer/api";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
@@ -14,7 +13,7 @@ export async function runBatch(input: { rendered: RenderedBlocks; html: string; 
   let onLayout: Parameters<Bridge["onLayout"]>[0] | undefined;
   const ready = new Set<number>();
   Object.assign(window, { simplemd: {
-    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText),
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }),
     menuCommands: async () => [], invokeMenu: async () => {},
     ready: async () => ({ settings: { ...DEFAULT_SETTINGS, autosave: false }, platform: "darwin", accent: "#0055aa" }),
     onContextMenu() {}, onNavigate() {}, onClosed() {}, onSaved() {}, onDiskChanged() {}, onTransition() {}, onCommand() {}, onSettings() {}, onFlushRequest() {},

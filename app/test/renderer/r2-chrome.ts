@@ -1,4 +1,3 @@
-import { countProse } from "../../src/shared/prose-count";
 import { createTabBar } from "../../src/renderer/tab-bar";
 import { createWindowChrome } from "../../src/renderer/window-chrome";
 import { showConflictComparison } from "../../src/renderer/conflict-comparison";
@@ -27,7 +26,7 @@ export async function runBatch(input: { html: string; css: string; text: string;
   let disk = input.text;
   const id = makeDocumentId(1), paneId = makePaneId(0);
   const api = {
-    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText), menuCommands: async () => [], invokeMenu: async () => {},
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode(_id: unknown, mode: string) { paneModes.push(mode); }, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered, renderFragment: async () => ({ html: "" }),

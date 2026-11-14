@@ -1,4 +1,3 @@
-import { countProse } from "../../src/shared/prose-count";
 import { createPane } from "../../src/renderer/pane";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { openReadFind, closeOverlays } from "../../src/renderer/ui";
@@ -22,7 +21,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   stage.append(root);
   const calls = { settings: [] as unknown[], commands: [] as string[], tabs: [] as number[] };
   Object.assign(window, { simplemd: {
-    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText), menuCommands: async () => [], invokeMenu: async () => {},
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
