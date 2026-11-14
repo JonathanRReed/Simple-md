@@ -1,7 +1,7 @@
 import { commandDefinition, commandAccelerator, shortcutHint } from "../shared/commands.js";
 import type { BlockCommand } from "./block-commands.js";
 import type { TableCommand } from "./table-source.js";
-import { selectedSource, selectedReadProse } from "./read-selection.js";
+import { selectedSource, selectedReadProse, selectedRenderedBlocks } from "./read-selection.js";
 import { createProseCounter } from "./prose-counter.js";
 import { htmlToMarkdown } from "../shared/html-to-markdown.js";
 import { readerFocus } from "./reader-focus.js";
@@ -1322,14 +1322,18 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const text = currentText();
     const source = pane.view === "edit" ? selection && selection.from !== selection.to ? text.slice(selection.from, selection.to) : text : selectedSource(docEl, text, window.getSelection());
     if (command === "copy-markdown") { await simplemd.writeClipboard(source); return; }
-    const blocks = await simplemd.renderClipboard(source, id, revision);
-    if (disposed || id !== pane.documentId || revision !== doc.revisionId) return;
     const holder = document.createElement("div");
-    // Use the document renderer's sanitized author-HTML path, including inert MDX.
-    for (const block of blocks) {
-      const node = document.createElement("div");
-      mountRenderedHtml(node, block, settings.remoteImages);
-      holder.append(node);
+    const renderedSelection = pane.view === "read" && pane.mountedReadText === text ? selectedRenderedBlocks(docEl, window.getSelection()) : null;
+    if (renderedSelection) holder.append(renderedSelection);
+    else {
+      const blocks = await simplemd.renderClipboard(source, id, revision);
+      if (disposed || id !== pane.documentId || revision !== doc.revisionId) return;
+      // Use the document renderer's sanitized author-HTML path, including inert MDX.
+      for (const block of blocks) {
+        const node = document.createElement("div");
+        mountRenderedHtml(node, block, settings.remoteImages);
+        holder.append(node);
+      }
     }
     const html = holder.innerHTML;
     if (command === "copy-html") await simplemd.writeClipboard(html);

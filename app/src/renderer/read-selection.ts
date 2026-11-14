@@ -40,3 +40,15 @@ export function selectedReadProse(root: HTMLElement, selection: Selection | null
   for (const block of fragment.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,blockquote,tr,td,th")) block.append(document.createTextNode("\n"));
   return fragment.textContent ?? "";
 }
+
+/** Reuse rendered blocks so reference links, footnotes and MDX retain document context. */
+export function selectedRenderedBlocks(root: HTMLElement, selection: Selection | null): DocumentFragment | null {
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
+  const range = selection.getRangeAt(0);
+  const blocks = [...root.querySelectorAll<HTMLElement>(":scope > [data-source-start]")].filter(block => range.intersectsNode(block));
+  if (!blocks.length) return null;
+  const fragment = document.createDocumentFragment();
+  for (const block of blocks) fragment.append(block.cloneNode(true));
+  for (const control of fragment.querySelectorAll("button")) control.remove();
+  return fragment;
+}

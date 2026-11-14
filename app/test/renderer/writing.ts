@@ -75,7 +75,7 @@ export async function runBatch(input: { html: string; css: string }) {
   } });
   const pane = createPane(root, makePaneId(0), { active: () => true, changed() {}, tabs: () => [] });
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, outlineRail: false });
-  const readText = "# Title\n\nFirst **words** [link](https://example.test)\n\n```\nnot prose\n```\n\n- [ ] Task\n";
+  const readText = "# Title\n\nFirst **words** [link][site]\n\n```\nnot prose\n```\n\n- [ ] Task\n\n[site]: https://example.test\n";
   const rendered = await core.renderBlocks(readText, "/tmp/writing.md");
   const id = makeDocumentId(1);
   await pane.load({ ...rendered, documentId: id, paneId: makePaneId(0), revisionId: makeRevisionId(0), path: "/tmp/writing.md", name: "writing.md", baseUrl: "file:///tmp/", text: readText, intent: "read" });
@@ -89,9 +89,10 @@ export async function runBatch(input: { html: string; css: string }) {
   const sourceRanges = selectedSourceRanges(article, readText, selection);
   assert(sourceRanges.length === 1 && readText.slice(sourceRanges[0]!.from, sourceRanges[0]!.to).startsWith("First **words**"), "Read selection lacks original source range");
   pane.command("copy-markdown"); await until(() => clipboard.length === 1, "Read Markdown copy did not write");
-  assert(clipboard[0]!.text === "First **words** [link](https://example.test)\n", "Read copy lost markup or copied unrelated blocks");
+  assert(clipboard[0]!.text === "First **words** [link][site]\n", "Read copy lost markup or copied unrelated blocks");
   pane.command("copy-html"); await until(() => clipboard.length === 2, "HTML copy did not write");
   assert(clipboard[1]!.text.includes("<strong>words</strong>") && clipboard[1]!.html === undefined, "HTML copy is not HTML text");
+  assert(clipboard[1]!.text.includes('href="https://example.test"'), "Read HTML copy lost its reference-link context");
   pane.command("copy-formatted"); await until(() => clipboard.length === 3, "Formatted copy did not write");
   assert(clipboard[2]!.html?.includes("<strong>words</strong>") && clipboard[2]!.text.includes("First words link"), "Formatted copy lacks rich or plain formats");
   await until(() => hint.textContent?.includes("selected") === true, "Read selection count did not update");
