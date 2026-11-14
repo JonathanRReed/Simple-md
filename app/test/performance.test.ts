@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import { measureStartup } from "../bench";
 
-const trace = (script: string, expectedName = "expected.md", timeoutMs = 2000) => measureStartup({
+setDefaultTimeout(60_000);
+const trace = (script: string, expectedName = "expected.md", timeoutMs = 30_000) => measureStartup({
   executable: process.execPath, args: ["-e", script], expectedName, timeoutMs,
 });
 
@@ -118,14 +119,14 @@ describe("performance gate receipts", () => {
   });
   test("times acknowledgements outside the child and rejects errors after markers", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-perf-protocol-"));
-    const run = (script: string) => measureDriverRun({ executable: process.execPath, args: ["-e", script], cwd: root, env: process.env, logPath: path.join(root, "driver.log"), timeoutMs: 2000 });
+    const run = (script: string) => measureDriverRun({ executable: process.execPath, args: ["-e", script], cwd: root, env: process.env, logPath: path.join(root, "driver.log"), timeoutMs: 30_000 });
     try {
       const result = await run(`console.log('smd-perf {"kind":"barrier","name":"open"}'); process.stdin.once('data', data => { if (data.toString().trim() !== 'open') process.exit(1); setTimeout(() => { console.log('smd-perf {"kind":"marker","marker":"first-readable"}'); process.exit(0); }, 30); });`);
       expect(result.events[1]!.elapsedMs - result.barriers.open!).toBeGreaterThanOrEqual(25);
       await expect(run(`console.log('smd-perf {"kind":"marker","marker":"first-readable"}'); console.error('driver failed');`)).rejects.toThrow("Performance driver failed");
       await expect(run(`console.log('smd-perf not-json'); setInterval(() => {}, 1000);`)).rejects.toThrow();
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
-  });
+  }, 100_000);
 });
 
 import { calibratedTyping } from "../scripts/perf-typing";

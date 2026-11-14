@@ -80,7 +80,7 @@ export interface DocPayload {
 }
 
 export type DiskChange =
-  | { kind: "text"; text: string; readOnlyReason?: string }
+  | { kind: "text"; text: string; readOnlyReason?: string; message?: string }
   | { kind: "permissions"; readOnlyReason?: string }
   | { kind: "unavailable"; message: string; readOnlyReason?: string };
 

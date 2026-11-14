@@ -11,7 +11,8 @@ test.skipIf(process.platform !== "darwin")("metadata failure reaches the save re
   const file = path.join(dir, "note.md"), registry = new DocumentRegistry();
   await fs.writeFile(file, "before");
   const doc = registry.create(file, "before"); doc.edit("\uFEFFafter\r\nlast", makeRevisionId(1));
-  const copy = spyOn(metadata, "copyMetadata").mockRejectedValue(new Error("helper failed"));
+  const exchange = metadata.exchangeFiles;
+  const copy = spyOn(metadata, "exchangeFiles").mockImplementation(async (source, target, preserve) => ({ ...await exchange(source, target, preserve), metadataCopyFailed: true }));
   const log = spyOn(console, "error").mockImplementation(() => {});
   try {
     const result = await doc.save(file, doc.revisionId);

@@ -1108,7 +1108,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         applyDiskText(text);
         showBanner(reason, []);
       };
-      if (doc.dirty) showBanner(reason, [{ label: "Reload", run: reload }, saveCopy]);
+      if (doc.dirty || change.message) showBanner(change.message ? `${reason} ${change.message}` : reason, [{ label: "Reload", run: reload }, saveCopy]);
       else void reload();
       updateChrome();
       return;
@@ -1116,7 +1116,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const observedText = currentText();
     clearTimeout(pane.autosaveTimer);
     doc.diskConflict = true;
-    const offerChoice = () => showBanner("This note changed on disk.", [
+    const offerChoice = () => showBanner(change.message ?? "This note changed on disk.", [
       { label: "View incoming changes", run: () => { closeComparison = showConflictComparison(currentText(), text); return false; } },
       { label: "Reload", run: () => accept(true) },
       { label: "Keep mine", run: () => accept(false) },
@@ -1144,7 +1144,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       return true;
     };
     // Compare text, not the dirty flag: a missing-file notice marks an untouched note dirty.
-    if (text === observedText || observedText === doc.savedText) void accept(true, true);
+    if (!change.message && (text === observedText || observedText === doc.savedText)) void accept(true, true);
     else offerChoice();
   }
 

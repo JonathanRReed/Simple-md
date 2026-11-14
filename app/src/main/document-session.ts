@@ -26,6 +26,7 @@ export class DocumentSession {
   private disposed = false;
   private unavailableSequence = 0;
   private onDiskChanged: ((change: DiskChange) => void) | undefined;
+  private recoveryNotice: string | undefined;
 
   constructor(
     readonly documentId: DocumentId,
@@ -91,7 +92,7 @@ export class DocumentSession {
           return;
         }
         this.conflict = true;
-        changed({ kind: "text", text, readOnlyReason });
+        changed({ kind: "text", text, readOnlyReason, message: this.recoveryNotice });
       }).catch((err) => {
         if (generation !== this.watchGeneration || sequence !== checkSequence) return;
         // Another program is still writing. The file is there, so look again once it has had time to finish.
@@ -129,6 +130,7 @@ export class DocumentSession {
       this.baselineGeneration++;
     }
     this.diskText = text;
+    this.recoveryNotice = undefined;
     this.unavailableReason = undefined;
     this.conflict = false;
     this.readOnlyReason = latest.readOnlyReason;
@@ -157,7 +159,8 @@ export class DocumentSession {
         if (!external) { if (recreate) throw err; return null; }
         if (!(err instanceof FileConflictError) && !racing(err)) throw err;
         this.conflict = true;
-        this.onDiskChanged?.({ kind: "text", ...external });
+        if (err instanceof FileConflictError && err.recoveryPath) this.recoveryNotice = err.message;
+        this.onDiskChanged?.({ kind: "text", ...external, message: this.recoveryNotice });
         return null;
       }
       const moved = target !== this.path;
@@ -169,6 +172,7 @@ export class DocumentSession {
       this.draftPath = undefined;
       this.firstAutosave.confirm();
       this.diskText = text;
+      this.recoveryNotice = undefined;
       if (moved || unavailableSequence === this.unavailableSequence) this.unavailableReason = undefined;
       this.conflict = !!this.unavailableReason;
       this.dirty = !!this.unavailableReason || this.text !== text;

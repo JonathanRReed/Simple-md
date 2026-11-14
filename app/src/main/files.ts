@@ -2,14 +2,14 @@ import fs from "node:fs";
 import { syncDirectory } from "./sync-directory.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { copyMetadata, renameNoReplace } from "./file-metadata.js";
+import { exchangeFiles, renameNoReplace } from "./file-metadata.js";
 
 export const MARKDOWN_EXT = new Set([".md", ".markdown", ".mdown", ".mkd", ".mdx", ".txt"]);
 export const isMarkdown = (p: string) => MARKDOWN_EXT.has(path.extname(p).toLowerCase());
 
 export class FileConflictError extends Error {
-  constructor() {
-    super("The note changed on disk. Reload it or choose Keep mine before saving.");
+  constructor(readonly recoveryPath?: string) {
+    super("The note changed on disk. Reload it or choose Keep mine before saving." + (recoveryPath ? ` Another version was kept at ${recoveryPath}.` : ""));
   }
 }
 
@@ -41,9 +41,9 @@ function sameFile(a: fs.Stats, b: fs.Stats): boolean {
   return a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
 }
 
-export async function readRegularFile(file: string, maxBytes = MAX_DOCUMENT_BYTES): Promise<Buffer> {
+export async function readRegularFile(file: string, maxBytes = MAX_DOCUMENT_BYTES, noFollow = false): Promise<Buffer> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const handle = await fs.promises.open(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    const handle = await fs.promises.open(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK | (noFollow ? fs.constants.O_NOFOLLOW : 0));
     try {
       const stat = await handle.stat();
       if (stat.isDirectory()) throw Object.assign(new Error("Cannot open a directory. Choose a text file."), { code: "EISDIR" });
@@ -98,19 +98,22 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
   const target = entry?.isSymbolicLink() ? await fs.promises.realpath(file) : file;
   const stat = entry?.isSymbolicLink() ? await fs.promises.stat(target) : entry;
   const tmp = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
+  const written = Buffer.from(text, "utf8");
+  let displaced = false;
   try {
     // Reject encoded/binary files even if the caller did not supply a disk revision.
-    if (stat) await readDiskText(target);
+    const baseline = stat ? await readDiskText(target) : null;
+    const expected = expectedText === undefined ? baseline : expectedText;
+    if (expectedText !== undefined && baseline !== expectedText) throw new FileConflictError();
+    const canExchange = !!stat && expected !== null && process.platform !== "win32";
     const handle = await fs.promises.open(tmp, "wx", stat ? stat.mode & 0o7777 : 0o666);
     try {
-      if (stat && process.platform === "darwin") {
-        // Losing tags or xattrs is better than losing the save.
-        await copyMetadata(target, tmp).catch((err) => { metadataCopyFailed = true; console.error("simplemd: could not preserve file metadata", err); });
-      }
       await handle.truncate(0);
       await handle.writeFile(text, "utf8");
       if (stat) await handle.chmod(stat.mode & 0o7777);
-      await handle.sync();
+      // The combined macOS helper fsyncs data and copied metadata together,
+      // before exchange. Avoid two durable flushes for the same save.
+      if (!(canExchange && process.platform === "darwin")) await handle.sync();
     } finally {
       await handle.close();
     }
@@ -123,8 +126,51 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
         });
         if (latest?.isSymbolicLink()) throw new FileConflictError();
       }
-      if (expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
+      // Exchange checks the displaced revision itself; only rename needs a
+      // second read here. Unsupported exchanges also recheck before falling back.
+      if (!canExchange && expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
       try {
+        if (canExchange) {
+          // Even a killed helper may have completed the exchange. Until verified,
+          // the temp file may contain the only copy of another program's bytes.
+          displaced = true;
+          const result = await exchangeFiles(tmp, target, process.platform === "darwin");
+          metadataCopyFailed = result.metadataCopyFailed;
+          if (metadataCopyFailed) console.error("simplemd: could not preserve file metadata");
+          if (result.exchanged) {
+            const old = await fs.promises.lstat(tmp).catch(() => null);
+            const bytes = old?.isFile() ? await readRegularFile(tmp, MAX_DOCUMENT_BYTES, true).catch(() => null) : null;
+            if (bytes?.equals(Buffer.from(expected, "utf8"))) {
+              try {
+                await fs.promises.unlink(tmp);
+                displaced = false;
+                break;
+              } catch {
+                // Publication cannot finish cleanly. Restore before reporting it.
+              }
+            }
+            if (!(await exchangeFiles(tmp, target)).exchanged) throw new Error("Could not restore the displaced file.");
+            const returned = await readRegularFile(tmp, MAX_DOCUMENT_BYTES, true).catch(() => null);
+            if (!returned) throw new FileConflictError(tmp);
+            if (returned.equals(written)) {
+              await fs.promises.unlink(tmp);
+              displaced = false;
+              await syncDirectory(target);
+              throw new FileConflictError();
+            }
+            // A second writer replaced our published file before rollback.
+            // Put that newer version back and retain everything else as a sibling.
+            if (!(await exchangeFiles(tmp, target)).exchanged) throw new Error("Could not restore the newer file.");
+            const recovery = path.join(path.dirname(target), `${path.basename(target)}.simplemd-conflict-${randomUUID()}`);
+            await renameNoReplace(tmp, recovery);
+            displaced = false;
+            await syncDirectory(target);
+            throw new FileConflictError(recovery);
+          }
+          displaced = false;
+          // Unsupported volumes retain the comparison immediately before rename.
+          if ((await readDiskText(target)) !== expected) throw new FileConflictError();
+        }
         if (expectedText === null) {
           // Exclusive publication prevents a new draft from replacing a file that
           // appeared between the revision check and publication.
@@ -142,6 +188,12 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
     await syncDirectory(target);
     return { metadataCopyFailed };
   } catch (err) {
+    if (displaced) {
+      // Do not assume that an unsuccessful helper invocation did not publish.
+      // Keep unknown bytes, including unreadable files, for manual recovery.
+      const bytes = await readRegularFile(tmp, MAX_DOCUMENT_BYTES, true).catch(() => null);
+      if (!bytes?.equals(written)) throw new FileConflictError(tmp);
+    }
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
