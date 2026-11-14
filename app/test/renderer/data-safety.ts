@@ -1,3 +1,4 @@
+import type { EditorView } from "@codemirror/view";
 import { createPane } from "../../src/renderer/pane";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
 import type { RenderedBlocks } from "../../src/shared/render-core";
@@ -13,12 +14,13 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   const root = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
   for (const element of root.querySelectorAll<HTMLElement>("[id]")) element.dataset.element = element.id;
   document.querySelector("#stage")!.append(root);
-  Object.assign(window, { simplemd: {
+  const api = {
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async (text: string) => text === input.incoming ? input.updated : input.rendered,
     acceptDisk: async () => true,
-  } });
+  };
+  Object.assign(window, { simplemd: api });
   const id = makeDocumentId(1), paneId = makePaneId(0);
   const pane = createPane(root, paneId, { active: () => true, changed() {}, tabs: () => [] });
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, mode: "source" });
@@ -27,7 +29,7 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   if (input.scenario.startsWith("missing")) {
     let attempt = 0;
     const requests: { text: string; saveAs: boolean; recreate: boolean }[] = [];
-    Object.assign((window as unknown as { simplemd: object }).simplemd, { save: async (text: string, saveAs: boolean, _id: number, recreate = false) => {
+    Object.assign(api, { save: async (text: string, saveAs: boolean, _id: number, recreate = false) => {
       requests.push({ text, saveAs, recreate });
       if (++attempt === 1) return null;
       return { documentId: id, revisionId: pane.flush().revisionId, path: saveAs ? "/tmp/other.md" : payload.path, name: "note.md", baseUrl: payload.baseUrl, text };
@@ -73,14 +75,33 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   }
   const edit = async () => { pane.command("mode-source"); await until(() => !!root.querySelector(".cm-content"), "Editor did not mount"); await new Promise(resolve => setTimeout(resolve, 20)); };
   const read = async () => { pane.command("mode-read"); await until(() => root.dataset.view === "read", "Read did not mount"); };
+  const local = input.text + "!";
+  const explicit = input.scenario === "Reload" || input.scenario === "Keep mine";
+  if (explicit) {
+    const content = root.querySelector(".cm-content") as HTMLElement & { cmTile: { root: { view: EditorView } } };
+    const view = content.cmTile.root.view;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "!" } });
+    assert(pane.flush().text === local && pane.flush().dirty, "Test did not create a dirty buffer");
+  }
   await read();
   const retained = pane.suspend();
   assert(retained.editor, "Test did not retain an editor");
   await pane.load(payload, retained);
   pane.diskChanged({ kind: "text", text: input.incoming }, id);
-  await until(() => pane.flush().text === input.incoming, "Incoming text was not accepted");
+  if (explicit) {
+    const banner = root.querySelector<HTMLElement>("[data-element=banner]")!;
+    await until(() => !banner.hidden, "Conflict actions were not offered");
+    const button = [...banner.querySelectorAll("button")].find(button => button.textContent === input.scenario);
+    assert(button, "Conflict choice is missing"); button.click();
+    await until(() => !pane.flush().conflict, "Conflict choice was not accepted");
+  } else await until(() => pane.flush().text === input.incoming, "Incoming text was not accepted");
   await edit();
-  assert(pane.flush().text === input.incoming, "Retained editor replaced accepted disk bytes");
+  const expected = input.scenario === "Keep mine" ? local : input.incoming;
+  assert(pane.flush().text === expected, "Retained editor replaced the chosen text");
+  if (input.scenario === "Keep mine") {
+    assert(pane.flush().dirty, "Keep mine lost the unsaved edit");
+    pane.suspend(); return true;
+  }
   pane.command("undo");
   assert(pane.flush().text === input.incoming, "Reload restored old undo history");
   await read();

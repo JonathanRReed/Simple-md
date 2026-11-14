@@ -3,7 +3,7 @@ import path from "node:path";
 import { renderBlocks } from "../src/main/markdown";
 import { runDom } from "./dom-runner";
 
-for (const scenario of ["retained source", "metadata notice", "permissions", "missing recreate", "missing Save As"]) test(`file safety: ${scenario}`, async () => {
+for (const scenario of ["retained source", "metadata notice", "permissions", "missing recreate", "missing Save As", "Reload", "Keep mine"]) test(`file safety: ${scenario}`, async () => {
   const text = "\uFEFF# Original\r\nold line\nlast";
   const incoming = "\uFEFF# Incoming\r\nnew line\nend";
   expect(await runDom(path.join(import.meta.dir, "renderer/data-safety.ts"), {
