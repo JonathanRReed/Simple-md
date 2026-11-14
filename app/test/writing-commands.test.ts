@@ -5,7 +5,7 @@ import { byteText, exactText, parseByteText } from "../src/renderer/byte-text";
 import { editorText } from "../src/renderer/editor-text";
 import { sourceTransaction, sourceSelection } from "../src/renderer/source-transaction";
 import { blockEdit, type BlockCommand } from "../src/renderer/block-commands";
-import { applySourceChanges, type SourceEdit } from "../src/renderer/source-edit";
+import { applySourceChanges, insertSource, type SourceEdit } from "../src/renderer/source-edit";
 
 function result(text: string, command: BlockCommand, from = 0, to = text.length) {
   const edit = blockEdit(text, { from, to }, command);
@@ -80,4 +80,19 @@ test("read-only rejects every source command", () => {
   const state = EditorState.create({ doc: "source", extensions: [byteText, editorText, EditorState.readOnly.of(true)] });
   const edit: SourceEdit = { changes: [{ from: 0, to: 6, insert: "changed" }], selection: { from: 0, to: 0 } };
   expect(sourceTransaction(state, edit)).toBeNull();
+});
+
+test("image and HTML insertions preserve dominant endings and final newline state", () => {
+  for (const text of ["draft", "draft\r\n", "\uFEFFdraft\n"]) {
+    const result = insertSource(text, { from: text.length, to: text.length }, "![image](assets/image.png)\nsecond");
+    const next = applySourceChanges(text, result.changes);
+    expect(/[\r\n]$/.test(next)).toBe(/[\r\n]$/.test(text));
+    expect(next).toContain(text.includes("\r\n") ? "png)\r\nsecond" : "png)\nsecond");
+  }
+});
+
+test("task toggling ignores code, frontmatter, imports and JSX attributes", () => {
+  const text = '---\ntext: "- [ ] metadata"\n---\n\n```\n- [ ] code\n```\n\nimport X from "x";\n\n<Card title="- [ ] attribute">\n\n- [ ] prose\n\n</Card>';
+  const edit = blockEdit(text, { from: 0, to: text.length }, "toggle-task", true);
+  expect(applySourceChanges(text, edit.changes)).toBe(text.replace("- [ ] prose", "- [x] prose"));
 });

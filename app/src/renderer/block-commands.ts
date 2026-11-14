@@ -1,3 +1,5 @@
+import { taskMarkerPositions } from "./tasks.js";
+import { findMdxRanges } from "../shared/mdx-ranges.js";
 import { changedSelection, dominantEnding, sourceLines, type SourceEdit, type SourceSelection } from "./source-edit.js";
 
 export type BlockCommand = "body" | `heading-${1 | 2 | 3 | 4 | 5 | 6}` | "bullet-list" | "number-list" | "task-list" | "quote" | "code-block" | "rule" | "footnote" | "toggle-task";
@@ -9,7 +11,7 @@ function prefix(line: string) {
   const mark = /^(?:#{1,6}[ \t]+|(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?)/.exec(rest)?.[0] ?? "";
   return { quote, mark, rest };
 }
-export function blockEdit(text: string, selection: SourceSelection, command: BlockCommand): SourceEdit {
+export function blockEdit(text: string, selection: SourceSelection, command: BlockCommand, mdx = false): SourceEdit {
   const lines = sourceLines(text);
   const first = lines.findIndex(line => selection.from <= line.to);
   const last = lines.findIndex((line, index) => Math.max(selection.from, selection.to - 1) < line.end || index === lines.length - 1);
@@ -47,6 +49,11 @@ export function blockEdit(text: string, selection: SourceSelection, command: Blo
     const changes = [{ from: line.text.trim() === "---" ? line.from : line.to, to: line.to, insert: value }];
     return changedSelection(selection, changes);
   }
+  if (command === "toggle-task") {
+    const from = selected[0]!.from, to = selected.at(-1)!.to;
+    const positions = taskMarkerPositions(text, mdx ? findMdxRanges(text) : undefined);
+    return changedSelection(selection, positions.filter(at => at >= from && at <= to).sort((a, b) => a - b).map(at => ({ from: at, to: at + 1, insert: text[at] === " " ? "x" : " " })));
+  }
   const matches = (mark: string) => command.startsWith("heading-") ? new RegExp(`^#{${Number(command.slice(-1))}}[ \t]+$`).test(mark)
     : command === "bullet-list" ? /^[-+*]\s+$/.test(mark)
     : command === "number-list" ? /^\d+[.)]\s+$/.test(mark)
@@ -55,13 +62,7 @@ export function blockEdit(text: string, selection: SourceSelection, command: Blo
   const unquote = command === "quote" && selected.every(line => /^[ \t]*>/.test(line.text));
   let number = 0;
   const changes = selected.flatMap(line => {
-    const { quote, mark, rest } = prefix(line.text);
-    if (command === "toggle-task") {
-      const match = /^(?:[-+*]|\d+[.)])[ \t]+\[([ xX])\]/.exec(rest);
-      if (!match) return [];
-      const at = line.from + quote.length + match[0].length - 2;
-      return [{ from: at, to: at + 1, insert: match[1] === " " ? "x" : " " }];
-    }
+    const { quote, mark } = prefix(line.text);
     if (command === "quote") {
       const match = /^([ \t]*)>[ \t]?/.exec(line.text);
       const at = line.from + (unquote ? match![1]!.length : 0);

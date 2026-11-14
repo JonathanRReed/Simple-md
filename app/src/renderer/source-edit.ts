@@ -34,3 +34,15 @@ export function mapSourcePosition(pos: number, changes: readonly SourceChange[])
 export function changedSelection(selection: SourceSelection, changes: SourceChange[]): SourceEdit {
   return { changes, selection: { from: mapSourcePosition(selection.from, changes), to: mapSourcePosition(selection.to, changes) } };
 }
+
+/** Deliberate insertions use the document ending and keep its final-newline state. */
+export function insertSource(text: string, selection: SourceSelection, insert: string): SourceEdit {
+  const eol = dominantEnding(text);
+  insert = insert.replace(/\r\n|\r|\n/g, eol);
+  const cursor = selection.from + insert.length;
+  if (selection.to === text.length) {
+    if (/[\r\n]$/.test(text) && !/[\r\n]$/.test(insert)) insert += eol;
+    else if (!/[\r\n]$/.test(text)) insert = insert.replace(/[\r\n]+$/, "");
+  }
+  return { changes: [{ ...selection, insert }], selection: { from: Math.min(cursor, selection.from + insert.length), to: Math.min(cursor, selection.from + insert.length) } };
+}
