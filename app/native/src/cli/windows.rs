@@ -194,9 +194,9 @@ pub fn write_state() -> Result<(), String> {
     let state: Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
     if state["version"] != 1
         || !state["pid"].as_u64().is_some_and(|pid| pid > 0)
-        || !state["secret"]
-            .as_str()
-            .is_some_and(|secret| secret.len() == 64 && secret.bytes().all(|b| b.is_ascii_hexdigit()))
+        || !state["secret"].as_str().is_some_and(|secret| {
+            secret.len() == 64 && secret.bytes().all(|b| b.is_ascii_hexdigit())
+        })
     {
         return Err("Invalid connection state".into());
     }
