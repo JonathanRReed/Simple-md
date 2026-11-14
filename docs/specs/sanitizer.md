@@ -4,8 +4,8 @@ Milestone 1. Applies to every place HTML reaches a DOM: read view, live-preview 
 
 ## Where it runs
 
-- One function, `sanitizeAuthorHtml()`, runs in a DOM context: the Electron renderer or WebView2. It does not run in the Node worker. Do not add jsdom or linkedom.
-- Quick Look renders in JavaScriptCore with no DOM (see `quick-look.md`). It must enforce this same policy and prove parity with a differential test against this function's output on every fixture.
+- `sanitizeAuthorHtml()` uses DOMPurify in the Electron renderer. It does not run in the Node worker. Do not add jsdom or linkedom.
+- Quick Look and the Windows WebView2 handler use `renderStaticHtml()` with the parse5-based `sanitizeAuthorHtmlStatic()`. Both sanitizer implementations enforce the shared author policy. Differential tests compare their output on every sanitizer fixture and the corpus raw HTML. Quick Look runs in JavaScriptCore without a DOM; Windows displays the resulting inert HTML in WebView2.
 - It runs before every HTML insertion. A test fails if any other `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `DOMParser` path inserts author content.
 - A raw HTML wrapper that spans Markdown blocks, such as `<details>` around Markdown content, is sanitized as one balanced unit and becomes one render block. Opening and closing tags are never sanitized separately. Block identities added in milestone 3 must keep this grouping.
 - App-generated markup (Shiki, KaTeX, task checkboxes, alert icons, footnotes, diagram SVG) is added through app-owned render nodes with their own policies. It is never re-sanitized with the author policy. Author `class`, `style`, `data-*`, custom elements, or a fake `class="mermaid"` never gain generated-content privileges.

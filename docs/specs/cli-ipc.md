@@ -1,6 +1,6 @@
 # CLI, IPC and URL scheme
 
-Milestone 5. Security review required before merge.
+Milestone 6. Security review required before merge.
 
 ## Shape
 

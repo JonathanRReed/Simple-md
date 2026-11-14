@@ -8,7 +8,7 @@ Open a Markdown file through File > Open, a file association, or the command lin
 
 The renderer supports Shiki code highlighting, KaTeX math, Mermaid-compatible diagrams through Pele, task lists, footnotes, GitHub alerts, and frontmatter. Author HTML is sanitized. Markdown and MDX are editable. JSX components and expressions never execute.
 
-Preferences opens from the toolbar, app menu, or Command/Control+,. It controls appearance, editing defaults, text size, autosave, Vim, spellcheck, and login behavior. Changes apply immediately and persist. Old preview and shortcut settings are ignored on load and removed on the next save.
+Settings opens from the toolbar, app menu, or Command/Control+,. It controls appearance, editing defaults, text size, autosave, Vim, spellcheck, and login behavior. Changes apply immediately and persist. Old preview and shortcut settings are ignored on load and removed on the next save.
 
 The app includes find, outline navigation, Vim mode, spellcheck, table editing, theme and reading-width settings, PDF export, HTML export, and printing. Saved notes can keep pasted images in an adjacent `assets/` directory. Local Markdown links open in the app, with back and forward navigation.
 
@@ -28,7 +28,7 @@ Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 
 - Open: Command/Control+O
 - Save: Command/Control+S
-- Read or edit: Command/Control+Enter
+- Read or edit: Command/Control+E
 - Command palette: Command/Control+Shift+P
 - Find: Command/Control+F
 - Open Quickly: Command/Control+Shift+O
@@ -42,15 +42,9 @@ SimpleMD closed and need no Accessibility or Automation permission. Both accept
 Markdown and MDX, never plain text. The preview reads at most 4 MB and shows a
 truncation note. Thumbnails read at most 64 KB and draw a title card with Core Text.
 
-The current preview uses an escaped-source stub while the shared static renderer
-is integrated. Math, Mermaid fences, MDX, and image syntax appear as source.
-No document code executes and no remote images load. The final renderer must
-show a placeholder when the sandbox cannot read a local image.
+The preview uses the shared static renderer for highlighted code, math and inert MDX. Mermaid fences remain code. It embeds permitted local raster images and shows placeholders for unavailable images. It never executes document code or loads remote images. A timeout or rendering error falls back to escaped source with a notice.
 
-The packaged check on macOS 27.2 passes preview attribution and MDX thumbnails.
-Markdown thumbnails currently route to Apple's Text extension despite SimpleMD's
-selected election. This remains an open qualification gate. See the
-[fixture report](native/quicklook/evidence/m4/REPORT.md).
+The October 29, 2026 security check passes packaged previews but leaves both Markdown and MDX custom thumbnails unqualified. macOS selected Apple's text thumbnail provider. See the [security report](native/quicklook/evidence/security/REPORT.md). Its raw receipts are local archives, described in the [spike record](native/quicklook/SPIKE.md); a public clone does not contain them.
 
 When another previewer such as FluxMarkdown is installed, choose SimpleMD in
 System Settings > General > Login Items & Extensions > Quick Look. macOS may
@@ -62,13 +56,19 @@ The app stays resident in the tray for warm file opens. Launch at Login is optio
 
 macOS file previews belong to the Quick Look preview and thumbnail extensions described in [the spec](../docs/specs/quick-look.md). Quick Look works independently of the running app. The Accessibility hook, Automation fallback, preview permission guidance, and preview-only global shortcut have been removed. Extension packaging and fixture qualification remain separate checks.
 
-The reading view uses normal app activation and Dock visibility. Space and Escape do not dismiss it. Enter or `e` switches to editing.
+The reading view uses normal app activation and Dock visibility. Space and Escape do not dismiss it. Command/Control+E switches to editing.
 
 On Windows and Linux, use File > Open, Open With, drag and drop, file associations, or an explicit command-line file path. The global shortcut was only for the removed selection preview, so it is removed on every platform. See the [Linux integration guide](integrations/linux/README.md) for desktop entries and AppImage setup. Tray availability depends on the desktop and session, including Wayland.
 
+## Windows limits
+
+Release installers target x64 only. Open Quickly searches tabs, recents, Git and the active folder; Everywhere adds no machine-wide Windows search. Native Share, Look Up and the system find pasteboard are macOS-only. In-app Find works on Windows. Some command-palette shortcut hints still show Mac symbols; use Control in place of Command.
+
+Windows saves preserve document bytes but do not explicitly preserve NTFS ACLs, alternate data streams or other Windows metadata. The CLI and URL handler reject UNC and device paths; use local drive paths. Explorer previews do not load neighboring or remote images. Their MDX imports and JSX can appear differently from the app and Mac Quick Look, but remain inert. See [preview limits](../docs/specs/windows-preview.md#user-visible-limits).
+
 ## Develop and check
 
-Use Bun 1.4.3 or newer, Node.js 24, and native Rust with edition 2024 support. Use the MSVC Rust toolchain and C++ build tools on Windows. Use a glibc Linux build host for Linux artifacts. The host-checking scripts reject mismatched Bun and Rust architectures, musl targets, cross-compilation, and universal macOS packages.
+Use the pinned Bun 1.4.4, Node.js 24, and native Rust with edition 2024 support. Use the MSVC Rust toolchain and C++ build tools on Windows. Use a glibc Linux build host for Linux artifacts. The host-checking scripts reject mismatched Bun and Rust architectures, musl targets, cross-compilation, and universal macOS packages.
 
 Run these inside `app/`, or use the same commands through the root package scripts:
 
@@ -85,7 +85,7 @@ bun run test:rust
 
 `start` builds the JavaScript app and opens Electron. It does not build Rust. If your shell sets `ELECTRON_RUN_AS_NODE`, unset it before starting Electron. The helper is optional for opening files. On macOS, saving an existing file uses it to preserve metadata when available. Development helper lookup uses `native/target/release/`; `build:native` copies the matching host binary there after building it under `native/target/<rust-host>/release/`.
 
-The build emits `dist/main.mjs`, a compile-cache bootstrap that imports `main-app.mjs`. A persistent Node worker handles Markdown rendering. `dist/render-worker.mjs` and shared chunks ship with the app through the `dist/**/*` package glob. The browser render-core bundle is built only by its Node-free core test and is excluded from packaging. Bun bundles runtime dependencies, so they are development dependencies in `package.json`.
+The build emits `dist/main.mjs`, a compile-cache bootstrap that imports `main-app.mjs`. A persistent Node worker handles Markdown rendering. `dist/render-worker.mjs` and shared chunks ship with the app through the `dist/**/*` package glob. The top-level `dist/render-core.js` is excluded from app.asar. Quick Look extensions and the Windows preview DLL embed their own browser render-core bundles. Bun bundles the app's renderer libraries; `electron-updater` remains a runtime dependency in `package.json`.
 
 The source is divided into `src/main/`, `src/renderer/`, `src/shared/`, and `native/`. Main and renderer changes share a document-ID protocol for rendering, saves, disk-change acknowledgement, and document readiness. Keep that protocol aligned across the preload bridge.
 
@@ -104,7 +104,7 @@ For local performance investigation, `bun run bench` runs the benchmark script. 
 
 Run `bun run perf:gate` from the repository root or this directory. It builds the app, generates deterministic fixtures, builds the measurement helper, and opens isolated Electron profiles. It prints the JSON receipt path last. Keep the Mac plugged in and avoid typing in the test windows. The full run opens many documents and can take several minutes.
 
-The receipt contains every sample, marker, cache state, assertion failure, fixture digest, build hash, and host detail. Gates use the targets in `docs/PLAN.md`. A failed gate exits nonzero; tabs and two document panes report `n/a` until they exist. `bun run bench.ts --perf-gate --smoke` runs a reduced local GUI check without enforcing absolute thresholds. Hosted macOS CI compiles that entrypoint and runs its protocol, fixture, and statistics tests because the runner has no stable logged-in GUI session.
+The receipt contains every sample, marker, cache state, assertion failure, fixture digest, build hash, and host detail. Gates use the targets in `docs/PLAN.md`. A failed gate exits nonzero. The harness measures Read and Live tab switches, typing in one and two panes, and five-tab memory. These checks exist; their presence does not establish a passing result. `bun run bench.ts --perf-gate --smoke` runs a reduced local GUI check without enforcing absolute thresholds. Hosted macOS CI compiles that entrypoint and runs its protocol, fixture, and statistics tests because the runner has no stable logged-in GUI session.
 
 Memory uses five settled samples of every PID from `app.getAppMetrics()`. The separate `perf-memory` binary in the existing Rust package reads macOS `proc_pid_rusage` physical footprint and resident size. On Windows it counts private resident pages with `QueryWorkingSet` and records total resident pages beside them. It does not run the save-metadata helper, `footprint`, or `vmmap`. Values use decimal MB. RSS is diagnostic, not the gate.
 
@@ -122,7 +122,7 @@ bun run pack
 bun run dist
 ```
 
-Both packaging commands build JavaScript and the Rust helper first. The helper build uses an explicit host triple and target directory, so a foreign `CARGO_BUILD_TARGET` or `CARGO_TARGET_DIR` cannot select a different packaged helper. The package includes only the exact helper binary and the root MIT license as extra resources. Use these scripts instead of invoking electron-builder directly.
+Both packaging commands build JavaScript and the Rust helper first. The helper build uses an explicit host triple and target directory, so a foreign `CARGO_BUILD_TARGET` or `CARGO_TARGET_DIR` cannot select a different packaged helper. Extra resources include the helper, CLI, MIT license and third-party notices. Windows also ships the preview DLL and its install, uninstall and path scripts. macOS embeds Quick Look extensions in `Contents/PlugIns`. Use these scripts instead of invoking electron-builder directly.
 
 `pack` creates an unpacked app. `dist` uses the platform's configured targets:
 
@@ -134,7 +134,7 @@ Both packaging commands build JavaScript and the Rust helper first. The helper b
 
 Output goes to `app/release/`. A build only targets the host's current architecture. Build separately on each OS and architecture you intend to support.
 
-Local scripts set `CSC_IDENTITY_AUTO_DISCOVERY=false`, `mac.identity="-"`, `mac.notarize=false`, `dmg.sign=false`, `win.signExecutable=false`, and `publish=never`. They discard inherited signing and publishing credentials before building. Windows resource metadata and icons remain enabled. The scripts can download build tools; they never request notarization or upload a release. `pack:plan` reads the Rust host and prints the unsigned configuration without compiling, packaging, or importing electron-builder.
+Local scripts default to `CSC_IDENTITY_AUTO_DISCOVERY=false`, `mac.identity="-"`, `mac.notarize=false`, `dmg.sign=false`, `win.signExecutable=false`, and `publish=never`. An explicit `SIMPLEMD_SIGN_IDENTITY` opts into Developer ID signing. They discard inherited signing and publishing credentials before building. Windows resource metadata and icons remain enabled. The scripts can download build tools; they never request notarization or upload a release. `pack:plan` reads the Rust host and prints the unsigned configuration without compiling, packaging, or importing electron-builder.
 
 macOS packages use ad-hoc signing by default. To sign with the supplied identity:
 
@@ -148,10 +148,10 @@ signs each extension with hardened runtime and App Sandbox only, then copies
 them into `Contents/PlugIns`. Developer ID signing uses a secure timestamp.
 Electron's signing pass skips PlugIns and signs the enclosing app with the same
 identity. The `afterSign` hook verifies the app recursively and checks extension
-architectures, deployment targets, identities, timestamps, and entitlements.
+architectures, deployment targets, host-matched versions, identities, timestamps, and entitlements. Local packaging also verifies the final app after the builder returns.
 Neither path notarizes or publishes.
 
-`build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist` give the main app and Electron helpers JIT support. Neither grants Apple Events access. Neither file adds unsigned executable memory or library-validation exceptions. These are inputs for a future reviewed signing workflow; the unsigned path does not apply them. Before signed distribution, inspect the main app, Electron helpers, and Rust helper signatures and entitlements in the exact package, then test saves and Quick Look behavior. Signing, notarization, Gatekeeper checks, and installed-app QA remain separate work. Quick Look never inherits either file. Downloaded-app Gatekeeper acceptance, notarization, Intel execution, and macOS 13 runtime behavior remain separate release checks.
+`build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist` give the main app and Electron helpers JIT support. Neither grants Apple Events access. Neither file adds unsigned executable memory or library-validation exceptions. The packaging and release scripts use these signing inputs. Before signed distribution, inspect the main app, Electron helpers, and Rust helper signatures and entitlements in the exact package, then test saves and Quick Look behavior. The [release script](../docs/release.md) implements signing, notarization and Gatekeeper checks; each release still needs its own package and installed-app checks. Quick Look never inherits either file. Clean-Mac downloaded-app acceptance and macOS 13 runtime behavior remain release checks. Intel Macs are unsupported; universal extension slices do not qualify an Intel app.
 
 ## CI and remaining gates
 
@@ -163,9 +163,9 @@ bun run test:asar /absolute/path/to/app.asar
 
 This launches a temporary Electron harness with an isolated profile, without starting SimpleMD's login integration. It checks that the bootstrap, main bundle, worker, and shared chunks match the current `dist`, remain packed, and render highlighted TypeScript and Python fences through the worker protocol. It retains the archive hash, runtime result, HTML, and logs in the reported temporary directory. This checks Electron's ASAR worker loader. It does not launch the packaged app's normal UI or establish trust, permissions, or installed behavior.
 
-The [desktop workflow](../.github/workflows/desktop.yml) installs locked dependencies, runs TypeScript checks and Bun tests, checks Rust formatting, checks and tests Rust, then builds and packages unsigned artifacts. Its native runner matrix covers macOS arm64, macOS x64, Windows x64, and Linux x64. CI pins [Bun 1.4.3](https://github.com/oven-sh/bun/releases/tag/bun-v1.4.3); macOS runner labels follow the [GitHub runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+The [desktop workflow](../.github/workflows/desktop.yml) installs locked dependencies, runs TypeScript checks and Bun tests, checks Rust formatting, checks and tests Rust, then builds and packages unsigned artifacts. Its native runner matrix covers macOS arm64, Windows x64 and Linux x64. Build and test jobs pin Bun 1.4.4; the separate lint job uses Bun canary. The macOS runner labels follow the [GitHub runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
-Artifacts remain workflow attachments for seven days. The workflow has read-only repository permissions and no release job. It does not exercise the graphical smoke script, run benchmarks, install packages, or validate permissions and file associations. Windows arm64 and Linux arm64 are accepted by the host-only script but are outside this CI matrix.
+Artifacts remain workflow attachments for seven days. The workflow has read-only repository permissions and no release job. The ordinary desktop jobs do not run the graphical smoke script, benchmarks or installer checks. A separate Windows preview job installs and uninstalls its NSIS artifact and checks per-user preview registration. These hosted checks do not replace owner checks on Windows hardware. Windows arm64 and Linux arm64 are accepted by the host-only script but are outside this CI matrix.
 
 No Windows or Linux desktop runtime has been verified from this Mac. Treat window controls, tray behavior, file associations, local image loading, and printing as external QA gates until they run on those systems. Packaging configuration and passing unit tests are separate evidence from an installed application.
 
