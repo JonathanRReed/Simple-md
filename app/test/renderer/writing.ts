@@ -75,12 +75,12 @@ export async function runBatch(input: { html: string; css: string }) {
   } });
   const pane = createPane(root, makePaneId(0), { active: () => true, changed() {}, tabs: () => [] });
   pane.settings({ ...DEFAULT_SETTINGS, autosave: false, outlineRail: false });
-  const readText = "# Title\n\nFirst **words** [link][site]\n\n```\nnot prose\n```\n\n- [ ] Task\n\n[site]: https://example.test\n";
+  const readText = "# Title\n\nFirst **words** [link][site]\n\n```\nnot prose\n```\n\n- [ ] Task\n  - [ ] Nested\n\n[site]: https://example.test\n";
   const rendered = await core.renderBlocks(readText, "/tmp/writing.md");
   const id = makeDocumentId(1);
   await pane.load({ ...rendered, documentId: id, paneId: makePaneId(0), revisionId: makeRevisionId(0), path: "/tmp/writing.md", name: "writing.md", baseUrl: "file:///tmp/", text: readText, intent: "read" });
   const hint = root.querySelector<HTMLElement>('[data-element="hint"]')!;
-  await until(() => hint.textContent?.includes("5 words") === true, "Read footer did not count prose in its worker");
+  await until(() => hint.textContent?.includes("6 words") === true, "Read footer did not count prose in its worker");
   assert(!hint.hidden && hint.textContent?.includes("characters"), "Counter is hidden or lacks characters");
   const article = root.querySelector<HTMLElement>('[data-element="doc"]')!;
   const paragraph = [...article.querySelectorAll("p")].find(node => node.textContent?.startsWith("First"))!;
@@ -104,6 +104,13 @@ export async function runBatch(input: { html: string; css: string }) {
   selection.removeAllRanges(); selection.addRange(codeRange);
   assert(selectedReadProse(article, selection) === "", "Selected code counted as prose");
   selection.removeAllRanges();
+  const nested = article.querySelector<HTMLElement>(".task-list-item .task-list-item")!;
+  const nestedRange = document.createRange(); nestedRange.selectNodeContents(nested);
+  selection.addRange(nestedRange); pane.command("toggle-task");
+  await until(() => article.querySelector<HTMLInputElement>(".task-list-item .task-list-item input")?.checked === true, "Selected nested Read task did not toggle");
+  assert(pane.flush().text === readText.replace("  - [ ] Nested", "  - [x] Nested"), "Nested task selection toggled its parent");
+  selection.removeAllRanges(); pane.command("undo");
+  await until(() => article.querySelector<HTMLInputElement>(".task-list-item .task-list-item input")?.checked === false && pane.flush().text === readText, "Nested Read task undo did not restore its marker");
   const task = article.querySelector<HTMLElement>(".task-list-item")!;
   task.focus(); pane.command("toggle-task");
   await until(() => pane.flush().text === readText.replace("[ ]", "[x]"), "Focused Read task did not toggle exactly its marker");

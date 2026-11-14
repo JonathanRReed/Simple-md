@@ -1365,7 +1365,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           const selection = window.getSelection();
           const tasks = [...docEl.querySelectorAll<HTMLElement>(".task-list-item")];
           const focused = document.activeElement?.closest<HTMLElement>(".task-list-item");
-          const selected = selection?.rangeCount && !selection.isCollapsed ? tasks.find(task => selection.getRangeAt(0).intersectsNode(task)) : undefined;
+          const selected = selection?.rangeCount && !selection.isCollapsed ? tasks.find(task => [...task.childNodes].some(node => !(node instanceof Element && (node.tagName === "UL" || node.tagName === "OL")) && selection.getRangeAt(0).intersectsNode(node))) : undefined;
           const task = focused && docEl.contains(focused) ? focused : selected;
           if (task) void toggleTask(task);
         }

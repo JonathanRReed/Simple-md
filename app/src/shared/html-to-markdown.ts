@@ -80,7 +80,7 @@ export function htmlToMarkdown(html: string): string {
     const line = (values: string[]) => "| " + Array.from({ length: columns }, (_, i) => values[i] ?? "").join(" | ") + " |";
     const lines = cells.map(row => line(row.map(cell => trim(flow(children(cell))).trim().replace(/\n+/g, " ").replace(/(?<!\\)\|/g, "\\|"))));
     lines.splice(1, 0, line((cells[0] ?? []).map((cell): string => {
-      const align = attr(cell, "align") || /text-align\s*:\s*(left|center|right)/i.exec(attr(cell, "style"))?.[1];
+      const align = (attr(cell, "align") || /text-align\s*:\s*(left|center|right)/i.exec(attr(cell, "style"))?.[1] || "").toLowerCase();
       return align === "center" ? ":---:" : align === "right" ? "---:" : align === "left" ? ":---" : "---";
     }).concat(Array<string>(columns).fill("---")).slice(0, columns)));
     return lines.join("\n");
@@ -93,7 +93,9 @@ export function htmlToMarkdown(html: string): string {
     if (tag === "pre") {
       const code = children(node).find(child => element(child) && child.tagName === "code");
       const text = rawText(code ?? node).replace(/\r\n?/g, "\n").replace(/\n$/, "");
-      const language = code && element(code) ? /(?:^|\s)(?:language|lang)-([\w+-]+)/.exec(attr(code, "class"))?.[1] ?? "" : "";
+      const parent = node.parentNode;
+      const classes = [code && element(code) ? attr(code, "class") : "", attr(node, "class"), parent && element(parent) ? attr(parent, "class") : ""].join(" ");
+      const language = /(?:^|\s)(?:language-|lang-|highlight-(?:source|text)-)([\w+-]+)/.exec(classes)?.[1] ?? "";
       const fence = "`".repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map(match => match[0].length + 1)));
       return `${fence}${language}\n${text}\n${fence}`;
     }
