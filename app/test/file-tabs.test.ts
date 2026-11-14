@@ -70,3 +70,15 @@ test("a batch closed during acceptance still sends exactly one final close", asy
   await openCliBatch(["a", "b"], async (_file, done) => { done(); return () => {}; }, () => { closed++; });
   expect(closed).toBe(1);
 });
+
+test("a bound draft can replace its destination only after an explicit Save As confirmation", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "smd-confirmed-draft-")), registry = new DocumentRegistry();
+  try {
+    const file = path.join(dir, "draft.md"), doc = registry.create(null, "current buffer"); doc.draftPath = file;
+    await fs.writeFile(file, "intervening file");
+    await expect(doc.save(file, doc.revisionId)).rejects.toThrow();
+    expect(await fs.readFile(file, "utf8")).toBe("intervening file");
+    expect((await doc.save(file, doc.revisionId, true))?.path).toBe(file);
+    expect(await fs.readFile(file, "utf8")).toBe("current buffer");
+  } finally { registry.dispose(); await fs.rm(dir, { recursive: true, force: true }); }
+});

@@ -144,7 +144,7 @@ export class DocumentSession {
       const unavailableSequence = this.unavailableSequence;
       let metadataCopyFailed: boolean;
       try {
-        const expected = recreate || target === this.draftPath ? null : target === this.path ? this.diskText : await readDiskText(target);
+        const expected = recreate || target === this.draftPath && !force ? null : target === this.path ? this.diskText : await readDiskText(target);
         ({ metadataCopyFailed } = await writeAtomic(target, text, expected));
       } catch (err) {
         if (target !== this.path) throw err;
