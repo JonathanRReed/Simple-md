@@ -219,7 +219,22 @@
           "StartupNotify": "true"
         }
       },
-      "maintainer": "Jonathan R. Reed <130617826+JonathanRReed@users.noreply.github.com>"
+      "maintainer": "Jonathan R. Reed <130617826+JonathanRReed@users.noreply.github.com>",
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkd",
+            "mdx"
+          ],
+          "name": "Markdown document",
+          "role": "Editor",
+          "description": "Markdown document",
+          "mimeType": "text/markdown"
+        }
+      ]
     },
     "forceCodeSigning": false,
     "publish": null,

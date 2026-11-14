@@ -62,6 +62,7 @@ describe("host-only packaging", () => {
     expect(pkg.build.extraResources).toContainEqual({ from: "../LICENSE", to: "LICENSE" });
     expect(pkg.build.linux.executableArgs).toEqual(["%f"]);
     expect(pkg.build.linux.syncDesktopName).toBe(true);
+    expect(pkg.build.linux.fileAssociations).toEqual(pkg.build.win.fileAssociations);
     expect(pkg.name).toBe("simplemd");
     expect(pkg.productName).toBe("SimpleMD");
     expect(pkg.build.productName).toBe("SimpleMD");
