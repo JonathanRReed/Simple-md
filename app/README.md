@@ -86,7 +86,14 @@ truncation note. Thumbnails read at most 64 KB and draw a title card with Core T
 
 The preview uses the shared static renderer for highlighted code, math and inert MDX. Mermaid fences remain code. It embeds permitted local raster images and shows placeholders for unavailable images. It never executes document code or loads remote images. A timeout or rendering error falls back to escaped source with a notice.
 
-The October 29, 2026 security check passes packaged previews but leaves both Markdown and MDX custom thumbnails unqualified. macOS selected Apple's text thumbnail provider. See the [security report](native/quicklook/evidence/security/REPORT.md). Its raw receipts are local archives, described in the [spike record](native/quicklook/SPIKE.md); a public clone does not contain them.
+On November 14, 2026, headless requests on macOS 27.2 selected the installed
+SimpleMD thumbnail extension for `.md` and `.mdx` and produced its title cards.
+Finder can use these cards when macOS selects SimpleMD. Existing cached icons
+may persist, and installing another Markdown app can change type classification
+or provider selection. This check had SimpleMD as the resolved opener and no
+registered FluxMarkdown extension. It does not establish selection with
+FluxMarkdown active or verify Finder's visible icons. See the
+[routing report](native/quicklook/evidence/thumbnails/REPORT.md).
 
 When another previewer such as FluxMarkdown is installed, choose SimpleMD in
 System Settings > General > Login Items & Extensions > Quick Look. macOS may

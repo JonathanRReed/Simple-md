@@ -168,6 +168,31 @@ page sizes and packaged runtime evidence.
 
 Uses `QLThumbnailProvider`, drawing a Core Text title card from the first heading and opening lines. No WebKit.
 
+Keep exact Markdown and MDX identifiers in `QLSupportedContentTypes`. Apple's
+[thumbnail extension documentation](https://developer.apple.com/documentation/quicklookthumbnailing/providing-thumbnails-of-your-custom-file-types)
+requires exact matches; listing `public.plain-text` alone is insufficient.
+The thumbnail extension point is `com.apple.quicklook.thumbnail`, its principal
+class is the Objective-C-visible `ThumbnailProvider`, and its minimum dimension
+is 32. The packaging verifier checks these declarations. SimpleMD imports
+Markdown and exports only its own MDX type, which retains `public.plain-text`
+conformance.
+
+On November 14, 2026, `qlmanage -t -x -s 256 -o` requests on macOS 27.2 selected
+the installed SimpleMD thumbnail extension for `.md` resolved as
+`net.daringfireball.markdown` and `.mdx` resolved as
+`com.jonathanreed.simplemd.mdx`. Daemon launch records, provider draw logs and
+the PNGs agree. A separately identified test extension also drew custom types
+conforming to `public.plain-text` and `public.utf8-plain-text` while TextEdit was
+their resolved opener. Plain-text conformance does not prevent custom thumbnails.
+
+The verified configuration had SimpleMD elected and resolved as the Markdown
+opener. FluxMarkdown was already in Trash and absent from PlugInKit. This proves
+supported thumbnail generation, not a guaranteed ordering among installed apps.
+Apple documents eligibility but no priority key that makes a third-party
+thumbnail provider always win over its built-in text provider. Finder's visible
+icons, existing caches and a configuration with active FluxMarkdown were not
+tested. See the [routing report](../../app/native/quicklook/evidence/thumbnails/REPORT.md).
+
 ## Removing the Accessibility hook
 
 The hook, `peek.ts`, `peek-request.ts`, the `peek` intent, hide-on-close for peek windows, and the macOS parts of the Rust helper are deleted once the Quick Look extension passes the named fixture set: plain README, math, Mermaid, local image, MDX, a large file, and a non-Markdown file that must not be claimed.
@@ -200,11 +225,13 @@ entitlement, with no network access or page scripts.
 
 
 The packaged rich preview passed the complete M4 fixture set in both ad-hoc and
-Developer ID runs on October 29, 2026, with the main app closed. Thumbnail routing
-remains unqualified. The final runs used Apple's text thumbnail provider for
-Markdown and MDX, despite matching declared UTIs. See the
+Developer ID runs on October 29, 2026, with the main app closed. Those runs used
+Apple's text thumbnail provider for Markdown and MDX, despite matching declared
+UTIs. See the
 [qualification report](../../app/native/quicklook/evidence/m4-final/REPORT.md)
 for screenshots, timing stages, declaration comparisons, and cleanup receipts.
+The November 14 routing check above supersedes the claim that SimpleMD has never
+drawn a Markdown thumbnail; it does not repeat the full preview fixture gate.
 
 ## Security limits
 
