@@ -20,9 +20,9 @@ export async function runDom(entrypoint: string, inputs: unknown, options: { med
     // Hosted Linux runners lack a configured SUID sandbox helper; the DOM harness only loads local fixtures.
     const sandbox = process.platform === "linux" && process.env.CI ? ["--no-sandbox"] : [];
     const child = Bun.spawn([String(electron), ...sandbox, `--user-data-dir=${path.join(temp, "profile")}`, path.join(import.meta.dir, "corpus/dom-driver.cjs"), input, bundle, output], {
-      env, stdout: "ignore", stderr: "pipe", signal: AbortSignal.timeout(60_000),
+      env, stdout: "ignore", stderr: "inherit", signal: AbortSignal.timeout(60_000),
     });
-    const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    const code = await child.exited, stderr = "";
     if (code !== 0) throw new Error(`DOM process exited ${code}: ${stderr}`);
     return await Bun.file(output).json();
   } finally { await rm(temp, { recursive: true, force: true }); }

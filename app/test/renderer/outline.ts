@@ -54,6 +54,8 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   await until(() => buttons()[20]!.dataset.inView === "true" && buttons()[0]!.dataset.inView === "false", "In-view strip state did not follow scrolling");
   const articleForReflow = root.querySelector<HTMLElement>('[data-element="doc"]')!;
   articleForReflow.style.fontSize = "23px";
+  console.log("OUTLINE before", JSON.stringify({ heading: heading.getBoundingClientRect().top, scroll: scroll.scrollTop, height: scroll.scrollHeight, font: getComputedStyle(articleForReflow).fontFamily }));
+  setTimeout(() => console.log("OUTLINE after", JSON.stringify({ heading: heading.getBoundingClientRect().top, scroll: scroll.scrollTop, height: scroll.scrollHeight })), 1000);
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Reflow lost the selected heading");
   articleForReflow.style.removeProperty("font-size");
   await pause();

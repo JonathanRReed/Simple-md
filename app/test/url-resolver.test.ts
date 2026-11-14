@@ -103,7 +103,7 @@ test("Astro sibling links and images resolve through the real project containmen
     const context = urlContext(base);
     for (const [source, expected, kind] of [["./prompts.mdx", "src/content/blog/prompts.mdx", "anchor"], ["./img.png", "src/content/blog/img.png", "resource"], ["/images/x.png", "public/images/x.png", "resource"]] as const) {
       const url = resolveAuthorUrl(source, kind, context)!;
-      expect(await containedLocalFile(url, context)).toBe(fs.realpathSync(path.join(dir, expected)));
+      expect(await containedLocalFile(url, context)).toBe(await fs.promises.realpath(path.join(dir, expected)));
     }
     const rendered = await renderBlocks("[Sibling](./prompts.mdx)\n\n[Blocked](../../../../secret.md)", path.join(base, "post.mdx"));
     const html = rendered.blocks.map(block => block.html).join("");

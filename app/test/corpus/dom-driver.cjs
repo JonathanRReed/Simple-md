@@ -2,6 +2,8 @@ const { app, BrowserWindow, session } = require("electron");
 const { mkdirSync, readFileSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 
+if (process.platform === "darwin") app.setActivationPolicy("accessory");
+
 app.whenReady().then(async () => {
   // Only an empty page and bundled application code run here. No reference assets load.
   session.defaultSession.webRequest.onBeforeRequest((request, done) => {
@@ -16,6 +18,11 @@ app.whenReady().then(async () => {
     await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: options.media });
   }
   const [input, bundle, output] = process.argv.slice(-3);
+  console.error("DOM start", bundle, readFileSync(input, "utf8").slice(-150));
+  setInterval(() => {
+    window.webContents.executeJavaScript(`JSON.stringify({ visibility: document.visibilityState, focus: document.hasFocus(), frames: globalThis.diagnosticFrames, elapsed: performance.now() })`).then(value => console.error("DOM heartbeat", value));
+  }, 10000).unref();
+  await window.webContents.executeJavaScript(`globalThis.diagnosticFrames = 0; requestAnimationFrame(function tick() { globalThis.diagnosticFrames++; requestAnimationFrame(tick); });`);
   const loadError = await window.webContents.executeJavaScript(`try { ${readFileSync(bundle, "utf8")}
  null; } catch (error) { String(error.stack); }`);
   if (loadError) throw new Error(loadError);

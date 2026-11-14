@@ -46,6 +46,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { Worker } = require('node:worker_threads');
 const { app } = require('electron');
+if (process.platform === 'darwin') app.setActivationPolicy('accessory');
 assert(process.versions.electron && app, 'This smoke must run under Electron, not Node mode');
 app.setPath('userData', path.join(__dirname, 'profile'));
 app.setPath('sessionData', path.join(__dirname, 'session'));

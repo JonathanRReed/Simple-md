@@ -55,7 +55,7 @@ test("folder fallback bounds depth and entries and never follows symlinks or hid
   for (const file of ["active.md", "d/ok.mdx", "d/deep/no.md", ".hidden/no.md", "node_modules/no.md"]) await writeFile(path.join(root, file), "# Note");
   await symlink(path.join(root, "d"), path.join(root, "link"), "dir");
   const files = await walkMarkdown(root, controller().signal, { depth: 1, entries: 20000 });
-  expect(files.map(x => path.relative(root, x)).sort()).toEqual(["active.md", "d/ok.mdx"]);
+  expect(files.map(x => path.relative(root, x)).sort()).toEqual(["active.md", path.join("d", "ok.mdx")]);
   expect((await walkMarkdown(root, controller().signal, { depth: 6, entries: 1 })).length).toBeLessThanOrEqual(1);
   const fallback = await repoMarkdown(path.join(root, "active.md"), controller().signal);
   expect(fallback.map(x => path.relative(root, x)).sort()).toEqual(["active.md", "d/deep/no.md", "d/ok.mdx"]);
