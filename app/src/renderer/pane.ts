@@ -1108,7 +1108,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         applyDiskText(text);
         showBanner(reason, []);
       };
-      if (doc.dirty) showBanner(reason, [{ label: "Reload", run: reload }, saveCopy]);
+      if (doc.dirty || change.message) showBanner(change.message ? `${reason} ${change.message}` : reason, [{ label: "Reload", run: reload }, saveCopy]);
       else void reload();
       updateChrome();
       return;

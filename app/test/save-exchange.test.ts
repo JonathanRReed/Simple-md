@@ -79,7 +79,7 @@ test.skipIf(process.platform === "win32")("a replacement between comparison and 
   } finally { swap.mockRestore(); move.mockRestore(); registry.dispose(); }
 });
 
-test.skipIf(process.platform === "win32")("a second replacement during rollback stays at the document path and the first gets a named sibling", async () => {
+for (const readOnly of [false, true]) test.skipIf(process.platform === "win32")(`a second replacement during rollback stays at the document path and names its sibling, readOnly=${readOnly}`, async () => {
   const { dir, file } = await fixture();
   const registry = new DocumentRegistry(), doc = registry.create(file, original);
   doc.edit(mine, makeRevisionId(1));
@@ -89,7 +89,10 @@ test.skipIf(process.platform === "win32")("a second replacement during rollback 
   const swap = spyOn(metadata, "exchangeFiles").mockImplementation(async (source, target, preserve) => {
     calls++;
     if (calls === 1) await replace(file, foreign);
-    if (calls === 2) await replace(file, "second foreign version");
+    if (calls === 2) {
+      await replace(file, "second foreign version");
+      if (readOnly) await fs.promises.chmod(file, 0o444);
+    }
     return exchange(source, target, preserve);
   });
   try {
@@ -101,6 +104,7 @@ test.skipIf(process.platform === "win32")("a second replacement during rollback 
     expect(siblings[0]).toStartWith("note.md.simplemd-conflict-");
     expect(await fs.promises.readFile(path.join(dir, siblings[0]!), "utf8")).toBe(foreign);
     expect(changes.some(change => change.kind === "text" && change.message?.includes(siblings[0]!))).toBe(true);
+    expect(changes.some(change => change.kind === "text" && !!change.readOnlyReason)).toBe(readOnly);
     expect(doc.text).toBe(mine);
     expect(doc.dirty).toBe(true);
     expect(doc.conflict).toBe(true);
