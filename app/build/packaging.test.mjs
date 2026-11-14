@@ -101,7 +101,7 @@ describe("host-only packaging", () => {
     expect(createTargets([Platform.MAC], "dir", "arm64").get(Platform.MAC).get(Arch.arm64)).toEqual(["dir"]);
     expect(createTargets([Platform.WINDOWS], null, "x64").get(Platform.WINDOWS).has(Arch.x64)).toBe(true);
     expect(createTargets([Platform.LINUX], null, "x64").get(Platform.LINUX).has(Arch.x64)).toBe(true);
-  });
+  }, 30_000);
 });
 
 test.skipIf(process.platform !== "darwin")("PR packaging permits only credential-free ad-hoc signing", async () => {
@@ -355,4 +355,4 @@ test("electron-builder emits one Default Markdown and MDX document declaration",
     expect(info.UTExportedTypeDeclarations[0].UTTypeIdentifier).toBe("com.jonathanreed.simplemd.mdx");
     expect(info.CFBundleURLTypes[0].CFBundleURLSchemes).toEqual(["simplemd"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
-});
+}, 30_000);

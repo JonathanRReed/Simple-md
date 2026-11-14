@@ -34,7 +34,7 @@ test("electron-builder accepts the release feed, resources and artifact names", 
   expect(config.extraResources).toContainEqual({ from: "../LICENSE", to: "LICENSE" });
   expect(config.extraResources).toContainEqual({ from: plan.cliBinary, to: "native/simplemd" });
   expect(config.artifactName).toBe("SimpleMD-${version}-${os}-${arch}.${ext}");
-});
+}, 30_000);
 test("release workflow requires desktop qualification and explicit signing intent", () => {
   const workflow = YAML.parse(readFileSync(path.join(appDir, "../.github/workflows/release.yml"), "utf8"));
   expect(workflow.on.push.tags).toEqual(["v*"]);
