@@ -98,7 +98,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   await until(() => !!root.querySelector(".cm-search input[name=search]"), "Editor Find did not open");
   const search = root.querySelector<HTMLInputElement>(".cm-search input[name=search]")!;
   search.value = "repo"; search.dispatchEvent(new Event("change", { bubbles: true })); await wait();
-  assert(root.querySelector(".search-count")?.textContent === "0 of 2", "Editor Find count is missing");
+  assert(root.querySelector(".search-count")?.textContent === "2 matches", "Editor Find count is missing");
   const replace = root.querySelector<HTMLInputElement>('.cm-search input[name="replace"]')!;
   replace.value = "repository"; replace.dispatchEvent(new Event("change", { bubbles: true }));
   root.querySelector<HTMLButtonElement>('.cm-search button[name="replaceAll"]')!.click(); await wait();

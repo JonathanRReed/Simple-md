@@ -1578,6 +1578,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         if (pane.documentId !== id || disposed) return;
       }
       if (target.kind === "heading") {
+        // An already-open target may still be switching from Source to Read.
+        await (pane.view === "read" ? pane.readWork : pane.previewWork);
+        if (pane.documentId !== id || disposed) return;
         const scope = pane.view === "read" ? docEl : previewEl;
         if (!fragmentTarget(scope, "#" + encodeURIComponent(target.heading)) || (pane.view === "edit" && pane.mode !== "split")) {
           const rendered = await simplemd.renderBlocks(currentText(), id, doc.revisionId);

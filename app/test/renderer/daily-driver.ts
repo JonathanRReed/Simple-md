@@ -96,13 +96,14 @@ export async function runBatch(input: { html: string; css: string }) {
   for (const el of root.querySelectorAll<HTMLElement>('[id]')) el.dataset.element = el.id;
   stage.append(root);
   let headReads = 0, committed = false;
+  let delayRead = false, releaseRead: (() => void) | undefined;
   const paneText = '# First\n\nalpha alpha\n\n# Last\n\nEnd';
   const rendered = await core.renderBlocks(paneText, '/tmp/plan.md');
   Object.assign(window, { simplemd: {
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: 'head', generation: headReads, changes: { changed: committed ? [] : [[2, 3]], deleted: [] } }),
     headChanges: async () => { headReads++; return { available: true, active: true }; },
-    renderBlocks: async () => rendered, renderFragment: host.renderFragment,
+    renderBlocks: async () => { if (delayRead) { delayRead = false; await new Promise<void>(resolve => { releaseRead = resolve; }); } return rendered; }, renderFragment: host.renderFragment,
     readFindText: async () => '', writeFindText: async () => {},
   } });
   const pane = createPane(root, makePaneId(0), { active: () => true, changed() {}, tabs: () => [] });
@@ -126,7 +127,15 @@ export async function runBatch(input: { html: string; css: string }) {
     pane.command(cmd); pane.command('undo'); pane.command('format-link');
     assert(pane.flush().text === beforeHistory, `${cmd} allowed document mutation`); closeOverlays();
   }
-  pane.command('mode-read'); await until(() => root.dataset.view === 'read', 'Read mode did not open');
+  delayRead = true; pane.command('mode-read');
+  await until(() => !!releaseRead, 'Read mode did not start rendering');
+  let headingJumps = 0;
+  const heading = root.querySelector<HTMLElement>('#user-content-last')!;
+  heading.scrollIntoView = () => { headingJumps++; };
+  const navigation = pane.navigate({ kind: 'heading', heading: 'last' });
+  await Promise.resolve(); assert(headingJumps === 0, 'Heading navigation ran before the target finished entering Read');
+  releaseRead!(); await navigation;
+  assert(headingJumps === 1, 'Heading navigation was lost after entering Read');
   const article = root.querySelector<HTMLElement>('#doc')!;
   openReadFind(article, () => {}, 'alpha');
   pane.command('find-next'); assert(document.querySelector('#find-count')?.textContent === '2 of 2', 'Read Find Next failed');
@@ -143,8 +152,11 @@ export async function runBatch(input: { html: string; css: string }) {
   const scroller = root.querySelector<HTMLElement>('#read-scroll')!;
   const stopFocus = readerFocus(scroller);
   query.blur(); scroller.focus();
+  // Hidden windows can change activeElement without delivering native focus events.
+  scroller.dispatchEvent(new FocusEvent('focus'));
   assert(!scroller.hasAttribute('data-keyboard-focus') && getComputedStyle(scroller).outlineStyle === 'none', 'Programmatic focus restored the page frame');
-  scroller.blur(); key(document.body, 'Tab'); scroller.focus();
+  scroller.blur(); scroller.dispatchEvent(new FocusEvent('blur'));
+  key(document.body, 'Tab'); scroller.focus(); scroller.dispatchEvent(new FocusEvent('focus'));
   assert(scroller.dataset.keyboardFocus === 'true', 'Keyboard traversal lost the reader indicator');
   stopFocus();
   const footer = root.querySelector<HTMLElement>('.pane-status')!;

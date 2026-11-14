@@ -1290,9 +1290,10 @@ body.print .document-pane, body.print .pane-viewport, body.print .pane-content {
 .cm-line.change-deleted-before::before, .cm-line.change-deleted-after::after { content: ""; position: absolute; left: 0; width: 18px; border-top: 2px solid #bd6855; pointer-events: none; }
 .cm-line.change-deleted-before::before { top: 0; }
 .cm-line.change-deleted-after::after { bottom: 0; }
-.change-controls { flex: none; white-space: nowrap; display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.change-controls { min-width: 0; flex: 0 1 auto; white-space: nowrap; display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .change-controls[hidden] { display: none; }
-.change-controls button { font: inherit; color: inherit; background: none; border: 0; border-radius: 4px; padding: 2px 4px; cursor: pointer; }
+.change-controls [data-element="change-count"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.change-controls button { flex: none; font: inherit; color: inherit; background: none; border: 0; border-radius: 4px; padding: 2px 4px; cursor: pointer; }
 .change-controls button:hover { background: var(--code-bg); }
 
 .drag-export-controls { flex: none; display: flex; align-items: center; gap: 4px; margin-left: auto; }
@@ -1440,6 +1441,6 @@ html[data-ui-motion="off"] #zen-hint { animation: none; }
 .conflict-columns pre { flex: 1; overflow: auto; margin: 0; padding: 9px; border: 1px solid var(--rule); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 var(--code-font-family, monospace); }
 
 @container (max-width: 480px) {
-  .pane-status .drag-export-controls, .pane-status [data-element="hint"], .pane-status [data-element="dirty"] { display: none; }
+  .pane-status .drag-export-controls, .pane-status [data-element="hint"] { display: none; }
 }
 #stage .prose .code-block[data-lang] pre { padding-top: 34px; }
