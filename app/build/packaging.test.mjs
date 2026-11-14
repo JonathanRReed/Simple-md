@@ -5,6 +5,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { appDir, nativePlan, currentNativePlan } from "./native.mjs";
 import { localEnvironment, packageMode, unsignedConfig, packagingConfig } from "./local-pack.mjs";
+import { releaseConfig } from "./release-config.mjs";
+import { verifyExtensionVersion } from "./quicklook-verify.mjs";
 import { desktopEntry } from "../integrations/linux/desktop-entry.mjs";
 
 describe("host-only packaging", () => {
@@ -234,7 +236,6 @@ test("Quick Look identity comes from the explicit full identity", async () => {
   expect(() => quickLookIdentity({ SIMPLEMD_SIGN_IDENTITY: 'Jonathan Reed' })).toThrow('Developer ID');
 });
 
-
 test("Linux CLI hooks retain builder launcher and sandbox setup and clean their temporary scripts", async () => {
   const { withLinuxCliHooks } = await import("./linux-cli.mjs");
   let generated;
@@ -258,7 +259,6 @@ test("release CLI contains no test-only environment overrides", () => {
   for (const name of ["SMD_CLI_RUNTIME", "SMD_CLI_APP", "SMD_CLI_APP_ROOT"]) expect(binary.includes(Buffer.from(name))).toBe(false);
 });
 
-
 describe("Windows preview packaging", () => {
   test("ships the embedded renderer DLL and per-user scripts with NSIS", () => {
     const plan = nativePlan("x86_64-pc-windows-msvc", "win32", "x64");
@@ -276,6 +276,83 @@ describe("Windows preview packaging", () => {
     expect(pkg.build.nsis.runAfterFinish).toBe(false);
     expect(pkg.build.nsis.include).toBe("build/cli-installer.nsh");
     const install = readFileSync(path.join(appDir, "native/windows-preview/install.ps1"), "utf8");
-    for (const ext of pkg.build.fileAssociations.flatMap(item => item.ext)) expect(install).toContain(`'.${ext}'`);
+    for (const ext of pkg.build.win.fileAssociations.flatMap(item => item.ext)) expect(install).toContain(`'.${ext}'`);
   });
+});
+
+test("local and release resources match, including every NSIS script dependency", async () => {
+  const { getConfig } = await import("app-builder-lib/out/util/config/config.js");
+  for (const [host, platform, arch] of [
+    ["aarch64-apple-darwin", "darwin", "arm64"],
+    ["x86_64-pc-windows-msvc", "win32", "x64"],
+    ["x86_64-unknown-linux-gnu", "linux", "x64"],
+  ]) {
+    const plan = nativePlan(host, platform, arch);
+    const local = await getConfig(appDir, null, unsignedConfig(plan));
+    const release = await getConfig(appDir, null, releaseConfig(plan, "release"));
+    expect(release.extraResources).toEqual(local.extraResources);
+    if (platform !== "win32") continue;
+    const shipped = new Set(release.extraResources.map(resource => resource.to));
+    const nsis = readFileSync(path.join(appDir, release.nsis.include), "utf8");
+    const calls = [...nsis.matchAll(/\$INSTDIR\\resources\\([^"\r\n]+\.ps1)/g)];
+    expect(calls).toHaveLength(2);
+    for (const [, file] of calls) expect(shipped.has(file.replaceAll("\\", "/"))).toBe(true);
+    for (const resource of release.extraResources.filter(resource => resource.to.endsWith(".ps1"))) {
+      const script = readFileSync(resource.from, "utf8");
+      for (const [, file] of script.matchAll(/Join-Path \$PSScriptRoot ['"]([^'"]+)['"]/g)) {
+        expect(shipped.has(`native/preview/${file}`)).toBe(true);
+      }
+    }
+  }
+});
+
+test("Quick Look versions must match both host version fields", () => {
+  const host = { CFBundleShortVersionString: "2.3.4", CFBundleVersion: "2.3.4.9" };
+  expect(() => verifyExtensionVersion(host, { ...host })).not.toThrow();
+  for (const key of Object.keys(host)) {
+    expect(() => verifyExtensionVersion(host, { ...host, [key]: "0.1.0" })).toThrow(key);
+    expect(() => verifyExtensionVersion({}, host)).toThrow();
+  }
+});
+
+test("electron-builder emits one Default Markdown and MDX document declaration", async () => {
+  const { getConfig } = await import("app-builder-lib/out/util/config/config.js");
+  await import("electron-builder");
+  const { createMacApp } = await import("app-builder-lib/out/electron/electronMac.js");
+  const { MacPackager } = await import("app-builder-lib/out/macPackager.js");
+  const { PlatformPackager } = await import("app-builder-lib/out/platformPackager.js");
+  const { parsePlistFile, savePlistFile } = await import("app-builder-lib/out/util/plist.js");
+  const { mkdirSync } = await import("node:fs");
+  const dir = mkdtempSync(path.join(os.tmpdir(), "smd-plist-"));
+  try {
+    const contents = path.join(dir, "Electron.app/Contents");
+    const helper = path.join(contents, "Frameworks/Electron Helper.app/Contents");
+    mkdirSync(path.join(contents, "MacOS"), { recursive: true });
+    mkdirSync(path.join(helper, "MacOS"), { recursive: true });
+    writeFileSync(path.join(contents, "MacOS/Electron"), "fixture");
+    writeFileSync(path.join(helper, "MacOS/Electron Helper"), "fixture");
+    await savePlistFile(path.join(contents, "Info.plist"), {});
+    await savePlistFile(path.join(helper, "Info.plist"), {});
+    const config = await getConfig(appDir, null, unsignedConfig(nativePlan("aarch64-apple-darwin", "darwin", "arm64")));
+    const packager = {
+      config, platformSpecificBuildOptions: config.mac,
+      appInfo: { productFilename: "SimpleMD", sanitizedProductName: "SimpleMD", productName: "SimpleMD",
+        macBundleIdentifier: config.appId, version: "0.1.0", buildVersion: "0.1.0" },
+      info: { framework: { distMacOsAppName: "Electron.app" } },
+      applyCommonInfo: MacPackager.prototype.applyCommonInfo,
+      get fileAssociations() { return Object.getOwnPropertyDescriptor(PlatformPackager.prototype, "fileAssociations").get.call(this); },
+      getIconPath: async () => null, getResource: async () => null,
+    };
+    await createMacApp(packager, dir, null, false);
+    const info = await parsePlistFile(path.join(dir, "SimpleMD.app/Contents/Info.plist"));
+    expect(info.CFBundleDocumentTypes).toHaveLength(1);
+    expect(info.CFBundleDocumentTypes[0]).toEqual({
+      CFBundleTypeName: "Markdown document", CFBundleTypeRole: "Editor", LSHandlerRank: "Default",
+      CFBundleTypeExtensions: ["md", "markdown", "mdown", "mkd", "mdx"],
+      LSItemContentTypes: ["net.daringfireball.markdown", "public.markdown", "com.jonathanreed.simplemd.mdx", "com.fluxmarkdown.mdx"],
+    });
+    expect(info.CFBundleIdentifier).toBe("com.jonathanreed.simplemd");
+    expect(info.UTExportedTypeDeclarations[0].UTTypeIdentifier).toBe("com.jonathanreed.simplemd.mdx");
+    expect(info.CFBundleURLTypes[0].CFBundleURLSchemes).toEqual(["simplemd"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

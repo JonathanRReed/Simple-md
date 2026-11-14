@@ -2,6 +2,7 @@ import { withLinuxCliHooks } from "./linux-cli.mjs";
 import afterPack, { packagedApp, quickLookIdentity } from "./quicklook.mjs";
 import { verifyQuickLook } from "./quicklook-verify.mjs";
 import { appDir, buildNative, currentNativePlan, run } from "./native.mjs";
+import { nativeResources } from "./native-resources.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -9,14 +10,7 @@ export function unsignedConfig(plan) {
   return {
     forceCodeSigning: false,
     publish: null,
-    extraResources: [
-      { from: plan.binary, to: `native/${plan.executable}` },
-      { from: plan.cliBinary, to: `native/${plan.cliExecutable}` },
-      ...(plan.platform === "win32" ? [
-        { from: path.join(appDir, "native/windows-preview/target", plan.host, "release/simplemd_windows_preview.dll"), to: "native/preview/simplemd_windows_preview.dll" },
-        ...["install.ps1", "uninstall.ps1", "paths.ps1"].map(name => ({ from: path.join(appDir, "native/windows-preview", name), to: `native/preview/${name}` })),
-      ] : []),
-    ],
+    extraResources: nativeResources(plan),
     mac: { identity: "-", notarize: false },
     dmg: { sign: false },
     win: { signExecutable: false },
