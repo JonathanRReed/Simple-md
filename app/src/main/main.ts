@@ -1379,9 +1379,9 @@ function registerIpc(): void {
     const generation = host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1;
     const { QuicklySearch } = await import("./open-quickly.js");
     if (host.win.isDestroyed() || host.quicklyGeneration !== generation) return [];
-    host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null);
+    host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null, undefined, history.searchFiles(settings.recents));
     const tabs = host.layout.state.tabs.flatMap(id => { const file = registry.get(id)?.path; return file ? [{ path: file, source: "tab" as const }] : []; });
-    const matches = await host.quickly.search(raw, scope, [...tabs, ...history.searchFiles(settings.recents)], matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
+    const matches = await host.quickly.search(raw, scope, tabs, matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
     return host.quicklyGeneration === generation ? matches : [];
   });
   on("smd:quickly-close", () => {

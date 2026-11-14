@@ -162,3 +162,13 @@ test("indexed candidates support noncontiguous filename queries before ranking",
   expect(calls[0]?.args.at(-1)).toContain('"*b*t*r*h*l*p*"cd');
   expect(rankQuicklyFiles(candidates.map(path => ({ path, source: "machine" })), "btrhlp").map(file => file.name)).toEqual(["BetterHelp.mdx"]);
 });
+
+test("picker reuses the checked history snapshot across keystrokes", async () => {
+  let checks = 0;
+  const history = Promise.resolve().then(() => { checks++; return [{ path: "/notes/history.md", source: "recent" as const }]; });
+  const search = new QuicklySearch(null, { repo: async () => [], machine: async () => [] }, history);
+  expect((await search.search("his", "repo", [])).some(file => file.path === "/notes/history.md")).toBe(true);
+  expect((await search.search("history", "repo", [])).some(file => file.path === "/notes/history.md")).toBe(true);
+  expect(checks).toBe(1);
+  search.close();
+});
