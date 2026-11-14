@@ -1,3 +1,4 @@
+import { openDocumentLink } from "./document-links.js";
 import { matchesOpenPath } from "./open-path.js";
 import { applySettings as applySettingsPatch } from "./settings-apply.js";
 import { updateMenu } from "../shared/update-state.js";
@@ -8,7 +9,6 @@ import { OpenHistory } from "./open-history.js";
 import { saveSuggestion, duplicateSuggestion, duplicateDocumentFile, copyRelativePath, destinationState, hasRelativeResources } from "./file-actions.js";
 import { commandDefinitions } from "../shared/commands.js";
 import { insertDocumentImage, IMAGE_EXTENSIONS } from "./image-store.js";
-import { linkLocation } from "../shared/link-location.js";
 import { paperSize } from "../shared/paper-size.js";
 import { existingPinnedPaths } from "./pinned-tabs.js";
 import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
@@ -28,7 +28,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
 import { sidebarToggle } from "../shared/tab-presentation.js";
 import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
-import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -61,7 +60,7 @@ import type {
   SaveResult,
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
-import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument, saveChangesPrompt } from "./lifecycle.js";
+import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument, saveChangesPrompt, canOpenWindow, settleAllWindows as settleWindows, releaseQuitWindows as releaseWindows, prepareQuit as cleanupForQuit } from "./lifecycle.js";
 import { writeConflictCopy } from "./conflict-copy.js";
 import { checkExportDestination, writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
@@ -795,25 +794,11 @@ async function renameMove(doc: DocumentSession): Promise<void> {
 
 // ───────── links & commands ─────────
 
-async function openLink(href: string, intent: OpenIntent = "edit", newTab = false, current = currentSession(), host = context()): Promise<boolean> {
-  if (/^(https?:|mailto:)/i.test(href)) {
-    await shell.openExternal(href);
-    return false;
-  }
-  if (!current.path) return false;
-  const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
-  if (!resolved || !resolved.startsWith("file:")) return false;
-  try {
-    const urls = urlContext(path.dirname(current.path));
-    const { astroRouteFile } = await import("./document-urls.js");
-    const route = await astroRouteFile(resolved, urls);
-    if (route) return openFile(route, intent, !newTab, current.documentId, host, linkLocation(resolved));
-    const canonical = await containedLocalFile(resolved, urls);
-    const target = fileURLToPath(resolved);
-    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host, linkLocation(resolved)) : false;
-  } catch {
-    return false;
-  }
+function openLink(href: string, intent: OpenIntent = "edit", newTab = false, current = currentSession(), host = context()): Promise<boolean> {
+  return openDocumentLink(href, intent, newTab, current, {
+    external: url => shell.openExternal(url),
+    open: (file, intent, inPlace, id, location) => openFile(file, intent, inPlace, id, host, location),
+  });
 }
 
 async function togglePanes(axis: "horizontal" | "vertical"): Promise<void> {
@@ -854,29 +839,18 @@ async function moveTabWindow(): Promise<void> {
 }
 function releaseQuitWindows(): void {
   quitting = false;
-  for (const host of windows.values()) {
-    host.quitFrozen = false;
-    sendTo(host, "smd:transition", false);
-  }
+  releaseWindows(windows.values(), (host, value) => sendTo(host, "smd:transition", value));
 }
 
-async function settleAllWindows(): Promise<boolean> {
-  for (const host of windows.values()) {
-    host.quitFrozen = true;
-    sendTo(host, "smd:transition", true);
-  }
-  for (const host of windows.values()) {
-    const accepted = await windowScope.run(host, async () => {
-      for (const id of host.layout.state.tabs) if (!(await transition(() => settle(registry.get(id)!)))) return false;
-      return true;
-    });
-    if (!accepted) return false;
-  }
-  return true;
+function settleAllWindows(): Promise<boolean> {
+  return settleWindows(windows.values(), (host, value) => sendTo(host, "smd:transition", value), host => windowScope.run(host, async () => {
+    for (const id of host.layout.state.tabs) if (!(await settle(registry.get(id)!, host))) return false;
+    return true;
+  }));
 }
 
 async function newDocumentWindow(): Promise<void> {
-  if ([...windows.values()].some(host => host.quitFrozen)) return;
+  if (!canOpenWindow(windows.values())) return;
   const host = createDocumentWindow();
   await windowScope.run(host, async () => { reveal(); await newDoc(); });
 }
@@ -1581,26 +1555,28 @@ function scheduleCliServer(): void {
 
 async function prepareQuit(): Promise<void> {
   trace("quit-cleanup-start");
-  quitting = true;
-  await cliStartup;
-  await dragExports?.dispose();
-  // Finish with CLI clients before stopping anything the app needs: the drain can time out, and a cancelled quit must leave a working app.
-  cliWaiters.closeAll();
-  await cliServer?.drain();
-  cliServer?.close();
-  await disposeRenderer();
-  trace("quit-worker-stopped");
-  configStore().close();
-  settingsWindow?.close();
-  flushSettings();
-  history.flush();
-  updates?.stop();
-  tray?.destroy();
-  tray = undefined;
-  registry.dispose();
-  trace("quit-resources-closed");
-  for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
-  trace("quit-window-destroyed");
+  await cleanupForQuit({
+    starting: cliStartup,
+    disposeExports: async () => { await dragExports?.dispose(); },
+    closeWaiters: () => cliWaiters.closeAll(),
+    transport: () => cliServer,
+    disposeRenderer,
+    finish() {
+      quitting = true;
+      trace("quit-worker-stopped");
+      configStore().close();
+      settingsWindow?.close();
+      flushSettings();
+      history.flush();
+      updates?.stop();
+      tray?.destroy();
+      tray = undefined;
+      registry.dispose();
+      trace("quit-resources-closed");
+      for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
+      trace("quit-window-destroyed");
+    },
+  });
 }
 
 if (!app.requestSingleInstanceLock()) {

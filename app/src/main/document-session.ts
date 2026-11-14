@@ -24,7 +24,6 @@ export class DocumentSession {
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private watchGeneration = 0;
   private disposed = false;
-  private metadataWarningSent = false;
   private unavailableSequence = 0;
   private onDiskChanged: ((change: DiskChange) => void) | undefined;
 
@@ -155,7 +154,7 @@ export class DocumentSession {
           else this.unavailable(error);
           return null;
         });
-        if (!external) return null;
+        if (!external) { if (recreate) throw err; return null; }
         if (!(err instanceof FileConflictError) && !racing(err)) throw err;
         this.conflict = true;
         this.onDiskChanged?.({ kind: "text", ...external });
@@ -174,9 +173,7 @@ export class DocumentSession {
       this.conflict = !!this.unavailableReason;
       this.dirty = !!this.unavailableReason || this.text !== text;
       if (moved && this.onDiskChanged) this.watch(this.onDiskChanged);
-      const showMetadataWarning = metadataCopyFailed && !this.metadataWarningSent;
-      if (metadataCopyFailed) this.metadataWarningSent = true;
-      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, showMetadataWarning, unavailableReason: this.unavailableReason };
+      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, unavailableReason: this.unavailableReason };
     });
   }
 

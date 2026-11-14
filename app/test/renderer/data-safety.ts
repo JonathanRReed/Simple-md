@@ -1,5 +1,5 @@
 import type { EditorView } from "@codemirror/view";
-import { createPane } from "../../src/renderer/pane";
+import { createPane, noticeSaveMetadata } from "../../src/renderer/pane";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
 import type { RenderedBlocks } from "../../src/shared/render-core";
 
@@ -70,13 +70,15 @@ export async function runBatch(input: { scenario: string; text: string; incoming
     const result = { documentId: id, revisionId: makeRevisionId(0), path: payload.path, name: payload.name, baseUrl: payload.baseUrl, text: input.text, metadataCopyFailed: true };
     pane.saved(result);
     const toast = document.querySelector<HTMLElement>("#toast")!;
+    assert(!toast.textContent?.includes("tags or extended attributes"), "Pane duplicated the app save notice");
+    noticeSaveMetadata(result);
     assert(toast.textContent?.includes("tags or extended attributes"), "Metadata warning is missing");
     toast.textContent = "cleared";
-    pane.saved(result);
+    pane.saved(result); noticeSaveMetadata(result);
     assert(toast.textContent === "cleared", "Metadata warning repeated");
     const retained = pane.suspend();
     await pane.load(payload, retained);
-    pane.saved(result);
+    pane.saved(result); noticeSaveMetadata(result);
     assert(toast.textContent === "cleared", "Metadata warning repeated after tab restore");
     pane.suspend(); return true;
   }

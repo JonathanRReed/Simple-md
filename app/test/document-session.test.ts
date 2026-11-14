@@ -192,6 +192,18 @@ test("explicit reading actions keep normal autosave", async () => {
   expect(await fs.readFile(file, "utf8")).toBe("- [x] Review\n");
 });
 
+for (const obstruction of ["missing parent", "directory"] as const) test(`Recreate reports ${obstruction} instead of silently cancelling close`, async () => {
+  const dir = await directory(), folder = path.join(dir, "notes"), file = path.join(folder, "note.md");
+  await fs.mkdir(folder); await fs.writeFile(file, "saved");
+  const doc = registry().create(file, "saved");
+  doc.edit("\uFEFFunsaved\r\nlast", makeRevisionId(1)); doc.unavailableReason = "The file is missing."; doc.conflict = true;
+  await fs.unlink(file);
+  if (obstruction === "missing parent") await fs.rmdir(folder);
+  else await fs.mkdir(file);
+  await expect(doc.save(file, doc.revisionId, false, true)).rejects.toThrow();
+  expect(doc.text).toBe("\uFEFFunsaved\r\nlast"); expect(doc.dirty).toBe(true);
+});
+
 test("a document edited after settlement explains why Rename cannot proceed", async () => {
   const dir = await directory(), file = path.join(dir, "old.md"), target = path.join(dir, "new.md");
   await fs.writeFile(file, "saved");

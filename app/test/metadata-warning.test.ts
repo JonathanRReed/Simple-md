@@ -16,10 +16,8 @@ test.skipIf(process.platform !== "darwin")("metadata failure reaches the save re
   try {
     const result = await doc.save(file, doc.revisionId);
     expect(result?.metadataCopyFailed).toBe(true);
-    expect(result?.showMetadataWarning).toBe(true);
     const second = await doc.save(file, doc.revisionId);
     expect(second?.metadataCopyFailed).toBe(true);
-    expect(second?.showMetadataWarning).toBe(false);
     expect(await fs.readFile(file)).toEqual(Buffer.from("\uFEFFafter\r\nlast"));
     expect(doc.dirty).toBe(false); expect(copy).toHaveBeenCalled(); expect(log).toHaveBeenCalled();
   } finally { copy.mockRestore(); log.mockRestore(); registry.dispose(); await fs.rm(dir, { recursive: true, force: true }); }
