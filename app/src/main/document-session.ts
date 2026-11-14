@@ -5,7 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { makeRevisionId, type DiskChange, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
 import { DocumentQueue } from "./lifecycle.js";
-import { ENCODING_NOTICE, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
+import { ENCODING_NOTICE, FileChangedDuringReadError, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
 
 export class DocumentSession {
   readonly firstAutosave: FirstAutosave;
@@ -21,6 +21,7 @@ export class DocumentSession {
   dirty = false;
   unavailableReason: string | undefined;
   private watcher: { close(): void } | undefined;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private watchGeneration = 0;
   private disposed = false;
   private metadataWarningSent = false;
@@ -80,6 +81,7 @@ export class DocumentSession {
     const generation = this.watchGeneration;
     let checkSequence = 0;
     const check = () => {
+      clearTimeout(this.retryTimer);
       const sequence = ++checkSequence;
       void readDocument(file).then(({ text, readOnlyReason }) => {
         if (generation !== this.watchGeneration || sequence !== checkSequence) return;
@@ -92,7 +94,10 @@ export class DocumentSession {
         this.conflict = true;
         changed({ kind: "text", text, readOnlyReason });
       }).catch((err) => {
-        if (generation === this.watchGeneration && sequence === checkSequence) this.unavailable(err);
+        if (generation !== this.watchGeneration || sequence !== checkSequence) return;
+        // Another program is still writing. The file is there, so look again once it has had time to finish.
+        if (err instanceof FileChangedDuringReadError) this.retryTimer = setTimeout(check, 250);
+        else this.unavailable(err);
       });
     };
     try { this.watcher = watchDocument(file, check); check(); }
@@ -143,9 +148,15 @@ export class DocumentSession {
         ({ metadataCopyFailed } = await writeAtomic(target, text, expected));
       } catch (err) {
         if (target !== this.path) throw err;
-        const external = await readDocument(target).catch((error: unknown) => { this.unavailable(error); return null; });
+        const racing = (error: unknown) => error instanceof FileChangedDuringReadError;
+        const external = await readDocument(target).catch((error: unknown) => {
+          // A file that is mid-write is a conflict, not a missing file. The watcher delivers its text once it settles.
+          if (racing(error)) this.conflict = true;
+          else this.unavailable(error);
+          return null;
+        });
         if (!external) return null;
-        if (!(err instanceof FileConflictError)) throw err;
+        if (!(err instanceof FileConflictError) && !racing(err)) throw err;
         this.conflict = true;
         this.onDiskChanged?.({ kind: "text", ...external });
         return null;
@@ -182,6 +193,6 @@ export class DocumentSession {
     });
   }
 
-  stopWatching(): void { this.watchGeneration++; this.watcher?.close(); this.watcher = undefined; }
+  stopWatching(): void { this.watchGeneration++; clearTimeout(this.retryTimer); this.watcher?.close(); this.watcher = undefined; }
   dispose(): void { this.disposed = true; this.markSeen(); this.stopWatching(); }
 }

@@ -86,6 +86,8 @@ export function createOutlineRail<T>(options: {
   }
   function restoreNavigation(): void {
     if (!navigation) return;
+    // A jump holds its target through late layout, then lets go so Find, change navigation and scroll sync are not undone.
+    if (performance.now() - navigationStarted > 10000) { navigation = null; return; }
     const intent = navigation;
     const index = intent.kind === "heading" ? items.findIndex(item => item.key === intent.key) : -1;
     if (intent.kind === "heading" && index < 0) { navigation = null; return; }
@@ -103,8 +105,8 @@ export function createOutlineRail<T>(options: {
       const now = performance.now();
       if (Math.abs(top - lastTarget) > 0.5) { lastTarget = top; stableSince = now; }
       const pending = [...content.querySelectorAll("img")].some(image => !image.complete) || document.fonts.status === "loading" || !!content.querySelector("pre.mermaid, .cm-math-inline:not(:has(.katex))");
-      // Stop polling settled layout, but retain the target for later resize events.
-      if (now - navigationStarted > 10000 || (!pending && now - stableSince > 600)) return;
+      // Stop polling settled layout. Resize events restore the target until it expires.
+      if (!pending && now - stableSince > 600) return;
       settleNavigation();
     });
   }
