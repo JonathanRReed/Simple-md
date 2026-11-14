@@ -21,6 +21,7 @@ function signature(bundle) {
 
 export function verifyQuickLook(app) {
   const cli = path.join(app, "Contents/Resources/native/simplemd");
+  if (!existsSync(path.join(app, "Contents/Resources/native/simplemd-default-app"))) throw new Error("Missing default-app helper");
   if (!existsSync(cli)) throw new Error("Missing bundled CLI");
   const help = execFileSync(cli, ["--help"], { encoding: "utf8" });
   if (!help.includes("Usage: simplemd")) throw new Error("Invalid bundled CLI");
