@@ -1,3 +1,4 @@
+import { countProse } from "../../src/shared/prose-count";
 import { EditorView } from "@codemirror/view";
 import { createPane } from "../../src/renderer/pane";
 import { createEditor } from "../../src/renderer/editor";
@@ -31,6 +32,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let rejectFragment: (() => void) | undefined;
   let stallFragment = false;
   const api = {
+    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean) => countProse(text, selection, mdx), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {},
     edit() { edits++; },
     changes: async () => ({ kind: "head", generation: headReads, changes: headCommitted ? { changed: [], deleted: [] } : { changed: [[7, 8]], deleted: [] } }),

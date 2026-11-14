@@ -1,3 +1,4 @@
+import { countProse } from "../../src/shared/prose-count";
 import { createPane } from "../../src/renderer/pane";
 import { blockAnchor, restoreBlockAnchor } from "../../src/renderer/scroll-sync";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
@@ -21,6 +22,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let nextId = 0;
   const payload = (file: string, intent: "read" | "edit") => ({ ...input.rendered, documentId: makeDocumentId(++nextId), paneId: makePaneId(0), revisionId: makeRevisionId(0), path: file, name: file.split("/").pop()!, baseUrl: "file:///tmp/", text: input.text, intent, initialMode: "source" as const });
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean) => countProse(text, selection, mdx), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,

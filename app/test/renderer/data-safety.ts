@@ -1,3 +1,4 @@
+import { countProse } from "../../src/shared/prose-count";
 import type { EditorView } from "@codemirror/view";
 import { createPane } from "../../src/renderer/pane";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId } from "../../src/shared/types";
@@ -15,6 +16,7 @@ export async function runBatch(input: { scenario: string; text: string; incoming
   for (const element of root.querySelectorAll<HTMLElement>("[id]")) element.dataset.element = element.id;
   document.querySelector("#stage")!.append(root);
   const api = {
+    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean) => countProse(text, selection, mdx), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async (text: string) => text === input.incoming ? input.updated : input.rendered,

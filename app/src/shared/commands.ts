@@ -124,4 +124,4 @@ export function shortcutHint(accelerator: string | undefined, mac: boolean): str
   if (!mac) return resolved;
   return resolved.replace(/Command\+/g, "⌘").replace(/Cmd\+/g, "⌘").replace(/Ctrl\+/g, "⌃").replace(/Alt\+/g, "⌥").replace(/Shift\+/g, "⇧").replace(/Right$/, "→").replace(/Left$/, "←").replace(/Up$/, "↑").replace(/Down$/, "↓");
 }
-export interface MenuCommand { id: string; enabled: boolean }
+export interface MenuCommand { id: string; enabled: boolean; label?: string }

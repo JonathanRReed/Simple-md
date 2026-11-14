@@ -1,3 +1,9 @@
+import { writingDefaultKeymap } from "./editor-bindings.js";
+import { blockEdit, type BlockCommand } from "./block-commands.js";
+import { tableEdit, type TableCommand } from "./table-source.js";
+import { sourceTransaction, sourceSelection, sourcePosition } from "./source-transaction.js";
+import { writingFolding, runFold, type FoldCommand } from "./folding.js";
+import { insertSource, type SourceSelection } from "./source-edit.js";
 import { canPasteLink } from "./paste-context.js";
 import { deriveOutline, type OutlineItem } from "./outline-model.js";
 import type { SourceAnchor } from "./scroll-sync.js";
@@ -10,12 +16,12 @@ import type { MdxResult } from "../shared/render-core.js";
 import { mdxSyntax, setMdxRanges } from "./mdx-syntax.js";
 import { editorMdxRanges } from "./mdx-positions.js";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { history, historyField, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { html } from "@codemirror/lang-html";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { bracketMatching, ensureSyntaxTree, syntaxTree, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap, findNext, findPrevious } from "@codemirror/search";
+import { SearchQuery, getSearchQuery, setSearchQuery, openSearchPanel, search, searchKeymap, findNext, findPrevious, gotoLine } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, drawSelection, dropCursor, keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
@@ -43,6 +49,7 @@ export interface EditorOptions {
   /** Modal vim key bindings; applies in every edit mode. Default off. */
   vim?: boolean;
   onChange(text: string): void;
+  onSelectionChange?(): void;
   onScroll(): void;
   onOutlineChange?(): void;
   onLiveFallback?(off: boolean): void;
@@ -71,6 +78,14 @@ export interface EditorHandle {
   focus(): void;
   refreshLayout(): void;
   format(kind: FormatKind): void;
+  block(command: BlockCommand): void;
+  table(command: TableCommand): void;
+  inTable(): boolean;
+  fold(command: FoldCommand): void;
+  sourceSelection(): SourceSelection;
+  insertAsync(getText: () => Promise<string | null>): Promise<void>;
+  replace(): void;
+  goToLine(): void;
   selection(): string;
   find(text?: string): void;
   findNext(backwards?: boolean): void;
@@ -184,8 +199,9 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
         frontmatterExtension,
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ "aria-label": "Document", spellcheck: "true", autocapitalize: "sentences" }),
-        keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+        keymap.of([...closeBracketsKeymap, ...writingDefaultKeymap, ...historyKeymap, ...searchKeymap.filter(binding => binding.key !== "Mod-f" && binding.key !== "Mod-g" && binding.key !== "Mod-Shift-g" && binding.key !== "Mod-Alt-g"), indentWithTab]),
         tableKeymap,
+        writingFolding,
         vimSlot.of([]),
         editableSlot.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
         liveSlot.of(liveFor(mode, opts.snapshot?.state.doc.length ?? initial.text.length)),
@@ -222,6 +238,7 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
             range.to = Math.max(range.from, update.changes.mapPos(range.to, empty ? 1 : -1));
           }
           if (update.docChanged && mode === "live" && !gitCommit && (update.startState.doc.length > LIVE_MAX_CHARS) !== (update.state.doc.length > LIVE_MAX_CHARS)) opts.onLiveFallback?.(update.state.doc.length > LIVE_MAX_CHARS);
+          if (update.docChanged || update.selectionSet) opts.onSelectionChange?.();
           if (update.docChanged && !silent) opts.onChange(update.state.field(editorText).text);
           if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state) || update.heightChanged) opts.onOutlineChange?.();
         }),
@@ -274,18 +291,21 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   });
 
   async function importImages(files: File[], at: number | null): Promise<void> {
+    await insertAsync(() => opts.onImages(files), at);
+  }
+
+  async function insertAsync(getText: () => Promise<string | null>, at: number | null = null): Promise<void> {
+    if (view.state.readOnly || at === null && view.root.activeElement !== view.contentDOM) return;
     const selection = view.state.selection.main;
     const range = at === null ? { from: selection.from, to: selection.to } : { from: at, to: at };
     insertions.add(range);
     try {
-      const text = await opts.onImages(files);
+      const text = await getText();
       if (!text || destroyed || view.state.readOnly) return;
-      view.dispatch({
-        changes: { ...range, insert: text },
-        selection: { anchor: range.from + text.length },
-        scrollIntoView: true,
-        userEvent: "input.paste",
-      });
+      const source = view.state.field(editorText).text;
+      const raw = { from: sourcePosition(view.state, range.from), to: sourcePosition(view.state, range.to) };
+      const transaction = sourceTransaction(view.state, insertSource(source, raw, text));
+      if (transaction) view.dispatch({ ...transaction, userEvent: "input.paste" });
       view.focus();
     } finally {
       insertions.delete(range);
@@ -304,6 +324,13 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
   }
   if (vimOn) configureVim(true);
   view.dom.dataset.mode = mode;
+
+  function inTable(): boolean {
+    const position = view.state.selection.main.head;
+    let node = syntaxTree(view.state).resolveInner(position, position === view.state.doc.length ? -1 : 1);
+    while (node.parent && node.name !== "Table") node = node.parent;
+    return node.name === "Table";
+  }
 
   return {
     scroller: view.scrollDOM,
@@ -391,6 +418,22 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       if (kind === "link") insertLink(view);
       else toggleWrap(view, MARKS[kind]);
     },
+    block(command) {
+      if (view.state.readOnly || view.root.activeElement !== view.contentDOM) return;
+      const spec = sourceTransaction(view.state, blockEdit(view.state.field(editorText).text, sourceSelection(view.state), command, /\.mdx$/i.test(opts.filename ?? "")));
+      if (spec) { view.dispatch(spec); view.focus(); }
+    },
+    table(command) {
+      if (view.state.readOnly || view.root.activeElement !== view.contentDOM || command !== "insert-table" && !inTable()) return;
+      const spec = sourceTransaction(view.state, tableEdit(view.state.field(editorText).text, sourceSelection(view.state), command));
+      if (spec) { view.dispatch(spec); view.focus(); }
+    },
+    inTable,
+    fold(command) { runFold(view, command); view.focus(); },
+    sourceSelection: () => sourceSelection(view.state),
+    insertAsync,
+    replace() { view.focus(); openSearchPanel(view); view.dom.querySelector<HTMLInputElement>('[name="replace"]')?.focus(); },
+    goToLine() { gotoLine(view); },
     selection() { const range = view.state.selection.main; return view.state.sliceDoc(range.from, range.to); },
     find(text) {
       if (text) view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: text, literal: true })) });

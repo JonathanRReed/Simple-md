@@ -1,3 +1,4 @@
+import { countProse } from "../../src/shared/prose-count";
 import { createPane } from "../../src/renderer/pane";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { openReadFind, closeOverlays } from "../../src/renderer/ui";
@@ -21,6 +22,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   stage.append(root);
   const calls = { settings: [] as unknown[], commands: [] as string[], tabs: [] as number[] };
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean) => countProse(text, selection, mdx), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
@@ -81,7 +83,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   const firstHeading = article.querySelector("h1")!.getBoundingClientRect();
   assert(firstHeading.top - scroll.getBoundingClientRect().top < 30, `Read title has an empty band above it: ${firstHeading.top - scroll.getBoundingClientRect().top}, ${article.innerHTML.slice(0, 400)}`);
 
-  pane.command("palette");
+  pane.command("palette"); await wait();
   const picker = document.querySelector<HTMLInputElement>("#picker-input")!;
   picker.value = "rdrhd"; picker.dispatchEvent(new Event("input"));
   assert(document.querySelector("#picker-list")!.textContent!.includes("Reader heading"), "Palette did not fuzzy-match headings");
@@ -89,7 +91,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert(document.querySelector("#picker-list")!.textContent!.includes("OTHER.md"), "Palette omitted open tabs");
   picker.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   assert(calls.tabs.includes(2), "Palette did not activate a tab");
-  pane.command("palette"); picker.value = "recent"; picker.dispatchEvent(new Event("input"));
+  pane.command("palette"); await wait(); picker.value = "recent"; picker.dispatchEvent(new Event("input"));
   assert(document.querySelector("#picker-list")!.textContent!.includes("RECENT.md"), "Palette omitted recent files"); closeOverlays();
 
   scroll.dispatchEvent(new KeyboardEvent("keydown", { key: "e", metaKey: true, bubbles: true }));

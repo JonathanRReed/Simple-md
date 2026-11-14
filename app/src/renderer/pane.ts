@@ -1,8 +1,13 @@
+import { commandDefinition, commandAccelerator, shortcutHint } from "../shared/commands.js";
+import type { BlockCommand } from "./block-commands.js";
+import type { TableCommand } from "./table-source.js";
+import { selectedSource, selectedSourceRanges } from "./read-selection.js";
+import { createProseCounter } from "./prose-counter.js";
+import { htmlToMarkdown } from "../shared/html-to-markdown.js";
 import { readerFocus } from "./reader-focus.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import { showConflictComparison } from "./conflict-comparison.js";
 import type { createOutlineRail } from "./outline-rail.js";
-import { tabCommands } from "../shared/tab-commands.js";
 import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-sync.js";
 import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
@@ -451,6 +456,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       seenOnReturn = undefined;
     }
     active = next;
+    if (next) updateHint();
   }
 
   function mountBlocks(el: HTMLElement, blocks: RenderedBlock[], append = false): void {
@@ -473,6 +479,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       node.dataset.fingerprint = block.fingerprint ?? block.key;
       node.dataset.sourceStart = String(block.sourceRange[0]);
       node.dataset.sourceEnd = String(block.sourceRange[1]);
+      for (const task of node.querySelectorAll<HTMLElement>(".task-list-item")) task.tabIndex = 0;
       const items = node.querySelectorAll<HTMLElement>("li");
       block.itemRanges?.forEach(([start, end], index) => {
         const item = items[index];
@@ -609,15 +616,22 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   // ───────── chrome ─────────
 
+  const counter = createProseCounter(hintEl, () => {
+    if (disposed || !doc.hasDoc) return null;
+    const text = currentText();
+    const ranges = pane.view === "edit" ? [] : selectedSourceRanges(docEl, text, window.getSelection());
+    return { text, mdx: isMdx(), selection: pane.view === "edit" ? pane.editor?.sourceSelection() : ranges.length ? { from: ranges[0]!.from, to: ranges.at(-1)!.to } : undefined };
+  }, source => simplemd.proseCounts(source.text, source.selection, source.mdx, pane.documentId, doc.revisionId));
+  const selectionChanged = () => { if (options.active()) updateHint(); };
+  document.addEventListener("selectionchange", selectionChanged);
+  let writingTimer: ReturnType<typeof setTimeout> | undefined;
   function updateHint(): void {
-    hintEl.hidden = pane.view === "edit" || !doc.hasDoc;
-    if (pane.view === "edit") {
-      hintEl.textContent = "";
-      return;
-    }
-    const words = (doc.readText.match(/\S+/g) ?? []).length;
-    const minutes = Math.max(1, Math.round(words / 230));
-    hintEl.textContent = doc.hasDoc ? `${words.toLocaleString()} words · ${minutes} min${doc.readOnlyReason ? " · read only" : ""}` : "";
+    hintEl.hidden = !doc.hasDoc;
+    counter.schedule();
+    clearTimeout(writingTimer);
+    writingTimer = setTimeout(() => {
+      if (!disposed && options.active()) simplemd.writingContext(pane.view === "edit" && !!pane.editor?.inTable(), pane.documentId);
+    }, 100);
   }
 
   function updateChrome(): void {
@@ -727,6 +741,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           doc.firstAutosave.edit(text);
           changedText(text);
           doc.readText = text;
+          updateHint();
           if (pane.view === "read") {
             void renderRead(text, true);
           }
@@ -734,6 +749,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           schedulePreview();
           scheduleAutosave();
         },
+        onSelectionChange: updateHint,
         onLiveFallback(off) { if (off) toast("This note is large, so Live Preview is off to keep typing fast."); },
         onOutlineChange: () => { if (pane.mode === "live") scheduleOutlines(180); },
         onScroll() {
@@ -819,6 +835,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
     const previousAnchor = visibleAnchor();
     disposed = false;
+    hintEl.textContent = "";
+    document.addEventListener("selectionchange", selectionChanged);
     window.addEventListener("focus", refreshHeadOnFocus);
     stopReaderFocus();
     stopReaderFocus = readerFocus(readScroll);
@@ -1140,11 +1158,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   async function insertImages(files: File[]): Promise<string | null> {
     if (transitioning || isReadOnly()) return null;
-    if (!doc.meta.path) {
-      toast("Save the note first to add images.");
-      return null;
-    }
     const id = pane.documentId;
+    if (!doc.meta.path) {
+      await saveNow(false);
+      if (id !== pane.documentId || disposed || transitioning || isReadOnly()) return null;
+      if (!doc.meta.path) { toast("Image not inserted. The note was not saved."); return null; }
+    }
     const target = pane.editor;
     const lines: string[] = [];
     for (const file of files) {
@@ -1153,9 +1172,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (id !== pane.documentId || transitioning) return null;
       const rel = await simplemd.saveImage(bytes, ext, id);
       if (id !== pane.documentId || target !== pane.editor || transitioning) return null;
-      if (rel) lines.push(`![](${rel.split("/").map(encodeURIComponent).join("/").replace(/\(/g, "%28").replace(/\)/g, "%29")})`);
+      if (rel) lines.push(`![](${rel})`);
     }
-    return lines.length ? `${lines.join("\n")}\n` : null;
+    return lines.length ? lines.join("\n") : null;
   }
 
   // ───────── commands & palette ─────────
@@ -1163,10 +1182,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   // Only generated task inputs can edit the source. Their order includes relocated footnotes.
   async function toggleTask(item: HTMLElement): Promise<void> {
     if (!doc.hasDoc || pane.view !== "read" || transitioning || isReadOnly() || doc.mdx?.error) return;
-    if (!doc.meta.path) {
-      toast("Save the note first to check off tasks.");
-      return;
-    }
     const source = pane.mountedReadText;
     if (source === null || source !== doc.readText || pane.readWork || pane.readPending) return;
     const boxes = docEl.querySelectorAll(".task-list-item-checkbox");
@@ -1254,46 +1269,24 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     openPicker("Go to heading…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
   }
 
-  function openPalette(): void {
-    const set = (patch: Partial<Settings>) => () => { if (patch.mode) selectMode(patch.mode); else void simplemd.setSettings(patch); };
-    const cmd = (c: Command) => () => handleCommand(c);
-    const items: PickerItem[] = [
-      ...tabCommands(settings, doc.meta.path).map(({ label, command }) => ({ label, run: () => simplemd.command(command) })),
-      { label: "Mark Seen", run: cmd("mark-seen") },
-      { label: "Next Change", run: cmd("next-change") },
-      { label: "Previous Change", run: cmd("previous-change") },
-      ...(doc.meta.path ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
-      { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘E", run: cmd("toggle-edit") },
-      { label: "Settings…", run: () => handleCommand("preferences") },
-      { label: "New note", hint: "⌘N", run: cmd("new") },
-      { label: "Open…", hint: "⌘O", run: () => void simplemd.openDialog() },
-      { label: "Save", hint: "⌘S", run: cmd("save") },
-      { label: "Save as…", hint: "⇧⌘S", run: cmd("save-as") },
-      { label: "Open Quickly…", hint: "⇧⌘O", run: () => simplemd.command("open-quickly") },
-      { label: "Go to heading…", hint: "⌥⇧⌘O", run: openOutline },
-      { label: "Find in note", hint: "⌘F", run: findInView },
-      { label: "Mode: Read", run: cmd("mode-read") },
-      { label: "Mode: Live preview", hint: "⌥⌘1", run: set({ mode: "live" }) },
-      { label: "Mode: Side by side", hint: "⌥⌘2", run: set({ mode: "split" }) },
-      { label: "Mode: Source", hint: "⌥⌘3", run: set({ mode: "source" }) },
-      { label: "Appearance: System", run: set({ theme: "system" }) },
-      { label: "Appearance: Light", run: set({ theme: "light" }) },
-      { label: "Appearance: Dark", run: set({ theme: "dark" }) },
-      { label: "GitHub style", run: set({ readingStyle: settings.readingStyle === "github" ? "editorial" : "github" }) },
+  async function openPalette(): Promise<void> {
+    const id = pane.documentId;
+    simplemd.writingContext(pane.view === "edit" && !!pane.editor?.inTable(), id);
+    const available = await simplemd.menuCommands();
+    if (disposed || id !== pane.documentId) return;
+    const items: PickerItem[] = available.filter(item => item.enabled).flatMap(item => {
+      const definition = commandDefinition(item.id);
+      return definition ? [{ label: item.label ?? (mac ? definition.macLabel ?? definition.label : definition.label), hint: shortcutHint(commandAccelerator(definition, mac), mac), run: () => void simplemd.invokeMenu(item.id) }] : [];
+    });
+    const set = (patch: Partial<Settings>) => () => void simplemd.setSettings(patch);
+    items.push(
       { label: "Reading font: System", run: set({ readingFontFamily: "system-ui" }) },
       { label: "Reading font: Charter", run: set({ readingFontFamily: "Charter" }) },
       { label: "Width: Narrow", run: set({ contentWidth: 54 }) },
       { label: "Width: Normal", run: set({ contentWidth: 66 }) },
       { label: "Width: Wide", run: set({ contentWidth: 100 }) },
-      { label: "Zoom in", hint: "⌘=", run: cmd("zoom-in") },
-      { label: "Zoom out", hint: "⌘-", run: cmd("zoom-out") },
-      { label: "Actual size", hint: "⌘0", run: cmd("zoom-reset") },
-      { label: settings.autosave ? "Turn autosave off" : "Turn autosave on", run: set({ autosave: !settings.autosave }) },
-      { label: "Export as PDF…", run: cmd("export-pdf") },
-      { label: "Print…", hint: "⌘P", run: cmd("print") },
-      { label: "Reveal in file manager", run: cmd("reveal") },
-      ...settings.recents.map((p): PickerItem => ({ label: p.split(/[\\/]/).pop() ?? p, hint: `Recent · ${p}`, run: () => void simplemd.openPath(p) })),
-    ];
+    );
+    items.push(...settings.recents.map((p): PickerItem => ({ label: p.split(/[\\/]/).pop() ?? p, hint: `Recent · ${p}`, run: () => void simplemd.openPath(p) })));
     const tabs = options.tabs();
     items.unshift(...tabs.map(tab => ({ label: tab.name, hint: `Tab · ${tab.path ?? "Untitled"}`, run: () => void simplemd.activateTab(tab.id) })));
     if (pane.view === "edit" && pane.editor) {
@@ -1306,9 +1299,86 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     openPicker("Search commands, tabs, recent files and headings…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
   }
 
+  async function editorPanel(command: "find-replace" | "go-to-line"): Promise<void> {
+    const id = pane.documentId;
+    if (pane.view === "read") {
+      await showEdit();
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    }
+    if (id !== pane.documentId || disposed || transitioning) return;
+    if (command === "find-replace") pane.editor?.replace(); else pane.editor?.goToLine();
+  }
+  async function pickImage(): Promise<string | null> {
+    const id = pane.documentId;
+    if (!doc.meta.path) await saveNow(false);
+    if (disposed || id !== pane.documentId || transitioning || isReadOnly()) return null;
+    if (!doc.meta.path) { toast("Image not inserted. The note was not saved."); return null; }
+    const link = await simplemd.pickImage(id);
+    return link && !disposed && id === pane.documentId ? `![](${link})` : null;
+  }
+  async function copyAs(command: "copy-markdown" | "copy-html" | "copy-formatted"): Promise<void> {
+    const id = pane.documentId, revision = doc.revisionId;
+    const selection = pane.view === "edit" ? pane.editor?.sourceSelection() : undefined;
+    const text = currentText();
+    const source = pane.view === "edit" ? selection && selection.from !== selection.to ? text.slice(selection.from, selection.to) : text : selectedSource(docEl, text, window.getSelection());
+    if (command === "copy-markdown") { await simplemd.writeClipboard(source); return; }
+    const blocks = await simplemd.renderClipboard(source, id, revision);
+    if (disposed || id !== pane.documentId || revision !== doc.revisionId) return;
+    const holder = document.createElement("div");
+    // Use the document renderer's sanitized author-HTML path, including inert MDX.
+    for (const block of blocks) {
+      const node = document.createElement("div");
+      mountRenderedHtml(node, block, settings.remoteImages);
+      holder.append(node);
+    }
+    const html = holder.innerHTML;
+    if (command === "copy-html") await simplemd.writeClipboard(html);
+    else {
+      for (const block of holder.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,tr,hr")) block.append(document.createTextNode("\n"));
+      await simplemd.writeClipboard(holder.textContent?.trim() ?? "", html);
+    }
+  }
+
   function handleCommand(cmd: Command): void {
     if (transitioning && ["toggle-edit", "undo", "redo", "save", "save-as", "format-bold", "format-italic", "format-code", "format-link", "format-strike"].includes(cmd)) return;
+    // Writing commands stay together for the files-tabs integration.
+    if (cmd.startsWith("block-")) {
+      if (!transitioning && !isReadOnly() && pane.view === "edit") pane.editor?.block(cmd.slice(6) as BlockCommand);
+      return;
+    }
+    if (cmd.startsWith("table-")) {
+      if (!transitioning && !isReadOnly() && pane.view === "edit") pane.editor?.table(cmd.slice(6) as TableCommand);
+      return;
+    }
     switch (cmd) {
+      case "toggle-task":
+        if (pane.view === "edit") { if (!transitioning && !isReadOnly()) pane.editor?.block("toggle-task"); }
+        else {
+          const selection = window.getSelection();
+          const tasks = [...docEl.querySelectorAll<HTMLElement>(".task-list-item")];
+          const focused = document.activeElement?.closest<HTMLElement>(".task-list-item");
+          const selected = selection?.rangeCount && !selection.isCollapsed ? tasks.find(task => selection.getRangeAt(0).intersectsNode(task)) : undefined;
+          const task = focused && docEl.contains(focused) ? focused : selected;
+          if (task) void toggleTask(task);
+        }
+        return;
+      case "find-replace":
+      case "go-to-line":
+        void editorPanel(cmd); return;
+      case "fold": case "unfold": case "fold-all": case "unfold-all":
+        if (!transitioning && pane.view === "edit") pane.editor?.fold(cmd);
+        return;
+      case "insert-image":
+        if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(pickImage).catch(() => toast("Couldn't add the image."));
+        return;
+      case "copy-markdown": case "copy-html": case "copy-formatted":
+        void copyAs(cmd).catch(() => toast("Couldn't copy the selection.")); return;
+      case "paste-markdown":
+        if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(async () => {
+          const html = await simplemd.readClipboardHtml();
+          return html ? htmlToMarkdown(html) : null;
+        });
+        return;
       case "mark-seen": void markSeen(); return;
       case "toggle-head-changes": void toggleHeadChanges().catch(error => toast(String(error))); return;
       case "next-change": navigateChange(1); return;
@@ -1598,6 +1668,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
+    counter.destroy();
+    clearTimeout(writingTimer);
+    document.removeEventListener("selectionchange", selectionChanged);
     window.removeEventListener("focus", refreshHeadOnFocus);
     clearInterval(headRefreshTimer);
     stopReaderFocus();

@@ -1441,6 +1441,12 @@ html[data-ui-motion="off"] #zen-hint { animation: none; }
 .conflict-columns pre { flex: 1; overflow: auto; margin: 0; padding: 9px; border: 1px solid var(--rule); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 var(--code-font-family, monospace); }
 
 @container (max-width: 480px) {
-  .pane-status .drag-export-controls, .pane-status [data-element="hint"] { display: none; }
+  .pane-status .drag-export-controls { display: none; }
 }
 #stage .prose .code-block[data-lang] pre { padding-top: 34px; }
+
+/* Writing state shares the document theme and stays still. */
+.pane-status [data-element="hint"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: start; }
+.cm-editor .cm-gutters { background: transparent; color: var(--muted); border: 0; }
+.cm-editor .cm-foldGutter .cm-gutterElement { padding: 0 4px; cursor: pointer; }
+.cm-editor .cm-foldPlaceholder { color: var(--muted); background: transparent; border: 1px solid var(--rule); border-radius: 3px; padding: 0 3px; }

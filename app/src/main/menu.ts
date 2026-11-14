@@ -237,7 +237,7 @@ export function buildMenu(a: MenuActions): void {
         ...(app.isPackaged ? [] : [{ id: "toggleDevTools", role: "toggleDevTools" } satisfies MenuItemConstructorOptions]),
       ],
     },
-    { label: "Window", submenu: [{ id: "minimize", role: "minimize" }, { id: "zoom", role: "zoom" }, { id: "front", role: "front" }] },
+    { role: "windowMenu" },
     ...(mac ? [] : [{ label: "Help", submenu: [
       { id: "check-updates", label: "Check for Updates…", click: a.checkUpdates },
       { id: "install-update", label: "Restart to Install Update…", click: a.installUpdate },
@@ -255,5 +255,13 @@ export function buildMenu(a: MenuActions): void {
     }
   };
   bind(template);
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  const menu = Menu.buildFromTemplate(template);
+  const indexRoles = (native: Menu): void => {
+    for (const item of native.items) {
+      if (!item.id && item.role && commandDefinition(item.role)) item.id = item.role;
+      if (item.submenu) indexRoles(item.submenu);
+    }
+  };
+  indexRoles(menu);
+  Menu.setApplicationMenu(menu);
 }
