@@ -754,6 +754,7 @@ async function moveTabWindow(): Promise<void> {
   if (!origin.layout.state.tabs.length) origin.win.destroy();
 }
 function releaseQuitWindows(): void {
+  quitting = false;
   for (const host of windows.values()) {
     host.quitFrozen = false;
     sendTo(host, "smd:transition", false);
@@ -776,6 +777,7 @@ async function settleAllWindows(): Promise<boolean> {
 }
 
 async function newDocumentWindow(): Promise<void> {
+  if ([...windows.values()].some(host => host.quitFrozen)) return;
   const host = createDocumentWindow();
   await windowScope.run(host, async () => { reveal(); await newDoc(); });
 }
@@ -1382,21 +1384,21 @@ function scheduleCliServer(): void {
 async function prepareQuit(): Promise<void> {
   trace("quit-cleanup-start");
   quitting = true;
+  await cliStartup;
+  await dragExports?.dispose();
+  await disposeRenderer();
+  trace("quit-worker-stopped");
+  configStore().close();
+  settingsWindow?.close();
+  flushSettings();
   updates?.stop();
   tray?.destroy();
   tray = undefined;
-  await cliStartup;
   cliWaiters.closeAll();
   await cliServer?.drain();
   cliServer?.close();
   registry.dispose();
-  configStore().close();
-  settingsWindow?.close();
-  flushSettings();
   trace("quit-resources-closed");
-  await dragExports?.dispose();
-  await disposeRenderer();
-  trace("quit-worker-stopped");
   for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
   trace("quit-window-destroyed");
 }

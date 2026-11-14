@@ -75,3 +75,15 @@ test.skipIf(process.platform === "win32")("quit completion queued before accepta
     expect(statuses).toEqual(["accepted", "closed"]);
   } finally { release(); socket.destroy(); server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test("failed asynchronous quit cleanup preserves sessions and leaves CLI clients waiting", async () => {
+  const source = await fs.promises.readFile(new URL("../src/main/main.ts", import.meta.url), "utf8");
+  const code = source.slice(source.indexOf("async function prepareQuit()"), source.indexOf("\nif (!app.requestSingleInstanceLock()"));
+  const compiled = new Bun.Transpiler({ loader: "ts" }).transformSync(code);
+  const events: string[] = [];
+  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
+    () => {}, undefined, undefined, Promise.resolve(), { drain: async () => {}, close: () => events.push("transport close") },
+    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => events.push("disposed") }, () => ({ close() {} }), undefined, () => {}, { dispose: async () => { throw new Error("cleanup failed"); } }, async () => {}, new Map());
+  await expect(cleanup()).rejects.toThrow("cleanup failed");
+  expect(events).toEqual([]);
+});

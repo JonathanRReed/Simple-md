@@ -47,6 +47,7 @@ test("recreation refuses to replace a file that reappeared", async () => {
   const { file, doc } = await fixture();
   doc.edit("mine", makeRevisionId(1)); await fs.promises.unlink(file);
   expect(await doc.save(file, doc.revisionId)).toBeNull();
+  expect(doc.unavailableReason).toContain("missing");
   await fs.promises.writeFile(file, "other writer");
   expect(await doc.save(file, doc.revisionId, false, true)).toBeNull();
   expect(await fs.promises.readFile(file, "utf8")).toBe("other writer"); expect(doc.dirty).toBe(true);

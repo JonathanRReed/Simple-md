@@ -156,6 +156,7 @@ test("deletion discovered during autosave offers recovery instead of silently re
 });
 test("edits entered during missing-file recovery block discard", async () => {
   const missing = { ...dirty, unavailable: true, conflict: true };
-  const a = { ...actions([missing, { ...missing, text: "new typing" }]), resolveUnavailable: async () => "discard" as const };
-  expect(await settleDocument(a)).toBe(false);
+  let offered = false;
+  const a = { ...actions([missing, { ...missing, text: "new typing" }]), resolveUnavailable: async () => { offered = true; return "discard" as const; } };
+  expect(await settleDocument(a)).toBe(false); expect(offered).toBe(true);
 });
