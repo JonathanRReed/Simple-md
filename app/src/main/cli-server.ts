@@ -48,6 +48,7 @@ export async function startCliServer(options: { binary: string; profile?: string
       let drained = () => {};
       let brokerError = "";
       broker.stderr.on("data", chunk => { brokerError = (brokerError + String(chunk)).slice(-4096); });
+      broker.stdin.on("error", error => console.error("simplemd: CLI broker input failed", error));
       const lines = createInterface({ input: broker.stdout });
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("Private pipe did not start.")), 5000);
@@ -84,7 +85,7 @@ export async function startCliServer(options: { binary: string; profile?: string
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error("CLI replies could not finish. Try quitting again.")), 2000);
             drained = () => { clearTimeout(timer); resolve(); };
-            broker.stdin.write(JSON.stringify({ drain: true }) + "\n", error => { if (error) drained(); });
+            broker.stdin.write(JSON.stringify({ drain: true }) + "\n", error => { if (error) { clearTimeout(timer); reject(error); } });
           });
         },
         close() { for (const cleanup of active) cleanup(); broker.kill(); runtime.cleanup(); },
