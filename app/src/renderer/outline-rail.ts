@@ -39,8 +39,10 @@ export function createOutlineRail<T>(options: {
   let gesture: { id: number; y: number; top: number; height: number; dragging: boolean } | null = null;
   let suppressedClick = false;
   let navigation: { kind: "heading"; key: string } | { kind: "scrub"; progress: number } | null = null;
-  let settleFrame = 0, navigationStarted = 0, stableSince = 0, lastTarget = -1;
-  const writeTop = (top: number) => { scroller.scrollTop = top; };
+  let settleFrame = 0, stableSince = 0, lastTarget = -1;
+  // Where the rail last put the scroller, the content height then, and when layout last moved the target.
+  let heldTop = -1, heldHeight = -1, lastShift = 0;
+  const writeTop = (top: number) => { scroller.scrollTop = top; heldTop = scroller.scrollTop; heldHeight = scroller.scrollHeight; };
   const observed = new Map<Element, number>();
   const intersection = options.element ? new IntersectionObserver(entries => {
     for (const entry of entries) {
@@ -86,13 +88,15 @@ export function createOutlineRail<T>(options: {
   }
   function restoreNavigation(): void {
     if (!navigation) return;
-    // A jump holds its target through late layout, then lets go so Find, change navigation and scroll sync are not undone.
-    if (performance.now() - navigationStarted > 10000) { navigation = null; return; }
+    // A jump holds its target while layout is still settling, and lets go ten seconds after the last shift.
+    if (performance.now() - lastShift > 10000) { navigation = null; return; }
     const intent = navigation;
     const index = intent.kind === "heading" ? items.findIndex(item => item.key === intent.key) : -1;
     if (intent.kind === "heading" && index < 0) { navigation = null; return; }
+    const before = scroller.scrollTop;
     writeTop(intent.kind === "scrub" ? outlineScroll(intent.progress, scroller.scrollHeight, scroller.clientHeight)
       : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, options.offset(items[index]!.target) - 16)));
+    if (Math.abs(scroller.scrollTop - before) > 0.5) lastShift = performance.now();
   }
   function stopNavigation(): void { navigation = null; cancelAnimationFrame(settleFrame); settleFrame = 0; }
   function settleNavigation(): void {
@@ -111,7 +115,7 @@ export function createOutlineRail<T>(options: {
     });
   }
   function startNavigation(): void {
-    navigationStarted = stableSince = performance.now(); lastTarget = -1;
+    stableSince = lastShift = performance.now(); lastTarget = -1;
     settleNavigation();
   }
   function jump(index: number): void {
@@ -188,6 +192,8 @@ export function createOutlineRail<T>(options: {
   observer.observe(content);
   observer.observe(scroller);
   scroller.addEventListener("scroll", () => {
+    // The view moved while the content kept its size, so Find, change navigation, scroll sync or the scrollbar moved it: the jump is over.
+    if (navigation && Math.abs(scroller.scrollTop - heldTop) > 1 && scroller.scrollHeight === heldHeight) stopNavigation();
     scheduleViewport();
   }, { passive: true, signal });
   for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) scroller.addEventListener(event, stopNavigation, { passive: true, signal });
@@ -245,6 +251,8 @@ export function createOutlineRail<T>(options: {
   refresh();
   return {
     refresh,
+    /** Lets go of the last jump target, for when the user has moved on by other means. */
+    release: stopNavigation,
     destroy() {
       destroyed = true; abort.abort(); observer.disconnect(); intersection?.disconnect(); observed.clear();
       cancelAnimationFrame(settleFrame); cancelAnimationFrame(frame); cancelAnimationFrame(buildFrame); cancelAnimationFrame(measureFrame); clearTimeout(buildTimer);

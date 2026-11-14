@@ -734,6 +734,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           openLink: (href) => void navigateLink(href),
         },
         onChange(text) {
+          for (const rail of outlines.values()) rail.release();
           if (disposed || id !== pane.documentId) return;
           doc.firstAutosave.edit(text);
           changedText(text);
@@ -1341,6 +1342,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function handleCommand(cmd: Command): void {
+    // Any command means the reader has moved on from the last outline jump.
+    for (const rail of outlines.values()) rail.release();
     if (transitioning && ["toggle-edit", "undo", "redo", "save", "save-as", "format-bold", "format-italic", "format-code", "format-link", "format-strike"].includes(cmd)) return;
     // Writing commands stay together for the files-tabs integration.
     if (cmd.startsWith("block-")) {
