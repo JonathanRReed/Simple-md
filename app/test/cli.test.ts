@@ -186,3 +186,22 @@ test.skipIf(process.platform === "win32")("a live listener is never reclaimed ev
     expect(JSON.parse(fs.readFileSync(path.join(runtime, "state.json"), "utf8")).secret).toBe(state.secret);
   } finally { server.close(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test.skipIf(process.platform !== "win32")("Windows quit drains closed replies before stopping the private-pipe broker", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "smd-win-quit-")), runtime = cliRuntime(root);
+  const binary = (await import("../build/native.mjs")).buildTestCli();
+  const waiters = new DocumentWaiters();
+  const registry = new DocumentRegistry(); const doc = registry.create(null, "commit message");
+  let dispatched!: () => void;
+  const accepted = new Promise<void>(resolve => { dispatched = resolve; });
+  const server = await startCliServer({ binary, profile: root, dispatch: async (_request, _stdin, closed) => { const remove = waiters.add(doc.documentId, closed); dispatched(); return remove; } });
+  const child = spawn(binary, ["--wait", path.join(root, "COMMIT_EDITMSG")], { env: { ...process.env, SMD_CLI_RUNTIME: runtime }, stdio: "pipe" });
+  const exited = new Promise<number | null>(resolve => child.once("close", resolve));
+  try {
+    await accepted;
+    // Dispatch can finish before the server emits accepted. Completion must queue behind it.
+    waiters.closeAll(); await server.drain(); server.close();
+    expect(await exited).toBe(0);
+    expect(waiters.size).toBe(0);
+  } finally { child.kill(); server.close(); registry.dispose(); fs.rmSync(runtime, { recursive: true, force: true }); fs.rmSync(root, { recursive: true, force: true }); }
+}, 30_000);

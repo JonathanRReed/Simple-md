@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { syncDirectory } from "./sync-directory.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { copyMetadata } from "./file-metadata.js";
@@ -32,25 +33,41 @@ export function decodeDocument(bytes: Uint8Array): { text: string; readOnlyReaso
 export const MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
 export const READ_ONLY_NOTICE = "This file is locked or not writable. Read only.";
 
+export class FileChangedDuringReadError extends Error {
+  constructor() { super("This file keeps changing. Try again."); }
+}
+
+function sameFile(a: fs.Stats, b: fs.Stats): boolean {
+  return a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
+}
+
 export async function readRegularFile(file: string, maxBytes = MAX_DOCUMENT_BYTES): Promise<Buffer> {
-  const handle = await fs.promises.open(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
-  try {
-    const stat = await handle.stat();
-    if (stat.isDirectory()) throw Object.assign(new Error("Cannot open a directory. Choose a text file."), { code: "EISDIR" });
-    if (!stat.isFile()) throw new Error("Only regular files can be opened.");
-    if (stat.size > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
-    const chunks: Buffer[] = [];
-    let total = 0;
-    while (true) {
-      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, maxBytes - total + 1));
-      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
-      if (!bytesRead) break;
-      total += bytesRead;
-      if (total > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
-      chunks.push(chunk.subarray(0, bytesRead));
-    }
-    return Buffer.concat(chunks, total);
-  } finally { await handle.close(); }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const handle = await fs.promises.open(file, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    try {
+      const stat = await handle.stat();
+      if (stat.isDirectory()) throw Object.assign(new Error("Cannot open a directory. Choose a text file."), { code: "EISDIR" });
+      if (!stat.isFile()) throw new Error("Only regular files can be opened.");
+      if (stat.size > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
+      const chunks: Buffer[] = [];
+      let total = 0;
+      while (true) {
+        const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, maxBytes - total + 1));
+        const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+        if (!bytesRead) break;
+        total += bytesRead;
+        if (total > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1024 / 1024} MB read limit.`);
+        chunks.push(chunk.subarray(0, bytesRead));
+      }
+      const after = await handle.stat();
+      const named = await fs.promises.stat(file).catch((err: unknown) => {
+        if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
+        throw err;
+      });
+      if (named && total === stat.size && sameFile(stat, after) && sameFile(after, named)) return Buffer.concat(chunks, total);
+    } finally { await handle.close(); }
+  }
+  throw new FileChangedDuringReadError();
 }
 
 export async function readDocument(file: string) {
@@ -72,7 +89,8 @@ export async function readDiskText(file: string): Promise<string | null> {
   }
 }
 
-export async function writeAtomic(file: string, text: string, expectedText?: string | null): Promise<void> {
+export async function writeAtomic(file: string, text: string, expectedText?: string | null): Promise<{ metadataCopyFailed: boolean }> {
+  let metadataCopyFailed = false;
   const entry = await fs.promises.lstat(file).catch((err: unknown) => {
     if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
     throw err;
@@ -87,7 +105,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
     try {
       if (stat && process.platform === "darwin") {
         // Losing tags or xattrs is better than losing the save.
-        await copyMetadata(target, tmp).catch((err) => console.error("simplemd: could not preserve file metadata", err));
+        await copyMetadata(target, tmp).catch((err) => { metadataCopyFailed = true; console.error("simplemd: could not preserve file metadata", err); });
       }
       await handle.truncate(0);
       await handle.writeFile(text, "utf8");
@@ -97,7 +115,6 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
       await handle.close();
     }
     for (let attempt = 0; ; attempt++) {
-      if (expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
       if (entry?.isSymbolicLink() && (await fs.promises.realpath(file)) !== target) throw new FileConflictError();
       if (!entry?.isSymbolicLink()) {
         const latest = await fs.promises.lstat(file).catch((err: unknown) => {
@@ -106,6 +123,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
         });
         if (latest?.isSymbolicLink()) throw new FileConflictError();
       }
+      if (expectedText !== undefined && (await readDiskText(target)) !== expectedText) throw new FileConflictError();
       try { await fs.promises.rename(tmp, target); break; }
       catch (err) {
         // Windows can hold the destination briefly during concurrent renames.
@@ -114,6 +132,8 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
         await new Promise(resolve => setTimeout(resolve, 10 * 2 ** attempt));
       }
     }
+    await syncDirectory(target);
+    return { metadataCopyFailed };
   } catch (err) {
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
     throw err;

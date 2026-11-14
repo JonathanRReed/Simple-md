@@ -417,6 +417,10 @@ pub fn run() -> Result<(), (i32, String)> {
     if args.first().is_some_and(|v| v == "--runtime-info") {
         return windows::runtime_info().map_err(|e| (1, e));
     }
+    #[cfg(windows)]
+    if args.first().is_some_and(|v| v == "--write-state") {
+        return windows::write_state().map_err(|e| (1, e));
+    }
     let cwd = env::current_dir().map_err(|e| (1, e.to_string()))?;
     let action = parse(&args, &cwd, |p| p.exists()).map_err(|e| (2, e))?;
     if action == Action::Help {

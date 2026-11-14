@@ -102,6 +102,7 @@ export class DocumentWaiters {
     const callbacks = this.tokens.get(id); this.tokens.delete(id);
     for (const callback of callbacks ?? []) callback();
   }
+  closeAll(): void { for (const id of this.tokens.keys()) this.closed(id); }
   clear(): void { this.tokens.clear(); }
   get size(): number { return [...this.tokens.values()].reduce((n, callbacks) => n + callbacks.size, 0); }
 }

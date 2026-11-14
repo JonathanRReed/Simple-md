@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { syncDirectory } from "./sync-directory.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -35,4 +36,5 @@ export async function writeExportAtomic(target: string, data: Buffer | string, o
     if (!overwrite && error instanceof Error && "code" in error && error.code === "EEXIST") throw new Error(existsMessage(target), { cause: error });
     throw error;
   } finally { await fs.promises.rm(temporary, { force: true }); }
+  await syncDirectory(target);
 }

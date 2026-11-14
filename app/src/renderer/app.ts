@@ -2,9 +2,9 @@ import { tabRows } from "../shared/tab-presentation.js";
 import { createTabBar } from "./tab-bar.js";
 import { createWindowChrome } from "./window-chrome.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
-import { DEFAULT_SETTINGS, type Command, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
+import { DEFAULT_SETTINGS, type Command, type DiskChange, type DocPayload, type DocumentId, type PaneId, type Settings } from "../shared/types.js";
 import { bridge } from "./api.js";
-import { createPane, type DormantDocument, type PaneController } from "./pane.js";
+import { createPane, noticeSaveMetadata, type DormantDocument, type PaneController } from "./pane.js";
 import { applyDocumentStyle } from "./document-style.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
 import { renderDiagrams } from "./diagrams.js";
@@ -22,8 +22,9 @@ const template = document.querySelector<HTMLTemplateElement>("#pane-template")!;
 let settings: Settings = DEFAULT_SETTINGS;
 let layout: TabLayoutState | undefined;
 let firstPane = true;
-const documents = new Map<DocumentId, { payload: DocPayload; retained?: DormantDocument; disk?: { text: string; reason?: string } }>();
+const documents = new Map<DocumentId, { payload: DocPayload; retained?: DormantDocument; disk?: DiskChange }>();
 const panes = new Map<PaneId, { element: HTMLElement; controller: PaneController }>();
+let windowTransition = false;
 let contextTarget: PaneController | undefined;
 document.addEventListener("contextmenu", event => {
   contextTarget = [...panes.values()].find(p => event.target instanceof Node && p.element.contains(event.target))?.controller;
@@ -138,6 +139,7 @@ function mountLayout(next: TabLayoutState): void {
       entry = { element, controller }; panes.set(slot.paneId, entry);
       new MutationObserver(syncChrome).observe(element, { attributes: true, attributeFilter: ["data-document-path", "data-document-painted", "data-first-readable", "data-fully-highlighted", "data-render-complete", "data-document-id", "data-revision-id"] });
       controller.settings(settings);
+      if (windowTransition) controller.transition(true);
     }
     if (entry.controller.documentId !== slot.documentId) {
       if (entry.element.dataset.documentId !== undefined) stash(entry);
@@ -149,7 +151,7 @@ function mountLayout(next: TabLayoutState): void {
       void entry.controller.load(tab.payload, tab.retained).then(() => {
         const disk = tab.disk ?? tab.retained?.disk;
         if (disk && entry?.controller.documentId === slot.documentId) {
-          entry.controller.diskChanged(disk.text, slot.documentId, disk.reason); tab.disk = undefined;
+          entry.controller.diskChanged(disk, slot.documentId); tab.disk = undefined;
           if (tab.retained) tab.retained.disk = undefined;
         }
         syncChrome();
@@ -206,22 +208,49 @@ async function boot(): Promise<void> {
   api.onLayout(mountLayout);
   api.onClosed(id => { documents.delete(id); });
   api.onSaved(result => {
+    noticeSaveMetadata(result);
     const tab = documents.get(result.documentId);
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
     if (mounted) mounted.controller.saved(result);
     else if (tab?.retained) {
+      const changedPath = tab.retained.state.meta.path !== result.path;
+      const incomingText = tab.disk?.kind === "text" || tab.retained.disk?.kind === "text";
+      if (changedPath || !incomingText) {
+        tab.retained.state.unavailableReason = result.unavailableReason;
+        tab.retained.state.diskConflict = !!result.unavailableReason;
+        tab.disk = result.unavailableReason ? { kind: "unavailable", message: result.unavailableReason } : undefined;
+        tab.retained.disk = undefined;
+      }
       tab.retained.state.savedText = result.text;
-      tab.retained.state.dirty = tab.retained.state.readText !== result.text;
+      tab.retained.state.dirty = !!tab.retained.state.unavailableReason || tab.retained.state.readText !== result.text;
       tab.retained.state.meta = result;
     }
     syncChrome();
   });
-  api.onDiskChanged((text, id, reason) => {
+  api.onDiskChanged((change, id) => {
     const mounted = [...panes.values()].find(p => p.controller.documentId === id);
-    if (mounted) mounted.controller.diskChanged(text, id, reason);
-    else { const tab = documents.get(id); if (tab) { tab.disk = { text, reason }; if (tab.retained) tab.retained.state.diskConflict = true; } }
+    if (mounted) mounted.controller.diskChanged(change, id);
+    else {
+      const tab = documents.get(id);
+      if (!tab) return;
+      if (change.kind === "permissions") {
+        tab.payload.readOnlyReason = change.readOnlyReason;
+        if (tab.retained) tab.retained.state.readOnlyReason = change.readOnlyReason;
+        if (tab.disk?.kind === "text") tab.disk.readOnlyReason = change.readOnlyReason;
+        else if (!tab.disk) tab.disk = change;
+      } else {
+        tab.disk = change;
+        if (tab.retained) {
+          tab.retained.state.diskConflict = true;
+          if (change.kind === "unavailable") {
+            tab.retained.state.unavailableReason = change.message;
+            tab.retained.state.dirty = true;
+          }
+        }
+      }
+    }
   });
-  api.onTransition(busy => { for (const pane of panes.values()) pane.controller.transition(busy); });
+  api.onTransition(busy => { windowTransition = busy; for (const pane of panes.values()) pane.controller.transition(busy); });
   let quicklyLoading = false;
   function showQuickly(initialQuery = ""): void {
     if (quicklyLoading) return;
@@ -275,7 +304,7 @@ async function boot(): Promise<void> {
     const tab = documents.get(id);
     const state = tab?.retained?.state;
     if (mounted) api.flushResponse(request, mounted.controller.flush());
-    else if (state) api.flushResponse(request, { documentId: id, revisionId: state.revisionId, dirty: state.dirty, conflict: state.diskConflict, text: state.readText });
+    else if (state) api.flushResponse(request, { documentId: id, revisionId: state.revisionId, dirty: state.dirty, conflict: state.diskConflict, unavailable: !!state.unavailableReason, text: state.readText });
   });
   const ready = await api.ready();
   search.title = document.querySelector<HTMLButtonElement>("#tab-search-button")!.title = ready.platform === "darwin" ? "Open Quickly (⌘⇧O)" : "Open Quickly (Ctrl+Shift+O)";

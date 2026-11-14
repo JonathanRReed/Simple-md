@@ -1,4 +1,4 @@
-import { isDocumentId, makeDocumentId, type DocumentId, type RevisionId, type RequestId } from "./shared/types.js";
+import { isDocumentId, makeDocumentId, type DiskChange, type DocumentId, type RevisionId, type RequestId } from "./shared/types.js";
 import { applyBlockDelta, isBlockDelta } from "./shared/block-delta.js";
 import type { RenderedBlock } from "./shared/render-core.js";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
@@ -41,13 +41,13 @@ contextBridge.exposeInMainWorld("simplemd", {
   onDoc: (cb: (doc: { documentId: DocumentId }) => void) => on("smd:doc", (doc: { documentId: DocumentId }) => { activeDocumentId = doc.documentId; cb(doc); }),
   onSettings: (cb: (s: unknown) => void) => on("smd:settings", cb),
   onCommand: (cb: (cmd: string, id?: DocumentId) => void) => on("smd:cmd", cb),
-  onDiskChanged: (cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void) => on("smd:disk-changed", cb),
+  onDiskChanged: (cb: (change: DiskChange, documentId: DocumentId) => void) => on("smd:disk-changed", cb),
   onTransition: (cb: (busy: boolean) => void) => on("smd:transition", cb),
   onSaved: (cb: (result: unknown) => void) => on("smd:saved", cb),
   onFlushRequest: (cb: (id: RequestId, documentId: DocumentId) => void) => on("smd:flush-request", cb),
   onPrintDoc: (cb: (doc: unknown, settings: unknown) => void) => on("smd:print-doc", cb),
 
-  flushResponse: (id: RequestId, result: { dirty: boolean; text: string; documentId: DocumentId; revisionId: RevisionId; conflict: boolean }) =>
+  flushResponse: (id: RequestId, result: { dirty: boolean; text: string; documentId: DocumentId; revisionId: RevisionId; conflict: boolean; unavailable?: boolean }) =>
     ipcRenderer.send("smd:flush-response", id, result),
   setDirty: (dirty: boolean, documentId: DocumentId) => ipcRenderer.send("smd:dirty", dirty, documentId),
   edit: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.send("smd:edit", text, documentId, revisionId),
@@ -74,7 +74,7 @@ contextBridge.exposeInMainWorld("simplemd", {
     return result;
   },
   renderFragment: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-fragment", text, documentId, revisionId),
-  save: (text: string, forceDialog: boolean, documentId: DocumentId) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),
+  save: (text: string, forceDialog: boolean, documentId: DocumentId, recreate = false) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId, recreate),
   saveCopy: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-copy", text, documentId),
   saveImage: (bytes: Uint8Array, ext: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-image", bytes, ext, documentId),
   prepareDragExport: (text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf") => ipcRenderer.invoke("smd:prepare-drag-export", text, documentId, revisionId, format),
