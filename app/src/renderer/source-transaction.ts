@@ -12,7 +12,17 @@ export function sourceSelection(state: EditorState): SourceSelection {
   const range = state.selection.main;
   return { from: sourcePosition(state, range.from), to: sourcePosition(state, range.to) };
 }
-const normalizedPosition = (text: string, position: number) => parseByteText(text.slice(0, position)).text.length;
+// Call in source order. Each source byte is visited at most once.
+function normalizedPositions(text: string) {
+  let at = text.startsWith("\uFEFF") ? 1 : 0, removed = at;
+  return (position: number) => {
+    while (at < position) {
+      if (text[at] === "\n" && text[at - 1] === "\r") removed++;
+      at++;
+    }
+    return Math.max(0, position - removed);
+  };
+}
 export function sourceTransaction(state: EditorState, edit: SourceEdit | null): TransactionSpec | null {
   if (!edit || !edit.changes.length || state.readOnly) return null;
   const source = state.field(editorText).text;
@@ -20,9 +30,10 @@ export function sourceTransaction(state: EditorState, edit: SourceEdit | null): 
   const next = applySourceChanges(source, edit.changes);
   if (next === source) return null;
   const normalized = parseByteText(next);
+  const sourceAt = normalizedPositions(source), nextAt = normalizedPositions(next);
   return {
-    changes: edit.changes.map(change => ({ from: normalizedPosition(source, change.from), to: normalizedPosition(source, change.to), insert: parseByteText(change.insert).text })),
-    selection: EditorSelection.range(normalizedPosition(next, edit.selection.from), normalizedPosition(next, edit.selection.to)),
+    changes: edit.changes.map(change => ({ from: sourceAt(change.from), to: sourceAt(change.to), insert: parseByteText(change.insert).text })),
+    selection: EditorSelection.range(nextAt(edit.selection.from), nextAt(edit.selection.to)),
     effects: restoreByteText.of(normalized.format),
     annotations: isolateHistory.of("full"),
     userEvent: "input.format",

@@ -35,6 +35,8 @@ Use Command on macOS and Control on Windows and Linux for the common shortcuts:
 - Outline: Command/Control+Alt+Shift+O
 - Editing modes: Command/Control+Alt+1, 2, or 3
 
+Command+L toggles a task and replaces the editor's Select Line binding.
+
 ## Quick Look on macOS
 
 Packaged macOS apps include preview and thumbnail extensions. They work with

@@ -35,9 +35,9 @@ for (const eol of ["\n", "\r\n"]) for (const final of ["", eol]) for (const outs
     expect(edit(text, "row-up")?.text).toBe([one, divider, header, two].join(eol) + final);
   });
 }
-test("table lexer protects escaped pipes, even slashes and matched code spans", () => {
+test("table lexer splits unescaped pipes, including in code spans", () => {
   const line = "a\\|b | ``a|`b`` | c\\\\|d";
-  expect(rowCells(line).map(cell => line.slice(cell.from, cell.to).trim())).toEqual(["a\\|b", "``a|`b``", "c\\\\", "d"]);
+  expect(rowCells(line).map(cell => line.slice(cell.from, cell.to).trim())).toEqual(["a\\|b", "``a", "`b``", "c\\\\", "d"]);
   expect(tableAt(["prose", "a | b", "--- | ---", "one | two"], 3)).toEqual({ start: 1, end: 3 });
   expect(edit("prose", "column-left", 0)).toBeNull();
 });

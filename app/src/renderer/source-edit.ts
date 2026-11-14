@@ -19,8 +19,14 @@ export function dominantEnding(text: string): string {
   return [...counts].sort((a, b) => b[1] - a[1])[0]![0];
 }
 export function applySourceChanges(text: string, changes: readonly SourceChange[]): string {
-  for (const change of [...changes].sort((a, b) => b.from - a.from)) text = text.slice(0, change.from) + change.insert + text.slice(change.to);
-  return text;
+  const parts: string[] = [];
+  let from = 0;
+  for (const change of [...changes].sort((a, b) => a.from - b.from)) {
+    parts.push(text.slice(from, change.from), change.insert);
+    from = change.to;
+  }
+  parts.push(text.slice(from));
+  return parts.join("");
 }
 export function mapSourcePosition(pos: number, changes: readonly SourceChange[]): number {
   let delta = 0;
