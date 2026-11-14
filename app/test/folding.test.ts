@@ -21,7 +21,7 @@ test("fold from the middle of a heading section and unfold without source edits"
   runFold(view, "unfold"); expect(foldedRanges(view.state).size).toBe(0);
 });
 test("code fences and frontmatter fold at a cursor inside them", () => {
-  for (const [text, at] of [["---\ntitle: Test\n---\n\nBody", 8], ["~~~ts\nconst x = 1\n~~~\n\nBody", 10]] satisfies [string, number][]) {
+  for (const [text, at] of [["---\ntitle: Test\n---\n\nBody", 8], ["~~~ts\nconst x = 1\n~~~\n\nBody", 10], ["~~~ts\nconst x = 1\n~~~\n\nBody", 0]] satisfies [string, number][]) {
     const view = editor(text, at); runFold(view, "fold");
     expect(foldedRanges(view.state).size).toBe(1);
     runFold(view, "unfold-all"); expect(foldedRanges(view.state).size).toBe(0);

@@ -65,7 +65,7 @@ export function runFold(view: EditorView, command: FoldCommand): void {
   }
   const head = view.state.selection.main.head;
   const fm = view.state.field(frontmatterFold).range;
-  let node = syntaxTree(view.state).resolveInner(head, -1);
+  let node = syntaxTree(view.state).resolveInner(head, head === view.state.doc.length ? -1 : 1);
   while (node.parent && !/^(?:FencedCode|ATXHeading\d|SetextHeading\d)$/.test(node.name)) node = node.parent;
   if (command === "unfold") {
     // unfoldCode expects the cursor on the opening line; folded selections normally sit there.

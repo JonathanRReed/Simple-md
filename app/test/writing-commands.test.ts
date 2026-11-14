@@ -56,7 +56,7 @@ test("code fence exceeds embedded runs and puts caret at language", () => {
 });
 test("rule toggle and insertion do not add a final newline", () => {
   expect(result("text", "rule", 2, 2).text).toBe("text\n\n---");
-  expect(result("---\r\nnext", "rule", 0, 0).text).toBe("\r\nnext");
+  for (const rule of ["---", "****", "_ _ _", "- - -"]) expect(result(`${rule}\r\nnext`, "rule", 0, 0).text).toBe("\r\nnext");
 });
 test("empty and EOF footnotes remain separated from their reference", () => {
   expect(result("", "footnote").text).toBe("[^1]\n\n[^1]: ");

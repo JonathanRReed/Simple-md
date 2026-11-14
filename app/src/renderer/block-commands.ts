@@ -45,8 +45,9 @@ export function blockEdit(text: string, selection: SourceSelection, command: Blo
   }
   if (command === "rule") {
     const line = selected[0]!;
-    const value = line.text.trim() === "---" ? "" : `${line.text ? eol + eol : ""}---`;
-    const changes = [{ from: line.text.trim() === "---" ? line.from : line.to, to: line.to, insert: value }];
+    const rule = /^[ \t]{0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line.text);
+    const value = rule ? "" : `${line.text ? eol + eol : ""}---`;
+    const changes = [{ from: rule ? line.from : line.to, to: line.to, insert: value }];
     return changedSelection(selection, changes);
   }
   if (command === "toggle-task") {
