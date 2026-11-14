@@ -124,6 +124,8 @@ export type Command =
   | "mode-source"
   | "undo"
   | "redo"
+  | "find-next"
+  | "find-previous"
   | "find"
   | "use-selection-find"
   | "palette"

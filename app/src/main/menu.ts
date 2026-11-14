@@ -105,6 +105,8 @@ export function buildMenu(a: MenuActions): void {
         { role: "selectAll" },
         { type: "separator" },
         cmd("Find…", "find", "CommandOrControl+F"),
+        cmd("Find Next", "find-next", "CommandOrControl+G"),
+        cmd("Find Previous", "find-previous", "CommandOrControl+Shift+G"),
         ...(mac ? [cmd("Use Selection for Find", "use-selection-find", "Command+Alt+E")] : []),
         { type: "separator" },
         cmd("Bold", "format-bold", "CommandOrControl+B"),

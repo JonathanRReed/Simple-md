@@ -208,7 +208,7 @@ async function boot(): Promise<void> {
   api.onSaved(result => {
     const tab = documents.get(result.documentId);
     const mounted = [...panes.values()].find(p => p.controller.documentId === result.documentId);
-    if (mounted) mounted.controller.saved(result);
+    if (mounted) { mounted.controller.saved(result); mounted.controller.refreshHead(); }
     else if (tab?.retained) {
       tab.retained.state.savedText = result.text;
       tab.retained.state.dirty = tab.retained.state.readText !== result.text;
@@ -238,7 +238,7 @@ async function boot(): Promise<void> {
     // Paint tabs and recents synchronously, before fetching the lazy search module.
     openPicker("Open Quickly", instant.slice(0, 200).map(file => {
       const at = Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\"));
-      return { label: file.path.slice(at + 1), parent: file.path.slice(0, at), run: (otherPane?: boolean) => {
+      return { label: file.path.slice(at + 1), run: (otherPane?: boolean) => {
         void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file."));
       } };
     }), () => { closed = true; if (restore?.isConnected) restore.focus({ preventScroll: true }); });
@@ -248,7 +248,7 @@ async function boot(): Promise<void> {
     void import("./open-quickly.js").then(({ openQuickly }) => {
       if (closed) return;
       const query = document.querySelector<HTMLInputElement>("#picker-input")!.value.slice(0, 256);
-      openQuickly(api, settings.openQuicklyScope, instant, query);
+      openQuickly(api, settings.openQuicklyScope, instant, query, restore);
     }).finally(() => { quicklyLoading = false; });
   }
   document.querySelector("#tab-search-button")!.addEventListener("click", () => showQuickly());
