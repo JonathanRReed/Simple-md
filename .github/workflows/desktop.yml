@@ -153,14 +153,6 @@ jobs:
         run: bun run typecheck
       - name: Build release CLI and native helper before tests
         run: bun run build:native
-      - name: Diagnose sidebar scroll race
-        if: runner.os == 'Linux'
-        working-directory: app
-        run: |
-          for attempt in {1..12}; do
-            echo "SCROLL_ATTEMPT $attempt"
-            xvfb-run -a bun test test/tab-sidebar.test.ts || true
-          done
       - name: Test
         if: runner.os != 'Linux'
         run: bun run test
