@@ -513,8 +513,26 @@ pub fn broker() -> Result<(), String> {
                     .insert(id, file.try_clone().map_err(|e| e.to_string())?);
                 emit(json!({"connection":id,"request":request,"stdin":text}));
                 finished.store(1, Ordering::SeqCst);
-                let mut byte = [0];
-                let _ = file.read(&mut byte);
+                // A pending synchronous read also blocks replies on the cloned handle.
+                // Probe disconnects without leaving a read pending between messages.
+                loop {
+                    let mut available = 0;
+                    if unsafe {
+                        PeekNamedPipe(
+                            file.as_raw_handle(),
+                            null_mut(),
+                            0,
+                            null_mut(),
+                            &mut available,
+                            null_mut(),
+                        )
+                    } == 0
+                        || available != 0
+                    {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(50));
+                }
                 Ok(())
             })();
             finished.store(1, Ordering::SeqCst);

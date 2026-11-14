@@ -81,8 +81,8 @@ export async function startCliServer(options: { binary: string; profile?: string
       return {
         async drain() {
           await Promise.all(pendingClosed);
-          await new Promise<void>(resolve => {
-            const timer = setTimeout(() => { console.error("simplemd: CLI drain timed out"); resolve(); }, 2000);
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("CLI replies could not finish. Try quitting again.")), 2000);
             drained = () => { clearTimeout(timer); resolve(); };
             broker.stdin.write(JSON.stringify({ drain: true }) + "\n", error => { if (error) drained(); });
           });
@@ -135,10 +135,10 @@ export async function startCliServer(options: { binary: string; profile?: string
       async drain() {
         await Promise.all(pendingClosed);
         server.close();
-        await Promise.all([...sockets].map(socket => new Promise<void>(resolve => {
+        await Promise.all([...sockets].map(socket => new Promise<void>((resolve, reject) => {
           if (socket.destroyed || socket.writableFinished) { resolve(); return; }
           const done = () => { clearTimeout(timer); socket.off("close", done); resolve(); };
-          const timer = setTimeout(() => { console.error("simplemd: CLI drain timed out"); done(); }, 2000);
+          const timer = setTimeout(() => { socket.off("close", done); reject(new Error("CLI replies could not finish. Try quitting again.")); }, 2000);
           socket.once("close", done);
           socket.end(done);
         })));
