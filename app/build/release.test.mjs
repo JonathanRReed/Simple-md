@@ -35,15 +35,32 @@ test("electron-builder accepts the release feed, resources and artifact names", 
   expect(config.extraResources).toContainEqual({ from: plan.cliBinary, to: "native/simplemd" });
   expect(config.artifactName).toBe("SimpleMD-${version}-${os}-${arch}.${ext}");
 });
-test("release workflow gates publication and optional signing", () => {
+test("release workflow requires desktop qualification and explicit signing intent", () => {
   const workflow = YAML.parse(readFileSync(path.join(appDir, "../.github/workflows/release.yml"), "utf8"));
   expect(workflow.on.push.tags).toEqual(["v*"]);
   expect(workflow.on).toHaveProperty("workflow_dispatch");
   expect(workflow.jobs.draft.if).toContain("github.event_name == 'push'");
   const steps = workflow.jobs.build.steps;
-  expect(steps.find(step => step.name === "Sign Windows installer").if).toContain("env.SIGNPATH_API_TOKEN != ''");
-  expect(steps.find(step => step.name === "Report unsigned fallback").if).toContain("env.SIGNPATH_API_TOKEN == ''");
-  expect(steps.findIndex(step => step.name === "Hash final bytes and refresh update metadata")).toBeGreaterThan(steps.findIndex(step => step.name === "Sign Windows installer"));
+  expect(workflow.jobs.build.needs).toBe("qualify");
+  const qualify = workflow.jobs.qualify.steps[0];
+  expect(qualify.env.CANDIDATE_SHA).toBe("${{ github.sha }}");
+  expect(qualify.run).toContain("actions/workflows/desktop.yml/runs?head_sha=$CANDIDATE_SHA&status=success&event=push");
+  expect(qualify.run).toContain('if [ "$count" -eq 0 ]');
+  expect(qualify.run).toContain("exit 1");
+  expect(workflow.on.workflow_dispatch.inputs.allow_unsigned_windows.default).toBe(false);
+  const validate = steps.find(step => step.name === "Validate Windows signing configuration");
+  for (const name of ["SIGNPATH_API_TOKEN", "SIGNPATH_ORGANIZATION_ID", "SIGNPATH_PROJECT_SLUG", "SIGNPATH_SIGNING_POLICY_SLUG", "SIGNPATH_ARTIFACT_CONFIGURATION_SLUG"]) expect(validate.run).toContain(name);
+  expect(validate.run).toContain("throw");
+  expect(steps.find(step => step.name === "Sign Windows installer").if).toContain("env.ALLOW_UNSIGNED_WINDOWS_RELEASE != 'true'");
+  expect(steps.find(step => step.name === "Report unsigned fallback").if).toContain("env.ALLOW_UNSIGNED_WINDOWS_RELEASE == 'true'");
+  const verify = steps.find(step => step.name === "Verify signed Windows installer");
+  expect(verify.if).toBe(steps.find(step => step.name === "Sign Windows installer").if);
+  expect(verify.run).toContain("Get-AuthenticodeSignature");
+  expect(verify.run).toContain("$signature.Status -ne 'Valid'");
+  expect(verify.run).toContain("$signed.Count -ne 1");
+  expect(steps.find(step => step.name === "Sign Windows installer").with["output-artifact-directory"]).toBe("signed-installer");
+  expect(steps.indexOf(verify)).toBeGreaterThan(steps.findIndex(step => step.name === "Sign Windows installer"));
+  expect(steps.findIndex(step => step.name === "Hash final bytes and refresh update metadata")).toBeGreaterThan(steps.indexOf(verify));
   expect(JSON.stringify(workflow)).not.toMatch(/APPLE_|CSC_LINK|notarytool/);
 });
 test("checksums and update metadata describe final signed or stapled bytes", async () => {
