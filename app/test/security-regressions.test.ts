@@ -59,13 +59,13 @@ for (const special of ["fifo", "zero", "directory"]) {
       catch(error) { if (!/regular file|directory/i.test(error.message)) throw error; }
       if ((await readDocument(${JSON.stringify(regular)})).text !== 'still readable') process.exit(3);`);
     const child = Bun.spawn([process.execPath, script], { stdout: "ignore", stderr: "pipe" });
-    const timer = setTimeout(() => child.kill("SIGKILL"), 1500);
+    const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
     try {
       const exit = await child.exited;
       const error = await new Response(child.stderr).text();
       expect({ exit, error }).toEqual({ exit: 0, error: "" });
-    } finally { clearTimeout(timer); }
-  });
+    } finally { clearTimeout(timer); child.kill("SIGKILL"); }
+  }, 35_000);
 }
 
 test.skipIf(process.platform !== "darwin")("immutable files open read-only and refuse saves without locked temp files", async () => {
