@@ -1,3 +1,4 @@
+import { isTextFont } from "../shared/font-families.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 const run = promisify(execFile);
@@ -21,5 +22,5 @@ async function listFonts(): Promise<{ fonts: string[] }> {
     const { stdout } = await run("fc-list", ["--format=%{family}\\n"], options);
     names = stdout.split(/[\r\n,]/);
   }
-  return { fonts: [...new Set(["system-ui", "ui-serif", "serif", "sans-serif", "ui-monospace", ...(process.platform === "darwin" ? ["New York"] : []), ...names.map(name => name.trim()).filter(Boolean)])].sort((a, b) => a.localeCompare(b)) };
+  return { fonts: [...new Set(["system-ui", "ui-serif", "serif", "sans-serif", "ui-monospace", ...(process.platform === "darwin" ? ["New York"] : []), ...names.map(name => name.trim()).filter(isTextFont)])].sort((a, b) => a.localeCompare(b)) };
 }
