@@ -16,14 +16,18 @@ export interface MenuActions {
   share(): void;
   hasDocumentPath(): boolean;
   tabPinned(): boolean;
+  relativePath(): boolean;
+  canReopen(): boolean;
   quit(): void;
   installCli(): void;
   checkUpdates(): void;
   installUpdate(): void;
+  updateMenu(): ReturnType<typeof import("../shared/update-state.js").updateMenu>;
 }
 
 export function buildMenu(a: MenuActions): void {
   const s = a.settings();
+  const update = a.updateMenu();
   const changes = changesMenuState(a.hasDocumentPath(), a.changesStatus());
   const mac = process.platform === "darwin";
   const cmd = (label: string, command: Command, accelerator?: string): MenuItemConstructorOptions => ({
@@ -45,7 +49,7 @@ export function buildMenu(a: MenuActions): void {
         { type: "separator" },
         { label: "Clear Menu", click: a.clearRecents },
       ]
-    : [{ label: "No Recent Files", enabled: false }];
+    : [{ label: "No Recent Files", enabled: false }, { type: "separator" }, { label: "Clear Menu", click: a.clearRecents }];
 
   const template: MenuItemConstructorOptions[] = [
     ...(mac
@@ -54,11 +58,12 @@ export function buildMenu(a: MenuActions): void {
             label: app.name,
             submenu: [
               { role: "about" },
-              { label: "Check for Updates…", click: a.checkUpdates },
-              { label: "Restart to Install Update…", click: a.installUpdate },
+              { label: update.checkLabel, enabled: update.checkEnabled, click: a.checkUpdates },
+              { label: "Restart to Install Update", enabled: update.installEnabled, click: a.installUpdate },
               { type: "separator" },
               cmd("Settings…", "preferences", "Command+,"),
               { label: "Install Command Line Tool", click: a.installCli },
+              cmd("Make SimpleMD the Default Markdown App…", "default-markdown-app"),
               { type: "separator" },
               { role: "hide" },
               { role: "hideOthers" },
@@ -80,6 +85,11 @@ export function buildMenu(a: MenuActions): void {
         { type: "separator" },
         cmd("Save", "save", "CommandOrControl+S"),
         cmd("Save As…", "save-as", "CommandOrControl+Shift+S"),
+        { ...cmd("Copy Path", "copy-path"), enabled: a.hasDocumentPath() },
+        { ...cmd("Copy Relative Path", "copy-relative-path"), enabled: a.relativePath() },
+        cmd("Duplicate…", "duplicate-file"),
+        { ...cmd("Rename or Move…", "rename-move"), enabled: a.hasDocumentPath() },
+        { ...cmd("Reopen Closed Tab", "reopen-closed-tab", "CommandOrControl+Shift+T"), enabled: a.canReopen() },
         { type: "separator" },
         ...(mac ? [{ label: "Share", enabled: a.hasDocumentPath(), click: a.share } satisfies MenuItemConstructorOptions] : []),
         cmd("Export as PDF…", "export-pdf"),
@@ -194,8 +204,9 @@ export function buildMenu(a: MenuActions): void {
     },
     { role: "windowMenu" },
     ...(mac ? [] : [{ label: "Help", submenu: [
-      { label: "Check for Updates…", click: a.checkUpdates },
-      { label: "Restart to Install Update…", click: a.installUpdate },
+      cmd("Make SimpleMD the Default Markdown App…", "default-markdown-app"),
+      { label: update.checkLabel, enabled: update.checkEnabled, click: a.checkUpdates },
+      { label: "Restart to Install Update", enabled: update.installEnabled, click: a.installUpdate },
     ] } satisfies MenuItemConstructorOptions]),
   ];
 

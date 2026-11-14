@@ -94,6 +94,7 @@ export interface FlushResult {
 }
 
 export interface SaveResult {
+  moved?: boolean;
   unavailableReason?: string;
   metadataCopyFailed?: boolean;
   showMetadataWarning?: boolean;
@@ -106,6 +107,8 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "share" | "copy-path" | "copy-relative-path" | "duplicate-file" | "rename-move"
+  | "reopen-closed-tab" | "close-other-tabs" | "close-tabs-below" | "default-markdown-app"
   | "open-quickly"
   | "toggle-zen"
   | "toggle-pin-tab"

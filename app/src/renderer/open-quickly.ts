@@ -1,3 +1,4 @@
+import { relativeTime } from "../shared/relative-time.js";
 import type { Bridge } from "./api.js";
 import { mergeQuicklyFiles, rankQuicklyFiles, type QuicklyFile, type QuicklyScope } from "../shared/open-quickly.js";
 import { openPicker, toast, type PickerItem } from "./ui.js";
@@ -7,7 +8,7 @@ export function openQuickly(api: Pick<Bridge, "quicklyOpen" | "quicklyClose" | "
   let scope = sessionScope ?? defaultScope;
   let request = 0, closed = false;
   const items = (matches: ReturnType<typeof rankQuicklyFiles>): PickerItem[] => matches.map(file => ({
-    label: file.name, labelIndices: file.nameIndices, parent: file.displayPath ? file.parent : undefined, parentIndices: file.parentIndices,
+    label: file.name, hint: file.lastOpened === undefined ? undefined : relativeTime(file.lastOpened), labelIndices: file.nameIndices, parent: file.displayPath ? file.parent : undefined, parentIndices: file.parentIndices,
     run: otherPane => { void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file.")); },
   }));
   let updateResults: ((items: PickerItem[]) => void) | undefined;

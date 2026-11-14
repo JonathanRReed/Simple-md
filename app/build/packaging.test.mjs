@@ -60,7 +60,7 @@ describe("host-only packaging", () => {
     expect(pkg.build.files).toContain("dist/**/*");
     expect(pkg.license).toBe("MIT");
     expect(pkg.build.extraResources).toContainEqual({ from: "../LICENSE", to: "LICENSE" });
-    expect(pkg.build.linux.executableArgs).toEqual(["%f"]);
+    expect(pkg.build.linux.executableArgs).toEqual(["%F"]);
     expect(pkg.build.linux.syncDesktopName).toBe(true);
     expect(pkg.build.linux.fileAssociations).toEqual(pkg.build.win.fileAssociations);
     expect(pkg.name).toBe("simplemd");
@@ -125,9 +125,9 @@ test.skipIf(process.platform !== "darwin")("PR packaging permits only credential
 });
 
 describe("Linux launch integration", () => {
-  test("prints a single-file association and escapes desktop Exec metacharacters", () => {
+  test("prints a multi-file association and escapes desktop Exec metacharacters", () => {
     const entry = desktopEntry('/home/test/My "notes" $cash` %app\\.AppImage');
-    expect(entry).toContain('Exec="/home/test/My \\\\"notes\\\\" \\\\$cash\\\\` %%app\\\\\\\\.AppImage" %f\n');
+    expect(entry).toContain('Exec="/home/test/My \\\\"notes\\\\" \\\\$cash\\\\` %%app\\\\\\\\.AppImage" %F\n');
     expect(entry).toContain("MimeType=text/markdown;text/x-markdown;");
     expect(entry).toContain("Name=SimpleMD\n");
     expect(entry).toContain("StartupWMClass=simplemd\n");
@@ -357,3 +357,14 @@ test("electron-builder emits one Default Markdown and MDX document declaration",
     expect(info.CFBundleURLTypes[0].CFBundleURLSchemes).toEqual(["simplemd"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }, 30_000);
+
+
+test("macOS ships the arm64 default-app helper built with Command Line Tools", () => {
+  const plan = nativePlan("aarch64-apple-darwin", "darwin", "arm64");
+  expect(unsignedConfig(plan).extraResources).toContainEqual({ from: plan.defaultAppBinary, to: "native/simplemd-default-app" });
+  const script = readFileSync(path.join(appDir, "native/default-app/build-helper.sh"), "utf8");
+  expect(script).toContain("xcrun swiftc"); expect(script).toContain("arm64-apple-macos13.0"); expect(script).not.toContain("xcodebuild");
+  const helper = readFileSync(path.join(appDir, "native/default-app/DefaultApp.swift"), "utf8");
+  expect(helper).toContain("NSWorkspace.shared.setDefaultApplication"); expect(helper).toContain("urlForApplication(toOpen:");
+  expect(helper).toContain('--query');
+});

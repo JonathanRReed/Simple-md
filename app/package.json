@@ -211,7 +211,7 @@
       "executableName": "simplemd-app",
       "syncDesktopName": true,
       "executableArgs": [
-        "%f"
+        "%F"
       ],
       "desktop": {
         "entry": {

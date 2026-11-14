@@ -4,7 +4,7 @@ Linux has no portable bare-Space preview hook or selected-file lookup in this ap
 
 ## DEB packages
 
-The package config generates a `simplemd.desktop` entry with `text/markdown` and `text/x-markdown` MIME types. Its unquoted `%f` argument passes one local file to the app. The Markdown file association includes `.md`, `.markdown`, `.mdown`, `.mkd`, and `.mdx`. Installing a package registers the handler. Choose SimpleMD in your file manager's Open With menu; the app does not need to become the default.
+The package config generates a `simplemd.desktop` entry with `text/markdown` and `text/x-markdown` MIME types. Its unquoted `%F` argument passes all selected local files to the app. The Markdown file association includes `.md`, `.markdown`, `.mdown`, `.mkd`, and `.mdx`. Installing a package registers the handler. Choose SimpleMD in your file manager's Open With menu; the app does not need to become the default.
 
 Use the file manager's Properties or Open With controls if you want to change a default application. MIME handling varies by desktop and installed MIME database. Check `.mdx` separately because some systems associate it with another type.
 
@@ -28,7 +28,7 @@ update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 
 `update-desktop-database` comes from `desktop-file-utils` on many distributions. If it is unavailable, use the desktop's application registration controls. This entry advertises Markdown MIME types but does not add new MIME extension definitions. A generic text association may require choosing the executable explicitly through Open With.
 
-The generator quotes the executable path and escapes reserved characters according to the [desktop-entry Exec specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html). It leaves `%f` outside quotes. Moving the AppImage requires regenerating the entry.
+The generator quotes the executable path and escapes reserved characters according to the [desktop-entry Exec specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html). It leaves `%F` outside quotes. Moving the AppImage requires regenerating the entry.
 
 To remove this user registration, remove the `simplemd.desktop` file you created and refresh the desktop database. Package-managed registrations should be removed through the package manager.
 

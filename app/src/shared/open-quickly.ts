@@ -4,7 +4,7 @@ export type QuicklyScope = "repo" | "everywhere";
 export const MARKDOWN_EXTENSIONS = ["md", "mdx", "markdown", "mdown", "mkd"] as const;
 export const QUICKLY_LIMIT = 200;
 export const QUICKLY_CANDIDATE_LIMIT = 20000;
-export interface QuicklyFile { path: string; source: "tab" | "recent" | "repo" | "machine"; matchPath?: string; displayPath?: string }
+export interface QuicklyFile { lastOpened?: number; path: string; source: "tab" | "recent" | "repo" | "machine"; matchPath?: string; displayPath?: string }
 export interface QuicklyMatch extends QuicklyFile {
   name: string;
   parent: string;

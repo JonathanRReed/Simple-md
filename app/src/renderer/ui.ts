@@ -89,7 +89,7 @@ export interface PickerSearch {
   toggleScope(): "repo" | "everywhere";
   search(query: string, update: (items: PickerItem[]) => void): void;
 }
-export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void, search?: PickerSearch): void {
+export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void, search?: PickerSearch): (next: PickerItem[]) => void {
   const replacing = pickerOpen;
   closePicker?.(false);
   const root = $("picker");
@@ -253,6 +253,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   root.addEventListener("mousedown", onBackdrop);
   render();
   input.focus();
+  return next => { if (!closed) { items = next; render(); } };
 }
 
 // ───────── find in the read view ─────────

@@ -9,7 +9,7 @@ export function desktopEntry(executable) {
     .replace(/%/g, "%%")
     .replace(/["`$\\]/g, "\\$&")
     .replace(/\\/g, "\\\\");
-  return `[Desktop Entry]\nType=Application\nName=SimpleMD\nComment=View and edit Markdown\nExec="${quoted}" %f\nIcon=text-markdown\nTerminal=false\nCategories=Office;TextEditor;\nMimeType=text/markdown;text/x-markdown;\nStartupWMClass=simplemd\n`;
+  return `[Desktop Entry]\nType=Application\nName=SimpleMD\nComment=View and edit Markdown\nExec="${quoted}" %F\nIcon=text-markdown\nTerminal=false\nCategories=Office;TextEditor;\nMimeType=text/markdown;text/x-markdown;\nStartupWMClass=simplemd\n`;
 }
 
 if (import.meta.main) {

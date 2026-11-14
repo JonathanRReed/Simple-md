@@ -35,3 +35,6 @@ footer { padding: 0 12px 12px; color: var(--secondary); overflow-wrap: anywhere;
 @media (forced-colors: active) { input[type=checkbox] { appearance: auto; } input[type=checkbox]::before { display: none; } }
 
 #reading-style-note { margin: 0; padding: 8px 12px; border-top: 1px solid var(--border); color: var(--secondary); font-size: 12px; }
+
+.config-actions { display: flex; gap: 8px; margin-top: 8px; }
+.advanced .config-actions button { width: auto; border: 1px solid light-dark(#c8c8c8, #595959); border-radius: 5px; padding: 4px 8px; }

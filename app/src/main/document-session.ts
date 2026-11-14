@@ -1,3 +1,4 @@
+import { moveDocumentFile, type Destination } from "./file-actions.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import type { ChangeBaseline, GitChangesStatus } from "../shared/change-highlights.js";
 import path from "node:path";
@@ -9,7 +10,10 @@ import { ENCODING_NOTICE, FileChangedDuringReadError, FileConflictError, readDoc
 export class DocumentSession {
   readonly firstAutosave: FirstAutosave;
   readonly saves = new DocumentQueue();
+  suggestedFolder?: string;
+  draftPath?: string;
   revisionId = makeRevisionId(0);
+  baselinePath?: string;
   baseline: ChangeBaseline | null = null;
   baselineGeneration = 0;
   gitStatus: GitChangesStatus;
@@ -110,9 +114,9 @@ export class DocumentSession {
     this.onDiskChanged?.({ kind: "unavailable", message: this.unavailableReason, readOnlyReason: this.readOnlyReason });
   }
 
-  markSeen(): void { this.baseline = null; this.baselineGeneration++; }
+  markSeen(): void { this.baselinePath = undefined; this.baseline = null; this.baselineGeneration++; }
 
-  setHeadBaseline(text: string): void { this.baseline = { kind: "head", text }; this.baselineGeneration++; }
+  setHeadBaseline(text: string): void { this.baselinePath ??= this.path ?? undefined; this.baseline = { kind: "head", text }; this.baselineGeneration++; }
 
   async acceptDisk(text: string, highlight = false): Promise<boolean> {
     if (!this.path) return false;
@@ -140,7 +144,7 @@ export class DocumentSession {
       const unavailableSequence = this.unavailableSequence;
       let metadataCopyFailed: boolean;
       try {
-        const expected = recreate ? null : target === this.path ? this.diskText : await readDiskText(target);
+        const expected = recreate || target === this.draftPath && !force ? null : target === this.path ? this.diskText : await readDiskText(target);
         ({ metadataCopyFailed } = await writeAtomic(target, text, expected));
       } catch (err) {
         if (target !== this.path) throw err;
@@ -163,6 +167,7 @@ export class DocumentSession {
         this.gitStatus = { available: true, active: false };
       }
       this.path = target;
+      this.draftPath = undefined;
       this.firstAutosave.confirm();
       this.diskText = text;
       if (moved || unavailableSequence === this.unavailableSequence) this.unavailableReason = undefined;
@@ -172,6 +177,19 @@ export class DocumentSession {
       const showMetadataWarning = metadataCopyFailed && !this.metadataWarningSent;
       if (metadataCopyFailed) this.metadataWarningSent = true;
       return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, showMetadataWarning, unavailableReason: this.unavailableReason };
+    });
+  }
+
+  move(target: string, expected: Destination): Promise<SaveResult | null> {
+    return this.saves.run(async () => {
+      if (!this.path || this.dirty || this.conflict || this.unavailableReason) return null;
+      const previous = this.path;
+      this.stopWatching();
+      try {
+        await moveDocumentFile(previous, target, this.text, expected);
+        this.path = target;
+        return { moved: true, documentId: this.documentId, revisionId: this.revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text: this.text };
+      } finally { if (this.onDiskChanged) this.watch(this.onDiskChanged); }
     });
   }
 
