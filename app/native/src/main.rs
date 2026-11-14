@@ -9,6 +9,12 @@ fn main() {
             std::path::Path::new(&args[2]),
         ) {
             let code = match error.kind() {
+                #[cfg(unix)]
+                _ if error.raw_os_error() == Some(libc::ENOTSUP)
+                    || cfg!(target_os = "linux") && error.raw_os_error() == Some(libc::EINVAL) =>
+                {
+                    "NOEXCL"
+                }
                 std::io::ErrorKind::CrossesDevices => "EXDEV",
                 std::io::ErrorKind::AlreadyExists => "EEXIST",
                 _ => "MOVE_FAILED",

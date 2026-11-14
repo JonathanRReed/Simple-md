@@ -20,7 +20,7 @@ const updater = Object.assign(native, {
 mock.module("electron-updater", () => ({ default: { autoUpdater: updater } }));
 const { createUpdater } = await import("../../src/main/updater");
 let settles = 0, releases = 0, quitStarted = 0;
-const controller = createUpdater(() => true, async () => { settles++; return true; }, () => { releases++; }, () => {}, () => { quitStarted++; });
+const controller = createUpdater(() => true, async () => { settles++; return true; }, () => { releases++; }, () => {}, async () => { quitStarted++; });
 await controller.check();
 if (fs.existsSync(path.join(root, "update-check.json"))) throw new Error("A failed check consumed the daily allowance");
 await controller.check();

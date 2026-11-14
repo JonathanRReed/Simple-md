@@ -116,3 +116,9 @@ export async function duplicateDocumentFile(target: string, text: string, expect
   await checkDestination(target, expected);
   await writeAtomic(target, text, expected.kind === "existing" ? expected.bytes.toString("utf8") : null);
 }
+
+export async function copyRelativePath(file: string, copy: (value: string) => void, notice: (message: string) => void): Promise<void> {
+  const relative = await relativeGitPath(file);
+  if (relative) copy(relative);
+  else notice("This file is not in a Git repository.");
+}

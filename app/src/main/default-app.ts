@@ -17,10 +17,11 @@ export function parseDefaultAppResults(raw: string): DefaultAppResult[] {
 }
 export function defaultAppMessage(results: DefaultAppResult[]): string {
   const failed = results.filter(result => !result.success);
-  const missing = ["md", "markdown", "mdown", "mkd", "mdx"].filter(ext => !results.some(result => result.extensions.includes(ext)));
-  return failed.length || missing.length ? `macOS did not change: ${[...failed.map(result => result.type), ...missing.map(ext => `.${ext}`)].join(", ")}.` : "SimpleMD is the default Markdown app.";
+  const set = [...new Set(results.filter(result => result.success).flatMap(result => result.extensions))];
+  return [set.length ? `SimpleMD is the default for ${set.map(ext => `.${ext}`).join(", ")}.` : "",
+    failed.length ? `macOS did not change: ${failed.map(result => result.type).join(", ")}.` : ""].filter(Boolean).join(" ");
 }
-export async function setDefaultMarkdownApp(options: { platform: NodeJS.Platform; packaged: boolean; resources: string; executable: string; openExternal(url: string): Promise<void> }): Promise<string> {
+export async function setDefaultMarkdownApp(options: { platform: NodeJS.Platform; packaged: boolean; resources: string; executable: string; openExternal(url: string): Promise<void> }, runHelper: (file: string, args: string[], options: { timeout: number; maxBuffer: number; killSignal: "SIGKILL" }) => Promise<{ stdout: string }> = run): Promise<string> {
   if (options.platform === "win32") {
     await options.openExternal("ms-settings:defaultapps");
     return "Choose SimpleMD for .md, .markdown and .mdx in Default apps.";
@@ -29,7 +30,7 @@ export async function setDefaultMarkdownApp(options: { platform: NodeJS.Platform
     if (!options.packaged) throw new Error("Install SimpleMD in Applications before making it the default app.");
     const helper = path.join(options.resources, "native/simplemd-default-app");
     const application = path.resolve(options.executable, "../../..");
-    const { stdout } = await run(helper, ["--set", application], { maxBuffer: 64 * 1024 });
+    const { stdout } = await runHelper(helper, ["--set", application], { timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024 });
     return defaultAppMessage(parseDefaultAppResults(stdout));
   }
   const folders = [process.env.XDG_DATA_HOME || path.join(process.env.HOME ?? "", ".local/share"), ...(process.env.XDG_DATA_DIRS || "/usr/local/share:/usr/share").split(":")];

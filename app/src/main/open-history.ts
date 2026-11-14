@@ -37,20 +37,14 @@ export class OpenHistory {
     else this.pending.set(file, now);
     this.schedule();
   }
-  encountered(): OpenedPath[] {
+  async searchFiles(recents: readonly string[]): Promise<QuicklyFile[]> {
     const entries = this.load();
-    const valid = entries.filter(entry => { try { return fs.statSync(entry.path).isFile(); } catch { return false; } });
-    if (valid.length !== entries.length) { this.entries = valid; this.schedule(); }
-    return valid;
-  }
-  searchFiles(recents: readonly string[]): QuicklyFile[] {
-    const entries = this.encountered();
     const seen = new Set(entries.map(entry => entry.path));
-    return [...entries.map(entry => ({ ...entry, source: "recent" as const })), ...recents.flatMap(file => {
+    return availableHistoryFiles([...entries.map(entry => ({ ...entry, source: "recent" as const })), ...recents.flatMap(file => {
       if (seen.has(file)) return [];
       seen.add(file);
-      try { return fs.statSync(file).isFile() ? [{ path: file, source: "recent" as const }] : []; } catch { return []; }
-    })];
+      return [{ path: file, source: "recent" as const }];
+    })]);
   }
   moved(previous: string, target: string): void {
     this.entries = this.load().filter(entry => entry.path !== target).map(entry => entry.path === previous ? { ...entry, path: target } : entry);
@@ -68,4 +62,14 @@ export class OpenHistory {
       fs.renameSync(temporary, this.file);
     } catch (error) { fs.rmSync(temporary, { force: true }); console.error("simplemd: could not save opened-file history", error); }
   }
+}
+
+export async function availableHistoryFiles<T extends { path: string }>(files: readonly T[], check = (file: string) => fs.promises.stat(file).then(stat => stat.isFile(), () => false), timeout = 150): Promise<T[]> {
+  const available = await Promise.all(files.map(async file => {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([check(file.path), new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(true), timeout); })]);
+    } finally { clearTimeout(timer); }
+  }));
+  return files.filter((_, index) => available[index]);
 }

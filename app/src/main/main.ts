@@ -1,12 +1,14 @@
+import { openDocumentLink } from "./document-links.js";
+import { matchesOpenPath } from "./open-path.js";
+import { applySettings as applySettingsPatch } from "./settings-apply.js";
 import { updateMenu } from "../shared/update-state.js";
-import { loginEnabled, linuxLoginFile, readLinuxLogin, verifyLoginRegistration } from "./login-registration.js";
+import { loginEnabled, linuxLoginFile, readLinuxLogin } from "./login-registration.js";
 import { fileArgs, OpenRequests } from "./open-requests.js";
 import { ClosedTabs, tabsToClose, closeTabs } from "../shared/closed-tabs.js";
 import { OpenHistory } from "./open-history.js";
-import { saveSuggestion, duplicateSuggestion, duplicateDocumentFile, relativeGitPath, destinationState, hasRelativeResources } from "./file-actions.js";
+import { saveSuggestion, duplicateSuggestion, duplicateDocumentFile, copyRelativePath, destinationState, hasRelativeResources } from "./file-actions.js";
 import { commandDefinitions } from "../shared/commands.js";
 import { insertDocumentImage, IMAGE_EXTENSIONS } from "./image-store.js";
-import { linkLocation } from "../shared/link-location.js";
 import { paperSize } from "../shared/paper-size.js";
 import { existingPinnedPaths } from "./pinned-tabs.js";
 import { fileOpenIntent, opensInSource } from "../shared/open-policy.js";
@@ -26,7 +28,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { TabLayout } from "../shared/tab-layout.js";
 import { sidebarToggle } from "../shared/tab-presentation.js";
 import { documentDelta, releaseDocumentDelta } from "./document-delta.js";
-import { resolveAuthorUrl } from "../shared/url-resolver.js";
 import { containedLocalFile, invalidateUrlContext, urlContext } from "./document-urls.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -59,7 +60,7 @@ import type {
   SaveResult,
 } from "../shared/types.js";
 import { ENCODING_NOTICE, isMarkdown, readDocument, saveImageNextTo } from "./files.js";
-import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument } from "./lifecycle.js";
+import { DocumentQueue, openPreparedDocument, quitAfterSettle, settleDocument, saveChangesPrompt, canOpenWindow, settleAllWindows as settleWindows, releaseQuitWindows as releaseWindows, prepareQuit as cleanupForQuit } from "./lifecycle.js";
 import { writeConflictCopy } from "./conflict-copy.js";
 import { checkExportDestination, writeExportAtomic } from "./export-write.js";
 import { runDriver } from "./driver.js";
@@ -69,7 +70,7 @@ import { getCachedRender, setCachedRender } from "./render-cache.js";
 import { buildMenu } from "./menu.js";
 import { configEntries } from "../shared/config-schema.js";
 import { createSettingsWindow, systemAccent } from "./settings-window.js";
-import { configStore, flushSettings, loadSettings, patchSettings, saveSettings } from "./settings.js";
+import { configStore, flushSettings, loadSettings, saveSettings } from "./settings.js";
 
 // Dev-only launch profiler: SMD_TRACE=1 prints where startup time goes.
 const T0 = performance.now();
@@ -100,7 +101,6 @@ const registry = new DocumentRegistry(id => cliWaiters.closed(id));
 const documents = new DocumentQueue();
 const closedTabs = new ClosedTabs();
 const history = new OpenHistory(path.join(app.getPath("userData"), "opened-files.json"));
-const relativePaths = new Map<string, string | null>();
 interface WindowContext {
   quitFrozen?: boolean;
   win: BrowserWindow;
@@ -160,24 +160,32 @@ const send = (channel: string, ...args: unknown[]) => sendTo(context(), channel,
 
 // ───────── settings ─────────
 
-function applySettings(patch: unknown, persist = true): void {
-  const prev = settings;
-  let next = patchSettings(settings, patch);
-  if (next.launchAtLogin !== prev.launchAtLogin || persist && patch !== null && typeof patch === "object" && Object.hasOwn(patch, "launchAtLogin")) applyLoginItem(next.launchAtLogin);
-  if (persist) {
-    const changed = Object.fromEntries(configEntries.filter(([, def]) => patch !== null && typeof patch === "object" && Object.hasOwn(patch, def.setting)).map(([, def]) => [def.setting, next[def.setting]]));
-    if (Object.keys(changed).length) next = { ...next, ...configStore().set(changed) };
-  }
-  next.systemAccent = systemAccent();
-  settings = next;
-  if (settings.theme !== prev.theme) nativeTheme.themeSource = settings.theme;
-  if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
-  saveSettings(settings);
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) window.webContents.send("smd:settings", settings);
-  }
-  settingsWindow?.changed();
-  refreshMenus();
+function applySettings(patch: unknown, persist = true): Error | undefined {
+  const error = applySettingsPatch(settings, patch, persist, {
+    login: applyLoginItem,
+    persist(next, patch) {
+      const changed = Object.fromEntries(configEntries.filter(([, def]) => patch !== null && typeof patch === "object" && Object.hasOwn(patch, def.setting)).map(([, def]) => [def.setting, next[def.setting]]));
+      return Object.keys(changed).length ? { ...next, ...configStore().set(changed) } : next;
+    },
+    commit(next, prev) {
+      next.systemAccent = systemAccent();
+      settings = next;
+      if (settings.theme !== prev.theme) nativeTheme.themeSource = settings.theme;
+      if (settings.spellcheck !== prev.spellcheck) session.defaultSession.setSpellCheckerEnabled(settings.spellcheck);
+      saveSettings(settings);
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send("smd:settings", settings);
+      }
+      settingsWindow?.changed();
+      refreshMenus();
+    },
+  });
+  if (error) console.error("simplemd: could not apply settings", error);
+  return error;
+}
+function applySettingsFromUI(patch: unknown): void {
+  const error = applySettings(patch);
+  if (error) throw error;
 }
 
 const writingContexts = new WeakMap<DocumentSession, boolean>();
@@ -202,7 +210,7 @@ function refreshMenus(): void {
   const activeDoc = registry.get(host?.mainPane.documentId);
   const gitStatus = activeDoc?.gitStatus ?? { available: false as const, reason: "Open a file first." };
   const next = menuState(settings, mode, !!activeDoc?.path, gitStatus, !!host && !!activeDoc && host.layout.isPinned(activeDoc.documentId));
-  next.application += JSON.stringify([activeDoc?.path ? relativePaths.get(activeDoc.path) : null, closedTabs.size, updates?.menu()]);
+  next.application += JSON.stringify([closedTabs.size, updates?.menu()]);
   if (next.application !== lastMenuState?.application) buildMenu({
     settings: () => settings,
     mode: () => mode,
@@ -218,7 +226,6 @@ function refreshMenus(): void {
     },
     share: () => runCommand("share"),
     hasDocumentPath: () => !!activeDoc?.path,
-    relativePath: () => !!activeDoc?.path && !!relativePaths.get(activeDoc.path),
     canReopen: () => closedTabs.size > 0,
     tabPinned: () => !!host && !!activeDoc && host.layout.isPinned(activeDoc.documentId),
     installCli: () => void installCli(),
@@ -239,7 +246,6 @@ function refreshMenus(): void {
 
 function addRecent(file: string): void {
   history.opened(file);
-  if (!relativePaths.has(file)) void relativeGitPath(file).then(relative => { relativePaths.set(file, relative); refreshMenus(); });
   if (process.platform !== "linux") recentOS.addRecentDocument(file);
   applySettings({ recents: [file, ...settings.recents.filter((p) => p !== file)].slice(0, 12) });
 }
@@ -444,7 +450,7 @@ async function transition<T>(operation: () => Promise<T>, host = context()): Pro
   }
 }
 
-async function settle(current = currentSession(), host = context(), preserve = false): Promise<boolean> {
+async function settle(current = currentSession(), host = context(), preserve: "move" | "share" | false = false): Promise<boolean> {
   await host.loaded;
   if (!current) return true;
   let discarded = false;
@@ -471,14 +477,8 @@ async function settle(current = currentSession(), host = context(), preserve = f
     },
     choose: async () => {
       reveal(host);
-      const { response } = await dialog.showMessageBox(host.win, {
-        type: "warning",
-        message: `Save changes to “${current.name}”?`,
-        detail: "Your changes will be lost if you don't save them.",
-        buttons: ["Save", "Don't Save", "Cancel"],
-        defaultId: 0,
-        cancelId: 2,
-      });
+      const { response } = await dialog.showMessageBox(host.win, saveChangesPrompt(current.name, preserve));
+      if (preserve) return response === 0 ? "save" : "cancel";
       discarded = response === 1;
       return response === 0 ? "save" : response === 1 ? "discard" : "cancel";
     },
@@ -613,8 +613,7 @@ async function openCurrentFile(file: string | undefined, intent: OpenIntent, inP
     let existing: DocumentId | undefined;
     for (const id of host.layout.state.tabs) {
       const session = registry.get(id);
-      const file = session?.path ?? session?.draftPath;
-      if (file && (file === abs || await fs.promises.realpath(file).catch(() => file) === canonical)) { existing = id; break; }
+      if (session && await matchesOpenPath(session, abs, canonical)) { existing = id; break; }
     }
     if (existing !== undefined) return windowScope.run(host, async () => {
       const usable = waitUntilUsable(existing, host);
@@ -774,7 +773,7 @@ async function fileActionError(message: string): Promise<void> {
   await dialog.showMessageBox(context().win, { type: "error", message });
 }
 async function renameMove(doc: DocumentSession): Promise<void> {
-  if (!doc.path || !await settle(doc, context(), true)) return;
+  if (!doc.path || !await settle(doc, context(), "move")) return;
   const previous = doc.path;
   const result = await dialog.showSaveDialog(context().win, { defaultPath: previous });
   if (result.canceled || !result.filePath || result.filePath === previous) return;
@@ -782,12 +781,10 @@ async function renameMove(doc: DocumentSession): Promise<void> {
   if (await sameOpenDocument(target, doc.documentId)) { await fileActionError("Close the destination tab first."); return; }
   try {
     const moved = await doc.move(target, await destinationState(target));
-    if (!moved) return;
     invalidateUrlContext(path.dirname(previous)); invalidateUrlContext(path.dirname(target));
     history.moved(previous, target);
     moveRecentDocument(recentOS, process.platform, previous, target);
     applySettings({ recents: settings.recents.map(file => file === previous ? target : file), pinnedPaths: settings.pinnedPaths.map(file => file === previous ? target : file) });
-    void relativeGitPath(target).then(relative => { relativePaths.set(target, relative); refreshMenus(); });
     send("smd:saved", moved); syncLayout(); updateTitle();
     if (path.dirname(previous) !== path.dirname(target) && hasRelativeResources(doc.text)) {
       await dialog.showMessageBox(context().win, { type: "info", message: "Relative links and images may need updating in this folder." });
@@ -797,25 +794,11 @@ async function renameMove(doc: DocumentSession): Promise<void> {
 
 // ───────── links & commands ─────────
 
-async function openLink(href: string, intent: OpenIntent = "edit", newTab = false, current = currentSession(), host = context()): Promise<boolean> {
-  if (/^(https?:|mailto:)/i.test(href)) {
-    await shell.openExternal(href);
-    return false;
-  }
-  if (!current.path) return false;
-  const resolved = href.startsWith("file:") ? href : resolveAuthorUrl(href, "anchor", urlContext(path.dirname(current.path)));
-  if (!resolved || !resolved.startsWith("file:")) return false;
-  try {
-    const urls = urlContext(path.dirname(current.path));
-    const { astroRouteFile } = await import("./document-urls.js");
-    const route = await astroRouteFile(resolved, urls);
-    if (route) return openFile(route, intent, !newTab, current.documentId, host, linkLocation(resolved));
-    const canonical = await containedLocalFile(resolved, urls);
-    const target = fileURLToPath(resolved);
-    return isMarkdown(target) && isMarkdown(canonical) ? openFile(target, intent, !newTab, current.documentId, host, linkLocation(resolved)) : false;
-  } catch {
-    return false;
-  }
+function openLink(href: string, intent: OpenIntent = "edit", newTab = false, current = currentSession(), host = context()): Promise<boolean> {
+  return openDocumentLink(href, intent, newTab, current, {
+    external: url => shell.openExternal(url),
+    open: (file, intent, inPlace, id, location) => openFile(file, intent, inPlace, id, host, location),
+  });
 }
 
 async function togglePanes(axis: "horizontal" | "vertical"): Promise<void> {
@@ -856,29 +839,18 @@ async function moveTabWindow(): Promise<void> {
 }
 function releaseQuitWindows(): void {
   quitting = false;
-  for (const host of windows.values()) {
-    host.quitFrozen = false;
-    sendTo(host, "smd:transition", false);
-  }
+  releaseWindows(windows.values(), (host, value) => sendTo(host, "smd:transition", value));
 }
 
-async function settleAllWindows(): Promise<boolean> {
-  for (const host of windows.values()) {
-    host.quitFrozen = true;
-    sendTo(host, "smd:transition", true);
-  }
-  for (const host of windows.values()) {
-    const accepted = await windowScope.run(host, async () => {
-      for (const id of host.layout.state.tabs) if (!(await transition(() => settle(registry.get(id)!)))) return false;
-      return true;
-    });
-    if (!accepted) return false;
-  }
-  return true;
+function settleAllWindows(): Promise<boolean> {
+  return settleWindows(windows.values(), (host, value) => sendTo(host, "smd:transition", value), host => windowScope.run(host, async () => {
+    for (const id of host.layout.state.tabs) if (!(await settle(registry.get(id)!, host))) return false;
+    return true;
+  }));
 }
 
 async function newDocumentWindow(): Promise<void> {
-  if ([...windows.values()].some(host => host.quitFrozen)) return;
+  if (!canOpenWindow(windows.values())) return;
   const host = createDocumentWindow();
   await windowScope.run(host, async () => { reveal(); await newDoc(); });
 }
@@ -887,11 +859,11 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
   const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
     case "copy-path": if (current?.path) clipboard.writeText(current.path); return;
-    case "copy-relative-path": if (current?.path) void relativeGitPath(current.path).then(relative => { if (relative) clipboard.writeText(relative); }); return;
+    case "copy-relative-path": if (current?.path) void copyRelativePath(current.path, value => clipboard.writeText(value), message => { void dialog.showMessageBox({ type: "info", message }); }); return;
     case "duplicate-file": if (current) void documents.run(() => transition(() => duplicateFile(current))); return;
     case "rename-move": if (current?.path) void documents.run(() => transition(() => renameMove(current))); return;
     case "share": if (current) void documents.run(() => transition(async () => {
-      if (await settle(current, context(), true) && current.path && !current.dirty && !current.conflict) shareDocument(context().win, current.path);
+      if (await settle(current, context(), "share") && current.path && !current.dirty && !current.conflict) shareDocument(context().win, current.path);
     })); return;
     case "reopen-closed-tab": void documents.run(async () => {
       let file: string | undefined;
@@ -1049,7 +1021,6 @@ function applyLoginItem(enabled: boolean): void {
       fs.writeFileSync(desktop, `[Desktop Entry]\nType=Application\nName=SimpleMD\nExec="${process.execPath}" --background\nX-GNOME-Autostart-enabled=true\n`);
     } else fs.rmSync(desktop, { force: true });
   } else app.setLoginItemSettings({ openAtLogin: enabled, args: ["--background"] });
-  verifyLoginRegistration(enabled, actualLoginItem());
 }
 
 function trayMenu(): Electron.Menu {
@@ -1078,7 +1049,7 @@ function trayMenu(): Electron.Menu {
       label: "Launch at Login",
       type: "checkbox",
       checked: settings.launchAtLogin,
-      click: (item) => { try { applySettings({ launchAtLogin: item.checked }); } catch (error) { void dialog.showMessageBox({ type: "error", message: String(error) }); } },
+      click: (item) => { try { applySettingsFromUI({ launchAtLogin: item.checked }); } catch (error) { void dialog.showMessageBox({ type: "error", message: String(error) }); } },
     },
     { label: "Quit SimpleMD", click: () => app.quit() },
   ]);
@@ -1157,15 +1128,13 @@ function registerIpc(): void {
     return context().layout.active?.documentId;
   });
   handle("smd:close-tab", id => { const host = context(); const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId, host)); });
-  handle("smd:relative-path", id => { const doc = ipcSession(id); return doc.path ? relativeGitPath(doc.path) : null; });
   handle("smd:tab-context-menu", async id => {
     const host = context();
     const doc = ipcSession(id);
-    const relative = doc.path ? await relativeGitPath(doc.path) : null;
     const action = (cmd: Command) => () => windowScope.run(host, () => runCommand(cmd, doc.documentId));
     const menu = Menu.buildFromTemplate([
       { label: "Copy Path", enabled: !!doc.path, click: action("copy-path") },
-      { label: "Copy Relative Path", enabled: !!relative, click: action("copy-relative-path") },
+      { label: "Copy Relative Path", enabled: !!doc.path, click: action("copy-relative-path") },
       { label: "Duplicate…", click: action("duplicate-file") },
       { label: "Rename or Move…", enabled: !!doc.path, click: action("rename-move") },
       { label: "Close Other Tabs", click: action("close-other-tabs") },
@@ -1371,9 +1340,9 @@ function registerIpc(): void {
     const generation = host.quicklyGeneration = (host.quicklyGeneration ?? 0) + 1;
     const { QuicklySearch } = await import("./open-quickly.js");
     if (host.win.isDestroyed() || host.quicklyGeneration !== generation) return [];
-    host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null);
+    host.quickly ??= new QuicklySearch(currentSession(host)?.path ?? null, undefined, history.searchFiles(settings.recents));
     const tabs = host.layout.state.tabs.flatMap(id => { const file = registry.get(id)?.path; return file ? [{ path: file, source: "tab" as const }] : []; });
-    const matches = await host.quickly.search(raw, scope, [...tabs, ...history.searchFiles(settings.recents)], matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
+    const matches = await host.quickly.search(raw, scope, tabs, matches => { if (host.quicklyGeneration === generation) sendTo(host, "smd:quickly-results", request, matches); });
     return host.quicklyGeneration === generation ? matches : [];
   });
   on("smd:quickly-close", () => {
@@ -1431,7 +1400,7 @@ function registerIpc(): void {
       menu.popup({ window: host.win, callback: () => resolve(result) });
     });
   });
-  handle("smd:set-settings", patch => applySettings(patch));
+  handle("smd:set-settings", patch => applySettingsFromUI(patch));
   handle("smd:prepare-drag-export", (value, id, revision, format) => {
     const text = ipcText(value);
     const doc = ipcSession(id);
@@ -1586,26 +1555,28 @@ function scheduleCliServer(): void {
 
 async function prepareQuit(): Promise<void> {
   trace("quit-cleanup-start");
-  quitting = true;
-  await cliStartup;
-  await dragExports?.dispose();
-  // Finish with CLI clients before stopping anything the app needs: the drain can time out, and a cancelled quit must leave a working app.
-  cliWaiters.closeAll();
-  await cliServer?.drain();
-  cliServer?.close();
-  await disposeRenderer();
-  trace("quit-worker-stopped");
-  configStore().close();
-  settingsWindow?.close();
-  flushSettings();
-  history.flush();
-  updates?.stop();
-  tray?.destroy();
-  tray = undefined;
-  registry.dispose();
-  trace("quit-resources-closed");
-  for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
-  trace("quit-window-destroyed");
+  await cleanupForQuit({
+    starting: cliStartup,
+    disposeExports: async () => { await dragExports?.dispose(); },
+    closeWaiters: () => cliWaiters.closeAll(),
+    transport: () => cliServer,
+    disposeRenderer,
+    finish() {
+      quitting = true;
+      trace("quit-worker-stopped");
+      configStore().close();
+      settingsWindow?.close();
+      flushSettings();
+      history.flush();
+      updates?.stop();
+      tray?.destroy();
+      tray = undefined;
+      registry.dispose();
+      trace("quit-resources-closed");
+      for (const host of windows.values()) if (!host.win.isDestroyed()) host.win.destroy();
+      trace("quit-window-destroyed");
+    },
+  });
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -1662,7 +1633,7 @@ if (!app.requestSingleInstanceLock()) {
     hardenSession();
     registerIpc();
     settings.systemAccent = systemAccent();
-    settingsWindow = createSettingsWindow({ here, config: configStore(), apply: applySettings, login: actualLoginItem,
+    settingsWindow = createSettingsWindow({ here, config: configStore(), apply: applySettingsFromUI, login: actualLoginItem,
       defaultApp: makeDefaultApp,
       openConfig: async () => {
         const file = configStore().file;
@@ -1705,12 +1676,10 @@ if (!app.requestSingleInstanceLock()) {
     if (app.isPackaged) void context().loaded.then(async () => {
       const { createUpdater } = await import("./updater.js");
       if (quitting) return;
-      updates = createUpdater(() => settings.autoUpdate, () => documents.run(settleAllWindows), releaseQuitWindows, refreshMenus, () => {
+      updates = createUpdater(() => settings.autoUpdate, () => documents.run(settleAllWindows), releaseQuitWindows, refreshMenus, async () => {
         updateQuitting = true;
-        void documents.run(async () => { await prepareQuit(); app.exit(0); }).catch(error => {
-          updateQuitting = false; releaseQuitWindows();
-          void dialog.showMessageBox({ type: "error", message: "Couldn’t restart to install the update.", detail: String(error) });
-        });
+        try { await documents.run(prepareQuit); }
+        catch (error) { updateQuitting = false; throw error; }
       });
       void updates.check();
     });

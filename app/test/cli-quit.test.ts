@@ -6,7 +6,7 @@ import path from "node:path";
 import { DocumentWaiters, FrameReader, frame } from "../src/main/cli-protocol";
 import { startCliServer } from "../src/main/cli-server";
 import { cliRuntime } from "../src/main/cli-runtime";
-import { quitAfterSettle } from "../src/main/lifecycle";
+import { quitAfterSettle, prepareQuit } from "../src/main/lifecycle";
 import { makeDocumentId } from "../src/shared/types";
 
 test.skipIf(process.platform === "win32")("successful quit drains normal closed frames while cancellation keeps clients waiting", async () => {
@@ -41,14 +41,12 @@ test.skipIf(process.platform === "win32")("successful quit drains normal closed 
 });
 
 test("quit cleanup completes waiters and drains transport before closing it", async () => {
-  const source = await fs.promises.readFile(new URL("../src/main/main.ts", import.meta.url), "utf8");
-  const code = source.slice(source.indexOf("async function prepareQuit()"), source.indexOf("\nif (!app.requestSingleInstanceLock()"));
-  const compiled = new Bun.Transpiler({ loader: "ts" }).transformSync(code);
   const events: string[] = [];
-  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "history", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
-    () => {}, undefined, undefined, Promise.resolve(), { drain: async () => events.push("drain"), close: () => events.push("transport close") },
-    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => {} }, () => ({ close() {} }), undefined, () => {}, undefined, async () => {}, new Map(), { flush() {} });
-  await cleanup();
+  await prepareQuit({ starting: Promise.resolve(), disposeExports: async () => {},
+    closeWaiters: () => { events.push("closed frames"); },
+    transport: () => ({ drain: async () => { events.push("drain"); }, close: () => { events.push("transport close"); } }),
+    disposeRenderer: async () => {}, finish() {},
+  });
   expect(events).toEqual(["closed frames", "drain", "transport close"]);
 });
 
@@ -77,13 +75,12 @@ test.skipIf(process.platform === "win32")("quit completion queued before accepta
 });
 
 test("failed asynchronous quit cleanup preserves sessions and leaves CLI clients waiting", async () => {
-  const source = await fs.promises.readFile(new URL("../src/main/main.ts", import.meta.url), "utf8");
-  const code = source.slice(source.indexOf("async function prepareQuit()"), source.indexOf("\nif (!app.requestSingleInstanceLock()"));
-  const compiled = new Bun.Transpiler({ loader: "ts" }).transformSync(code);
   const events: string[] = [];
-  const cleanup = new Function("trace", "updates", "tray", "cliStartup", "cliServer", "cliWaiters", "registry", "configStore", "settingsWindow", "flushSettings", "dragExports", "disposeRenderer", "windows", "history", "let quitting = false;\n" + compiled + "\nreturn prepareQuit;")(
-    () => {}, undefined, undefined, Promise.resolve(), { drain: async () => {}, close: () => events.push("transport close") },
-    { closeAll: () => events.push("closed frames"), clear: () => events.push("clear") }, { dispose: () => events.push("disposed") }, () => ({ close() {} }), undefined, () => {}, { dispose: async () => { throw new Error("cleanup failed"); } }, async () => {}, new Map(), { flush() {} });
-  await expect(cleanup()).rejects.toThrow("cleanup failed");
+  await expect(prepareQuit({ starting: Promise.resolve(),
+    disposeExports: async () => { throw new Error("cleanup failed"); },
+    closeWaiters: () => { events.push("closed frames"); },
+    transport: () => ({ drain: async () => {}, close: () => { events.push("transport close"); } }),
+    disposeRenderer: async () => { events.push("disposed"); }, finish() { events.push("destroyed"); },
+  })).rejects.toThrow("cleanup failed");
   expect(events).toEqual([]);
 });

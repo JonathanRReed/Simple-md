@@ -78,3 +78,45 @@ export async function quitAfterSettle(a: {
     return true;
   } finally { if (!completed) a.cancel?.(); }
 }
+
+interface QuitWindow { quitFrozen?: boolean }
+export function releaseQuitWindows<T extends QuitWindow>(windows: Iterable<T>, busy: (host: T, value: boolean) => void): void {
+  for (const host of windows) { host.quitFrozen = false; busy(host, false); }
+}
+export async function settleAllWindows<T extends QuitWindow>(windows: Iterable<T>, busy: (host: T, value: boolean) => void, settle: (host: T) => Promise<boolean>): Promise<boolean> {
+  const hosts = [...windows];
+  for (const host of hosts) { host.quitFrozen = true; busy(host, true); }
+  for (const host of hosts) if (!await settle(host)) return false;
+  return true;
+}
+export function canOpenWindow(windows: Iterable<QuitWindow>): boolean {
+  return ![...windows].some(host => host.quitFrozen);
+}
+export async function prepareQuit(actions: {
+  starting?: Promise<void>;
+  disposeExports(): Promise<void>;
+  closeWaiters(): void;
+  transport(): { drain(): Promise<void>; close(): void } | undefined;
+  disposeRenderer(): Promise<void>;
+  finish(): void;
+}): Promise<void> {
+  await actions.starting;
+  await actions.disposeExports();
+  actions.closeWaiters();
+  const transport = actions.transport();
+  await transport?.drain();
+  transport?.close();
+  await actions.disposeRenderer();
+  actions.finish();
+}
+
+export function saveChangesPrompt(name: string, preserve: "move" | "share" | false = false) {
+  return {
+    type: "warning" as const,
+    message: preserve ? `Save “${name}” before ${preserve === "move" ? "moving" : "sharing"}?` : `Save changes to “${name}”?`,
+    detail: preserve ? "" : "Your changes will be lost if you don't save them.",
+    buttons: preserve ? ["Save", "Cancel"] : ["Save", "Don't Save", "Cancel"],
+    defaultId: 0,
+    cancelId: preserve ? 1 : 2,
+  };
+}

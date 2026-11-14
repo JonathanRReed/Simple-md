@@ -36,7 +36,7 @@ test("Astro public folder produces root-relative links", async () => {
 test("picker links existing project images and copies outside images", async () => {
   const { root, doc } = await project(true);
   const local = path.join(root, "public", "a (b).png"); await fs.writeFile(local, "original");
-  expect(await insertDocumentImage(doc, local)).toBe("../../public/a%20%28b%29.png");
+  expect(await insertDocumentImage(doc, local)).toBe("/a%20%28b%29.png");
   const other = await fs.mkdtemp(path.join(os.tmpdir(), "simplemd-external-image-")); roots.push(other);
   const external = path.join(other, "outside.png"); await fs.writeFile(external, "external");
   const image = await insertDocumentImage(doc, external, "public/blog");
@@ -55,4 +55,12 @@ test("unsafe folders and symlink escapes cannot create outside files", async () 
   expect(await fs.readdir(outside)).toEqual([]);
   expect(await saveDocumentImage(doc, new Uint8Array([1]), "exe")).toBeNull();
   expect((await fs.readdir(root)).sort()).toEqual([".git", "src"]);
+});
+
+test("bare public saves into the project public root", async () => {
+  const { root, doc } = await project(true);
+  const image = await saveDocumentImage(doc, new Uint8Array([7]), "png", "public");
+  expect(image).toMatch(/^\/My-post-[a-z0-9-]+\.png$/);
+  expect(await fs.readFile(path.join(root, "public", image!))).toEqual(Buffer.from([7]));
+  expect(await fs.stat(path.join(path.dirname(doc), "public")).catch(() => null)).toBeNull();
 });

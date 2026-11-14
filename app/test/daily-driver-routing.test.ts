@@ -1,23 +1,23 @@
 import { expect, test } from "bun:test";
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { linkLocation } from "../src/shared/link-location";
+import { openDocumentLink } from "../src/main/document-links";
+import { makeDocumentId } from "../src/shared/types";
 
-// Exercise the real main-process link function with only its I/O boundary replaced.
-// Importing main.ts itself would start Electron, which this test must never do.
-const main = await Bun.file(new URL('../src/main/main.ts', import.meta.url)).text();
-const from = main.indexOf('async function openLink(');
-const to = main.indexOf('\nasync function togglePanes', from);
-const source = main.slice(from, to).replace(/async function openLink\([^\n]+\{/, 'async function openLink(href, intent = "edit", newTab = false, current = currentSession(), host = context()) {')
-  .replace('    const { astroRouteFile } = await import("./document-urls.js");', '');
-const factory = new Function('path', 'shell', 'currentSession', 'context', 'resolveAuthorUrl', 'urlContext', 'astroRouteFile', 'containedLocalFile', 'fileURLToPath', 'isMarkdown', 'openFile', 'linkLocation', `${source}; return openLink;`);
-for (const route of [false, true]) for (const newTab of [false, true]) test(`${route ? 'Astro' : 'file'} links preserve ${newTab ? 'new-tab' : 'in-place'} intent and fragment`, async () => {
+for (const route of [false, true]) for (const newTab of [false, true]) test(`${route ? "Astro" : "file"} links preserve ${newTab ? "new-tab" : "in-place"} intent and fragment`, async () => {
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "smd-links-")));
   const calls: unknown[][] = [];
-  const destination = path.resolve('/repo/destination.md'), routePath = path.resolve('/repo/prompts.mdx');
-  const doc = { path: path.resolve('/repo/post.mdx'), documentId: 7 };
-  const host = {};
-  const open = factory(path, {}, () => doc, () => host, () => pathToFileURL(destination).href + '#install', () => ({}), async () => route ? routePath : null,
-    async () => destination, fileURLToPath, () => true, async (...args: unknown[]) => { calls.push(args); return true; }, linkLocation);
-  expect(await open(route ? '/blog/prompts/#install' : './destination.md#install', 'read', newTab)).toBe(true);
-  expect(calls).toEqual([[route ? routePath : destination, 'read', !newTab, 7, host, { kind: 'heading', heading: 'install' }]]);
+  try {
+    await fs.mkdir(path.join(root, "src/content/blog"), { recursive: true });
+    await fs.mkdir(path.join(root, "public"));
+    await fs.writeFile(path.join(root, "astro.config.mjs"), "");
+    const destination = path.join(root, "destination.md"), routePath = path.join(root, "src/content/blog/prompts.mdx");
+    await fs.writeFile(destination, "# install"); await fs.writeFile(routePath, "# install");
+    const doc = { path: path.join(root, "post.mdx"), documentId: makeDocumentId(7) };
+    expect(await openDocumentLink(route ? "/blog/prompts/#install" : "./destination.md#install", "read", newTab, doc, {
+      external: async () => {}, open: async (...args) => { calls.push(args); return true; },
+    })).toBe(true);
+    expect(calls).toEqual([[route ? routePath : destination, "read", !newTab, doc.documentId, { kind: "heading", heading: "install" }]]);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });

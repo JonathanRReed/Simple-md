@@ -1,7 +1,7 @@
 import { perfMark } from "./perf.js";
 import fs from "node:fs";
 import net from "node:net";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { CLI_VERSION, STDIN_CAP, FrameReader, frame, parseCliRequest, type CliRequest } from "./cli-protocol.js";
 import { prepareCliRuntime } from "./cli-runtime.js";
@@ -9,9 +9,13 @@ import { prepareCliRuntime } from "./cli-runtime.js";
 perfMark("cli-module-loaded");
 
 export type CliDispatch = (request: CliRequest, stdin: string, closed: () => void, signal: AbortSignal) => Promise<(() => void) | undefined>;
-export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }): Promise<{ close(): void; drain(): Promise<void> }> {
+export async function startCliServer(options: { binary: string; profile?: string; dispatch: CliDispatch }, io = {
+  platform: process.platform,
+  runtime: prepareCliRuntime,
+  broker: (binary: string, profile: string | undefined, directory: string): Pick<ChildProcessWithoutNullStreams, "stdin" | "stdout" | "stderr" | "kill" | "once"> => spawn(binary, ["--ipc-broker"], { env: profile ? { ...process.env, SMD_CLI_RUNTIME: directory } : process.env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }),
+}): Promise<{ close(): void; drain(): Promise<void> }> {
   perfMark("cli-runtime-start");
-  const runtime = await prepareCliRuntime(options.binary, options.profile);
+  const runtime = await io.runtime(options.binary, options.profile);
   perfMark("cli-runtime-ready");
   let stopTransport = () => {};
   try {
@@ -41,8 +45,8 @@ export async function startCliServer(options: { binary: string; profile?: string
         }
       } };
     };
-    if (process.platform === "win32") {
-      const broker = spawn(options.binary, ["--ipc-broker"], { env: options.profile ? { ...process.env, SMD_CLI_RUNTIME: runtime.directory } : process.env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    if (io.platform === "win32") {
+      const broker = io.broker(options.binary, options.profile, runtime.directory);
       stopTransport = () => { broker.kill(); };
       const clients = new Map<number, ReturnType<typeof handle>>();
       let drained = () => {};

@@ -97,7 +97,6 @@ export interface SaveResult {
   moved?: boolean;
   unavailableReason?: string;
   metadataCopyFailed?: boolean;
-  showMetadataWarning?: boolean;
   revisionId: RevisionId;
   documentId: DocumentId;
   path: string;

@@ -35,7 +35,7 @@ import {
 
 const metadataNotices = new Set<DocumentId>();
 export function noticeSaveMetadata(result: SaveResult): void {
-  if (!result.metadataCopyFailed || result.showMetadataWarning === false || metadataNotices.has(result.documentId)) return;
+  if (!result.metadataCopyFailed || metadataNotices.has(result.documentId)) return;
   metadataNotices.add(result.documentId);
   toast("Saved, but tags or extended attributes could not be preserved.");
 }
@@ -989,7 +989,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   function onSaved(result: SaveResult): void {
     if (result.documentId !== pane.documentId) return;
-    noticeSaveMetadata(result);
     const changedPath = doc.meta.path !== result.path;
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
@@ -1361,9 +1360,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       return;
     }
     switch (cmd) {
-      case "copy-path": case "copy-relative-path": case "duplicate-file": case "rename-move":
-      case "reopen-closed-tab": case "close-other-tabs": case "close-tabs-below": case "default-markdown-app": case "share":
-        closeOverlays(); simplemd.command(cmd, pane.documentId); return;
       case "toggle-task":
         if (pane.view === "edit") { if (!transitioning && !isReadOnly()) pane.editor?.block("toggle-task"); }
         else {
@@ -1663,7 +1659,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       const save = async () => {
         const result = await simplemd.save(text, false, id);
         if (!result) return;
-        noticeSaveMetadata(result);
         retained.savedText = result.text;
         retained.unavailableReason = result.unavailableReason;
         retained.dirty = !!result.unavailableReason || retained.readText !== result.text;

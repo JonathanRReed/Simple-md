@@ -179,3 +179,10 @@ test("Share and Move settle current bytes and stop when saving is cancelled or d
   })).toBe(true);
   expect(saved).toBe("current edits\r\n");
 });
+
+test("Share and Move name the action and offer only Save and Cancel", async () => {
+  const { saveChangesPrompt } = await import("../src/main/lifecycle");
+  expect(saveChangesPrompt("note.md", "move")).toMatchObject({ message: "Save “note.md” before moving?", buttons: ["Save", "Cancel"], cancelId: 1 });
+  expect(saveChangesPrompt("note.md", "share")).toMatchObject({ message: "Save “note.md” before sharing?", buttons: ["Save", "Cancel"], cancelId: 1 });
+  expect(saveChangesPrompt("note.md").buttons).toEqual(["Save", "Don't Save", "Cancel"]);
+});

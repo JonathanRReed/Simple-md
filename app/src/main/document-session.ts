@@ -24,7 +24,6 @@ export class DocumentSession {
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private watchGeneration = 0;
   private disposed = false;
-  private metadataWarningSent = false;
   private unavailableSequence = 0;
   private onDiskChanged: ((change: DiskChange) => void) | undefined;
 
@@ -155,7 +154,7 @@ export class DocumentSession {
           else this.unavailable(error);
           return null;
         });
-        if (!external) return null;
+        if (!external) { if (recreate) throw err; return null; }
         if (!(err instanceof FileConflictError) && !racing(err)) throw err;
         this.conflict = true;
         this.onDiskChanged?.({ kind: "text", ...external });
@@ -174,15 +173,14 @@ export class DocumentSession {
       this.conflict = !!this.unavailableReason;
       this.dirty = !!this.unavailableReason || this.text !== text;
       if (moved && this.onDiskChanged) this.watch(this.onDiskChanged);
-      const showMetadataWarning = metadataCopyFailed && !this.metadataWarningSent;
-      if (metadataCopyFailed) this.metadataWarningSent = true;
-      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, showMetadataWarning, unavailableReason: this.unavailableReason };
+      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, unavailableReason: this.unavailableReason };
     });
   }
 
-  move(target: string, expected: Destination): Promise<SaveResult | null> {
+  move(target: string, expected: Destination): Promise<SaveResult> {
     return this.saves.run(async () => {
-      if (!this.path || this.dirty || this.conflict || this.unavailableReason) return null;
+      if (!this.path) throw new Error("Save the file before moving it.");
+      if (this.dirty || this.conflict || this.unavailableReason) throw new Error("The document changed. Save it and try again.");
       const previous = this.path;
       this.stopWatching();
       try {
