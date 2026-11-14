@@ -46,6 +46,11 @@ export async function runBatch(input: { html: string; css: string }) {
   editor.table("align-right");
   assert(editor.getText() === "A | B\n--- | ---:\none | two", "Column command used the selection start instead of the cursor");
   editor.undo(); assert(editor.getText() === selectedTable, "Column alignment was not one undo step");
+  for (const [anchor, head, expected] of [[0, 14, "Selected words[^1]."], [14, 0, "[^1]Selected words."]] satisfies [number, number, string][]) {
+    editor.setText("Selected words."); editor.focus(); view.dispatch({ selection: { anchor, head } });
+    editor.block("footnote"); assert(editor.getText().startsWith(expected), "Footnote did not use the active cursor");
+    editor.undo(); assert(editor.getText() === "Selected words.", "Footnote was not one undo step");
+  }
   editor.setText(text);
   editor.setEditable(false); editor.block("heading-2"); editor.table("insert-table");
   assert(editor.getText() === text, "A writing command changed a read-only file");

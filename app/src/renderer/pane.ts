@@ -713,6 +713,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       pane.editor = createEditor(editorHost, {
         text: doc.readText,
         filename: doc.meta.path ?? doc.meta.name,
+        isMdx,
         snapshot: retainedEditor,
         mdx: doc.mdx,
         mode: pane.mode,
@@ -1305,7 +1306,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       await showEdit();
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     }
-    if (id !== pane.documentId || disposed || transitioning) return;
+    if (id !== pane.documentId || disposed || transitioning || pane.view !== "edit" || isReadOnly()) return;
     if (command === "find-replace") pane.editor?.replace(); else pane.editor?.goToLine();
   }
   async function pickImage(): Promise<string | null> {
