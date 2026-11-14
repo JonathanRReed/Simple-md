@@ -1659,7 +1659,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       const save = async () => {
         const result = await simplemd.save(text, false, id);
         if (!result) return;
-            retained.savedText = result.text;
+        retained.savedText = result.text;
         retained.unavailableReason = result.unavailableReason;
         retained.dirty = !!result.unavailableReason || retained.readText !== result.text;
         options.changed();
