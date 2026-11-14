@@ -1555,7 +1555,9 @@ if (!app.requestSingleInstanceLock()) {
     const url = argv.find(arg => arg.startsWith("simplemd:"));
     if (url) { if (cliReady) void openUrl(url); else pendingUrl = url; }
     else if (argv.includes("--new-window")) void newDocumentWindow();
-    else pendingOpens.add(fileArgs(argv, cwd));
+    const files = fileArgs(argv, cwd);
+    pendingOpens.add(files);
+    if (!url && !argv.includes("--new-window") && !files.length && cliReady) reveal();
   });
   app.on("open-file", (e, file) => {
     e.preventDefault();
