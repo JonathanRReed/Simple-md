@@ -72,6 +72,10 @@ export function cellIndexAt(line: string, offset: number): number {
 
 /** Character offset of a cell's content, preserving its existing padding. */
 function cellOffset(line: string, col: number): number {
+  if (!/^\s*\|/.test(line)) {
+    if (col === 0) return line.length - line.trimStart().length;
+    col--;
+  }
   let cell = -1;
   for (let i = 0; i < line.length; i++) {
     if (line[i] !== "|" || !isPipe(line, i)) continue;
@@ -86,6 +90,7 @@ function cellOffset(line: string, col: number): number {
 /** Moves the cursor one cell forward (dir 1) or back (dir -1); false when not in a table. */
 export function moveCell(view: EditorView, dir: 1 | -1): boolean {
   const { state } = view;
+  if (state.readOnly) return false;
   const pos = state.selection.main.head;
   const cursorLine = state.doc.lineAt(pos);
   const lines: string[] = [];
@@ -144,3 +149,10 @@ export const tableKeymap = Prec.high(
     { key: "Shift-Tab", run: (v) => moveCell(v, -1) },
   ]),
 );
+
+/** Rendered rows omit the delimiter row; map a clicked cell back to its source. */
+export function cellSourceOffset(source: string, row: number, column: number): number {
+  const lines = source.split("\n");
+  const index = Math.min(row === 0 ? 0 : row + 1, lines.length - 1);
+  return lines.slice(0, index).reduce((offset, line) => offset + line.length + 1, 0) + cellOffset(lines[index]!, column);
+}

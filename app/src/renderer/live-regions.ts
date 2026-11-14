@@ -1,3 +1,4 @@
+import { displayMathAt } from "../shared/github-math.js";
 import { ensureSyntaxTree } from "@codemirror/language";
 import type { ChangeDesc, EditorState, Transaction, Text } from "@codemirror/state";
 import type { Tree } from "@lezer/common";
@@ -50,6 +51,24 @@ export function imageHtmlRegions(state: EditorState, tree: Tree): Region[] {
     return false;
   } });
   htmlRegions.set(tree, { doc: state.doc, ranges });
+  return ranges;
+}
+
+const codeHtml = new WeakMap<Tree, { doc: Text; ranges: Region[] }>();
+export function codeHtmlRegions(state: EditorState, tree: Tree): Region[] {
+  const cached = codeHtml.get(tree);
+  if (cached?.doc === state.doc) return cached.ranges;
+  const ranges: Region[] = [];
+  let start: number | undefined;
+  tree.iterate({ enter(node) {
+    if (node.name !== "HTMLTag") return;
+    const tag = state.sliceDoc(node.from, node.to);
+    if (/^<(?:code|pre)\b/i.test(tag) && start === undefined) start = node.from;
+    else if (/^<\/(?:code|pre)\s*>/i.test(tag) && start !== undefined) { ranges.push({ from: start, to: node.to }); start = undefined; }
+    return false;
+  } });
+  if (start !== undefined) ranges.push({ from: start, to: state.doc.length });
+  codeHtml.set(tree, { doc: state.doc, ranges });
   return ranges;
 }
 
@@ -136,14 +155,11 @@ export function displayMath(state: EditorState, tree: Tree, lines: readonly Math
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (!line.open || blocked(line.from, line.to)) continue;
-    let end = i;
-    if (!line.single) {
-      end++;
-      while (end < lines.length && !lines[end]!.close) end++;
-      if (end === lines.length) continue;
-    }
-    const to = lines[end]!.to;
-    i = end;
+    const first = state.doc.lineAt(line.from).number;
+    const match = displayMathAt(first, state.doc.lines + 1, n => state.doc.line(n).text);
+    if (!match) continue;
+    const to = state.doc.line(match.end).to;
+    while (i + 1 < lines.length && lines[i + 1]!.from <= to) i++;
     if (!blocked(line.from, to)) result.push({ from: line.from, to });
   }
   return result;
