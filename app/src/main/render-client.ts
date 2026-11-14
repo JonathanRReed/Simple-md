@@ -1,3 +1,5 @@
+import { isProseCounts, type ProseCounts } from "../shared/prose-count-result.js";
+import type { SourceSelection } from "../renderer/source-edit.js";
 import { isBlockChanges, type BlockChanges } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import { cacheBudget } from "./cache-budget.js";
@@ -25,6 +27,7 @@ function isResponse(value: unknown): value is RenderResponse {
   if (value.kind === "warmup") return true;
   if (value.kind === "error") return "message" in value && typeof value.message === "string";
   if (!("value" in value)) return false;
+  if (value.kind === "counts") return isProseCounts(value.value);
   if (value.kind === "changes") return isBlockChanges(value.value);
   if (value.kind === "blocks-delta") return isBlockDelta(value.value);
   if (value.kind === "stream-next") return isBlockUpdate(value.value);
@@ -44,6 +47,7 @@ export class RenderClient {
   private active: Pending | undefined;
   private foreground: Pending[] = [];
   private speculative: Pending | undefined;
+  private counts: Pending | undefined;
   private timer: NodeJS.Timeout | undefined;
   private disposed = false;
   private termination: Promise<void> = Promise.resolve();
@@ -87,6 +91,13 @@ export class RenderClient {
     return response.value;
   }
 
+  async proseCounts(text: string, selection: SourceSelection | undefined, mdx: boolean): Promise<ProseCounts | null> {
+    const response = await this.request({ kind: "counts", text, selection, mdx });
+    if (response === null) return null;
+    if (response.kind !== "counts") throw new Error("Invalid prose count response");
+    return response.value;
+  }
+
   async changes(before: string, text: string, filePath: string | null, baselineKey = ""): Promise<BlockChanges> {
     const response = await this.request({ kind: "changes", before, text, filePath, baselineKey });
     if (response?.kind !== "changes") throw new Error("Invalid changes response");
@@ -116,7 +127,10 @@ export class RenderClient {
     if (this.disposed) return Promise.reject(new Error("Renderer disposed"));
     return new Promise((resolve, reject) => {
       const pending: Pending = { request: { ...request, id: ++this.sequence }, resolve, reject };
-      if (speculative) {
+      if (request.kind === "counts") {
+        this.counts?.resolve(null);
+        this.counts = pending;
+      } else if (speculative) {
         this.speculative?.resolve(null);
         this.speculative = pending;
       } else {
@@ -129,11 +143,12 @@ export class RenderClient {
 
   private dispatch(): void {
     if (this.active) return;
-    const pending = this.foreground.shift() ?? this.speculative;
+    const pending = this.foreground.shift() ?? this.speculative ?? this.counts;
     if (!pending) {
       this.worker?.unref();
       return;
     }
+    if (pending === this.counts) this.counts = undefined;
     if (pending === this.speculative) this.speculative = undefined;
     this.active = pending;
     try {
@@ -198,6 +213,8 @@ export class RenderClient {
     this.active = undefined;
     for (const pending of this.foreground) pending.reject(error);
     this.foreground = [];
+    this.counts?.reject(error);
+    this.counts = undefined;
     this.speculative?.reject(error);
     this.speculative = undefined;
     if (worker) {
@@ -220,3 +237,5 @@ export const startBlocks = (text: string, filePath: string | null) => client.sta
 export const nextBlocks = (stream: number) => client.nextBlocks(stream);
 
 export const blockChanges = (before: string, text: string, filePath: string | null, baselineKey: string) => client.changes(before, text, filePath, baselineKey);
+
+export const proseCounts = (text: string, selection: SourceSelection | undefined, mdx: boolean) => client.proseCounts(text, selection, mdx);
