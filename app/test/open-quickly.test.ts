@@ -152,7 +152,7 @@ test("repo queries ignore the absolute parent path for repo files, tabs and rece
   const instant: QuicklyFile[] = [{ path: file, source: "tab" }];
   expect(await search.search(path.basename(root), "repo", instant)).toEqual([]);
   expect((await search.search("docs/active", "repo", instant)).map(file => file.path)).toEqual([file]);
-  expect((await search.search("active", "repo", instant))[0]?.parent).toBe(path.join(root, "docs"));
+  expect((await search.search("active", "repo", instant))[0]?.parent).toBe("docs");
   search.close();
 }));
 
