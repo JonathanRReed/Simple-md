@@ -114,7 +114,7 @@ export async function runBatch(input: { html: string; css: string }) {
   await until(() => document.activeElement === root.querySelector('[name="replace"]'), "Replace did not switch from Read and focus its panel");
   closeOverlays();
   pane.command("go-to-line");
-  await until(() => !!root.querySelector(".cm-gotoLine"), "Go to Line panel did not open");
+  await until(() => !!root.querySelector(".cm-goto-line"), "Go to Line panel did not open");
 
   pane.suspend();
   const hostile = 'Hello **bold**\n\n<img src="https://example.test/a.png" onerror="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)">Link</a>';
