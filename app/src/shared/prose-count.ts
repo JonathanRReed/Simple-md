@@ -1,3 +1,4 @@
+import { createMarkdownParser } from "./markdown-parser.js";
 import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import { parser, GFM } from "@lezer/markdown";
 import { findMdxRanges } from "./mdx-ranges.js";
@@ -7,6 +8,7 @@ import { sourceLines, type SourceSelection } from "../renderer/source-edit.js";
 export type { ProseCount, ProseCounts } from "./prose-count-result.js";
 import type { ProseCount, ProseCounts } from "./prose-count-result.js";
 const markdown = parser.configure(GFM);
+const footnotes = createMarkdownParser();
 const excluded = new Set(["FencedCode", "CodeBlock", "HTMLTag", "LinkMark", "URL", "LinkTitle", "LinkLabel", "EmphasisMark", "CodeMark", "HeaderMark", "QuoteMark", "ListMark", "TaskMarker", "TableDelimiter", "TableMark", "HorizontalRule", "LinkReference", "Escape"]);
 const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
@@ -29,8 +31,46 @@ export function countProse(source: string, selection?: SourceSelection, mdx = fa
   }
   // Mask imports/JSX before Markdown parsing so JSX children remain Markdown prose.
   const chars = source.split("");
-  for (const range of ranges) for (let i = range.from; i < range.to; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = i === range.from || source[i - 1] === "\n" || source[i - 1] === "\r" ? "x" : " ";
-  const masked = chars.join("");
+  const mask = (range: { from: number; to: number }) => {
+    for (let i = range.from; i < range.to; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = i === range.from || source[i - 1] === "\n" || source[i - 1] === "\r" ? "x" : " ";
+  };
+  ranges.forEach(mask);
+  let masked = chars.join("");
+  if (source.includes("[^")) {
+    const env: { footnotes?: { refs?: Record<string, unknown> } } = {};
+    const tokens = footnotes.parse(masked, env);
+    let note = false;
+    // The renderer parser owns footnote boundaries and continuation indentation.
+    for (const token of tokens) {
+      if (token.type === "footnote_open") note = true;
+      if (token.type === "footnote_close") note = false;
+      if (!note || token.type !== "inline" || !token.map) continue;
+      const content = token.content.split("\n");
+      for (let i = 0; i < content.length; i++) {
+        const line = lines[token.map[0] + i], piece = content[i]!;
+        if (!line || !piece) continue;
+        const at = line.text.indexOf(piece);
+        if (at <= 0) continue;
+        const range = { from: line.from, to: line.from + at };
+        ranges.push(range); mask(range);
+      }
+    }
+    const literal = ranges.map(range => ({ from: range.from, to: range.to }));
+    markdown.parse(chars.join("")).iterate({ enter(node) {
+      if (["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "HTMLTag", "Escape"].includes(node.name)) { literal.push({ from: node.from, to: node.to }); return false; }
+    } });
+    literal.sort((a, b) => a.from - b.from);
+    let index = 0, end = 0;
+    for (const match of source.matchAll(/\[\^([^\]\s]+)\]/g)) {
+      while (index < literal.length && literal[index]!.from <= match.index) end = Math.max(end, literal[index++]!.to);
+      if (match.index < end || !Object.hasOwn(env.footnotes?.refs ?? {}, ":" + match[1])) continue;
+      const line = lines.find(line => match.index >= line.from && match.index <= line.to)!;
+      const definition = /^[ \t>]*$/.test(source.slice(line.from, match.index)) ? /^:[ \t]*/.exec(source.slice(match.index + match[0].length))?.[0].length ?? 0 : 0;
+      const range = { from: match.index, to: match.index + match[0].length + definition };
+      ranges.push(range); mask(range);
+    }
+    masked = chars.join("");
+  }
   markdown.parse(masked).iterate({ enter(node) {
     if (node.name === "HTMLBlock") {
       const fragment = parseFragment(masked.slice(node.from, node.to), { sourceCodeLocationInfo: true });

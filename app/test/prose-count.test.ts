@@ -52,3 +52,9 @@ test("rendered selection counts literal prose without reparsing it as Markdown",
 test("reference-link labels are destinations rather than prose", () => {
   expect(countProse("[Hello][site] world\n\n[site]: https://example.test").document).toEqual({ words: 2, characters: 11 });
 });
+
+test("footnote prose counts without reference labels or definition markers", () => {
+  const text = "Hello[^1].\n\n[^1]: First **note**.\n\n    Second paragraph.";
+  expect(countProse(text).document).toEqual({ words: 5, characters: 36 });
+  expect(countProse(text, { from: 5, to: 9 }).selection).toEqual({ words: 0, characters: 0 });
+});
