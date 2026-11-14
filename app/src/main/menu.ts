@@ -17,7 +17,6 @@ export interface MenuActions {
   share(): void;
   hasDocumentPath(): boolean;
   tabPinned(): boolean;
-  relativePath(): boolean;
   canReopen(): boolean;
   quit(): void;
   installCli(): void;
@@ -90,7 +89,7 @@ export function buildMenu(a: MenuActions): void {
         cmd("Save", "save"),
         cmd("Save As…", "save-as"),
         { ...cmd("Copy Path", "copy-path"), enabled: a.hasDocumentPath() },
-        { ...cmd("Copy Relative Path", "copy-relative-path"), enabled: a.relativePath() },
+        { ...cmd("Copy Relative Path", "copy-relative-path"), enabled: a.hasDocumentPath() },
         cmd("Duplicate…", "duplicate-file"),
         { ...cmd("Rename or Move…", "rename-move"), enabled: a.hasDocumentPath() },
         { ...cmd("Reopen Closed Tab", "reopen-closed-tab"), enabled: a.canReopen() },

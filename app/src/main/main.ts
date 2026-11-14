@@ -4,7 +4,7 @@ import { loginEnabled, linuxLoginFile, readLinuxLogin } from "./login-registrati
 import { fileArgs, OpenRequests } from "./open-requests.js";
 import { ClosedTabs, tabsToClose, closeTabs } from "../shared/closed-tabs.js";
 import { OpenHistory } from "./open-history.js";
-import { saveSuggestion, duplicateSuggestion, duplicateDocumentFile, relativeGitPath, destinationState, hasRelativeResources } from "./file-actions.js";
+import { saveSuggestion, duplicateSuggestion, duplicateDocumentFile, copyRelativePath, destinationState, hasRelativeResources } from "./file-actions.js";
 import { commandDefinitions } from "../shared/commands.js";
 import { insertDocumentImage, IMAGE_EXTENSIONS } from "./image-store.js";
 import { linkLocation } from "../shared/link-location.js";
@@ -101,7 +101,6 @@ const registry = new DocumentRegistry(id => cliWaiters.closed(id));
 const documents = new DocumentQueue();
 const closedTabs = new ClosedTabs();
 const history = new OpenHistory(path.join(app.getPath("userData"), "opened-files.json"));
-const relativePaths = new Map<string, string | null>();
 interface WindowContext {
   quitFrozen?: boolean;
   win: BrowserWindow;
@@ -211,7 +210,7 @@ function refreshMenus(): void {
   const activeDoc = registry.get(host?.mainPane.documentId);
   const gitStatus = activeDoc?.gitStatus ?? { available: false as const, reason: "Open a file first." };
   const next = menuState(settings, mode, !!activeDoc?.path, gitStatus, !!host && !!activeDoc && host.layout.isPinned(activeDoc.documentId));
-  next.application += JSON.stringify([activeDoc?.path ? relativePaths.get(activeDoc.path) : null, closedTabs.size, updates?.menu()]);
+  next.application += JSON.stringify([closedTabs.size, updates?.menu()]);
   if (next.application !== lastMenuState?.application) buildMenu({
     settings: () => settings,
     mode: () => mode,
@@ -227,7 +226,6 @@ function refreshMenus(): void {
     },
     share: () => runCommand("share"),
     hasDocumentPath: () => !!activeDoc?.path,
-    relativePath: () => !!activeDoc?.path && !!relativePaths.get(activeDoc.path),
     canReopen: () => closedTabs.size > 0,
     tabPinned: () => !!host && !!activeDoc && host.layout.isPinned(activeDoc.documentId),
     installCli: () => void installCli(),
@@ -248,7 +246,6 @@ function refreshMenus(): void {
 
 function addRecent(file: string): void {
   history.opened(file);
-  if (!relativePaths.has(file)) void relativeGitPath(file).then(relative => { relativePaths.set(file, relative); refreshMenus(); });
   if (process.platform !== "linux") recentOS.addRecentDocument(file);
   applySettings({ recents: [file, ...settings.recents.filter((p) => p !== file)].slice(0, 12) });
 }
@@ -796,7 +793,6 @@ async function renameMove(doc: DocumentSession): Promise<void> {
     history.moved(previous, target);
     moveRecentDocument(recentOS, process.platform, previous, target);
     applySettings({ recents: settings.recents.map(file => file === previous ? target : file), pinnedPaths: settings.pinnedPaths.map(file => file === previous ? target : file) });
-    void relativeGitPath(target).then(relative => { relativePaths.set(target, relative); refreshMenus(); });
     send("smd:saved", moved); syncLayout(); updateTitle();
     if (path.dirname(previous) !== path.dirname(target) && hasRelativeResources(doc.text)) {
       await dialog.showMessageBox(context().win, { type: "info", message: "Relative links and images may need updating in this folder." });
@@ -896,7 +892,7 @@ function runCommand(cmd: Command, target = context().layout.active?.documentId):
   const current = target === undefined ? undefined : registry.get(target);
   switch (cmd) {
     case "copy-path": if (current?.path) clipboard.writeText(current.path); return;
-    case "copy-relative-path": if (current?.path) void relativeGitPath(current.path).then(relative => { if (relative) clipboard.writeText(relative); }); return;
+    case "copy-relative-path": if (current?.path) void copyRelativePath(current.path, value => clipboard.writeText(value), message => { void dialog.showMessageBox({ type: "info", message }); }); return;
     case "duplicate-file": if (current) void documents.run(() => transition(() => duplicateFile(current))); return;
     case "rename-move": if (current?.path) void documents.run(() => transition(() => renameMove(current))); return;
     case "share": if (current) void documents.run(() => transition(async () => {
@@ -1165,15 +1161,13 @@ function registerIpc(): void {
     return context().layout.active?.documentId;
   });
   handle("smd:close-tab", id => { const host = context(); const doc = ipcSession(id); return documents.run(() => closeTab(doc.documentId, host)); });
-  handle("smd:relative-path", id => { const doc = ipcSession(id); return doc.path ? relativeGitPath(doc.path) : null; });
   handle("smd:tab-context-menu", async id => {
     const host = context();
     const doc = ipcSession(id);
-    const relative = doc.path ? await relativeGitPath(doc.path) : null;
     const action = (cmd: Command) => () => windowScope.run(host, () => runCommand(cmd, doc.documentId));
     const menu = Menu.buildFromTemplate([
       { label: "Copy Path", enabled: !!doc.path, click: action("copy-path") },
-      { label: "Copy Relative Path", enabled: !!relative, click: action("copy-relative-path") },
+      { label: "Copy Relative Path", enabled: !!doc.path, click: action("copy-relative-path") },
       { label: "Duplicate…", click: action("duplicate-file") },
       { label: "Rename or Move…", enabled: !!doc.path, click: action("rename-move") },
       { label: "Close Other Tabs", click: action("close-other-tabs") },

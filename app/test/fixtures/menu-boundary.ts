@@ -17,7 +17,7 @@ const { buildMenu } = await import('../../src/main/menu');
 test('Edit menu routes Find Next and Previous through app commands on every platform', () => {
   const commands: string[] = [];
   buildMenu({ settings: () => DEFAULT_SETTINGS, mode: () => 'read', changesStatus: () => ({ available: false, reason: '' }), command: command => commands.push(command),
-    openDialog() {}, openPath() {}, patch() {}, clearRecents() {}, share() {}, hasDocumentPath: () => false, relativePath: () => false, canReopen: () => false, updateMenu: () => updateMenu({ kind: "idle" }, false), tabPinned: () => false, quit() {}, installCli() {}, checkUpdates() {}, installUpdate() {},
+    openDialog() {}, openPath() {}, patch() {}, clearRecents() {}, share() {}, hasDocumentPath: () => false, canReopen: () => false, updateMenu: () => updateMenu({ kind: "idle" }, false), tabPinned: () => false, quit() {}, installCli() {}, checkUpdates() {}, installUpdate() {},
   } satisfies MenuActions);
   const edit = template.find(item => item.label === 'Edit')!.submenu;
   expect(Array.isArray(edit)).toBe(true);
@@ -33,12 +33,12 @@ test("file, recovery, default-app and update menu items follow document and syst
   try {
     for (const system of ["darwin", "win32", "linux"] as const) {
       Object.defineProperty(process, "platform", { value: system });
-      let saved = false, relative = false, closed = false, downloaded = false;
+      let saved = false, closed = false, downloaded = false;
       let state: UpdateState = { kind: "idle" };
       const commands: string[] = [];
       const actions: MenuActions = {
         settings: () => DEFAULT_SETTINGS, mode: () => "read", changesStatus: () => ({ available: false, reason: "" }), command: command => { commands.push(command); },
-        openDialog() {}, openPath() {}, patch() {}, clearRecents() {}, share() {}, hasDocumentPath: () => saved, relativePath: () => relative, canReopen: () => closed,
+        openDialog() {}, openPath() {}, patch() {}, clearRecents() {}, share() {}, hasDocumentPath: () => saved, canReopen: () => closed,
         tabPinned: () => false, quit() {}, installCli() {}, checkUpdates() {}, installUpdate() {}, updateMenu: () => updateMenu(state, downloaded),
       };
       const entries = (label: string) => {
@@ -55,7 +55,7 @@ test("file, recovery, default-app and update menu items follow document and syst
       expect(Array.isArray(recent) && recent.some(item => item.label === "Clear Menu")).toBe(true);
       const appMenu = system === "darwin" ? "SimpleMD" : "Help";
       expect(entries(appMenu).find(item => item.label === "Restart to Install Update…")?.enabled).toBe(false);
-      saved = relative = closed = downloaded = true; state = { kind: "ready" }; buildMenu(actions);
+      saved = closed = downloaded = true; state = { kind: "ready" }; buildMenu(actions);
       expect(entries("File").find(item => item.label === "Copy Path")?.enabled).toBe(true);
       expect(entries("File").find(item => item.label === "Copy Relative Path")?.enabled).toBe(true);
       const reopen = entries("File").find(item => item.label === "Reopen Closed Tab")!;

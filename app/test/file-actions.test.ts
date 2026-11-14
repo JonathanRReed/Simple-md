@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { destinationState, duplicateSuggestion, duplicateDocumentFile, hasRelativeResources, moveDocumentFile, relativeGitPath, saveSuggestion } from "../src/main/file-actions";
+import { destinationState, duplicateSuggestion, duplicateDocumentFile, copyRelativePath, hasRelativeResources, moveDocumentFile, relativeGitPath, saveSuggestion } from "../src/main/file-actions";
 import { renameNoReplace } from "../src/main/file-metadata";
 import { DocumentRegistry } from "../src/main/document-registry";
 import { DocumentWaiters } from "../src/main/cli-protocol";
@@ -140,4 +140,15 @@ test.skipIf(process.platform === "linux")("case-only renames work on a case-inse
   io.rename = async (a, b) => { if (b === source) throw new Error("rename failed"); await renameNoReplace(a, b); };
   await expect(moveDocumentFile(target, source, exact, await destinationState(source), io)).rejects.toThrow("rename failed");
   expect(await fs.readdir(dir)).toEqual(["Note.md"]); expect(await fs.readFile(target, "utf8")).toBe(exact);
+});
+
+test("Copy Relative Path reports a non-repository and copies only when clicked", async () => {
+  const dir = await directory(), file = path.join(dir, "note.md");
+  await fs.writeFile(file, "exact");
+  const copied: string[] = [], notices: string[] = [];
+  await copyRelativePath(file, value => copied.push(value), message => notices.push(message));
+  expect(copied).toEqual([]); expect(notices).toEqual(["This file is not in a Git repository."]);
+  execFileSync("git", ["init", "-q", dir]);
+  await copyRelativePath(file, value => copied.push(value), message => notices.push(message));
+  expect(copied).toEqual(["note.md"]); expect(notices).toHaveLength(1);
 });

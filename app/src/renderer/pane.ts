@@ -1361,9 +1361,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       return;
     }
     switch (cmd) {
-      case "copy-path": case "copy-relative-path": case "duplicate-file": case "rename-move":
-      case "reopen-closed-tab": case "close-other-tabs": case "close-tabs-below": case "default-markdown-app": case "share":
-        closeOverlays(); simplemd.command(cmd, pane.documentId); return;
       case "toggle-task":
         if (pane.view === "edit") { if (!transitioning && !isReadOnly()) pane.editor?.block("toggle-task"); }
         else {
