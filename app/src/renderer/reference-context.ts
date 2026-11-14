@@ -14,7 +14,18 @@ export function referenceContext(state: EditorState, tree: Tree): string {
   const frontmatter = /^---[ \t]*\n[\s\S]*?\n---[ \t]*(?:\n|$)/.exec(state.doc.sliceString(0, 4000))?.[0].length ?? 0;
   tree.iterate({ enter(node) {
     if (node.name !== "LinkReference") return;
-    if (node.from >= frontmatter && !ranges.some(range => range.start < node.to && range.end > node.from)) definitions.push(state.sliceDoc(node.from, node.to));
+    if (node.from >= frontmatter && !ranges.some(range => range.start < node.to && range.end > node.from)) {
+      const first = state.doc.lineAt(node.from);
+      const prefix = first.text.slice(0, node.from - first.from);
+      const quotes = prefix.match(/>/g)?.length ?? 0;
+      const indent = prefix.replace(/>[ \t]?/g, "").length;
+      const source = state.sliceDoc(node.from, node.to).split("\n").map((line, i) => {
+        if (!i) return line;
+        for (let depth = 0; depth < quotes; depth++) line = line.replace(/^[ \t]*>[ \t]?/, "");
+        return line.replace(new RegExp(`^[ \\t]{0,${indent}}`), "");
+      }).join("\n");
+      definitions.push(source);
+    }
     return false;
   } });
   const text = definitions.join("\n\n");

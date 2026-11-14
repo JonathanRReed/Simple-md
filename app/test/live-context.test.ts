@@ -36,3 +36,12 @@ test("table cell clicks map header and body columns, skipping the delimiter row"
     expect(text.slice(cellSourceOffset(text, 1, 1))).toStartWith("two");
   }
 });
+
+test("reference definitions inside containers keep their destinations and multiline titles", async () => {
+  for (const definitions of ['> [logo]: ./logo.png\n>   "Nested title"', '- [logo]: ./logo.png\n    "Nested title"']) {
+    const state = stateFor('![Logo][logo]\n\n' + definitions + '\n\nEnd');
+    const context = referenceContext(state, ensureSyntaxTree(state, state.doc.length, 1000)!);
+    const rendered = await createRenderCore().renderFragment('![Logo][logo]\n\n' + context, undefined);
+    expect(rendered.html).toContain('title="Nested title"');
+  }
+});
