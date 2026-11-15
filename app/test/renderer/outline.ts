@@ -74,11 +74,13 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   // Browser scroll anchoring may fire before ResizeObserver reports offscreen layout.
   scroll.scrollTop += 40; scroll.dispatchEvent(new Event("scroll"));
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "First jump was cancelled by offscreen layout scroll");
-  scroll.dispatchEvent(new WheelEvent("wheel"));
+  scroll.style.overflowAnchor = "none";
+  scroll.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
   const released = scroll.scrollTop; delayed.style.height = "550px";
   await pause(100);
-  assert(Math.abs(scroll.scrollTop - released) < 120, "User input did not release outline navigation");
+  assert(Math.abs(scroll.scrollTop - released) < 3, "User input did not release outline navigation");
   delayed.remove();
+  scroll.style.removeProperty("overflow-anchor");
   assert(rail.querySelector<HTMLElement>(".outline-viewport")!.style.transform.includes("scaleY("), "Viewport indicator missing");
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
