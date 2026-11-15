@@ -792,6 +792,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (!ed || pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
     pane.view = "edit";
     simplemd.editing(pane.documentId);
+    // CodeMirror applies this after measuring. Queue it before the editor is
+    // visible so entry cannot restore an old anchor after the reader moves on.
+    if (!restoring) ed.restoreAnchor(syncAnchor);
     updateChrome();
     if (pane.mode === "split") {
       if (prepared) mountBlocks(previewEl, prepared);
@@ -800,7 +803,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq) return;
     requestAnimationFrame(() => {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
-      if (!restoring) ed.restoreAnchor(syncAnchor);
       if (pane.mode === "split") resyncPreview();
       if (options.active() && (!initializing || !document.activeElement?.closest("#tabs"))) ed.focus();
     });
