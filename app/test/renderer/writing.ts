@@ -1,4 +1,4 @@
-import { countProse } from "../../src/shared/prose-count";
+import { countProse, loadProseMdx } from "../../src/shared/prose-count";
 import { EditorView } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
 import { createEditor } from "../../src/renderer/editor";
@@ -71,7 +71,7 @@ export async function runBatch(input: { html: string; css: string }) {
   let saved = true, saveCount = 0;
   const imageBytes: number[] = [];
   Object.assign(window, { simplemd: {
-    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => countProse(text, selection, mdx, selectedText),
+    perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {}, proseCounts: async (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, _id: number, _revision: number, selectedText?: string) => { if (mdx) await loadProseMdx(); return countProse(text, selection, mdx, selectedText); },
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: (text: string) => core.renderBlocks(text, "/tmp/writing.md"), renderFragment: host.renderFragment,
     readFindText: async () => "", writeFindText: async () => {},

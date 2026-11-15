@@ -19,6 +19,7 @@ export interface Bridge {
   focusPane(id: PaneId): Promise<void>;
   closeTab(id: DocumentId): Promise<boolean>;
   tabContextMenu(id: DocumentId): Promise<void>;
+  platform?: string;
   ready(): Promise<{ settings: Settings; platform: string; accent: string }>;
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;

@@ -16,6 +16,8 @@ const viewGenerations = new Map<DocumentId, number>();
 contextBridge.exposeInMainWorld("simplemd", {
   setChromeVisible: (visible: boolean) => ipcRenderer.send("smd:chrome-visible", visible),
   moveTab: (id: DocumentId, pinned: boolean, before?: DocumentId) => ipcRenderer.invoke("smd:move-tab", id, pinned, before),
+  // Known before the first message arrives, so panes created early still show this platform's shortcuts.
+  platform: process.platform,
   ready: () => ipcRenderer.invoke("smd:ready"),
 
   readFindText: () => ipcRenderer.invoke("smd:find-read"),

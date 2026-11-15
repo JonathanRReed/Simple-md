@@ -15,13 +15,14 @@ const stateFor = () => EditorState.create({ doc: source, extensions: [markdown({
 
 test("prose counts parse a revision once and count only nonempty selections", () => {
   const count = createProseCountCache();
-  const matchAll = String.prototype.matchAll;
+  const exec = RegExp.prototype.exec;
   let wordPasses = 0, treeWalks = 0;
   const iterate = Tree.prototype.iterate;
   Tree.prototype.iterate = function (options) { treeWalks++; return iterate.call(this, options); };
-  String.prototype.matchAll = function (regexp: RegExp) {
-    if (regexp.source.includes("\\p{L}")) wordPasses++;
-    return matchAll.call(this, regexp);
+  // A word pass is one scan of the text from its start with the word pattern.
+  RegExp.prototype.exec = function (text: string) {
+    if (this.source.includes("\\p{L}") && this.lastIndex === 0) wordPasses++;
+    return exec.call(this, text);
   };
   try {
     const initial = count(1, 0, source);
@@ -38,7 +39,7 @@ test("prose counts parse a revision once and count only nonempty selections", ()
     console.log(`prose word counts: 3 caret moves=${caret}, selection=${selection}, keystroke=${edit}`);
     expect(editTrees).toBe(1);
     expect({ caret, selection, edit }).toEqual({ caret: 0, selection: 1, edit: 1 });
-  } finally { String.prototype.matchAll = matchAll; Tree.prototype.iterate = iterate; }
+  } finally { RegExp.prototype.exec = exec; Tree.prototype.iterate = iterate; }
 });
 
 test("typing and caret updates schedule no table menu IPC", async () => {

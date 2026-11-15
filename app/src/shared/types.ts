@@ -199,5 +199,7 @@ export type Command =
 
 /** Above this many characters the Live Preview is switched off so typing stays instant. */
 export const LIVE_MAX_CHARS = 250_000;
+/** Above this size the footer shows no counts: a count is not worth parsing megabytes of text for. */
+export const PROSE_COUNT_MAX_CHARS = 2_000_000;
 
 export type DocumentLocation = { kind: "line"; line: number } | { kind: "heading"; heading: string } | { kind: "start" };

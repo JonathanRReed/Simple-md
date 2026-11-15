@@ -1,13 +1,19 @@
 import { ByteCache, CacheBudget } from "./byte-cache.js";
 import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import { parser, GFM } from "@lezer/markdown";
-import { findMdxRanges } from "./mdx-ranges.js";
-import { jsxContentBounds } from "./mdx-preview.js";
 import { sourceLines, type SourceSelection } from "../renderer/source-edit.js";
 
 export type { ProseCount, ProseCounts } from "./prose-count-result.js";
 import type { ProseCount, ProseCounts } from "./prose-count-result.js";
 const markdown = parser.configure(GFM);
+// The MDX parser is several megabytes of code. Plain Markdown never loads it.
+let mdxTools: { findMdxRanges: typeof import("./mdx-ranges.js").findMdxRanges; jsxContentBounds: typeof import("./mdx-preview.js").jsxContentBounds } | undefined;
+/** Call before counting an MDX document. */
+export async function loadProseMdx(): Promise<void> {
+  if (mdxTools) return;
+  const [{ findMdxRanges }, { jsxContentBounds }] = await Promise.all([import("./mdx-ranges.js"), import("./mdx-preview.js")]);
+  mdxTools = { findMdxRanges, jsxContentBounds };
+}
 const excluded = new Set(["FencedCode", "CodeBlock", "HTMLTag", "LinkMark", "URL", "LinkTitle", "LinkLabel", "EmphasisMark", "CodeMark", "HeaderMark", "QuoteMark", "ListMark", "TaskMarker", "TableDelimiter", "TableMark", "HorizontalRule", "LinkReference", "Escape"]);
 const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
@@ -20,24 +26,29 @@ export function prepareProseCount(source: string, mdx = false) {
     const end = lines.findIndex((line, index) => index > 0 && (line.text === "---" || line.text === "..."));
     if (end > 0) ranges.push({ from: lines[0].from, to: lines[end]!.end });
   }
-  const mdxRanges = mdx ? findMdxRanges(source) : undefined;
+  if (mdx && !mdxTools) throw new Error("Call loadProseMdx() before counting an MDX document.");
+  const mdxRanges = mdx ? mdxTools!.findMdxRanges(source) : undefined;
   if (mdxRanges?.error) ranges.push({ from: mdxRanges.error.start, to: mdxRanges.error.end });
   if (mdxRanges) for (const range of mdxRanges) {
     if ((range.kind === "jsx-flow" || range.kind === "jsx-text") && range.name !== "script" && range.name !== "style") {
-      const { end, innerEnd } = jsxContentBounds(source, range);
+      const { end, innerEnd } = mdxTools!.jsxContentBounds(source, range);
       ranges.push({ from: range.start, to: end }, { from: innerEnd, to: range.end });
     } else ranges.push({ from: range.start, to: range.end });
   }
   // Mask imports/JSX before Markdown parsing so JSX children remain Markdown prose.
-  const chars = source.split("");
-  const mask = (range: { from: number; to: number }) => {
-    for (let i = range.from; i < range.to; i++) {
-      if (chars[i] === "\n" || chars[i] === "\r") continue;
-      chars[i] = i === 0 && source[i] === "\uFEFF" ? " " : i === range.from || source[i - 1] === "\n" || source[i - 1] === "\r" ? "x" : " ";
+  // Code units in a typed array: an array of one-character strings costs many times the document's size.
+  let masked = source;
+  if (ranges.length) {
+    const units = new Uint16Array(source.length);
+    for (let i = 0; i < source.length; i++) units[i] = source.charCodeAt(i);
+    const newline = (unit: number | undefined) => unit === 10 || unit === 13;
+    for (const range of ranges) for (let i = range.from; i < range.to; i++) {
+      if (newline(units[i])) continue;
+      // Each masked line keeps one letter so it still reads as a paragraph line; a leading byte-order mark does not.
+      units[i] = i === 0 && source.charCodeAt(0) === 0xFEFF ? 32 : i === range.from || newline(source.charCodeAt(i - 1)) ? 120 : 32;
     }
-  };
-  ranges.forEach(mask);
-  const masked = chars.join("");
+    masked = new TextDecoder("utf-16le").decode(units);
+  }
   markdown.parse(masked).iterate({ enter(node) {
     if (node.name === "HTMLBlock") {
       const fragment = parseFragment(masked.slice(node.from, node.to), { sourceCodeLocationInfo: true });
@@ -85,7 +96,16 @@ export function prepareProseCount(source: string, mdx = false) {
 
 function countProseText(text: string): ProseCount {
   const prose = text.replace(/\s+/g, " ").trim();
-  return { words: [...prose.matchAll(wordPattern)].length, characters: [...prose].length };
+  // Counted in place: arrays of every word and every character would dwarf a long document.
+  let words = 0, characters = 0;
+  wordPattern.lastIndex = 0;
+  while (wordPattern.exec(prose)) words++;
+  for (let i = 0; i < prose.length; i++) {
+    const unit = prose.charCodeAt(i);
+    // A surrogate pair is one character; count its first half only.
+    if (unit < 0xDC00 || unit > 0xDFFF) characters++;
+  }
+  return { words, characters };
 }
 
 export function countProse(source: string, selection?: SourceSelection, mdx = false, selectedText?: string): ProseCounts {

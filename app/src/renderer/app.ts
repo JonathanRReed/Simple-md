@@ -207,6 +207,8 @@ async function printView(): Promise<void> {
 }
 async function boot(): Promise<void> {
   if (new URLSearchParams(location.search).has("print")) { await printView(); return; }
+  // Panes read the platform when they are created, which can be before the ready reply.
+  if (api.platform) document.body.dataset.platform = api.platform;
   api.onNavigate((id, target) => { const pane = [...panes.values()].find(entry => entry.controller.documentId === id); if (pane) void pane.controller.navigate(target).catch(console.error); });
   api.onDoc(payload => { documents.set(payload.documentId, { payload }); });
   api.onLayout(mountLayout);

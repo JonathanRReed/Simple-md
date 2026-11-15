@@ -51,7 +51,9 @@ port.on("message", async (request: RenderRequest) => {
     let response: RenderResponse;
     switch (request.kind) {
       case "counts": {
-        countProse ??= (await import("../shared/prose-count.js")).createProseCountCache(cacheBudget);
+        const prose = await import("../shared/prose-count.js");
+        if (request.mdx) await prose.loadProseMdx();
+        countProse ??= prose.createProseCountCache(cacheBudget);
         response = { id: request.id, kind: "counts", value: countProse(request.documentId, request.revision, request.text, request.selection, request.mdx, request.selectedText) };
         break;
       }

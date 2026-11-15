@@ -14,7 +14,7 @@ import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
 import { moveReadFind } from "./ui.js";
 import { inputHistory } from "./text-focus.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makeRevisionId, type DiskChange, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DiskChange, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, PROSE_COUNT_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 import { enterPanel, exitChrome } from "./motion.js";
@@ -620,7 +620,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   const counter = createProseCounter(hintEl, () => {
     if (disposed || !doc.hasDoc) return null;
     const text = currentText();
-    return { text, mdx: isMdx(), selection: pane.view === "edit" ? pane.editor?.sourceSelection() : undefined,
+    if (text.length > PROSE_COUNT_MAX_CHARS) return null;
+    return { key: `${pane.documentId}:${doc.revisionId}:${isMdx()}`, text, mdx: isMdx(), selection: pane.view === "edit" ? pane.editor?.sourceSelection() : undefined,
       selectedText: pane.view === "read" ? selectedReadProse(docEl, window.getSelection()) : undefined };
   }, source => simplemd.proseCounts(source.text, source.selection, source.mdx, pane.documentId, doc.revisionId, source.selectedText));
   const selectionChanged = () => { if (options.active()) updateHint(); };

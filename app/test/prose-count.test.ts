@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { countProse } from "../src/shared/prose-count";
+import { countProse, loadProseMdx } from "../src/shared/prose-count";
+await loadProseMdx();
 const cases: [string, string, number, number, boolean?][] = [
   ["plain", "One two", 2, 7],
   ["marks", "# **Hello** *world*", 2, 11],
@@ -58,4 +59,37 @@ test("footnote labels use the same approximate Markdown count as other prose", (
   const text = "Hello[^1].\n\n[^1]: First **note**.\n\n    Second paragraph.";
   expect(countProse(text).document).toEqual({ words: 5, characters: 24 });
   expect(countProse(text, { from: 5, to: 9 }).selection).toEqual({ words: 1, characters: 2 });
+});
+
+test("plain Markdown is counted without loading the MDX parser", async () => {
+  const script = `import { countProse } from ${JSON.stringify(new URL("../src/shared/prose-count.ts", import.meta.url).pathname)};
+    const count = countProse("# Title\\n\\nTwo words").document;
+    let refused = false;
+    try { countProse("<Note>text</Note>", undefined, true); } catch { refused = true; }
+    process.stdout.write(JSON.stringify({ count, refused }));`;
+  const child = Bun.spawnSync([process.execPath, "-e", script]);
+  expect(JSON.parse(child.stdout.toString())).toEqual({ count: { words: 3, characters: 15 }, refused: true });
+});
+
+test("emoji and other astral characters count once each", () => {
+  expect(countProse("Hi 👋🏽 there").document).toEqual({ words: 2, characters: [..."Hi 👋🏽 there"].length });
+  expect(countProse("﻿---\ntitle: x\n---\n\n𝒜 and 𝒷").document).toEqual({ words: 3, characters: 7 });
+});
+
+test("a caret move within one revision does not ask for another count", async () => {
+  const { createProseCounter } = await import("../src/renderer/prose-counter");
+  const output = { textContent: "", title: "" } as HTMLElement;
+  let requests = 0, selection: { from: number; to: number } | undefined;
+  let key = "1:1:false";
+  const counter = createProseCounter(output, () => ({ key, text: "One two", mdx: false, selection }), async source => {
+    requests++;
+    return countProse(source.text, source.selection, source.mdx);
+  });
+  const settle = async () => { counter.schedule(); await Bun.sleep(450); };
+  await settle(); expect(requests).toBe(1); expect(output.textContent).toContain("2 words");
+  selection = { from: 3, to: 3 }; await settle(); expect(requests).toBe(1);
+  selection = { from: 0, to: 3 }; await settle(); expect(requests).toBe(2); expect(output.textContent).toContain("selected");
+  selection = undefined; await settle(); expect(requests).toBe(2); expect(output.textContent).not.toContain("selected");
+  key = "1:2:false"; await settle(); expect(requests).toBe(3);
+  counter.destroy();
 });
