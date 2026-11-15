@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { syncDirectory } from "./sync-directory.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { exchangeFiles, renameNoReplace } from "./file-metadata.js";
+import { copyMetadata, exchangeFiles, renameNoReplace } from "./file-metadata.js";
 
 export const MARKDOWN_EXT = new Set([".md", ".markdown", ".mdown", ".mkd", ".mdx", ".txt"]);
 export const isMarkdown = (p: string) => MARKDOWN_EXT.has(path.extname(p).toLowerCase());
@@ -134,7 +134,20 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
           // Even a killed helper may have completed the exchange. Until verified,
           // the temp file may contain the only copy of another program's bytes.
           displaced = true;
-          const result = await exchangeFiles(tmp, target, process.platform === "darwin");
+          const result = await exchangeFiles(tmp, target, process.platform === "darwin").catch(async (failure: unknown) => {
+            // The helper could not run, timed out or was refused. What the temporary file
+            // now holds says whether the exchange happened, so a helper failure costs
+            // file tags at most, never the save.
+            const held = await readRegularFile(tmp, MAX_DOCUMENT_BYTES, true).catch(() => null);
+            if (held?.equals(written)) {
+              const lostMetadata = process.platform === "darwin" && await copyMetadata(target, tmp).then(() => false, () => true);
+              const pending = await fs.promises.open(tmp, "r+");
+              try { await pending.sync(); } finally { await pending.close(); }
+              return { exchanged: false, metadataCopyFailed: lostMetadata };
+            }
+            if (held?.equals(Buffer.from(expected, "utf8"))) return { exchanged: true, metadataCopyFailed: false };
+            throw failure;
+          });
           metadataCopyFailed = result.metadataCopyFailed;
           if (metadataCopyFailed) console.error("simplemd: could not preserve file metadata");
           if (result.exchanged) {
@@ -151,7 +164,7 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
             }
             if (!(await exchangeFiles(tmp, target)).exchanged) throw new Error("Could not restore the displaced file.");
             const returned = await readRegularFile(tmp, MAX_DOCUMENT_BYTES, true).catch(() => null);
-            if (!returned) throw new FileConflictError(tmp);
+            if (!returned) throw new FileConflictError(await keepForRecovery(tmp, target));
             if (returned.equals(written)) {
               await fs.promises.unlink(tmp);
               displaced = false;
@@ -192,11 +205,17 @@ export async function writeAtomic(file: string, text: string, expectedText?: str
       // Do not assume that an unsuccessful helper invocation did not publish.
       // Keep unknown bytes, including unreadable files, for manual recovery.
       const bytes = await readRegularFile(tmp, MAX_DOCUMENT_BYTES, true).catch(() => null);
-      if (!bytes?.equals(written)) throw new FileConflictError(tmp);
+      if (!bytes?.equals(written)) throw new FileConflictError(await keepForRecovery(tmp, target));
     }
     await fs.promises.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
+}
+
+/** Gives bytes that cannot be accounted for a visible name beside the document, so they are not lost in a hidden file. */
+async function keepForRecovery(tmp: string, target: string): Promise<string> {
+  const recovery = path.join(path.dirname(target), `${path.basename(target)}.simplemd-conflict-${randomUUID()}`);
+  return renameNoReplace(tmp, recovery).then(() => recovery, () => tmp);
 }
 
 export function watchDocument(file: string, changed: () => void, delay = 80): { close(): void } {

@@ -100,7 +100,12 @@ function blockEditRaw(text: string, selection: SourceSelection, command: BlockCo
     : command === "bullet-list" ? /^[-+*]\s+$/.test(mark)
     : command === "number-list" ? /^\d+[.)]\s+$/.test(mark)
     : command === "task-list" ? /^[-+*]\s+\[[ xX]\]\s+$/.test(mark) : false;
-  const editable = selected.filter((line, i) => !protectedLines.has(first + i) && !fencedLines.has(first + i) && !continuations.has(first + i) && prefix(line.text).rest.trim());
+  // A setext title's underline belongs to the line above it. Heading commands remove it instead of prefixing it.
+  const heading = command.startsWith("heading-") || command === "body";
+  const underline = (i: number) => heading && /^ {0,3}(?:=+|-+)[ \t]*$/.test(lines[i]?.text ?? "") && !!lines[i - 1]?.text.trim()
+    && !prefix(lines[i - 1]!.text).mark && !protectedLines.has(i - 1) && !fencedLines.has(i - 1) && !protectedLines.has(i) && !fencedLines.has(i);
+  const indexOf = new Map(selected.map((line, i) => [line, first + i]));
+  const editable = selected.filter((line, i) => !protectedLines.has(first + i) && !fencedLines.has(first + i) && !continuations.has(first + i) && prefix(line.text).rest.trim() && !underline(first + i));
   const remove = editable.every(line => matches(prefix(line.text).mark));
   const unquote = command === "quote" && editable.every(line => /^[ \t]*>/.test(line.text));
   let number = 0;
@@ -113,7 +118,9 @@ function blockEditRaw(text: string, selection: SourceSelection, command: BlockCo
     }
     const insert = command === "body" || remove ? "" : command.startsWith("heading-") ? "#".repeat(Number(command.slice(-1))) + " "
       : command === "bullet-list" ? "- " : command === "number-list" ? `${++number}. ` : "- [ ] ";
-    return [{ from: line.from + quote.length, to: line.from + quote.length + mark.length, insert }];
+    const next = indexOf.get(line)! + 1;
+    return [{ from: line.from + quote.length, to: line.from + quote.length + mark.length, insert },
+      ...(underline(next) ? [{ from: line.to, to: lines[next]!.to, insert: "" }] : [])];
   });
   return changedSelection(selection, changes);
 }

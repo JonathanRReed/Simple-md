@@ -23,6 +23,14 @@ for (const eol of ["\n", "\r\n"]) {
     expect(run(text, "code-block", at, at + 9)).toBe(lines("- item", "", "  ```", "  code line", "  ```", "- next", ""));
     expect(run(lines("> one", "two"), "code-block")).toBe(lines("> one", "two"));
   });
+  test(`heading commands absorb a setext underline ${JSON.stringify(eol)}`, () => {
+    expect(run(lines("Title", "=====", "", "Body text", ""), "heading-2")).toBe(lines("## Title", "", "## Body text", ""));
+    expect(run(lines("Title", "-----", "next", ""), "heading-3", 0, 5)).toBe(lines("### Title", "next", ""));
+    expect(run(lines("Title", "====="), "body")).toBe("Title");
+    // A rule after a blank line, and dashes under a list item, are not underlines.
+    expect(run(lines("Para", "", "---", ""), "heading-1", 0, 4)).toBe(lines("# Para", "", "---", ""));
+    expect(run(lines("- item", "---", ""), "heading-1", 0, 6)).toBe(lines("# item", "---", ""));
+  });
   test(`rules only insert separated lines ${JSON.stringify(eol)}`, () => {
     expect(run(lines("A paragraph", ""), "rule", 11 + eol.length, 11 + eol.length)).toBe(lines("A paragraph", "", "---", ""));
     const text = lines("A paragraph", "", "next");
