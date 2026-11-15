@@ -22,27 +22,19 @@ jobs:
           bun-version: "1.4.4"
       - name: Install locked dependencies
         run: bun run setup
-      - name: Focused sidebar samples
+      - name: Deterministic entry regression
         working-directory: app
         shell: bash
         run: |
-          mkdir -p /tmp/sidebar-probes
-          failures=0
-          for i in $(seq 1 200); do
-            if bun test test/tab-sidebar.test.ts > "/tmp/sidebar-probes/$i.log" 2>&1; then
-              tail -n 6 "/tmp/sidebar-probes/$i.log"
-            else
-              failures=$((failures + 1))
-              cat "/tmp/sidebar-probes/$i.log"
-            fi
-            if [ "$failures" -ge 3 ]; then break; fi
-          done
-          echo "SIDEBAR FAILURES $failures"
+          mkdir -p /tmp/entry-regression
+          if ! bun test test/editor-restore-dom.test.ts > /tmp/entry-regression/result.log 2>&1; then
+            cat /tmp/entry-regression/result.log
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sidebar-probes
-          path: /tmp/sidebar-probes/
+          name: entry-regression
+          path: /tmp/entry-regression/
       - name: All DOM files diagnostic loop
         working-directory: app
         shell: bash
