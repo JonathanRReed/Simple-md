@@ -23,6 +23,18 @@ for (const eol of ["\n", "\r\n"]) {
     expect(run(text, "code-block", at, at + 9)).toBe(lines("- item", "", "  ```", "  code line", "  ```", "- next", ""));
     expect(run(lines("> one", "two"), "code-block")).toBe(lines("> one", "two"));
   });
+  test(`Insert Table keeps the selection and stands apart from its neighbours ${JSON.stringify(eol)}`, () => {
+    const table = lines("| Header | Header |", "| --- | --- |", "|  |  |", "|  |  |");
+    const insert = (text: string, from: number, to = from) => applySourceChanges(text, tableEdit(text, { from, to }, "insert-table")!.changes);
+    const text = lines("intro", "tail", "after", "");
+    const at = text.indexOf("tail");
+    // A selected word stays; the table follows it, separated from the word and from the next line.
+    expect(insert(text, at, at + 4)).toBe(lines("intro", "tail", "", table, "", "after", ""));
+    // A caret at the start of a line that follows text leaves a blank line above the table.
+    expect(insert(text, at)).toBe(lines("intro", "", table, "", "tail", "after", ""));
+    // An empty document has no line ending of its own, so new lines use LF.
+    expect(insert("", 0)).toBe("| Header | Header |\n| --- | --- |\n|  |  |\n|  |  |");
+  });
   test(`heading commands absorb a setext underline ${JSON.stringify(eol)}`, () => {
     expect(run(lines("Title", "=====", "", "Body text", ""), "heading-2")).toBe(lines("## Title", "", "## Body text", ""));
     expect(run(lines("Title", "-----", "next", ""), "heading-3", 0, 5)).toBe(lines("### Title", "next", ""));

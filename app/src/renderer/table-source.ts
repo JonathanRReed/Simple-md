@@ -76,12 +76,13 @@ function tableEditRaw(text: string, selection: SourceSelection, command: TableCo
   selection = { from: Math.max(bom, selection.from), to: Math.max(bom, selection.to) };
   const index = lines.findIndex(line => selection.from <= line.to);
   if (command === "insert-table") {
-    const line = lines[index]!;
-    const before = selection.from > line.from ? eol + eol : "";
-    const after = selection.to < line.to ? eol + eol : "";
+    // Insert after the selection and keep it. A table needs a blank line on each side, or neighbouring text joins it.
+    const at = selection.to, end = lines.findIndex(line => at <= line.to), line = lines[end]!;
+    const before = at > line.from ? eol + eol : lines[end - 1]?.text.trim() ? eol : "";
+    const after = at < line.to ? eol + eol : lines[end + 1]?.text.trim() ? eol : "";
     const insert = `${before}| Header | Header |${eol}| --- | --- |${eol}|  |  |${eol}|  |  |${after}`;
-    const at = selection.from + before.length + 2;
-    return { changes: [{ ...selection, insert }], selection: { from: at, to: at + 6 } };
+    const cursor = at + before.length + 2;
+    return { changes: [{ from: at, to: at, insert }], selection: { from: cursor, to: cursor + 6 } };
   }
   const table = tableContext(text, lines, index);
   if (!table) return null;

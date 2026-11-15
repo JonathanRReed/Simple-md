@@ -8,7 +8,7 @@ export function openQuickly(api: Pick<Bridge, "quicklyOpen" | "quicklyClose" | "
   let scope = sessionScope ?? defaultScope;
   let request = 0, closed = false;
   const items = (matches: ReturnType<typeof rankQuicklyFiles>): PickerItem[] => matches.map(file => ({
-    label: file.name, hint: file.lastOpened === undefined ? undefined : relativeTime(file.lastOpened), labelIndices: file.nameIndices, parent: file.displayPath ? file.parent : undefined, parentIndices: file.parentIndices,
+    label: file.name, hint: file.lastOpened === undefined ? undefined : relativeTime(file.lastOpened), labelIndices: file.nameIndices, parent: file.displayPath ? file.parent : undefined, parentIndices: file.parentIndices, title: file.path,
     run: otherPane => { void api.quicklyOpen(file.path, !!otherPane).then(opened => { if (!opened) toast("Couldn't open this file."); }).catch(() => toast("Couldn't open this file.")); },
   }));
   let updateResults: ((items: PickerItem[]) => void) | undefined;

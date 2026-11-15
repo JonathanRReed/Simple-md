@@ -51,6 +51,8 @@ export function hideBanner(scope: ParentNode = document): void {
 
 export interface PickerItem {
   label: string;
+  /** Tooltip for a file row. Open Quickly passes the full path, since the row shows a shortened one. */
+  title?: string;
   hint?: string;
   depth?: number;
   labelIndices?: readonly number[];
@@ -166,7 +168,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
         li.append(label);
         if (item.parent !== undefined) {
           li.classList.add("picker-file");
-          li.title = item.parent + "/" + item.label;
+          li.title = item.title ?? item.parent + "/" + item.label;
           li.setAttribute("aria-label", `${item.label}, ${item.parent}`);
           const parent = document.createElement("span"); parent.className = "picker-parent";
           const text = item.parent;
