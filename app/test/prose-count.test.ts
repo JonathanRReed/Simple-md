@@ -62,7 +62,7 @@ test("footnote labels use the same approximate Markdown count as other prose", (
 });
 
 test("plain Markdown is counted without loading the MDX parser", async () => {
-  const script = `import { countProse } from ${JSON.stringify(new URL("../src/shared/prose-count.ts", import.meta.url).pathname)};
+  const script = `import { countProse } from ${JSON.stringify(new URL("../src/shared/prose-count.ts", import.meta.url).href)};
     const count = countProse("# Title\\n\\nTwo words").document;
     let refused = false;
     try { countProse("<Note>text</Note>", undefined, true); } catch { refused = true; }
