@@ -12,6 +12,8 @@ export function createOutlineRail<T>(options: {
   navigate(): void;
 }) {
   const { host, scroller, content } = options;
+  // OUTLINE-PROBE
+  const probe = (phase: string, extra: unknown = {}) => console.error("OUTLINE-RAIL-PROBE", JSON.stringify({ phase, ms: performance.now(), host: host.className, navigation, heldTop, heldHeight, top: scroller.scrollTop, height: scroller.scrollHeight, targets: items.map(item => { const element = options.element?.(item.target); return { key: item.key, connected: element?.isConnected, offset: options.offset(item.target) }; }), extra }));
   const abort = new AbortController();
   const signal = abort.signal;
   const rail = document.createElement("nav");
@@ -90,11 +92,11 @@ export function createOutlineRail<T>(options: {
     if (!navigation) return;
     const intent = navigation;
     const index = intent.kind === "heading" ? items.findIndex(item => item.key === intent.key) : -1;
-    if (intent.kind === "heading" && index < 0) { navigation = null; return; }
+    if (intent.kind === "heading" && index < 0) { probe("clear missing key"); navigation = null; return; }
     writeTop(intent.kind === "scrub" ? outlineScroll(intent.progress, scroller.scrollHeight, scroller.clientHeight)
       : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, options.offset(items[index]!.target) - 16)));
   }
-  function stopNavigation(): void { navigation = null; cancelAnimationFrame(settleFrame); settleFrame = 0; }
+  function stopNavigation(): void { probe("clear", new Error().stack); navigation = null; cancelAnimationFrame(settleFrame); settleFrame = 0; }
   function settleNavigation(): void {
     if (settleFrame || !navigation || destroyed) return;
     settleFrame = requestAnimationFrame(() => {
@@ -119,6 +121,7 @@ export function createOutlineRail<T>(options: {
     if (!item) return;
     const target = options.offset(item.target);
     navigation = { kind: "heading", key: item.key };
+    probe("set heading");
     options.navigate();
     writeTop(Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, target - 16)));
     startNavigation();
@@ -127,6 +130,7 @@ export function createOutlineRail<T>(options: {
   function build(): void {
     buildTimer = 0;
     if (destroyed) return;
+    probe("build");
     const next = options.items();
     const changed = next.length !== items.length || next.some((item, index) => {
       const before = items[index]!;
@@ -178,6 +182,7 @@ export function createOutlineRail<T>(options: {
     buildFrame = requestAnimationFrame(() => { buildFrame = 0; buildTimer = window.setTimeout(build, 0); });
   }
   const observer = new ResizeObserver(() => {
+    probe("observer");
     if (!measureFrame) measureFrame = requestAnimationFrame(() => {
       measureFrame = 0;
       offsets = items.map(item => options.offset(item.target));
@@ -188,6 +193,7 @@ export function createOutlineRail<T>(options: {
   observer.observe(content);
   observer.observe(scroller);
   scroller.addEventListener("scroll", () => {
+    probe("scroll event");
     // A jump keeps its heading in place through late layout until the reader moves on. The view moving while the
     // content keeps its size means Find, change navigation, scroll sync or the scrollbar moved it.
     if (navigation && Math.abs(scroller.scrollTop - heldTop) > 1 && scroller.scrollHeight === heldHeight) stopNavigation();

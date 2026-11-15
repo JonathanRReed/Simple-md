@@ -3,11 +3,40 @@ import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId, type Settings } from "../../src/shared/types";
 import type { RenderedBlocks } from "../../src/shared/render-core";
 
+// OUTLINE-PROBE: temporary hosted-only instrumentation.
+const probeStart = performance.now();
+let probeFrames = 0, probeLastFrame = 0, probeGap = 0;
+const nativeFrame = window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame = callback => nativeFrame(time => {
+  probeFrames++; probeGap = time - probeLastFrame; probeLastFrame = time;
+  callback(time);
+});
+function probe(phase: string, extra: unknown = {}) {
+  const scroll = document.querySelector<HTMLElement>('[data-element="read-scroll"]');
+  const article = document.querySelector<HTMLElement>('[data-element="doc"]');
+  const heading = article?.querySelectorAll('h1,h2,h3')[20];
+  console.error("OUTLINE-PROBE", JSON.stringify({ phase, ms: performance.now() - probeStart, frames: probeFrames, lastFrame: probeLastFrame, frameGap: probeGap, visibility: document.visibilityState, hidden: document.hidden, top: scroll?.scrollTop, height: scroll?.scrollHeight, client: scroll?.clientHeight, articleHeight: article?.getBoundingClientRect().height, headingConnected: heading?.isConnected, headingOffset: heading && scroll ? heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top : null, extra }));
+}
+const nativeObserver = window.ResizeObserver;
+window.ResizeObserver = class extends nativeObserver {
+  constructor(callback: ResizeObserverCallback) {
+    super((entries, observer) => { probe("resize", entries.map(e => ({ target: e.target.className, height: e.contentRect.height }))); callback(entries, observer); });
+  }
+};
+const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
+Object.defineProperty(Element.prototype, "scrollTop", { ...scrollDescriptor, set(value) {
+  const before = scrollDescriptor.get!.call(this);
+  scrollDescriptor.set!.call(this, value);
+  if (this.matches('[data-element="read-scroll"], .cm-scroller') && before !== this.scrollTop) probe("write", { before, requested: value, actual: this.scrollTop, caller: new Error().stack });
+} });
+Object.assign(globalThis, { outlineProbe: probe });
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const pause = (ms = 50) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate: () => boolean, message: string) {
+  probe("until " + message);
   // Hosted runners sometimes go seconds between frames; the limit only has to catch a wait that never ends.
   for (let i = 0; i < 2000; i++) { if (predicate()) return; await pause(10); }
+  probe("FAIL " + message);
   throw new Error(message);
 }
 
@@ -57,13 +86,18 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   // Reflow can happen after the initial navigation has finished settling.
   await pause(1000);
   const articleForReflow = root.querySelector<HTMLElement>('[data-element="doc"]')!;
+  probe("font 23");
   articleForReflow.style.fontSize = "23px";
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Reflow lost the selected heading");
+  probe("remove font");
   articleForReflow.style.removeProperty("font-size");
   await pause();
   const delayed = document.createElement("div"); delayed.style.height = "450px";
+  probe("before append", { capturedConnected: heading.isConnected });
   articleForReflow.firstElementChild!.append(delayed);
+  probe("after append", { capturedConnected: heading.isConnected });
   // Browser scroll anchoring may fire before ResizeObserver reports offscreen layout.
+  probe("before foreign scroll");
   scroll.scrollTop += 40; scroll.dispatchEvent(new Event("scroll"));
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "First jump was cancelled by offscreen layout scroll");
   scroll.dispatchEvent(new WheelEvent("wheel"));
@@ -91,6 +125,7 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   assert(scroll.scrollTop > (scroll.scrollHeight - scroll.clientHeight) * 0.98, "Scrub did not reach document end");
   articleForReflow.style.fontSize = "25px";
   await until(() => scroll.scrollTop > (scroll.scrollHeight - scroll.clientHeight) * 0.98, "Reflow lost the scrub fraction");
+  probe("remove font");
   articleForReflow.style.removeProperty("font-size"); await pause();
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }));
