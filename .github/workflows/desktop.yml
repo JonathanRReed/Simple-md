@@ -156,7 +156,7 @@ jobs:
         run: |
           mkdir -p /tmp/outline-probes
           failures=0
-          files=$(rg -l dom-runner test/*.test.ts)
+          files=$(grep -l dom-runner test/*.test.ts)
           for i in $(seq 1 3); do
             echo "DOM SAMPLE $i"
             if bun test $files > "/tmp/outline-probes/$i.log" 2>&1; then
