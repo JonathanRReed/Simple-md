@@ -105,7 +105,7 @@ export function createOutlineRail<T>(options: {
       const now = performance.now();
       if (Math.abs(top - lastTarget) > 0.5) { lastTarget = top; stableSince = now; }
       const pending = [...content.querySelectorAll("img")].some(image => !image.complete) || document.fonts.status === "loading" || !!content.querySelector("pre.mermaid, .cm-math-inline:not(:has(.katex))");
-      // Stop polling settled layout. Resize events restore the target until it expires.
+      // Stop polling settled layout. Resize events restore the target until the reader moves on.
       if (!pending && now - stableSince > 600) return;
       settleNavigation();
     });
@@ -193,7 +193,11 @@ export function createOutlineRail<T>(options: {
     if (navigation && Math.abs(scroller.scrollTop - heldTop) > 1 && scroller.scrollHeight === heldHeight) stopNavigation();
     scheduleViewport();
   }, { passive: true, signal });
-  for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) scroller.addEventListener(event, stopNavigation, { passive: true, signal });
+  // Find and other editor panels sit outside the scroller. Rail input owns its
+  // own navigation, so its bubbling events must not release the new target.
+  for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) host.addEventListener(event, event => {
+    if (!(event.target instanceof Node) || !rail.contains(event.target)) stopNavigation();
+  }, { passive: true, signal });
   rail.addEventListener("wheel", event => {
     if (event.ctrlKey) return;
     options.navigate(); stopNavigation();
