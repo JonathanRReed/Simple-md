@@ -142,6 +142,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   };
   await measureEditor();
   editorScroll.scrollTop = 500; await measureEditor(); const editorTop = editorScroll.scrollTop;
+  console.error("SIDEBAR-PROBE", JSON.stringify({ top: editorTop, height: editorScroll.scrollHeight, client: editorScroll.clientHeight, selection: editor.state.selection.toJSON(), focus: document.hasFocus(), visibility: document.visibilityState }));
   assert(editorTop === 500, "Source editor did not establish the requested scroll position");
   for (const tabStyle of ["top", "sidebar", "top", "sidebar"] as const) {
     await setSettings({ tabStyle }); await measureEditor();

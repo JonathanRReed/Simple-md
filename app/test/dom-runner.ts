@@ -16,6 +16,7 @@ export async function runDom(entrypoint: string, inputs: unknown, options: { med
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_OPTIONS;
+    env.SMD_DOM_ENTRYPOINT = entrypoint;
     env.SMD_DOM_OPTIONS = JSON.stringify(options);
     // Hosted Linux runners lack a configured SUID sandbox helper; the DOM harness only loads local fixtures.
     const sandbox = process.platform === "linux" && process.env.CI ? ["--no-sandbox"] : [];
@@ -23,7 +24,7 @@ export async function runDom(entrypoint: string, inputs: unknown, options: { med
       env, stdout: "ignore", stderr: "inherit", signal: AbortSignal.timeout(60_000),
     });
     const code = await child.exited;
-    const stderr = "OUTLINE-PROBE see streamed stderr";
+    const stderr = "DOM-PROBE see streamed stderr";
     if (code !== 0) throw new Error(`DOM process exited ${code}: ${stderr}`);
     return await Bun.file(output).json();
   } finally { await rm(temp, { recursive: true, force: true }); }
