@@ -30,6 +30,12 @@ test("macOS hands off after cleanup and exits only on the ten-second fallback", 
   expect(calls).toEqual(["cleanup", "Squirrel"]);
   fallback(); expect(calls).toEqual(["cleanup", "Squirrel", "exit"]);
 });
+test("a handoff that throws after cleanup still exits on the fallback", async () => {
+  let fallback: (() => void) | undefined, exited = false;
+  await expect(installMacUpdate({ cleanup: async () => {}, install: () => { throw new Error("handoff failed"); }, exit: () => { exited = true; } }, exit => { fallback = exit; })).rejects.toThrow("handoff failed");
+  expect(fallback).toBeDefined();
+  fallback!(); expect(exited).toBe(true);
+});
 test("asynchronous cleanup failure never arms Squirrel and permits another install", async () => {
   let attempts = 0, launches = 0, released = 0;
   const install = new UpdateInstall({ settle: async () => true, release() { released++; }, failed() {} });

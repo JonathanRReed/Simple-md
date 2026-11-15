@@ -18,6 +18,7 @@ export class UpdateInstall {
 
 export async function installMacUpdate(actions: { cleanup(): Promise<void>; install(): void; exit(): void }, defer = (exit: () => void, delay: number) => { setTimeout(exit, delay).unref(); }): Promise<void> {
   await actions.cleanup();
-  actions.install();
+  // Arm the fallback first: after cleanup there are no windows left to recover with if the handoff throws.
   defer(actions.exit, 10_000);
+  actions.install();
 }

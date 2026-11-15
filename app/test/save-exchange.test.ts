@@ -202,12 +202,12 @@ for (const step of ["truncate", "writeFile", "chmod", "close"] as const) test.sk
   await verifyNextSaveConflicts(file);
 });
 
-for (const step of ["publish", "displaced-read", "rollback", "returned-read", "restore-newer", "retain-sibling"] as const) test.skipIf(process.platform === "win32")(`failure during ${step} never deletes a displaced version`, async () => {
+for (const step of ["displaced-read", "rollback", "returned-read", "restore-newer", "retain-sibling"] as const) test.skipIf(process.platform === "win32")(`failure during ${step} never deletes a displaced version`, async () => {
   const { dir, file } = await fixture();
   let calls = 0;
   const swap = spyOn(metadata, "exchangeFiles").mockImplementation(async (source, target, preserve) => {
     calls++;
-    if (step === "publish" || step === "rollback" && calls === 2 || step === "restore-newer" && calls === 3) throw new Error(`injected ${step}`);
+    if (step === "rollback" && calls === 2 || step === "restore-newer" && calls === 3) throw new Error(`injected ${step}`);
     if (calls === 1 && step !== "displaced-read") await replace(file, foreign);
     if (calls === 2 && ["restore-newer", "retain-sibling"].includes(step)) await replace(file, "second foreign version");
     return exchange(source, target, preserve);
@@ -226,9 +226,9 @@ for (const step of ["publish", "displaced-read", "rollback", "returned-read", "r
   try {
     await expect(writeAtomic(file, mine, original)).rejects.toThrow();
     const contents = await Promise.all((await fs.promises.readdir(dir)).map(name => fs.promises.readFile(path.join(dir, name), "utf8")));
-    // The original is at the document path on pre-publication/read failures;
+    // The original is at the document path when the displaced file could not be read;
     // otherwise the injected replacement is at the path or in the sole sibling.
-    expect(contents).toContain(["publish", "displaced-read"].includes(step) ? original : foreign);
+    expect(contents).toContain(step === "displaced-read" ? original : foreign);
     if (["restore-newer", "retain-sibling"].includes(step)) expect(contents).toContain("second foreign version");
     expect(contents.length).toBeLessThanOrEqual(2);
   } finally { swap.mockRestore(); read.mockRestore(); retain.mockRestore(); }
@@ -296,9 +296,10 @@ test.skipIf(process.platform === "win32")("failure removing the verified baselin
   } finally { remove.mockRestore(); }
 });
 
-test.skipIf(process.platform === "win32")("a helper failure after publication retains the original instead of cleaning it up", async () => {
+test.skipIf(process.platform === "win32")("a helper failure after displacing a foreign version keeps that version under a visible name", async () => {
   const { dir, file } = await fixture();
   const swap = spyOn(metadata, "exchangeFiles").mockImplementation(async (...args) => {
+    await replace(file, foreign);
     await exchange(...args);
     throw new Error("injected lost helper acknowledgement");
   });
@@ -308,7 +309,44 @@ test.skipIf(process.platform === "win32")("a helper failure after publication re
     expect(conflict).toBeInstanceOf(FileConflictError);
     if (!(conflict instanceof FileConflictError) || !conflict.recoveryPath) throw new Error("Missing recovery path");
     expect(await fs.promises.readFile(file, "utf8")).toBe(mine);
-    expect(await fs.promises.readFile(conflict.recoveryPath, "utf8")).toBe(original);
+    expect(await fs.promises.readFile(conflict.recoveryPath, "utf8")).toBe(foreign);
+    expect(path.basename(conflict.recoveryPath)).toStartWith("note.md.simplemd-conflict-");
     expect(await fs.promises.readdir(dir)).toHaveLength(2);
+  } finally { swap.mockRestore(); }
+});
+
+test.skipIf(process.platform === "win32")("a helper that cannot run does not fail the save", async () => {
+  const { dir, file } = await fixture();
+  const swap = spyOn(metadata, "exchangeFiles").mockImplementation(async () => { throw new Error("spawn EAGAIN"); });
+  try {
+    await writeAtomic(file, mine, original);
+    expect(await fs.promises.readFile(file, "utf8")).toBe(mine);
+    expect(await fs.promises.readdir(dir)).toEqual(["note.md"]);
+  } finally { swap.mockRestore(); }
+});
+
+test.skipIf(process.platform === "win32")("a helper stopped after the exchange is a finished save, not a conflict", async () => {
+  const { dir, file } = await fixture();
+  const swap = spyOn(metadata, "exchangeFiles").mockImplementation(async (...args) => {
+    await exchange(...args);
+    throw Object.assign(new Error("Command failed"), { killed: true, signal: "SIGKILL" });
+  });
+  try {
+    await writeAtomic(file, mine, original);
+    expect(await fs.promises.readFile(file, "utf8")).toBe(mine);
+    expect(await fs.promises.readdir(dir)).toEqual(["note.md"]);
+  } finally { swap.mockRestore(); }
+});
+
+test.skipIf(process.platform === "win32")("a failed helper still reports a foreign write as a conflict", async () => {
+  const { dir, file } = await fixture();
+  const swap = spyOn(metadata, "exchangeFiles").mockImplementation(async () => {
+    await replace(file, foreign);
+    throw new Error("spawn EAGAIN");
+  });
+  try {
+    await expect(writeAtomic(file, mine, original)).rejects.toBeInstanceOf(FileConflictError);
+    expect(await fs.promises.readFile(file, "utf8")).toBe(foreign);
+    expect(await fs.promises.readdir(dir)).toEqual(["note.md"]);
   } finally { swap.mockRestore(); }
 });
