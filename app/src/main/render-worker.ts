@@ -1,3 +1,6 @@
+import { cacheBudget } from "./cache-budget.js";
+import type { ProseCounts } from "../shared/prose-count-result.js";
+import type { SourceSelection } from "../renderer/source-edit.js";
 import type { BlockChanges } from "../shared/change-highlights.js";
 import { IncrementalBlocks } from "./incremental-blocks.js";
 import { blockDelta, type BlockDelta } from "../shared/block-delta.js";
@@ -10,6 +13,7 @@ import { parentPort } from "node:worker_threads";
 import { renderFragment, type RenderedBlocks } from "./markdown.js";
 
 export type RenderCommand =
+  | { kind: "counts"; documentId: number; revision: number; text: string; selection?: SourceSelection; mdx: boolean; selectedText?: string }
   | { kind: "changes"; before: string; text: string; filePath: string | null; baselineKey: string }
   | { kind: "blocks"; text: string; filePath: string | null; mdx?: boolean; known?: { key: string; fingerprint?: string }[] }
   | { kind: "fragment"; text: string; baseDir: string | undefined }
@@ -21,6 +25,7 @@ export type RenderCommand =
 export type RenderRequest = RenderCommand & { id: number };
 
 export type RenderResponse =
+  | { id: number; kind: "counts"; value: ProseCounts }
   | { id: number; kind: "changes"; value: BlockChanges }
   | { id: number; kind: "blocks"; value: RenderedBlocks }
   | { id: number; kind: "blocks-delta"; value: BlockDelta }
@@ -30,6 +35,7 @@ export type RenderResponse =
   | { id: number; kind: "warmup" }
   | { id: number; kind: "error"; message: string };
 
+let countProse: ReturnType<typeof import("../shared/prose-count.js").createProseCountCache> | undefined;
 const port = parentPort;
 if (!port) throw new Error("The render worker requires a parent port");
 
@@ -44,6 +50,13 @@ port.on("message", async (request: RenderRequest) => {
   try {
     let response: RenderResponse;
     switch (request.kind) {
+      case "counts": {
+        const prose = await import("../shared/prose-count.js");
+        if (request.mdx) await prose.loadProseMdx();
+        countProse ??= prose.createProseCountCache(cacheBudget);
+        response = { id: request.id, kind: "counts", value: countProse(request.documentId, request.revision, request.text, request.selection, request.mdx, request.selectedText) };
+        break;
+      }
       case "changes": {
         const { calculateBlockChanges } = await import("./block-changes.js");
         response = { id: request.id, kind: "changes", value: await calculateBlockChanges(request.before, request.text, request.filePath, request.baselineKey) };

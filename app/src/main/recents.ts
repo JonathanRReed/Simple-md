@@ -42,3 +42,12 @@ export function jumpList(executable: string, appPath?: string, files: string[] =
       args: appPath ? `"${appPath}" --new-window` : "--new-window", iconPath: executable, iconIndex: 0 }] },
   ];
 }
+
+export function moveRecentDocument(os: RecentOS, platform: string, previous: string, target: string): void {
+  if (platform === "darwin") {
+    const files = [...new Set(os.getRecentDocuments().map(file => file === previous ? target : file))];
+    if (!files.includes(target)) files.unshift(target);
+    os.clearRecentDocuments();
+    for (const file of files.reverse()) os.addRecentDocument(file);
+  } else if (platform !== "linux") os.addRecentDocument(target);
+}

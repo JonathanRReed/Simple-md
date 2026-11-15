@@ -31,6 +31,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let rejectFragment: (() => void) | undefined;
   let stallFragment = false;
   const api = {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {},
     edit() { edits++; },
     changes: async () => ({ kind: "head", generation: headReads, changes: headCommitted ? { changed: [], deleted: [] } : { changed: [[7, 8]], deleted: [] } }),
@@ -76,8 +77,9 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   closeReadFind();
   await until(() => root.querySelector("#change-count")?.textContent === "1 change", "Initial HEAD changes missing");
   assert(article.querySelectorAll("li.change-highlight").length === 1 && !article.querySelector(".block.change-highlight"), "Change highlight covers the whole list");
+  const readsBeforeFocus = headReads;
   headCommitted = true; window.dispatchEvent(new Event("focus"));
-  await until(() => headReads === 1 && root.querySelector<HTMLElement>("#changes")!.hidden, "Focus did not refresh the committed HEAD baseline");
+  await until(() => headReads > readsBeforeFocus && root.querySelector<HTMLElement>("#changes")!.hidden, "Focus did not refresh the committed HEAD baseline");
   pane.command("mode-source"); await until(() => !!root.querySelector(".cm-content"), "Source editor missing"); await pause(100);
   const code = root.querySelector<HTMLElement>(".cm-code-font")!, inline = root.querySelector<HTMLElement>(".cm-code-font-inline")!;
   assert(code && inline && getComputedStyle(code).fontFamily === getComputedStyle(inline).fontFamily && /Mono|Menlo|monospace/i.test(getComputedStyle(code).fontFamily), "Source code does not use the code font");

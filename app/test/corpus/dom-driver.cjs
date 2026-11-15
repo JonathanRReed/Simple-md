@@ -2,13 +2,17 @@ const { app, BrowserWindow, session } = require("electron");
 const { mkdirSync, readFileSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 
+if (process.platform === "darwin") app.setActivationPolicy("accessory");
+// Offscreen software rendering supplies frames without a visible native compositor.
+app.disableHardwareAcceleration();
+
 app.whenReady().then(async () => {
   // Only an empty page and bundled application code run here. No reference assets load.
   session.defaultSession.webRequest.onBeforeRequest((request, done) => {
     done({ cancel: request.url !== "about:blank" });
   });
   const options = JSON.parse(process.env.SMD_DOM_OPTIONS || "{}");
-  const window = new BrowserWindow({ show: false, ...(options.screenshot ? { width: options.screenshot.width, height: options.screenshot.height } : {}), webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
+  const window = new BrowserWindow({ show: false, focusable: false, ...(options.screenshot ? { width: options.screenshot.width, height: options.screenshot.height } : {}), webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, offscreen: true } });
   window.webContents.on("console-message", (event) => console.error(event.message, event.lineNumber, event.sourceId));
   await window.loadURL("about:blank");
   if (options.media?.length) {
@@ -22,6 +26,11 @@ app.whenReady().then(async () => {
   const batch = `(async () => { try { return await CorpusBrowser.runBatch(${readFileSync(input, "utf8")}); } catch (error) { return { error: String(error.stack) }; } })()`;
   const results = await window.webContents.executeJavaScript(batch);
   if (results.error) throw new Error(results.error);
+  async function capture(file) {
+    const image = await window.webContents.capturePage();
+    if (image.isEmpty()) throw new Error("DOM screenshot is empty");
+    writeFileSync(file, image.toPNG());
+  }
   if (options.frames) {
     mkdirSync(options.frames.directory, { recursive: true });
     for (const time of options.frames.times) {
@@ -32,11 +41,11 @@ app.whenReady().then(async () => {
         }
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       })()`);
-      writeFileSync(path.join(options.frames.directory, `${time}ms.png`), (await window.webContents.capturePage()).toPNG());
+      await capture(path.join(options.frames.directory, `${time}ms.png`));
     }
     await window.webContents.executeJavaScript("globalThis.CorpusBrowser.afterFrames?.()");
   }
-  if (options.screenshot) writeFileSync(options.screenshot.path, (await window.webContents.capturePage()).toPNG());
+  if (options.screenshot) await capture(options.screenshot.path);
   writeFileSync(output, JSON.stringify(results));
   window.destroy();
   app.quit();

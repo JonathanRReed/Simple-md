@@ -159,4 +159,5 @@ test("reading fonts include system serif and New York on macOS", async () => {
   const { fonts } = await systemFonts();
   expect(fonts).toContain("ui-serif");
   if (process.platform === "darwin") expect(fonts).toContain("New York");
-});
+  // Listing fonts starts a system tool that the app allows 15 seconds; after that it falls back to the built-in list.
+}, 20_000);

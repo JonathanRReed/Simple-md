@@ -1,13 +1,20 @@
+import { commandDefinition, commandAccelerator, shortcutHint } from "../shared/commands.js";
+import type { BlockCommand } from "./block-commands.js";
+import type { TableCommand } from "./table-source.js";
+import { selectedSource, selectedReadProse, selectedRenderedBlocks } from "./read-selection.js";
+import { createProseCounter } from "./prose-counter.js";
+import { readerFocus } from "./reader-focus.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import { showConflictComparison } from "./conflict-comparison.js";
 import type { createOutlineRail } from "./outline-rail.js";
-import { tabCommands } from "../shared/tab-commands.js";
 import { blockAnchor, restoreBlockAnchor, type SourceAnchor } from "./scroll-sync.js";
 import type { HighlightState } from "../shared/change-highlights.js";
 import { applyBlockUpdate } from "../shared/block-update.js";
 import type { MdxResult, RenderedBlocks } from "../shared/render-core.js";
+import { moveReadFind } from "./ui.js";
+import { inputHistory } from "./text-focus.js";
 import { mountRenderedHtml, updateFragments, fragmentTarget } from "./author-html.js";
-import { makeDocumentId, makeRevisionId, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, LIVE_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
+import { makeDocumentId, makeRevisionId, type DiskChange, type DocumentId, type PaneId, type RevisionId, type Command, DEFAULT_SETTINGS, PROSE_COUNT_MAX_CHARS, type DocPayload, type EditMode, type ViewMode, type RenderedBlock, type Settings, type SaveResult } from "../shared/types.js";
 import { bridge } from "./api.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 import { enterPanel, exitChrome } from "./motion.js";
@@ -26,6 +33,13 @@ import {
   toast,
 } from "./ui.js";
 
+const metadataNotices = new Set<DocumentId>();
+export function noticeSaveMetadata(result: SaveResult): void {
+  if (!result.metadataCopyFailed || metadataNotices.has(result.documentId)) return;
+  metadataNotices.add(result.documentId);
+  toast("Saved, but tags or extended attributes could not be preserved.");
+}
+
 interface DocMeta {
   path: string | null;
   name: string;
@@ -41,6 +55,7 @@ interface DocumentState {
   readOnlyReason?: string;
   dirty: boolean;
   diskConflict: boolean;
+  unavailableReason?: string;
   diskSeq: number;
   saveQueue: Promise<void>;
   revisionId: RevisionId;
@@ -56,7 +71,7 @@ export interface DormantDocument {
   readBlocks: RenderedBlock[];
   back: NavigationEntry[];
   forward: NavigationEntry[];
-  disk?: { text: string; reason?: string };
+  disk?: DiskChange;
   seenOnReturn?: RevisionId;
 }
 interface NavigationEntry { path: string; anchor: SourceAnchor }
@@ -392,14 +407,16 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     })().finally(() => { if (owner === pane) changeWork = undefined; });
     return changeWork;
   }
-  function refreshHeadOnFocus(): void {
+  /** Re-reads the commit baseline. Only Git moves HEAD, so this follows focus, tab activation and reloads, never typing or saves. */
+  function refreshHead(): void {
     if (disposed || !options.active() || highlights.kind !== "head") return;
     const id = pane.documentId;
     void simplemd.headChanges(id, true).then(() => {
       if (!disposed && id === pane.documentId) return refreshChanges();
     }).catch(error => console.warn("simplemd: HEAD refresh unavailable", error));
   }
-  window.addEventListener("focus", refreshHeadOnFocus);
+  window.addEventListener("focus", refreshHead);
+  let stopReaderFocus = readerFocus(readScroll);
 
   function scheduleChanges(): void {
     ++changeSequence;
@@ -440,6 +457,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       seenOnReturn = undefined;
     }
     active = next;
+    if (next) updateHint();
   }
 
   function mountBlocks(el: HTMLElement, blocks: RenderedBlock[], append = false): void {
@@ -462,6 +480,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       node.dataset.fingerprint = block.fingerprint ?? block.key;
       node.dataset.sourceStart = String(block.sourceRange[0]);
       node.dataset.sourceEnd = String(block.sourceRange[1]);
+      for (const task of node.querySelectorAll<HTMLElement>(".task-list-item")) task.tabIndex = 0;
       const items = node.querySelectorAll<HTMLElement>("li");
       block.itemRanges?.forEach(([start, end], index) => {
         const item = items[index];
@@ -598,15 +617,18 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   // ───────── chrome ─────────
 
+  const counter = createProseCounter(hintEl, () => {
+    if (disposed || !doc.hasDoc) return null;
+    const text = currentText();
+    if (text.length > PROSE_COUNT_MAX_CHARS) return null;
+    return { key: `${pane.documentId}:${doc.revisionId}:${isMdx()}`, text, mdx: isMdx(), selection: pane.view === "edit" ? pane.editor?.sourceSelection() : undefined,
+      selectedText: pane.view === "read" ? selectedReadProse(docEl, window.getSelection()) : undefined };
+  }, source => simplemd.proseCounts(source.text, source.selection, source.mdx, pane.documentId, doc.revisionId, source.selectedText));
+  const selectionChanged = () => { if (options.active()) updateHint(); };
+  document.addEventListener("selectionchange", selectionChanged);
   function updateHint(): void {
-    hintEl.hidden = pane.view === "edit" || !doc.hasDoc;
-    if (pane.view === "edit") {
-      hintEl.textContent = "";
-      return;
-    }
-    const words = (doc.readText.match(/\S+/g) ?? []).length;
-    const minutes = Math.max(1, Math.round(words / 230));
-    hintEl.textContent = doc.hasDoc ? `${words.toLocaleString()} words · ${minutes} min${doc.readOnlyReason ? " · read only" : ""}` : "";
+    hintEl.hidden = !doc.hasDoc;
+    counter.schedule();
   }
 
   function updateChrome(): void {
@@ -687,6 +709,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       pane.editor = createEditor(editorHost, {
         text: doc.readText,
         filename: doc.meta.path ?? doc.meta.name,
+        isMdx,
         snapshot: retainedEditor,
         mdx: doc.mdx,
         mode: pane.mode,
@@ -712,10 +735,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           openLink: (href) => void navigateLink(href),
         },
         onChange(text) {
+          for (const rail of outlines.values()) rail.release();
           if (disposed || id !== pane.documentId) return;
           doc.firstAutosave.edit(text);
           changedText(text);
           doc.readText = text;
+          updateHint();
           if (pane.view === "read") {
             void renderRead(text, true);
           }
@@ -723,6 +748,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
           schedulePreview();
           scheduleAutosave();
         },
+        onSelectionChange: updateHint,
+        onLiveFallback(off) { if (off) toast("This note is large, so Live Preview is off to keep typing fast."); },
         onOutlineChange: () => { if (pane.mode === "live") scheduleOutlines(180); },
         onScroll() {
           if (pane.view === "edit" && pane.mode === "split" && pane.editor && scrollDriver === "editor") {
@@ -766,18 +793,17 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     if (!ed || pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || (transitioning && !initializing)) return;
     pane.view = "edit";
     simplemd.editing(pane.documentId);
+    // CodeMirror applies this after measuring. Queue it before the editor is
+    // visible so entry cannot restore an old anchor after the reader moves on.
+    if (!restoring) ed.restoreAnchor(syncAnchor);
     updateChrome();
     if (pane.mode === "split") {
       if (prepared) mountBlocks(previewEl, prepared);
       else await renderPreview();
     }
     if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq) return;
-    if (pane.mode === "live" && doc.readText.length > LIVE_MAX_CHARS) {
-      toast("This note is large, so Live Preview is off to keep typing fast.");
-    }
     requestAnimationFrame(() => {
       if (pane !== owner || id !== pane.documentId || seq !== pane.viewSeq || pane.view !== "edit" || transitioning) return;
-      if (!restoring) ed.restoreAnchor(syncAnchor);
       if (pane.mode === "split") resyncPreview();
       if (options.active() && (!initializing || !document.activeElement?.closest("#tabs"))) ed.focus();
     });
@@ -807,7 +833,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   async function onDoc(payload: DocPayload, retained?: DormantDocument): Promise<void> {
     const previousAnchor = visibleAnchor();
     disposed = false;
-    window.addEventListener("focus", refreshHeadOnFocus);
+    hintEl.textContent = "";
+    document.addEventListener("selectionchange", selectionChanged);
+    window.addEventListener("focus", refreshHead);
+    stopReaderFocus();
+    stopReaderFocus = readerFocus(readScroll);
     bindReaderOptions();
     closeComparison?.();
     layoutObserver.observe(previewEl);
@@ -918,7 +948,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     setTimeout(() => {
       if (disposed || pane !== owner || id !== pane.documentId) return;
       if (active && seenOnReturn !== undefined) { void markSeen(true, seenOnReturn); seenOnReturn = undefined; }
-      else void refreshChanges();
+      else void refreshChanges().then(refreshHead);
     }, 0);
     // This marker does not await fonts, highlighting completion checks or diagram work.
 
@@ -955,10 +985,11 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
 
   function onSaved(result: SaveResult): void {
     if (result.documentId !== pane.documentId) return;
+    const changedPath = doc.meta.path !== result.path;
     const moved = doc.meta.baseUrl !== result.baseUrl;
     if (doc.meta.path !== result.path) {
       invalidateExport();
-      void refreshChanges();
+      if (!result.moved) void refreshChanges();
     }
     doc.meta = { path: result.path, name: result.name, baseUrl: result.baseUrl };
     if (moved) {
@@ -966,6 +997,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (pane.view === "read") void renderRead(currentText(), true);
       else if (pane.mode === "split") void renderPreview();
     }
+    if (result.unavailableReason) {
+      doc.savedText = result.text;
+      onDiskChanged({ kind: "unavailable", message: result.unavailableReason }, pane.documentId);
+      return;
+    }
+    if (doc.unavailableReason || changedPath) hideBanner();
+    doc.unavailableReason = undefined;
+    if (changedPath || pendingDisk?.kind === "unavailable") { doc.diskConflict = false; pendingDisk = undefined; }
     doc.firstAutosave.confirm();
     doc.savedText = result.text;
     doc.dirty = currentText() !== doc.savedText;
@@ -977,7 +1016,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     clearTimeout(pane.autosaveTimer);
     const id = pane.documentId;
     const save = async () => {
-      if (!doc.hasDoc || id !== pane.documentId || isReadOnly() || transitioning || doc.diskConflict) return;
+      if (!doc.hasDoc || id !== pane.documentId || isReadOnly() || transitioning || (doc.diskConflict && !forceDialog)) return;
       const text = currentText();
       if (automatic && (!doc.firstAutosave.allowed || !doc.meta.path || text === doc.savedText)) return;
       if (!forceDialog && doc.meta.path && text === doc.savedText) return;
@@ -997,6 +1036,15 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   }
 
   function applyDiskText(text: string): void {
+    if (text !== currentText()) {
+      retainedEditor = undefined;
+      retainedReadBlocks = [];
+      doc.lastGoodBlocks = null;
+      doc.mdx = undefined;
+      anchors = {};
+      syncAnchor = { kind: "start" };
+      readRestoreAnchor = undefined;
+    }
     doc.firstAutosave.baseline(text);
     doc.savedText = text;
     doc.readText = text;
@@ -1009,9 +1057,41 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     updateChrome();
   }
 
-  function onDiskChanged(text: string, id: DocumentId, reason?: string): void {
-    pendingDisk = { text, reason };
+  function onDiskChanged(change: DiskChange, id: DocumentId): void {
     if (disposed || id !== pane.documentId) return;
+    if (change.kind === "permissions") {
+      if (pendingDisk?.kind === "text") { onDiskChanged({ ...pendingDisk, readOnlyReason: change.readOnlyReason }, id); return; }
+      doc.readOnlyReason = change.readOnlyReason;
+      pane.editor?.setEditable(!transitioning && !isReadOnly());
+      if (change.readOnlyReason && !doc.unavailableReason) showBanner(change.readOnlyReason, []);
+      else if (!doc.diskConflict) { hideBanner(); scheduleAutosave(); }
+      updateChrome();
+      return;
+    }
+    if (change.kind === "unavailable") {
+      pendingDisk = change;
+      closeComparison?.();
+      const seq = ++doc.diskSeq;
+      doc.unavailableReason = change.message;
+      doc.readOnlyReason = change.readOnlyReason;
+      pane.editor?.setEditable(!transitioning && !isReadOnly());
+      doc.diskConflict = true;
+      clearTimeout(pane.autosaveTimer);
+      setDirty(true);
+      const recover = async (saveAs: boolean) => {
+        const result = await simplemd.save(currentText(), saveAs, id, !saveAs);
+        if (result && id === pane.documentId && seq === doc.diskSeq) onSaved(result);
+        return false;
+      };
+      showBanner(change.message + " Your text is still here.", [
+        { label: "Recreate file", run: () => recover(false) },
+        { label: "Save As…", run: () => recover(true) },
+      ]);
+      updateChrome();
+      return;
+    }
+    pendingDisk = change;
+    const { text, readOnlyReason: reason } = change;
     closeComparison?.();
     const seq = ++doc.diskSeq;
     const saveCopy = { label: "Save mine as…", run: async () => {
@@ -1027,11 +1107,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       const reload = async () => {
         if (!(await simplemd.acceptDisk(text, id)) || id !== pane.documentId || seq !== doc.diskSeq) return;
         pendingDisk = undefined;
+        doc.unavailableReason = undefined;
         doc.diskConflict = false;
         applyDiskText(text);
         showBanner(reason, []);
       };
-      if (doc.dirty) showBanner(reason, [{ label: "Reload", run: reload }, saveCopy]);
+      if (doc.dirty || change.message) showBanner(change.message ? `${reason} ${change.message}` : reason, [{ label: "Reload", run: reload }, saveCopy]);
       else void reload();
       updateChrome();
       return;
@@ -1039,7 +1120,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     const observedText = currentText();
     clearTimeout(pane.autosaveTimer);
     doc.diskConflict = true;
-    const offerChoice = () => showBanner("This note changed on disk.", [
+    const offerChoice = () => showBanner(change.message ?? "This note changed on disk.", [
       { label: "View incoming changes", run: () => { closeComparison = showConflictComparison(currentText(), text); return false; } },
       { label: "Reload", run: () => accept(true) },
       { label: "Keep mine", run: () => accept(false) },
@@ -1053,11 +1134,12 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       }
       closeComparison?.();
       pendingDisk = undefined;
+      doc.unavailableReason = undefined;
       doc.diskConflict = false;
       doc.readOnlyReason = undefined;
       pane.editor?.setEditable(!transitioning && !isReadOnly());
       hideBanner();
-      if (reload) { applyDiskText(text); void refreshChanges(); }
+      if (reload) { applyDiskText(text); void refreshChanges().then(refreshHead); }
       else {
         doc.savedText = text;
         setDirty(currentText() !== doc.savedText);
@@ -1065,17 +1147,19 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       }
       return true;
     };
-    if (text === observedText || !doc.dirty) void accept(true, true);
+    // Compare text, not the dirty flag: a missing-file notice marks an untouched note dirty.
+    if (!change.message && (text === observedText || observedText === doc.savedText)) void accept(true, true);
     else offerChoice();
   }
 
   async function insertImages(files: File[]): Promise<string | null> {
     if (transitioning || isReadOnly()) return null;
-    if (!doc.meta.path) {
-      toast("Save the note first to add images.");
-      return null;
-    }
     const id = pane.documentId;
+    if (!doc.meta.path) {
+      await saveNow(false);
+      if (id !== pane.documentId || disposed || transitioning || isReadOnly()) return null;
+      if (!doc.meta.path) { toast("Image not inserted. The note was not saved."); return null; }
+    }
     const target = pane.editor;
     const lines: string[] = [];
     for (const file of files) {
@@ -1084,9 +1168,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       if (id !== pane.documentId || transitioning) return null;
       const rel = await simplemd.saveImage(bytes, ext, id);
       if (id !== pane.documentId || target !== pane.editor || transitioning) return null;
-      if (rel) lines.push(`![](${rel.split("/").map(encodeURIComponent).join("/").replace(/\(/g, "%28").replace(/\)/g, "%29")})`);
+      if (rel) lines.push(`![](${rel})`);
     }
-    return lines.length ? `${lines.join("\n")}\n` : null;
+    return lines.length ? lines.join("\n") : null;
   }
 
   // ───────── commands & palette ─────────
@@ -1094,10 +1178,6 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
   // Only generated task inputs can edit the source. Their order includes relocated footnotes.
   async function toggleTask(item: HTMLElement): Promise<void> {
     if (!doc.hasDoc || pane.view !== "read" || transitioning || isReadOnly() || doc.mdx?.error) return;
-    if (!doc.meta.path) {
-      toast("Save the note first to check off tasks.");
-      return;
-    }
     const source = pane.mountedReadText;
     if (source === null || source !== doc.readText || pane.readWork || pane.readPending) return;
     const boxes = docEl.querySelectorAll(".task-list-item-checkbox");
@@ -1185,46 +1265,26 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     openPicker("Go to heading…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
   }
 
-  function openPalette(): void {
-    const set = (patch: Partial<Settings>) => () => { if (patch.mode) selectMode(patch.mode); else void simplemd.setSettings(patch); };
-    const cmd = (c: Command) => () => handleCommand(c);
-    const items: PickerItem[] = [
-      ...tabCommands(settings, doc.meta.path).map(({ label, command }) => ({ label, run: () => simplemd.command(command) })),
-      { label: "Mark Seen", run: cmd("mark-seen") },
-      { label: "Next Change", run: cmd("next-change") },
-      { label: "Previous Change", run: cmd("previous-change") },
-      ...(doc.meta.path ? [{ label: "Show Changes Since Last Commit", run: cmd("toggle-head-changes") }] : []),
-      { label: pane.view === "read" ? "Edit this note" : "Read this note", hint: "⌘E", run: cmd("toggle-edit") },
-      { label: "Settings…", run: () => handleCommand("preferences") },
-      { label: "New note", hint: "⌘N", run: cmd("new") },
-      { label: "Open…", hint: "⌘O", run: () => void simplemd.openDialog() },
-      { label: "Save", hint: "⌘S", run: cmd("save") },
-      { label: "Save as…", hint: "⇧⌘S", run: cmd("save-as") },
-      { label: "Open Quickly…", hint: "⇧⌘O", run: () => simplemd.command("open-quickly") },
-      { label: "Go to heading…", hint: "⌥⇧⌘O", run: openOutline },
-      { label: "Find in note", hint: "⌘F", run: findInView },
-      { label: "Mode: Read", run: cmd("mode-read") },
-      { label: "Mode: Live preview", hint: "⌥⌘1", run: set({ mode: "live" }) },
-      { label: "Mode: Side by side", hint: "⌥⌘2", run: set({ mode: "split" }) },
-      { label: "Mode: Source", hint: "⌥⌘3", run: set({ mode: "source" }) },
-      { label: "Appearance: System", run: set({ theme: "system" }) },
-      { label: "Appearance: Light", run: set({ theme: "light" }) },
-      { label: "Appearance: Dark", run: set({ theme: "dark" }) },
-      { label: "GitHub style", run: set({ readingStyle: settings.readingStyle === "github" ? "editorial" : "github" }) },
+  async function openPalette(): Promise<void> {
+    const id = pane.documentId;
+    const available = await simplemd.menuCommands();
+    if (disposed || id !== pane.documentId) return;
+    const inTable = pane.view === "edit" && !!pane.editor?.inTable();
+    const items: PickerItem[] = available.filter(item => item.enabled && (!commandDefinition(item.id)?.table || inTable)).flatMap(item => {
+      const definition = commandDefinition(item.id);
+      return definition ? [{ label: item.label ?? (mac ? definition.macLabel ?? definition.label : definition.label), hint: shortcutHint(commandAccelerator(definition, mac), mac), run: () => void simplemd.invokeMenu(item.id) }] : [];
+    });
+    const set = (patch: Partial<Settings>) => () => void simplemd.setSettings(patch);
+    items.push(
+      { label: "Close Other Tabs", run: () => simplemd.command("close-other-tabs", id) },
+      { label: settings.tabStyle === "sidebar" ? "Close Tabs Below" : "Close Tabs to the Right", run: () => simplemd.command("close-tabs-below", id) },
       { label: "Reading font: System", run: set({ readingFontFamily: "system-ui" }) },
       { label: "Reading font: Charter", run: set({ readingFontFamily: "Charter" }) },
       { label: "Width: Narrow", run: set({ contentWidth: 54 }) },
       { label: "Width: Normal", run: set({ contentWidth: 66 }) },
       { label: "Width: Wide", run: set({ contentWidth: 100 }) },
-      { label: "Zoom in", hint: "⌘=", run: cmd("zoom-in") },
-      { label: "Zoom out", hint: "⌘-", run: cmd("zoom-out") },
-      { label: "Actual size", hint: "⌘0", run: cmd("zoom-reset") },
-      { label: settings.autosave ? "Turn autosave off" : "Turn autosave on", run: set({ autosave: !settings.autosave }) },
-      { label: "Export as PDF…", run: cmd("export-pdf") },
-      { label: "Print…", hint: "⌘P", run: cmd("print") },
-      { label: "Reveal in file manager", run: cmd("reveal") },
-      ...settings.recents.map((p): PickerItem => ({ label: p.split(/[\\/]/).pop() ?? p, hint: `Recent · ${p}`, run: () => void simplemd.openPath(p) })),
-    ];
+    );
+    items.push(...settings.recents.map((p): PickerItem => ({ label: p.split(/[\\/]/).pop() ?? p, hint: `Recent · ${p}`, run: () => void simplemd.openPath(p) })));
     const tabs = options.tabs();
     items.unshift(...tabs.map(tab => ({ label: tab.name, hint: `Tab · ${tab.path ?? "Untitled"}`, run: () => void simplemd.activateTab(tab.id) })));
     if (pane.view === "edit" && pane.editor) {
@@ -1237,9 +1297,92 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
     openPicker("Search commands, tabs, recent files and headings…", items, () => (pane.view === "edit" ? pane.editor?.focus() : undefined));
   }
 
+  async function editorPanel(command: "find-replace" | "go-to-line"): Promise<void> {
+    const id = pane.documentId;
+    if (pane.view === "read") {
+      await showEdit();
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    }
+    if (id !== pane.documentId || disposed || transitioning || pane.view !== "edit" || isReadOnly()) return;
+    if (command === "find-replace") pane.editor?.replace(); else pane.editor?.goToLine();
+  }
+  async function pickImage(): Promise<string | null> {
+    const id = pane.documentId;
+    if (!doc.meta.path) await saveNow(false);
+    if (disposed || id !== pane.documentId || transitioning || isReadOnly()) return null;
+    if (!doc.meta.path) { toast("Image not inserted. The note was not saved."); return null; }
+    const link = await simplemd.pickImage(id);
+    return link && !disposed && id === pane.documentId ? `![](${link})` : null;
+  }
+  async function copyAs(command: "copy-markdown" | "copy-html" | "copy-formatted"): Promise<void> {
+    const id = pane.documentId, revision = doc.revisionId;
+    const selection = pane.view === "edit" ? pane.editor?.sourceSelection() : undefined;
+    const text = currentText();
+    const source = pane.view === "edit" ? selection && selection.from !== selection.to ? text.slice(selection.from, selection.to) : text : selectedSource(docEl, text, window.getSelection());
+    if (command === "copy-markdown") { await simplemd.writeClipboard(source); return; }
+    const holder = document.createElement("div");
+    const renderedSelection = pane.view === "read" && pane.mountedReadText === text ? selectedRenderedBlocks(docEl, window.getSelection()) : null;
+    if (renderedSelection) holder.append(renderedSelection);
+    else {
+      const blocks = await simplemd.renderClipboard(source, id, revision);
+      if (disposed || id !== pane.documentId || revision !== doc.revisionId) return;
+      // Use the document renderer's sanitized author-HTML path, including inert MDX.
+      for (const block of blocks) {
+        const node = document.createElement("div");
+        mountRenderedHtml(node, block, settings.remoteImages);
+        holder.append(node);
+      }
+    }
+    const html = holder.innerHTML;
+    if (command === "copy-html") await simplemd.writeClipboard(html);
+    else {
+      for (const cell of holder.querySelectorAll("td,th")) cell.append(document.createTextNode("\t"));
+      for (const line of holder.querySelectorAll("br")) line.replaceWith(document.createTextNode("\n"));
+      for (const image of holder.querySelectorAll("img")) image.replaceWith(document.createTextNode(image.alt));
+      for (const block of holder.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,tr,hr")) block.append(document.createTextNode("\n"));
+      await simplemd.writeClipboard(holder.textContent?.trim() ?? "", html);
+    }
+  }
+
   function handleCommand(cmd: Command): void {
+    // Any command means the reader has moved on from the last outline jump.
+    for (const rail of outlines.values()) rail.release();
     if (transitioning && ["toggle-edit", "undo", "redo", "save", "save-as", "format-bold", "format-italic", "format-code", "format-link", "format-strike"].includes(cmd)) return;
+    // Writing commands stay together for the files-tabs integration.
+    if (cmd.startsWith("block-")) {
+      if (!transitioning && !isReadOnly() && pane.view === "edit") pane.editor?.block(cmd.slice(6) as BlockCommand);
+      return;
+    }
+    if (cmd.startsWith("table-")) {
+      if (!transitioning && !isReadOnly() && pane.view === "edit") pane.editor?.table(cmd.slice(6) as TableCommand);
+      return;
+    }
     switch (cmd) {
+      case "toggle-task":
+        if (pane.view === "edit") { if (!transitioning && !isReadOnly()) pane.editor?.block("toggle-task"); }
+        else {
+          const selection = window.getSelection();
+          const tasks = [...docEl.querySelectorAll<HTMLElement>(".task-list-item")];
+          const focused = document.activeElement?.closest<HTMLElement>(".task-list-item");
+          const selected = selection?.rangeCount && !selection.isCollapsed ? tasks.find(task => [...task.childNodes].some(node => !(node instanceof Element && (node.tagName === "UL" || node.tagName === "OL")) && selection.getRangeAt(0).intersectsNode(node))) : undefined;
+          const task = focused && docEl.contains(focused) ? focused : selected;
+          if (task) void toggleTask(task);
+        }
+        return;
+      case "find-replace":
+      case "go-to-line":
+        void editorPanel(cmd); return;
+      case "fold": case "unfold": case "fold-all": case "unfold-all":
+        if (!transitioning && pane.view === "edit") pane.editor?.fold(cmd);
+        return;
+      case "insert-image":
+        if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(pickImage).catch(() => toast("Couldn't add the image."));
+        return;
+      case "copy-markdown": case "copy-html": case "copy-formatted":
+        void copyAs(cmd).catch(() => toast("Couldn't copy the selection.")); return;
+      case "paste-markdown":
+        if (!transitioning && !isReadOnly() && pane.view === "edit") void pane.editor?.insertAsync(() => simplemd.pasteMarkdown(pane.documentId));
+        return;
       case "mark-seen": void markSeen(); return;
       case "toggle-head-changes": void toggleHeadChanges().catch(error => toast(String(error))); return;
       case "next-change": navigateChange(1); return;
@@ -1259,11 +1402,14 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       case "mode-live":
       case "mode-split":
       case "mode-source":
-        setMode(cmd === "mode-live" ? "live" : cmd === "mode-split" ? "split" : "source");
-        if (pane.view === "read") void showEdit();
+        selectMode(cmd === "mode-live" ? "live" : cmd === "mode-split" ? "split" : "source");
         break;
       case "use-selection-find":
         void simplemd.writeFindText(pane.view === "edit" ? pane.editor?.selection() ?? "" : window.getSelection()?.toString() ?? "");
+        break;
+      case "find-next":
+      case "find-previous":
+        if (!moveReadFind(cmd === "find-previous") && pane.view === "edit") pane.editor?.findNext(cmd === "find-previous");
         break;
       case "find":
         findInView();
@@ -1285,10 +1431,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         void navigate("forward");
         break;
       case "undo":
-        pane.editor?.undo();
+        if (!inputHistory("undo")) pane.editor?.undo();
         break;
       case "redo":
-        pane.editor?.redo();
+        if (!inputHistory("redo")) pane.editor?.redo();
         break;
       case "export-pdf":
         void simplemd.exportPdf(currentText(), pane.documentId);
@@ -1507,7 +1653,8 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         const result = await simplemd.save(text, false, id);
         if (!result) return;
         retained.savedText = result.text;
-        retained.dirty = retained.readText !== result.text;
+        retained.unavailableReason = result.unavailableReason;
+        retained.dirty = !!result.unavailableReason || retained.readText !== result.text;
         options.changed();
       };
       retained.saveQueue = retained.saveQueue.then(save, save).catch(error => console.error("simplemd: dormant autosave failed", error));
@@ -1524,7 +1671,10 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
       back: [...navBack], forward: [...navForward], disk: pendingDisk, seenOnReturn,
     };
     disposed = true;
-    window.removeEventListener("focus", refreshHeadOnFocus);
+    counter.destroy();
+    document.removeEventListener("selectionchange", selectionChanged);
+    window.removeEventListener("focus", refreshHead);
+    stopReaderFocus();
     clearOutlines();
     cancelAnimationFrame(layoutFrame);
     layoutObserver.disconnect();
@@ -1564,6 +1714,9 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         if (pane.documentId !== id || disposed) return;
       }
       if (target.kind === "heading") {
+        // An already-open target may still be switching from Source to Read.
+        await (pane.view === "read" ? pane.readWork : pane.previewWork);
+        if (pane.documentId !== id || disposed) return;
         const scope = pane.view === "read" ? docEl : previewEl;
         if (!fragmentTarget(scope, "#" + encodeURIComponent(target.heading)) || (pane.view === "edit" && pane.mode !== "split")) {
           const rendered = await simplemd.renderBlocks(currentText(), id, doc.revisionId);
@@ -1600,7 +1753,7 @@ export function createPane(container: HTMLElement, paneId: PaneId, options: {
         }
       }
     },
-    flush() { return { revisionId: doc.revisionId, dirty: doc.dirty, text: currentText(), documentId: pane.documentId, conflict: doc.diskConflict }; },
+    flush() { return { revisionId: doc.revisionId, dirty: doc.dirty, text: currentText(), documentId: pane.documentId, conflict: doc.diskConflict, unavailable: !!doc.unavailableReason }; },
   };
 }
 export type PaneController = ReturnType<typeof createPane>;

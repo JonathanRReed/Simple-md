@@ -20,13 +20,23 @@ use windows as platform;
 
 pub const FRAME_CAP: usize = 1024 * 1024;
 pub const STDIN_CAP: usize = 10 * 1024 * 1024;
-const HELP: &str = "Usage: simplemd [--wait] [--stdin-name NAME] [--] FILE[:LINE|#SLUG] | -\n       simplemd export FILE --format html|pdf -o OUTPUT [--force]\nExit codes: 0 success, 1 operational failure, 2 usage error.";
+const HELP: &str = "Usage: simplemd [--wait] [--stdin-name NAME] [--] FILE[:LINE|#SLUG]... | -\n       simplemd export FILE --format html|pdf -o OUTPUT [--force]\nExit codes: 0 success, 1 operational failure, 2 usage error.";
+#[derive(Debug, PartialEq)]
+pub struct OpenTarget {
+    path: PathBuf,
+    line: Option<u32>,
+    heading: Option<String>,
+}
 #[derive(Debug, PartialEq)]
 pub enum Action {
     Open {
         path: PathBuf,
         line: Option<u32>,
         heading: Option<String>,
+        wait: bool,
+    },
+    OpenMany {
+        files: Vec<OpenTarget>,
         wait: bool,
     },
     Stdin {
@@ -53,6 +63,13 @@ pub fn parse(
     args: &[String],
     cwd: &Path,
     exists: impl Fn(&Path) -> bool,
+) -> Result<Action, String> {
+    parse_inner(args, cwd, &exists)
+}
+fn parse_inner(
+    args: &[String],
+    cwd: &Path,
+    exists: &dyn Fn(&Path) -> bool,
 ) -> Result<Action, String> {
     if args == ["--help"] || args == ["-h"] {
         return Ok(Action::Help);
@@ -92,8 +109,33 @@ pub fn parse(
         }
         i += 1;
     }
-    if files.len() != 1 {
+    if files.is_empty() || export && files.len() != 1 {
         return Err(HELP.into());
+    }
+    if files.len() > 1 {
+        if name.is_some() || files.contains(&"-") {
+            return Err("Stdin requires a single input".into());
+        }
+        let mut targets = Vec::new();
+        for file in files {
+            match parse_inner(&["--".into(), file.into()], cwd, exists)? {
+                Action::Open {
+                    path,
+                    line,
+                    heading,
+                    ..
+                } => targets.push(OpenTarget {
+                    path,
+                    line,
+                    heading,
+                }),
+                _ => return Err("Expected a file".into()),
+            }
+        }
+        return Ok(Action::OpenMany {
+            files: targets,
+            wait,
+        });
     }
     let file = files[0];
     #[cfg(windows)]
@@ -338,6 +380,13 @@ fn execute(action: Action) -> Result<(), String> {
             request["line"] = json!(line);
             request["heading"] = json!(heading);
             request["wait"] = json!(wait);
+            request["create"] = json!(true);
+            wait
+        }
+        Action::OpenMany { files, wait } => {
+            request["command"] = json!("open-many");
+            request["files"] = json!(files.into_iter().map(|file| json!({"path":file.path,"line":file.line,"heading":file.heading,"create":true})).collect::<Vec<_>>());
+            request["wait"] = json!(wait);
             wait
         }
         Action::Stdin { name, wait } => {
@@ -416,6 +465,10 @@ pub fn run() -> Result<(), (i32, String)> {
     #[cfg(windows)]
     if args.first().is_some_and(|v| v == "--runtime-info") {
         return windows::runtime_info().map_err(|e| (1, e));
+    }
+    #[cfg(windows)]
+    if args.first().is_some_and(|v| v == "--write-state") {
+        return windows::write_state().map_err(|e| (1, e));
     }
     let cwd = env::current_dir().map_err(|e| (1, e.to_string()))?;
     let action = parse(&args, &cwd, |p| p.exists()).map_err(|e| (2, e))?;
@@ -539,6 +592,47 @@ mod tests {
                 .is_err()
             );
         }
+    }
+    #[test]
+    fn multiple_files_have_independent_locations_and_wait() {
+        let cwd = Path::new("/tmp");
+        assert_eq!(
+            parse(
+                &args(&["--wait", "a.md:12", "b.mdx#hello", "new-file.md"]),
+                cwd,
+                |_| false
+            )
+            .unwrap(),
+            Action::OpenMany {
+                wait: true,
+                files: vec![
+                    OpenTarget {
+                        path: cwd.join("a.md"),
+                        line: Some(12),
+                        heading: None
+                    },
+                    OpenTarget {
+                        path: cwd.join("b.mdx"),
+                        line: None,
+                        heading: Some("hello".into())
+                    },
+                    OpenTarget {
+                        path: cwd.join("new-file.md"),
+                        line: None,
+                        heading: None
+                    },
+                ]
+            }
+        );
+        assert!(parse(&args(&["-", "a.md"]), cwd, |_| false).is_err());
+        assert!(
+            parse(
+                &args(&["--stdin-name", "draft.mdx", "a.md", "b.md"]),
+                cwd,
+                |_| false
+            )
+            .is_err()
+        );
     }
     #[test]
     fn framing_and_caps() {

@@ -57,6 +57,24 @@ function lazyWorkerChunks(): string[] {
 }
 
 describe("persistent Node render worker", () => {
+  test("prose counting stays in the worker and returns selection counts", async () => {
+    await nodeCheck(`
+      const client = new RenderClient();
+      try {
+        await client.warmUp();
+        const text = '# Heading\\n\\n' + 'Hello **world**. '.repeat(6500) + '\\n\\n~~~ts\\nnot prose\\n~~~';
+        let ticks = 0;
+        const timer = setInterval(() => ticks++, 1);
+        const counts = await client.proseCounts(1, 1, text, { from: 2, to: 9 }, false);
+        clearInterval(timer);
+        assert.deepEqual(counts.document, { words: 13001, characters: 84507 });
+        assert.deepEqual(counts.selection, { words: 1, characters: 7 });
+        assert.ok(ticks > 0, 'parent event loop ran during count parsing');
+        assert.match((await client.renderFragment('**After counts**', undefined)).html, /<strong>/);
+      } finally { await client.dispose(); }
+    `);
+  });
+
   test("stdin MDX mode crosses the worker without a file path", async () => {
     await nodeCheck(`
       const client = new RenderClient();

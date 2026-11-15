@@ -1,24 +1,36 @@
+import fs from "node:fs";
+import { moveDocumentFile, type Destination } from "./file-actions.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import type { ChangeBaseline, GitChangesStatus } from "../shared/change-highlights.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { makeRevisionId, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
+import { makeRevisionId, type DiskChange, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
 import { DocumentQueue } from "./lifecycle.js";
-import { ENCODING_NOTICE, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
+import { ENCODING_NOTICE, FileChangedDuringReadError, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
+
+const missing = (error: unknown): boolean => error instanceof Error && "code" in error && ["ENOENT", "ENOTDIR"].includes(String(error.code));
+const exists = (file: string): Promise<boolean> => fs.promises.stat(file).then(() => true, () => false);
 
 export class DocumentSession {
   readonly firstAutosave: FirstAutosave;
   readonly saves = new DocumentQueue();
+  suggestedFolder?: string;
+  draftPath?: string;
   revisionId = makeRevisionId(0);
+  baselinePath?: string;
   baseline: ChangeBaseline | null = null;
   baselineGeneration = 0;
   gitStatus: GitChangesStatus;
   conflict = false;
   dirty = false;
+  unavailableReason: string | undefined;
   private watcher: { close(): void } | undefined;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private watchGeneration = 0;
   private disposed = false;
-  private onDiskChanged: ((text: string, reason?: string) => void) | undefined;
+  private unavailableSequence = 0;
+  private onDiskChanged: ((change: DiskChange) => void) | undefined;
+  private recoveryNotice: string | undefined;
 
   constructor(
     readonly documentId: DocumentId,
@@ -51,7 +63,7 @@ export class DocumentSession {
     }
     this.text = text;
     this.revisionId = revisionId;
-    this.dirty = text !== (this.diskText ?? "");
+    this.dirty = !!this.unavailableReason || text !== (this.diskText ?? "");
     return true;
   }
 
@@ -65,28 +77,53 @@ export class DocumentSession {
     return result;
   }
 
-  watch(changed: (text: string, reason?: string) => void): void {
+  watch(changed: (change: DiskChange) => void): void {
     this.stopWatching();
     this.onDiskChanged = changed;
     if (!this.path) return;
     const file = this.path;
     const generation = this.watchGeneration;
+    let checkSequence = 0;
     const check = () => {
+      clearTimeout(this.retryTimer);
+      const sequence = ++checkSequence;
       void readDocument(file).then(({ text, readOnlyReason }) => {
-        if (generation !== this.watchGeneration) return;
-        if (readOnlyReason) this.readOnlyReason = readOnlyReason;
-        if (!readOnlyReason && text === this.diskText) return;
+        if (generation !== this.watchGeneration || sequence !== checkSequence) return;
+        const permissionsChanged = readOnlyReason !== this.readOnlyReason;
+        this.readOnlyReason = readOnlyReason;
+        if (text === this.diskText && !this.unavailableReason) {
+          if (permissionsChanged) changed({ kind: "permissions", readOnlyReason });
+          return;
+        }
         this.conflict = true;
-        changed(text, readOnlyReason);
-      }).catch((err) => console.error("simple-md: could not read changed note", err));
+        changed({ kind: "text", text, readOnlyReason, message: this.recoveryNotice });
+      }).catch((err) => {
+        if (generation !== this.watchGeneration || sequence !== checkSequence) return;
+        // Another program is still writing. The file is there, so look again once it has had time to finish.
+        if (err instanceof FileChangedDuringReadError) { this.retryTimer = setTimeout(check, 250); return; }
+        // A read that began before a save or another program put the file back can still report it missing. Believe the disk.
+        void (missing(err) ? exists(file) : Promise.resolve(false)).then(back => {
+          if (generation !== this.watchGeneration || sequence !== checkSequence) return;
+          if (back) check(); else this.unavailable(err);
+        });
+      });
     };
     try { this.watcher = watchDocument(file, check); check(); }
     catch (err) { console.error("simple-md: could not watch note", err); }
   }
 
-  markSeen(): void { this.baseline = null; this.baselineGeneration++; }
+  private unavailable(error: unknown): void {
+    this.unavailableSequence++;
+    this.unavailableReason = missing(error) ? "This file is missing or was moved." : "This file could not be read.";
+    this.conflict = true;
+    this.dirty = true;
+    if (this.readOnlyReason !== ENCODING_NOTICE) this.readOnlyReason = undefined;
+    this.onDiskChanged?.({ kind: "unavailable", message: this.unavailableReason, readOnlyReason: this.readOnlyReason });
+  }
 
-  setHeadBaseline(text: string): void { this.baseline = { kind: "head", text }; this.baselineGeneration++; }
+  markSeen(): void { this.baselinePath = undefined; this.baseline = null; this.baselineGeneration++; }
+
+  setHeadBaseline(text: string): void { this.baselinePath ??= this.path ?? undefined; this.baseline = { kind: "head", text }; this.baselineGeneration++; }
 
   async acceptDisk(text: string, highlight = false): Promise<boolean> {
     if (!this.path) return false;
@@ -100,23 +137,37 @@ export class DocumentSession {
       this.baselineGeneration++;
     }
     this.diskText = text;
+    this.recoveryNotice = undefined;
+    this.unavailableReason = undefined;
     this.conflict = false;
     this.readOnlyReason = latest.readOnlyReason;
     return true;
   }
 
-  save(target: string, revisionId: RevisionId, force = false): Promise<SaveResult | null> {
+  save(target: string, revisionId: RevisionId, force = false, recreate = false): Promise<SaveResult | null> {
     return this.saves.run(async () => {
-      if (!this.isCurrent(revisionId) || this.readOnlyReason || (this.conflict && !force)) return null;
+      if (!this.isCurrent(revisionId) || this.readOnlyReason || (this.conflict && !force && !recreate)) return null;
+      if (recreate && (target !== this.path || !this.unavailableReason)) return null;
       const text = this.text;
+      const unavailableSequence = this.unavailableSequence;
+      let metadataCopyFailed: boolean;
       try {
-        const expected = target === this.path ? this.diskText : await readDiskText(target);
-        await writeAtomic(target, text, expected);
+        const expected = recreate || target === this.draftPath && !force ? null : target === this.path ? this.diskText : await readDiskText(target);
+        ({ metadataCopyFailed } = await writeAtomic(target, text, expected));
       } catch (err) {
-        if (!(err instanceof FileConflictError)) throw err;
+        if (target !== this.path) throw err;
+        const racing = (error: unknown) => error instanceof FileChangedDuringReadError;
+        const external = await readDocument(target).catch((error: unknown) => {
+          // A file that is mid-write is a conflict, not a missing file. The watcher delivers its text once it settles.
+          if (racing(error)) this.conflict = true;
+          else this.unavailable(error);
+          return null;
+        });
+        if (!external) { if (recreate) throw err; return null; }
+        if (!(err instanceof FileConflictError) && !racing(err)) throw err;
         this.conflict = true;
-        const external = await readDiskText(target).catch(() => null);
-        if (external !== null) this.onDiskChanged?.(external);
+        if (err instanceof FileConflictError && err.recoveryPath) this.recoveryNotice = err.message;
+        this.onDiskChanged?.({ kind: "text", ...external, message: this.recoveryNotice });
         return null;
       }
       const moved = target !== this.path;
@@ -125,15 +176,33 @@ export class DocumentSession {
         this.gitStatus = { available: true, active: false };
       }
       this.path = target;
+      this.draftPath = undefined;
       this.firstAutosave.confirm();
       this.diskText = text;
-      this.conflict = false;
-      this.dirty = this.text !== text;
+      this.recoveryNotice = undefined;
+      // A watcher read that began before this save published can report the file missing after it. Believe the disk.
+      if (moved || unavailableSequence === this.unavailableSequence || await exists(target)) this.unavailableReason = undefined;
+      this.conflict = !!this.unavailableReason;
+      this.dirty = !!this.unavailableReason || this.text !== text;
       if (moved && this.onDiskChanged) this.watch(this.onDiskChanged);
-      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text };
+      return { documentId: this.documentId, revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text, metadataCopyFailed, unavailableReason: this.unavailableReason };
     });
   }
 
-  stopWatching(): void { this.watchGeneration++; this.watcher?.close(); this.watcher = undefined; }
+  move(target: string, expected: Destination): Promise<SaveResult> {
+    return this.saves.run(async () => {
+      if (!this.path) throw new Error("Save the file before moving it.");
+      if (this.dirty || this.conflict || this.unavailableReason) throw new Error("The document changed. Save it and try again.");
+      const previous = this.path;
+      this.stopWatching();
+      try {
+        await moveDocumentFile(previous, target, this.text, expected);
+        this.path = target;
+        return { moved: true, documentId: this.documentId, revisionId: this.revisionId, path: target, name: this.name, baseUrl: this.baseUrl!, text: this.text };
+      } finally { if (this.onDiskChanged) this.watch(this.onDiskChanged); }
+    });
+  }
+
+  stopWatching(): void { this.watchGeneration++; clearTimeout(this.retryTimer); this.watcher?.close(); this.watcher = undefined; }
   dispose(): void { this.disposed = true; this.markSeen(); this.stopWatching(); }
 }

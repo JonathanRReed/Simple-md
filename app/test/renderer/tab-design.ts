@@ -55,7 +55,8 @@ export async function runBatch(input: { html: string; css: string }) {
   bar.configure({ ...DEFAULT_SETTINGS, tabStyle: "sidebar" }); await paint();
   assert(pin.querySelector<HTMLElement>(".tab-name")!.getBoundingClientRect().width > 0, "Sidebar pin lost full label");
   assert(getComputedStyle(row.parentElement!).marginBlockStart === "9px", "Pin section has no spacing");
-  assert(getComputedStyle(divider, "::after").backgroundColor === "rgba(0, 0, 0, 0)", "Divider is visible at rest");
+  // Forced colors may retain white RGB channels at zero alpha.
+  assert(/^rgba\(\d+, \d+, \d+, 0\)$/.test(getComputedStyle(divider, "::after").backgroundColor), "Divider is visible at rest");
   // Delayed echoes of our own writes must not undo a newer reset or cancel the next drag.
   divider.setPointerCapture = () => {};
   divider.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 7, button: 0, clientX: 180 }));

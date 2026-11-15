@@ -21,10 +21,11 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   stage.append(root);
   const calls = { settings: [] as unknown[], commands: [] as string[], tabs: [] as number[] };
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered,
-    readFindText: async () => "", writeFindText: async () => {},
+    relativePath: async () => null, readFindText: async () => "", writeFindText: async () => {},
     setSettings: async (patch: unknown) => { calls.settings.push(patch); },
     activateTab: async (id: number) => { calls.tabs.push(id); },
     command: (cmd: string) => calls.commands.push(cmd),
@@ -81,7 +82,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   const firstHeading = article.querySelector("h1")!.getBoundingClientRect();
   assert(firstHeading.top - scroll.getBoundingClientRect().top < 30, `Read title has an empty band above it: ${firstHeading.top - scroll.getBoundingClientRect().top}, ${article.innerHTML.slice(0, 400)}`);
 
-  pane.command("palette");
+  pane.command("palette"); await wait();
   const picker = document.querySelector<HTMLInputElement>("#picker-input")!;
   picker.value = "rdrhd"; picker.dispatchEvent(new Event("input"));
   assert(document.querySelector("#picker-list")!.textContent!.includes("Reader heading"), "Palette did not fuzzy-match headings");
@@ -89,7 +90,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   assert(document.querySelector("#picker-list")!.textContent!.includes("OTHER.md"), "Palette omitted open tabs");
   picker.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   assert(calls.tabs.includes(2), "Palette did not activate a tab");
-  pane.command("palette"); picker.value = "recent"; picker.dispatchEvent(new Event("input"));
+  pane.command("palette"); await wait(); picker.value = "recent"; picker.dispatchEvent(new Event("input"));
   assert(document.querySelector("#picker-list")!.textContent!.includes("RECENT.md"), "Palette omitted recent files"); closeOverlays();
 
   scroll.dispatchEvent(new KeyboardEvent("keydown", { key: "e", metaKey: true, bubbles: true }));
@@ -98,7 +99,7 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   await until(() => !!root.querySelector(".cm-search input[name=search]"), "Editor Find did not open");
   const search = root.querySelector<HTMLInputElement>(".cm-search input[name=search]")!;
   search.value = "repo"; search.dispatchEvent(new Event("change", { bubbles: true })); await wait();
-  assert(root.querySelector(".search-count")?.textContent === "0 of 2", "Editor Find count is missing");
+  assert(root.querySelector(".search-count")?.textContent === "2 matches", "Editor Find count is missing");
   const replace = root.querySelector<HTMLInputElement>('.cm-search input[name="replace"]')!;
   replace.value = "repository"; replace.dispatchEvent(new Event("change", { bubbles: true }));
   root.querySelector<HTMLButtonElement>('.cm-search button[name="replaceAll"]')!.click(); await wait();

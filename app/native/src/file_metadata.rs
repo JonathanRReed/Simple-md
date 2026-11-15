@@ -18,7 +18,7 @@ fn copy(source: &str, target: &str) -> io::Result<()> {
     let source = CString::new(source)?;
     let target = CString::new(target)?;
     // COPYFILE_ACL | COPYFILE_XATTR | COPYFILE_NOFOLLOW.
-    // The caller owns the empty temp file and writes its data after copying metadata.
+    // Copy only ACLs and xattrs to the caller's temp file, never data or BSD flags.
     let result = unsafe {
         copyfile(
             source.as_ptr(),

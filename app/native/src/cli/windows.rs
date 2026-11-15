@@ -180,6 +180,61 @@ pub fn runtime_info() -> Result<(), String> {
     );
     Ok(())
 }
+pub fn write_state() -> Result<(), String> {
+    let dir = super::runtime_dir()?;
+    validate_runtime(&dir)?;
+    let mut bytes = Vec::new();
+    io::stdin()
+        .take(4097)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    if bytes.len() > 4096 {
+        return Err("Invalid connection state".into());
+    }
+    let state: Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    if state["version"] != 1
+        || !state["pid"].as_u64().is_some_and(|pid| pid > 0)
+        || !state["secret"].as_str().is_some_and(|secret| {
+            secret.len() == 64 && secret.bytes().all(|b| b.is_ascii_hexdigit())
+        })
+    {
+        return Err("Invalid connection state".into());
+    }
+    let temporary = dir.join(format!("state-{}.tmp", std::process::id()));
+    // Use the directory's explicit owner and ACL instead of the process defaults.
+    let sd = descriptor()?;
+    let attributes = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: sd.0,
+        bInheritHandle: 0,
+    };
+    let handle = unsafe {
+        CreateFileW(
+            wide(&temporary.to_string_lossy()).as_ptr(),
+            GENERIC_WRITE,
+            0,
+            &attributes,
+            CREATE_NEW,
+            FILE_ATTRIBUTE_NORMAL,
+            null_mut(),
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        return Err(error());
+    }
+    let result = (|| -> io::Result<()> {
+        let mut file = unsafe { File::from_raw_handle(handle) };
+        file.write_all(&bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temporary, dir.join("state.json"))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result.map_err(|e| e.to_string())
+}
+
 pub struct Connection {
     file: File,
     deadline: AcceptanceDeadline,
@@ -320,6 +375,10 @@ pub fn broker() -> Result<(), String> {
             let Ok(value) = serde_json::from_str::<Value>(&line) else {
                 break;
             };
+            if value["drain"] == true {
+                emit(json!({"drained":true}));
+                continue;
+            }
             let Some(id) = value["connection"].as_u64() else {
                 break;
             };
@@ -329,6 +388,12 @@ pub fn broker() -> Result<(), String> {
                     &serde_json::to_vec(&value["response"]).unwrap_or_default(),
                     FRAME_CAP,
                 );
+                if value["response"]["status"] == "closed" {
+                    // Wait until the client consumes its completion before the parent stops us.
+                    unsafe {
+                        FlushFileBuffers(file.as_raw_handle());
+                    }
+                }
             }
         }
         std::process::exit(1);
@@ -448,8 +513,26 @@ pub fn broker() -> Result<(), String> {
                     .insert(id, file.try_clone().map_err(|e| e.to_string())?);
                 emit(json!({"connection":id,"request":request,"stdin":text}));
                 finished.store(1, Ordering::SeqCst);
-                let mut byte = [0];
-                let _ = file.read(&mut byte);
+                // A pending synchronous read also blocks replies on the cloned handle.
+                // Probe disconnects without leaving a read pending between messages.
+                loop {
+                    let mut available = 0;
+                    if unsafe {
+                        PeekNamedPipe(
+                            file.as_raw_handle(),
+                            null_mut(),
+                            0,
+                            null_mut(),
+                            &mut available,
+                            null_mut(),
+                        )
+                    } == 0
+                        || available != 0
+                    {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(50));
+                }
                 Ok(())
             })();
             finished.store(1, Ordering::SeqCst);

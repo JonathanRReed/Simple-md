@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import type { RenderedBlocks } from "../../src/shared/render-core";
 import type { Bridge } from "../../src/renderer/api";
 import type { TabLayoutState } from "../../src/shared/tab-layout";
@@ -24,6 +25,8 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   let edited = "";
   const setSettings = async (patch: Partial<Settings>) => { writes.push(patch); settings = { ...settings, ...patch }; onSettings!(settings); };
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }),
+    menuCommands: async () => [], invokeMenu: async () => {},
     setChromeVisible() {},
     moveTab: async () => {},
     ready: async () => ({ settings, platform: "darwin", accent: "#0055aa" }),
@@ -129,10 +132,20 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   document.querySelector<HTMLButtonElement>('.cm-search button[name="close"]')!.click();
   const content = document.querySelector(".cm-content");
   const editorScroll = document.querySelector<HTMLElement>(".cm-scroller")!;
-  editorScroll.scrollTop = 500; await paint(); const editorTop = editorScroll.scrollTop;
+  const editor = EditorView.findFromDOM(editorScroll);
+  assert(editor, "Source editor view is missing");
+  const viewport = editorScroll.closest(".pane-viewport")!;
+  const measureEditor = async () => {
+    await until(() => editorScroll.clientHeight > 0, "Source editor has no visible viewport");
+    await Promise.all(viewport.getAnimations().map(animation => animation.finished.catch(() => {})));
+    await new Promise<void>(resolve => editor.requestMeasure({ read: () => undefined, write: () => resolve() }));
+  };
+  await measureEditor();
+  editorScroll.scrollTop = 500; await measureEditor(); const editorTop = editorScroll.scrollTop;
+  assert(editorTop === 500, "Source editor did not establish the requested scroll position");
   for (const tabStyle of ["top", "sidebar", "top", "sidebar"] as const) {
-    await setSettings({ tabStyle }); await paint();
-    assert(document.querySelector(".cm-content") === content && editorScroll.scrollTop === editorTop, "Style switch remounted or scrolled the editor");
+    await setSettings({ tabStyle }); await measureEditor();
+    assert(document.querySelector(".cm-content") === content && document.querySelector(".cm-scroller") === editorScroll && editorScroll.scrollTop === editorTop, "Style switch remounted or scrolled the editor");
     assert(row(b).dataset.dirty === "true" && row(b).getAttribute("aria-selected") === "true", "Style switch lost dirty or active state");
     assert(!document.querySelector<HTMLElement>('[data-element="dirty"]')!.hidden, "Style switch hid Edited state");
   }
@@ -146,6 +159,9 @@ export async function runBatch(input: { text: string; rendered: RenderedBlocks; 
   await until(() => row(a).getAttribute("aria-selected") === "true", "Command-2 did not count pinned tabs first");
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true, cancelable: true }));
   await until(() => row(b).getAttribute("aria-selected") === "true", "Command-1 did not select the first pin");
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "2", metaKey: true, ctrlKey: true, bubbles: true, cancelable: true }));
+  await paint();
+  assert(row(b).getAttribute("aria-selected") === "true", "Control-Command-2 was stolen by tab switching");
   assert(row(b).getAttribute("aria-label")!.includes("pinned"), "Pin state is not accessible");
   layout = { tabs: [b], panes: [{ paneId: p0, documentId: b }], activePane: p0, axis: "horizontal" }; onLayout!(layout);
   await until(() => strip.querySelectorAll(".tab").length === 1, "Closed tab row remains");

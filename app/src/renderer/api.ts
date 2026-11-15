@@ -1,7 +1,7 @@
 import type { HighlightState, GitChangesStatus } from "../shared/change-highlights.js";
 import type { TabLayoutState } from "../shared/tab-layout.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
-import type { DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
+import type { DiskChange, DocumentId, PaneId, RevisionId, RequestId, Command, DocPayload, FlushResult, Settings, SaveResult } from "../shared/types.js";
 
 export interface Bridge {
   setChromeVisible(visible: boolean): void;
@@ -19,6 +19,7 @@ export interface Bridge {
   focusPane(id: PaneId): Promise<void>;
   closeTab(id: DocumentId): Promise<boolean>;
   tabContextMenu(id: DocumentId): Promise<void>;
+  platform?: string;
   ready(): Promise<{ settings: Settings; platform: string; accent: string }>;
   onDoc(cb: (doc: DocPayload) => void): void;
   onSaved(cb: (result: SaveResult) => void): void;
@@ -34,7 +35,7 @@ export interface Bridge {
   headChanges(documentId: DocumentId, enabled: boolean): Promise<GitChangesStatus>;
   onSettings(cb: (s: Settings) => void): void;
   onCommand(cb: (cmd: Command, documentId?: DocumentId) => void): void;
-  onDiskChanged(cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void): void;
+  onDiskChanged(cb: (change: DiskChange, documentId: DocumentId) => void): void;
   onFlushRequest(cb: (id: RequestId, documentId: DocumentId) => void): void;
   onPrintDoc(cb: (doc: DocPayload, settings: Settings) => void): void;
   flushResponse(id: RequestId, result: FlushResult): void;
@@ -44,8 +45,15 @@ export interface Bridge {
   nextBlocks(stream: number, documentId: DocumentId): Promise<import("../shared/block-update.js").BlockUpdate>;
   renderBlocks(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<import("../shared/render-core.js").RenderedBlocks>;
   renderFragment(text: string, documentId: DocumentId, revisionId: RevisionId): Promise<RenderedHtml>;
-  save(text: string, forceDialog: boolean, documentId: DocumentId): Promise<SaveResult | null>;
+  save(text: string, forceDialog: boolean, documentId: DocumentId, recreate?: boolean): Promise<SaveResult | null>;
   saveCopy(text: string, documentId: DocumentId): Promise<string | null>;
+  proseCounts(text: string, selection: import("./source-edit.js").SourceSelection | undefined, mdx: boolean, id: DocumentId, revision: RevisionId, selectedText?: string): Promise<import("../shared/prose-count.js").ProseCounts | null>;
+  menuCommands(): Promise<import("../shared/commands.js").MenuCommand[]>;
+  invokeMenu(id: string): Promise<void>;
+  renderClipboard(text: string, id: DocumentId, revision: RevisionId): Promise<import("../shared/types.js").RenderedBlock[]>;
+  pasteMarkdown(documentId: DocumentId): Promise<string>;
+  writeClipboard(text: string, html?: string): Promise<void>;
+  pickImage(documentId: DocumentId): Promise<string | null>;
   saveImage(bytes: Uint8Array, ext: string, documentId: DocumentId): Promise<string | null>;
   prepareDragExport(text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf"): Promise<{ token: string; name: string; expiresAt: number }>;
   startDragExport(documentId: DocumentId, revisionId: RevisionId, token: string): void;

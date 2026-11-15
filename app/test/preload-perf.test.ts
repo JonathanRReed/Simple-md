@@ -20,7 +20,7 @@ test("startup tracing is configured before the ready reply releases early paint 
     },
     webUtils: {},
   };
-  new Script(await built.outputs[0]!.text()).runInNewContext({ require: () => electron, performance });
+  new Script(await built.outputs[0]!.text()).runInNewContext({ require: () => electron, performance, process: { platform: process.platform } });
   if (!api) throw new Error("Preload did not expose its bridge");
   const ready = api.ready();
   api.perfMarker(makeDocumentId(1), "renderer-receive");

@@ -1,3 +1,5 @@
+import { nativeResources } from "./native-resources.mjs";
+
 export const feed = { provider: "github", owner: "JonathanRReed", repo: "Simple-md" };
 export const repository = `${feed.owner}/${feed.repo}`;
 export const releaseVersion = value => {
@@ -9,9 +11,6 @@ export function releaseConfig(plan, output) {
     directories: { output },
     artifactName: "SimpleMD-${version}-${os}-${arch}.${ext}",
     publish: [feed],
-    extraResources: [
-      { from: plan.binary, to: `native/${plan.executable}` },
-      { from: plan.cliBinary, to: `native/${plan.cliExecutable}` },
-    ],
+    extraResources: nativeResources(plan),
   };
 }

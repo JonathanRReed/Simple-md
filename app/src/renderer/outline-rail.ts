@@ -39,8 +39,10 @@ export function createOutlineRail<T>(options: {
   let gesture: { id: number; y: number; top: number; height: number; dragging: boolean } | null = null;
   let suppressedClick = false;
   let navigation: { kind: "heading"; key: string } | { kind: "scrub"; progress: number } | null = null;
-  let settleFrame = 0, navigationStarted = 0, stableSince = 0, lastTarget = -1;
-  const writeTop = (top: number) => { scroller.scrollTop = top; };
+  let settleFrame = 0, stableSince = 0, lastTarget = -1;
+  // Where the rail last put the scroller, and the content height then.
+  let heldTop = -1, heldHeight = -1;
+  const writeTop = (top: number) => { scroller.scrollTop = top; heldTop = scroller.scrollTop; heldHeight = scroller.scrollHeight; };
   const observed = new Map<Element, number>();
   const intersection = options.element ? new IntersectionObserver(entries => {
     for (const entry of entries) {
@@ -103,12 +105,13 @@ export function createOutlineRail<T>(options: {
       const now = performance.now();
       if (Math.abs(top - lastTarget) > 0.5) { lastTarget = top; stableSince = now; }
       const pending = [...content.querySelectorAll("img")].some(image => !image.complete) || document.fonts.status === "loading" || !!content.querySelector("pre.mermaid, .cm-math-inline:not(:has(.katex))");
-      if (now - navigationStarted > 10000 || (!pending && now - stableSince > 600)) stopNavigation();
-      else settleNavigation();
+      // Stop polling settled layout. Resize events restore the target until the reader moves on.
+      if (!pending && now - stableSince > 600) return;
+      settleNavigation();
     });
   }
   function startNavigation(): void {
-    navigationStarted = stableSince = performance.now(); lastTarget = -1;
+    stableSince = performance.now(); lastTarget = -1;
     settleNavigation();
   }
   function jump(index: number): void {
@@ -185,9 +188,16 @@ export function createOutlineRail<T>(options: {
   observer.observe(content);
   observer.observe(scroller);
   scroller.addEventListener("scroll", () => {
+    // A jump keeps its heading in place through late layout until the reader moves on. The view moving while the
+    // content keeps its size means Find, change navigation, scroll sync or the scrollbar moved it.
+    if (navigation && Math.abs(scroller.scrollTop - heldTop) > 1 && scroller.scrollHeight === heldHeight) stopNavigation();
     scheduleViewport();
   }, { passive: true, signal });
-  for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) scroller.addEventListener(event, stopNavigation, { passive: true, signal });
+  // Find and other editor panels sit outside the scroller. Rail input owns its
+  // own navigation, so its bubbling events must not release the new target.
+  for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) host.addEventListener(event, event => {
+    if (!(event.target instanceof Node) || !rail.contains(event.target)) stopNavigation();
+  }, { passive: true, signal });
   rail.addEventListener("wheel", event => {
     if (event.ctrlKey) return;
     options.navigate(); stopNavigation();
@@ -242,6 +252,8 @@ export function createOutlineRail<T>(options: {
   refresh();
   return {
     refresh,
+    /** Lets go of the last jump target, for when the user has moved on by other means. */
+    release: stopNavigation,
     destroy() {
       destroyed = true; abort.abort(); observer.disconnect(); intersection?.disconnect(); observed.clear();
       cancelAnimationFrame(settleFrame); cancelAnimationFrame(frame); cancelAnimationFrame(buildFrame); cancelAnimationFrame(measureFrame); clearTimeout(buildTimer);

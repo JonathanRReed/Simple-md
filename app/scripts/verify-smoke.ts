@@ -1066,7 +1066,7 @@ await test("settings-config-themes", async () => {
     evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ${process.platform === "darwin" ? "metaKey" : "ctrlKey"}: true, bubbles: true }));`),
     { settings: [evaluate(`await waitFor(() => document.querySelector('#reading-font-family option')?.textContent, 'Settings did not list fonts.', 20000);
       assert(typeof window.simplemd === 'undefined' && typeof require === 'undefined', 'Settings has document or Node access.');
-      assert(Object.keys(window.simplemdSettings).sort().join(',') === 'get,set,subscribe', 'Settings preload exposes extra APIs.');
+      assert(Object.keys(window.simplemdSettings).sort().join(',') === 'action,get,set,subscribe', 'Settings preload exposes extra APIs.');
       const snapshot = await window.simplemdSettings.get();
       assert(snapshot.fonts.length > 4 && !snapshot.fontError, 'Installed system fonts were not listed.');
       const keys = ${quote(configEntries.map(([key]) => key))};
@@ -1972,10 +1972,68 @@ await test("r2-astro-source-routes", async () => {
   await launch("r2-astro-source-routes", start, [
     evaluate(`document.querySelector('#doc a').click();
       await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(target)}, 'Astro route did not open its collection source.');
-      assert(document.querySelectorAll('[role=tab]').length === 2, 'Astro route did not open in a tab.');
-      await waitFor(() => !document.querySelector('.document-pane[data-active="true"] [data-element="read"]').inert, 'Route tab stayed busy.');
+      assert(document.querySelectorAll('[role=tab]').length === 1, 'A plain click on an Astro route opened another tab.');
+      await waitFor(() => !document.querySelector('.document-pane[data-active="true"] [data-element="read"]').inert, 'Route document stayed busy.');
       document.querySelector('.document-pane[data-active="true"] [data-element="doc"] a').click();
       await waitFor(() => document.querySelector('#toast').textContent.includes('No local document found'), 'Unresolved route failed silently.');`),
+  ]);
+});
+
+await test("daily-driver-writing-commands", async () => {
+  const source = "# Notes\n\nalpha\nbeta\n\n- [ ] task\n\ntail\n";
+  const file = fixture("daily-driver-writing/note.md", source);
+  const select = (from: string, to = from) => evaluate(`const view = document.querySelector('.cm-content').cmTile.root.view, text = view.state.doc.toString();
+    view.dispatch({ selection: { anchor: text.indexOf(${quote(from)}), head: text.indexOf(${quote(to)}) + ${to.length} } }); view.focus();`);
+  const expectText = (text: string, message: string) => evaluate(`await waitFor(() => document.querySelector('.cm-content').cmTile.root.view.state.doc.toString().includes(${quote(text)}), ${quote(message)});`);
+  await launch("daily-driver-writing-commands", file, [
+    select("alpha", "beta"), { nativeMenu: ["Format", "Bulleted List"] }, expectText("- alpha\n- beta\n", "Bulleted List did not mark both lines."),
+    select("Notes"), { nativeMenu: ["Format", "Heading 2"] }, expectText("## Notes\n", "Heading 2 did not replace the heading level."),
+    select("task"), { nativeMenu: ["Format", "Toggle Task"] }, expectText("- [x] task\n", "Toggle Task did not check the task."),
+    evaluate(`await waitFor(() => /\\d+ words? · \\d+ characters?/.test(document.querySelector('.document-pane[data-active="true"] [data-element="hint"]')?.textContent ?? ''), 'The footer does not show word and character counts while editing.');`),
+    { nativeMenu: ["View", "Fold All Sections"] },
+    evaluate(`await waitFor(() => !!document.querySelector('.cm-foldPlaceholder'), 'Fold All Sections folded nothing.');`),
+    { nativeMenu: ["View", "Unfold All"] },
+    evaluate(`await waitFor(() => !document.querySelector('.cm-foldPlaceholder'), 'Unfold All left a folded section.');`),
+    select("tail"), { nativeMenu: ["Format", "Table", "Insert Table"] },
+    evaluate(`const view = document.querySelector('.cm-content').cmTile.root.view;
+      await waitFor(() => /\\|[ :-]*-[ :|-]*\\|/.test(view.state.doc.toString()), 'Insert Table added no table.');`),
+    { save: true },
+  ], "edit");
+  const saved = fs.readFileSync(file, "utf8");
+  assert(saved.startsWith("## Notes\n\n- alpha\n- beta\n\n- [x] task\n\n"), `Writing commands changed lines they should not have: ${JSON.stringify(saved.slice(0, 80))}`);
+  assert(saved.endsWith("tail\n\n| Header | Header |\n| --- | --- |\n|  |  |\n|  |  |\n"), `Insert Table replaced the selection or the file's ending: ${JSON.stringify(saved.slice(-70))}`);
+});
+
+await test("daily-driver-tabs-and-palette", async () => {
+  const first = fs.realpathSync(fixture("daily-driver-tabs/first.md", "# First\n"));
+  const second = fs.realpathSync(fixture("daily-driver-tabs/second.md", "# Second\n"));
+  const key = (keyCode: string, modifiers: NonNullable<KeyboardInputEvent["modifiers"]> = []): Step[] => [
+    { input: { type: "keyDown", keyCode, modifiers } }, { input: { type: "keyUp", keyCode, modifiers } },
+  ];
+  await launch("daily-driver-tabs-and-palette", first, [
+    { nativeMenuState: { path: ["File", "Reopen Closed Tab"], enabled: false } },
+    evaluate(`await window.simplemd.openPath(${quote(second)}, 'read');
+      await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(second)} && document.querySelectorAll('[role=tab]').length === 2, 'The second file did not open in a tab.');`),
+    { nativeMenu: ["File", "Close Tab"] },
+    evaluate(`await waitFor(() => document.querySelectorAll('[role=tab]').length === 1, 'Close Tab left the tab open.');`),
+    { nativeMenuState: { path: ["File", "Reopen Closed Tab"], enabled: true } },
+    { nativeMenu: ["File", "Reopen Closed Tab"] },
+    evaluate(`await waitFor(() => document.documentElement.dataset.documentPainted === ${quote(second)} && document.querySelectorAll('[role=tab]').length === 2, 'Reopen Closed Tab did not bring the document back.');`),
+    { nativeMenuState: { path: ["File", "Rename or Move…"], enabled: true } },
+    { nativeMenuState: { path: ["File", "Copy Path"], enabled: true } },
+    { nativeMenu: ["View", "Command Palette…"] },
+    evaluate(`await waitFor(() => !document.querySelector('#picker').hidden && document.activeElement.id === 'picker-input', 'The command palette did not open.');
+      const input = document.querySelector('#picker-input');
+      const rows = () => [...document.querySelectorAll('#picker-list [role=option]')];
+      const search = async (text, message) => { input.value = text; input.dispatchEvent(new Event('input')); await waitFor(() => rows().some(row => row.textContent.includes(text)), message); return rows().find(row => row.textContent.includes(text)); };
+      await search('Rename or Move', 'The palette does not list Rename or Move.');
+      const save = await search('Save As', 'The palette does not list Save As.');
+      assert(${process.platform === "darwin" ? "save.textContent.includes('⌘⇧S')" : "/Ctrl\\+Shift\\+S/.test(save.textContent)"}, 'The palette does not show the Save As shortcut: ' + save.textContent);
+      // Nothing is closed now, so the disabled Reopen Closed Tab command must not be offered.
+      input.value = 'Reopen Closed'; input.dispatchEvent(new Event('input'));
+      await new Promise(resolve => setTimeout(resolve, 150));
+      assert(!rows().some(row => row.textContent.includes('Reopen Closed Tab')), 'The palette offers a command the menu has disabled.');`),
+    ...key("Escape"),
   ]);
 });
 

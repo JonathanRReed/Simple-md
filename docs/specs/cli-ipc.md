@@ -1,6 +1,6 @@
 # CLI, IPC and URL scheme
 
-Milestone 5. Security review required before merge.
+Milestone 6. Security review required before merge.
 
 ## Shape
 
@@ -17,10 +17,11 @@ A small Rust `simplemd` executable. On a warm start it connects to the running a
 
 | Command | Contract |
 | --- | --- |
-| `simplemd file.md` | Resolve against the CLI's cwd and send an absolute path. Exit 0 only after the app accepts the open. Support `--` before paths that start with `-`. Explicit CLI opens accept any text file, not only Markdown extensions, so git's `COMMIT_EDITMSG` works. |
-| `simplemd file.md:42`, `simplemd file.md#heading` | Treat `:N` as a line number only when the literal path does not exist. `#slug` uses the same slugger as the renderer. |
-| `simplemd -` | Read stdin as UTF-8, capped at 10 MiB. Send the bytes over IPC, not argv. Open an unsaved document with no disk location. `--stdin-name` sets the display name and Markdown or MDX mode. |
-| `simplemd --wait file.md` | Hold a waiter token on the document ID. Saving does not end the wait. Closing the tab, or a confirmed discard, does. A cancelled close keeps waiting. The app staying in the tray does not block completion. Save As keeps the token. Several callers can wait on one document. App or IPC failure exits nonzero. |
+| `simplemd file.md` | Resolve against the CLI's cwd and send an absolute path. Exit 0 only after the app accepts the open. A missing path in an existing folder opens an unsaved draft bound to that path. The first save uses that destination without a dialog and never replaces an intervening file. Missing parent folders remain errors. Support `--` before paths that start with `-`. Explicit CLI opens accept any text file, not only Markdown extensions, so git's `COMMIT_EDITMSG` works. |
+| `simplemd a.md b.mdx c.md` | Open every positional path in order, including shell-expanded globs. Focus the last accepted file. Validate every path even if another fails, then return an error if any failed. |
+| `simplemd file.md:42`, `simplemd file.md#heading` | Treat `:N` as a line number only when the literal path does not exist. `#slug` uses the same slugger as the renderer. Each positional file has its own suffix. |
+| `simplemd -` | Read stdin as UTF-8, capped at 10 MiB. Send the bytes over IPC, not argv. Open an unsaved document with no disk location. `--stdin-name` sets the display name and Markdown or MDX mode. Save suggestions preserve that name’s extension and the folder active at draft creation. Stdin cannot be combined with positional files. |
+| `simplemd --wait file.md` | Hold a waiter token on the document ID. Saving does not end the wait. Closing the tab, or a confirmed discard, does. A cancelled close keeps waiting. The app staying in the tray does not block completion. Save As and Rename or Move keep the token. With several files, one caller waits until all its document tokens complete. Several callers can wait on one document. App or IPC failure exits nonzero. |
 | `simplemd --wait -` | Like the above, for an unsaved stdin document. Saving needs an explicit destination. |
 | `simplemd export file.md --format html -o out.html` | Shares the export pipeline without a visible editor. Atomic output write. Explicit overwrite policy. Logs go to stderr. |
 | `simplemd export file.md --format pdf -o out.pdf` | Uses Electron's print pipeline in a hidden export job that never swaps the user's active document. Exits once the PDF is written. |
@@ -43,3 +44,15 @@ Exit codes: 0 success, 1 operational failure, 2 usage error. A Ctrl-C in the wai
 - Raycast and Alfred get documented script commands that call the CLI or URL scheme. No extension packages.
 
 Source: `.audit/research/e-os-integration.md`, "CLI architecture" (local only).
+
+## Version 1 multi-file extension
+
+One authenticated request opens a batch:
+
+```json
+{"version":1,"id":"example","secret":"<connection secret>","command":"open-many","wait":true,"files":[{"path":"/work/a.md","line":12,"create":true},{"path":"/work/b.mdx","heading":"example","create":true}]}
+```
+
+The existing 1 MiB frame cap applies to the complete request. Each target requires a local absolute path. `line` and `heading` remain mutually exclusive. `create` defaults to false and must be a boolean. Single-file `open` accepts the same `create` flag. Older clients that omit it still require an existing file. The Rust client requests creation for explicit paths only; export and URL opens still require existing files.
+
+The app sends one `accepted` response after every open succeeds. A waited batch sends one `closed` response after all its document tokens complete, including repeated paths. Disconnecting removes all of that caller’s tokens. A failed batch reports an error and removes its waiters; successfully opened tabs remain open. A heading target on a new empty draft fails because that heading does not exist.

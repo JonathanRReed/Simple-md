@@ -51,6 +51,8 @@ export function hideBanner(scope: ParentNode = document): void {
 
 export interface PickerItem {
   label: string;
+  /** Tooltip for a file row. Open Quickly passes the full path, since the row shows a shortened one. */
+  title?: string;
   hint?: string;
   depth?: number;
   labelIndices?: readonly number[];
@@ -89,7 +91,7 @@ export interface PickerSearch {
   toggleScope(): "repo" | "everywhere";
   search(query: string, update: (items: PickerItem[]) => void): void;
 }
-export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void, search?: PickerSearch): void {
+export function openPicker(placeholder: string, items: PickerItem[], onClose: () => void, search?: PickerSearch): (next: PickerItem[]) => void {
   const replacing = pickerOpen;
   closePicker?.(false);
   const root = $("picker");
@@ -166,7 +168,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
         li.append(label);
         if (item.parent !== undefined) {
           li.classList.add("picker-file");
-          li.title = item.parent + "/" + item.label;
+          li.title = item.title ?? item.parent + "/" + item.label;
           li.setAttribute("aria-label", `${item.label}, ${item.parent}`);
           const parent = document.createElement("span"); parent.className = "picker-parent";
           const text = item.parent;
@@ -213,6 +215,7 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   }
 
   function onKey(e: KeyboardEvent): void {
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Tab" && search) { e.preventDefault(); e.stopPropagation(); toggleScope(); }
     else if (e.key === "Escape") {
       e.preventDefault(); e.stopPropagation();
@@ -252,12 +255,19 @@ export function openPicker(placeholder: string, items: PickerItem[], onClose: ()
   root.addEventListener("mousedown", onBackdrop);
   render();
   input.focus();
+  return next => { if (!closed) { items = next; render(); } };
 }
 
 // ───────── find in the read view ─────────
 
 let closeFind: (() => void) | undefined;
 let findOpen = false;
+let moveFind: ((backwards: boolean) => void) | undefined;
+export function moveReadFind(backwards = false): boolean {
+  if (!moveFind) return false;
+  moveFind(backwards);
+  return true;
+}
 export const isFindOpen = () => findOpen;
 
 export function closeReadFind(): void {
@@ -318,6 +328,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
   observer.observe(scope, { subtree: true, childList: true, characterData: true });
   const close = () => {
     closeFind = undefined;
+    moveFind = undefined;
     findOpen = false;
     bar.hidden = true;
     home.append(bar);
@@ -333,6 +344,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
     onClose();
   };
   function onKey(e: KeyboardEvent): void {
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === "Enter") { e.preventDefault(); move(e.shiftKey); }
   }
@@ -344,6 +356,7 @@ export function openReadFind(scope: HTMLElement, onClose: () => void, text = "")
   next.addEventListener("click", forwards);
   closeButton.addEventListener("click", close);
   closeFind = close;
+  moveFind = move;
   search();
   input.focus();
   input.select();

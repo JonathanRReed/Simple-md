@@ -1,12 +1,15 @@
+import { inlineMath } from "../shared/github-math.js";
+import { referenceContext } from "./reference-context.js";
+import { cellSourceOffset } from "./tables.js";
 import { getMdxRanges, isInMdxRange, setMdxRanges } from "./mdx-syntax.js";
 import { type RenderedHtml } from "../shared/render-tree.js";
 import { mountRenderedHtml, updateFragments } from "./author-html.js";
-import { syntaxTree } from "@codemirror/language";
-import { displayMath, expandRegion, imageHtmlRegions, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
+import { foldEffect, unfoldEffect, foldedRanges, syntaxTree } from "@codemirror/language";
+import { displayMath, expandRegion, imageHtmlRegions, codeHtmlRegions, liveTree, mapRegion, mathLines, mergeRegions, type Region } from "./live-regions.js";
 import { type EditorState, type Extension, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { LIVE_MAX_CHARS } from "../shared/types.js";
+import { livePreviewOff } from "../shared/live-preview.js";
 import { destroyDiagrams, renderDiagrams } from "./diagrams.js";
 
 /** Live Preview hides markdown syntax away from the cursor and renders heavy blocks in place. */
@@ -28,16 +31,19 @@ export const clearLiveCache = () => blockCache.clear();
 const mathOptions = { throwOnError: false, trust: false, strict: "ignore", maxSize: 20, maxExpand: 1000 } as const;
 
 class RenderedBlock extends WidgetType {
+  readonly base: string | null;
   constructor(
     readonly source: string,
     readonly kind: string,
     readonly host: LiveHost,
+    readonly references = "",
   ) {
     super();
+    this.base = host.baseUrl();
   }
 
   eq(other: RenderedBlock): boolean {
-    return other.kind === this.kind && other.source === this.source;
+    return other.base === this.base && other.kind === this.kind && other.source === this.source && other.references === this.references;
   }
 
   get estimatedHeight(): number {
@@ -45,7 +51,7 @@ class RenderedBlock extends WidgetType {
   }
 
   private key(): string {
-    return `${this.host.baseUrl()}\0${this.kind}\0${this.source}`;
+    return `${this.base}\0${this.kind}\0${this.source}\0${this.references}`;
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -101,7 +107,7 @@ class RenderedBlock extends WidgetType {
       show(cached.html);
     } else {
       el.style.minHeight = `${this.estimatedHeight}px`;
-      void this.host.renderFragment(this.source).then((html) => {
+      void this.host.renderFragment(this.source + (this.references ? "\n\n" + this.references : "")).then((html) => {
         if (blockCache.size >= BLOCK_CACHE_LIMIT) blockCache.delete(blockCache.keys().next().value!);
         show(html);
       }).catch(() => {
@@ -115,7 +121,13 @@ class RenderedBlock extends WidgetType {
       const target = e.target as HTMLElement;
       if (target.closest("a, button")) return;
       e.preventDefault();
-      view.dispatch({ selection: { anchor: view.posAtDOM(el) }, scrollIntoView: true });
+      let anchor = view.posAtDOM(el);
+      const cell = target.closest<HTMLTableCellElement>("td, th");
+      if (this.kind === "table" && cell && cell.closest("table") === el.querySelector("table")) {
+        const row = cell.parentElement;
+        if (row instanceof HTMLTableRowElement) anchor += cellSourceOffset(this.source, row.rowIndex, cell.cellIndex);
+      }
+      view.dispatch({ selection: { anchor }, scrollIntoView: true });
       view.focus();
     });
     return el;
@@ -161,21 +173,24 @@ class BulletWidget extends WidgetType {
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly checked: boolean,
+    readonly readOnly: boolean,
   ) {
     super();
   }
   eq(other: CheckboxWidget): boolean {
-    return other.checked === this.checked;
+    return other.checked === this.checked && other.readOnly === this.readOnly;
   }
   toDOM(view: EditorView): HTMLElement {
     const box = document.createElement("input");
     box.type = "checkbox";
     box.className = "cm-task";
     box.checked = this.checked;
+    box.disabled = this.readOnly;
     box.setAttribute("aria-label", this.checked ? "Completed task" : "Open task");
     box.addEventListener("mousedown", (e) => e.preventDefault());
     box.addEventListener("click", (e) => {
       e.preventDefault();
+      if (view.state.readOnly) return;
       const at = view.posAtDOM(box);
       view.dispatch({ changes: { from: at + 1, to: at + 2, insert: this.checked ? " " : "x" } });
     });
@@ -218,8 +233,6 @@ class InlineMathWidget extends WidgetType {
 const hide = Decoration.replace({});
 const lineDeco = (cls: string, attrs?: Record<string, string>) => Decoration.line({ class: cls, attributes: attrs });
 
-const INLINE_MATH = /(?<![\\$\w])\$(?![\s$])([^$\n]+?)(?<![\s\\])\$(?![\d$\w])/g;
-
 function frontmatterEnd(doc: string): number {
   const m = /^---[ \t]*\n[\s\S]*?\n---[ \t]*(?:\n|$)/.exec(doc);
   return m ? m[0].length : 0;
@@ -227,10 +240,11 @@ function frontmatterEnd(doc: string): number {
 
 export function buildLiveDecorations(state: EditorState, host: LiveHost, region?: Region, math?: readonly Region[]): DecorationSet {
   const doc = state.doc;
-  if (doc.length > LIVE_MAX_CHARS) return Decoration.none;
+  if (livePreviewOff(doc.length)) return Decoration.none;
   const tree = liveTree(state);
   if (!tree) return Decoration.none;
 
+  const references = (source: string) => referenceContext(state, tree, source);
   const scope = region ?? { from: 0, to: doc.length };
   const out: Range<Decoration>[] = [];
   const sel = state.selection.ranges;
@@ -254,13 +268,13 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
     if (!touches(from, to)) {
       const standalone = !doc.lineAt(from).text.slice(0, from - doc.lineAt(from).from).trim() &&
         !doc.lineAt(to).text.slice(to - doc.lineAt(to).from).trim();
-      out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), standalone ? "html" : "html-inline", host), block: standalone }).range(from, to));
+      out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), standalone ? "html" : "html-inline", host, references(doc.sliceString(from, to))), block: standalone }).range(from, to));
     }
   }
 
   const block = (from: number, to: number, kind: string, source: string) => {
     blocked.push([from, to]);
-    out.push(Decoration.replace({ widget: new RenderedBlock(source, kind, host), block: true }).range(from, to));
+    out.push(Decoration.replace({ widget: new RenderedBlock(source, kind, host, kind === "table" ? references(source) : ""), block: true }).range(from, to));
   };
 
   tree.iterate({
@@ -311,7 +325,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
         }
         case "Link": {
           if (node.getChild("Image") && !touches(from, to)) {
-            out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "html-inline", host) }).range(from, to));
+            out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "html-inline", host, references(doc.sliceString(from, to))) }).range(from, to));
             return false;
           }
           const marks = node.getChildren("LinkMark");
@@ -332,7 +346,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
         }
         case "Image": {
           if (touches(from, to)) return;
-          out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "image", host) }).range(from, to));
+          out.push(Decoration.replace({ widget: new RenderedBlock(doc.sliceString(from, to), "image", host, references(doc.sliceString(from, to))) }).range(from, to));
           return false;
         }
         case "Blockquote": {
@@ -374,7 +388,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
         case "TaskMarker": {
           if (lineTouches(from, to)) return;
           const checked = /x/i.test(doc.sliceString(from, to));
-          out.push(Decoration.replace({ widget: new CheckboxWidget(checked) }).range(from, to));
+          out.push(Decoration.replace({ widget: new CheckboxWidget(checked, state.readOnly) }).range(from, to));
           return;
         }
         case "HorizontalRule": {
@@ -415,6 +429,7 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
     },
   });
 
+  blocked.push(...codeHtmlRegions(state, tree).map(({ from, to }): [number, number] => [from, to]));
   const inBlocked = (pos: number) => blocked.some(([a, b]) => pos >= a && pos < b);
   for (const range of math ?? displayMath(state, tree, mathLines(state), fmEnd)) {
     if (range.to < scope.from || range.from > scope.to) continue;
@@ -427,14 +442,19 @@ export function buildLiveDecorations(state: EditorState, host: LiveHost, region?
   for (let n = doc.lineAt(scope.from).number; n <= doc.lineAt(scope.to).number; n++) {
     const line = doc.line(n);
     if (!line.text.includes("$") || inBlocked(line.from)) continue;
-    INLINE_MATH.lastIndex = 0;
-    for (let m = INLINE_MATH.exec(line.text); m; m = INLINE_MATH.exec(line.text)) {
-      const from = line.from + m.index;
-      const to = from + m[0].length;
+    for (const m of inlineMath(line.text)) {
+      const from = line.from + m.from;
+      const to = line.from + m.to;
       if (touches(from, to) || isInMdxRange(state, from) || blocked.some(([a, b]) => a < to && b > from)) continue;
-      const inner = tree.resolveInner(from, 1);
-      if (inner.name === "InlineCode" || inner.name === "CodeText" || inner.name === "URL") continue;
-      out.push(Decoration.replace({ widget: new InlineMathWidget(m[1]!) }).range(from, to));
+      let inner: SyntaxNode | null = tree.resolveInner(from, 1);
+      let code = false;
+      while (inner) {
+        // Dollar/backtick math intentionally contains a CodeMark at its second character.
+        if (["InlineCode", "FencedCode", "CodeBlock", "URL", "HTMLTag", "HTMLBlock"].includes(inner.name)) code = true;
+        inner = inner.parent;
+      }
+      if (code) continue;
+      out.push(Decoration.replace({ widget: new InlineMathWidget(m.source) }).range(from, to));
     }
   }
 
@@ -474,7 +494,7 @@ export function liveDecorationField(host: LiveHost) {
       const viewport = viewportEffect?.value ?? mapRegion(value.viewport, tr.changes);
       const mdxChanged = tr.effects.some(e => e.is(setMdxRanges));
       const markers = tr.docChanged ? mathLines(tr.state, value.markers, tr) : value.markers;
-      const tree = tr.state.doc.length > LIVE_MAX_CHARS ? null
+      const tree = livePreviewOff(tr.state.doc.length) ? null
         : tr.docChanged || viewportEffect || syntaxTree(tr.state) !== syntaxTree(tr.startState) ? liveTree(tr.state) : value.tree;
       // Keep delimiter positions current while parsing is incomplete or Live is
       // suspended. A missing tree forces a fresh visible set when it recovers.
@@ -482,7 +502,10 @@ export function liveDecorationField(host: LiveHost) {
       const fmEnd = frontmatterEnd(tr.state.doc.sliceString(0, 4000));
       const math = tr.docChanged || mdxChanged || tree !== value.tree ? displayMath(tr.state, tree, markers, fmEnd) : value.math;
       const scope = expandRegion(tr.state, tree, viewport, math);
-      const full = viewportEffect || mdxChanged || !value.tree || (!tr.docChanged && tree !== value.tree);
+      const referencesChanged = tr.docChanged && referenceContext(tr.state, tree) !== (value.tree ? referenceContext(tr.startState, value.tree) : "");
+      const folds = foldedRanges(tr.state);
+      const foldsChanged = folds.size !== foldedRanges(tr.startState).size || tr.effects.some(effect => effect.is(foldEffect) || effect.is(unfoldEffect));
+      const full = foldsChanged || referencesChanged || tr.startState.readOnly !== tr.state.readOnly || viewportEffect || mdxChanged || !value.tree || (!tr.docChanged && tree !== value.tree);
       const dirty: Region[] = [];
       const add = (region: Region) => {
         const expanded = expandRegion(tr.state, tree, region, math);
@@ -548,7 +571,12 @@ export function liveDecorationField(host: LiveHost) {
         decorations = decorations.update({ filterFrom: region.from, filterTo: region.to,
           filter: (from, to) => to < region.from || from > region.to, add, sort: true });
       }
-      decorations = decorations.update({ filter: (from, to) => from >= scope.from && to <= scope.to });
+      decorations = decorations.update({ filter: (from, to) => {
+        if (from < scope.from || to > scope.to) return false;
+        let hidden = false;
+        folds.between(from, to, (a, b) => { if (a < to && b > from) hidden = true; });
+        return !hidden;
+      } });
       return { decorations, tree, markers, math, viewport };
     },
     provide: f => EditorView.decorations.from(f, value => value.decorations),

@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import { createPane } from "../../src/renderer/pane";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId, type Settings } from "../../src/shared/types";
@@ -6,7 +7,8 @@ import type { RenderedBlocks } from "../../src/shared/render-core";
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const pause = (ms = 50) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate: () => boolean, message: string) {
-  for (let i = 0; i < 200; i++) { if (predicate()) return; await pause(10); }
+  // Hosted runners sometimes go seconds between frames; the limit only has to catch a wait that never ends.
+  for (let i = 0; i < 2000; i++) { if (predicate()) return; await pause(10); }
   throw new Error(message);
 }
 
@@ -24,6 +26,7 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   stage.append(root);
   let deferred = false;
   Object.assign(window, { simplemd: {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker(_id: number, marker: string) { if (marker === "first-readable") deferred = !root.querySelector(".outline-rail"); },
     documentReady() {}, paneMode() {}, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
@@ -52,21 +55,32 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   const heading = root.querySelectorAll<HTMLElement>('[data-element="doc"] :is(h1,h2,h3)')[20]!;
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Click did not jump to heading");
   await until(() => buttons()[20]!.dataset.inView === "true" && buttons()[0]!.dataset.inView === "false", "In-view strip state did not follow scrolling");
+  // Reflow can happen after the initial navigation has finished settling.
+  await pause(1000);
   const articleForReflow = root.querySelector<HTMLElement>('[data-element="doc"]')!;
   articleForReflow.style.fontSize = "23px";
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Reflow lost the selected heading");
   articleForReflow.style.removeProperty("font-size");
   await pause();
   const delayed = document.createElement("div"); delayed.style.height = "450px";
-  articleForReflow.firstElementChild!.append(delayed);
+  // Skipped content-visibility:auto blocks retain their cached height. Make
+  // this a real layout shift before simulating a layout-induced scroll.
+  const firstBlock = articleForReflow.firstElementChild;
+  assert(firstBlock instanceof HTMLElement, "First Read block missing");
+  firstBlock.style.contentVisibility = "visible";
+  const beforeReflow = scroll.scrollHeight;
+  firstBlock.append(delayed);
+  assert(scroll.scrollHeight >= beforeReflow + 449, "Delayed block did not change layout");
   // Browser scroll anchoring may fire before ResizeObserver reports offscreen layout.
   scroll.scrollTop += 40; scroll.dispatchEvent(new Event("scroll"));
   await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "First jump was cancelled by offscreen layout scroll");
-  scroll.dispatchEvent(new WheelEvent("wheel"));
+  scroll.style.overflowAnchor = "none";
+  scroll.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
   const released = scroll.scrollTop; delayed.style.height = "550px";
   await pause(100);
-  assert(Math.abs(scroll.scrollTop - released) < 120, "User input did not release outline navigation");
+  assert(Math.abs(scroll.scrollTop - released) < 3, "User input did not release outline navigation");
   delayed.remove();
+  scroll.style.removeProperty("overflow-anchor");
   assert(rail.querySelector<HTMLElement>(".outline-viewport")!.style.transform.includes("scaleY("), "Viewport indicator missing");
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
@@ -91,6 +105,11 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   buttons()[0]!.focus();
   buttons()[0]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }));
   await until(() => scroll.scrollTop === 0, "Keyboard activation after scrubbing failed");
+  buttons()[20]!.focus({ preventScroll: true });
+  buttons()[20]!.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }));
+  articleForReflow.style.fontSize = "25px";
+  await until(() => Math.abs(heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16) < 3, "Rail keyboard activation released its own jump during reflow");
+  articleForReflow.style.removeProperty("font-size");
   scroll.scrollTop = 0; await pause();
   rail.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientY: rect.top + 2 }));
   await pane.command("mode-split");
@@ -102,6 +121,34 @@ export async function runBatch(input: { text: string; theme: "light" | "dark"; r
   const liveButtons = root.querySelectorAll<HTMLButtonElement>('[data-element="editor-host"] .outline-strip');
   liveButtons[10]!.click();
   await until(() => root.querySelector<HTMLElement>(".cm-scroller")!.scrollTop > 0, "Live rail did not jump");
+  // Find is outside .cm-scroller. Its input must release a jump even when the
+  // editor remeasures in the same frame as the match scroll.
+  await pane.command("find");
+  await until(() => !!root.querySelector('.cm-search input[name="search"]'), "Live Find did not open");
+  const search = root.querySelector<HTMLInputElement>('.cm-search input[name="search"]')!;
+  search.value = "Chapter 30";
+  search.dispatchEvent(new Event("change", { bubbles: true }));
+  const view = EditorView.findFromDOM(root.querySelector(".cm-editor")!)!;
+  const editorContent = root.querySelector<HTMLElement>(".cm-content")!;
+  for (const event of ["keydown", "pointerdown"]) {
+    liveButtons[10]!.click();
+    await until(() => view.scrollDOM.scrollTop > 0, "Live jump before Find failed");
+    search.focus({ preventScroll: true });
+    // A late widget or newly measured line changes the height during Find.
+    editorContent.style.paddingBottom = `${event === "keydown" ? 450 : 900}px`;
+    if (event === "keydown") search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
+    else {
+      const next = root.querySelector<HTMLButtonElement>('.cm-search button[name="next"]')!;
+      next.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      next.click();
+    }
+    await until(() => view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to) === "Chapter 30", "Find did not select its match");
+    await pause(150);
+    const match = view.coordsAtPos(view.state.selection.main.from);
+    const bounds = view.scrollDOM.getBoundingClientRect();
+    assert(match && match.top >= bounds.top && match.bottom <= bounds.bottom, `Find ${event} snapped back to the outline heading`);
+  }
+  editorContent.style.removeProperty("padding-bottom");
   await pane.command("mode-source");
   await until(() => !root.querySelector(".outline-rail"), "Source kept outline rail");
   assert(!root.querySelector('.cm-scroller')?.classList.contains("outline-scroll"), "Source scrollbar hidden");

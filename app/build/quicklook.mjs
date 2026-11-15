@@ -1,7 +1,12 @@
 import { cpSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { appDir, run } from "./native.mjs";
+
+export function readPlist(file) {
+  return JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", file], { encoding: "utf8" }));
+}
 
 export const extensions = ["SimpleMDQLPreview.appex", "SimpleMDQLThumbnail.appex"];
 
@@ -21,7 +26,9 @@ export default async function afterPack(context) {
   try {
     const output = path.join(scratch, "extensions");
     const identity = quickLookIdentity();
-    run("bash", [path.join(appDir, "native/quicklook/build-extensions.sh"), output, identity]);
+    const host = readPlist(path.join(packagedApp(context), "Contents/Info.plist"));
+    run("bash", [path.join(appDir, "native/quicklook/build-extensions.sh"), output, identity,
+      host.CFBundleShortVersionString, host.CFBundleVersion]);
     const plugins = path.join(packagedApp(context), "Contents/PlugIns");
     mkdirSync(plugins, { recursive: true });
     for (const extension of extensions) cpSync(path.join(output, extension), path.join(plugins, extension), { recursive: true });

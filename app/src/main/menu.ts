@@ -1,3 +1,4 @@
+import { commandDefinition, commandAccelerator } from "../shared/commands.js";
 import type { GitChangesStatus } from "../shared/change-highlights.js";
 import { changesMenuState } from "./menu-state.js";
 import path from "node:path";
@@ -16,23 +17,27 @@ export interface MenuActions {
   share(): void;
   hasDocumentPath(): boolean;
   tabPinned(): boolean;
+  canReopen(): boolean;
   quit(): void;
   installCli(): void;
   checkUpdates(): void;
   installUpdate(): void;
+  updateMenu(): ReturnType<typeof import("../shared/update-state.js").updateMenu>;
 }
 
 export function buildMenu(a: MenuActions): void {
   const s = a.settings();
+  const update = a.updateMenu();
   const changes = changesMenuState(a.hasDocumentPath(), a.changesStatus());
   const mac = process.platform === "darwin";
-  const cmd = (label: string, command: Command, accelerator?: string): MenuItemConstructorOptions => ({
-    label,
-    accelerator,
-    click: () => a.command(command),
-  });
-  const radio = <T extends string>(label: string, current: T, value: T, set: (v: T) => void, accelerator?: string): MenuItemConstructorOptions => ({
-    label,
+  const cmd = (command: Command | "new-tab", label?: string): MenuItemConstructorOptions => {
+    const definition = commandDefinition(command)!;
+    return { label: label ?? (mac ? definition.macLabel ?? definition.label : definition.label),
+      id: command, accelerator: commandAccelerator(definition, mac), click: () => a.command(command === "new-tab" ? "new" : command) };
+  };
+  const radio = <T extends string>(id: string, current: T, value: T, set: (v: T) => void, accelerator?: string): MenuItemConstructorOptions => ({
+    id,
+    label: commandDefinition(id)!.label,
     type: "radio",
     checked: current === value,
     accelerator,
@@ -43,9 +48,9 @@ export function buildMenu(a: MenuActions): void {
     ? [
         ...s.recents.map((p): MenuItemConstructorOptions => ({ label: path.basename(p), sublabel: path.dirname(p), click: () => a.openPath(p) })),
         { type: "separator" },
-        { label: "Clear Menu", click: a.clearRecents },
+        { id: "clear-recents", click: a.clearRecents },
       ]
-    : [{ label: "No Recent Files", enabled: false }];
+    : [{ label: "No Recent Files", enabled: false }, { type: "separator" }, { label: "Clear Menu", click: a.clearRecents }];
 
   const template: MenuItemConstructorOptions[] = [
     ...(mac
@@ -53,18 +58,19 @@ export function buildMenu(a: MenuActions): void {
           {
             label: app.name,
             submenu: [
-              { role: "about" },
-              { label: "Check for Updates…", click: a.checkUpdates },
-              { label: "Restart to Install Update…", click: a.installUpdate },
+              { id: "about", role: "about" },
+              { id: "check-updates", label: update.checkLabel, enabled: update.checkEnabled, click: a.checkUpdates },
+              { id: "install-update", enabled: update.installEnabled, click: a.installUpdate },
               { type: "separator" },
-              cmd("Settings…", "preferences", "Command+,"),
-              { label: "Install Command Line Tool", click: a.installCli },
+              cmd("preferences"),
+              { id: "install-cli", click: a.installCli },
+              cmd("default-markdown-app"),
               { type: "separator" },
-              { role: "hide" },
-              { role: "hideOthers" },
-              { role: "unhide" },
+              { id: "hide", role: "hide" },
+              { id: "hideOthers", role: "hideOthers" },
+              { id: "unhide", role: "unhide" },
               { type: "separator" },
-              { label: `Quit ${app.name}`, accelerator: "Command+Q", click: a.quit },
+              { id: "quit", label: `Quit ${app.name}`, accelerator: "Command+Q", click: a.quit },
             ],
           } satisfies MenuItemConstructorOptions,
         ]
@@ -72,92 +78,139 @@ export function buildMenu(a: MenuActions): void {
     {
       label: "File",
       submenu: [
-        cmd("New", "new", "CommandOrControl+N"),
-        cmd("New Tab", "new", "CommandOrControl+T"),
-        { label: "Open…", accelerator: "CommandOrControl+O", click: a.openDialog },
-        cmd("Open Quickly…", "open-quickly", "CommandOrControl+Shift+O"),
+        cmd("new"),
+        cmd("new-tab"),
+        { id: "open", accelerator: "CommandOrControl+O", click: a.openDialog },
+        cmd("open-quickly"),
         { label: "Open Recent", submenu: recents },
         { type: "separator" },
-        cmd("Save", "save", "CommandOrControl+S"),
-        cmd("Save As…", "save-as", "CommandOrControl+Shift+S"),
+        cmd("save"),
+        cmd("save-as"),
+        { ...cmd("copy-path"), enabled: a.hasDocumentPath() },
+        { ...cmd("copy-relative-path"), enabled: a.hasDocumentPath() },
+        cmd("duplicate-file"),
+        { ...cmd("rename-move"), enabled: a.hasDocumentPath() },
+        { ...cmd("reopen-closed-tab"), enabled: a.canReopen() },
         { type: "separator" },
-        ...(mac ? [{ label: "Share", enabled: a.hasDocumentPath(), click: a.share } satisfies MenuItemConstructorOptions] : []),
-        cmd("Export as PDF…", "export-pdf"),
-        cmd("Export as HTML…", "export-html"),
-        cmd("Print…", "print", "CommandOrControl+P"),
-        cmd(mac ? "Reveal in Finder" : "Show in File Manager", "reveal"),
+        ...(mac ? [{ id: "share", enabled: a.hasDocumentPath(), click: a.share } satisfies MenuItemConstructorOptions] : []),
+        cmd("export-pdf"),
+        cmd("export-html"),
+        cmd("print"),
+        cmd("reveal"),
         { type: "separator" },
-        cmd("Close Tab", "close-tab", "CommandOrControl+W"),
-        cmd("Move Tab to New Window", "move-tab-window"),
-        ...(mac ? [] : [cmd("Settings…", "preferences", "Control+,"), { type: "separator" } satisfies MenuItemConstructorOptions]),
-        ...(mac ? [] : [{ label: "Quit", accelerator: "Ctrl+Q", click: a.quit } satisfies MenuItemConstructorOptions]),
+        cmd("close-tab"),
+        cmd("move-tab-window"),
+        ...(mac ? [] : [cmd("preferences"), { type: "separator" } satisfies MenuItemConstructorOptions]),
+        ...(mac ? [] : [{ id: "quit", label: "Quit", accelerator: "Ctrl+Q", click: a.quit } satisfies MenuItemConstructorOptions]),
       ],
     },
     {
       label: "Edit",
       submenu: [
-        cmd("Undo", "undo", "CommandOrControl+Z"),
-        cmd("Redo", "redo", "CommandOrControl+Shift+Z"),
+        cmd("undo"),
+        cmd("redo"),
         { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" },
+        { id: "cut", role: "cut" },
+        { id: "copy", role: "copy" },
+        { id: "paste", role: "paste" },
+        { id: "selectAll", role: "selectAll" },
         { type: "separator" },
-        cmd("Find…", "find", "CommandOrControl+F"),
-        ...(mac ? [cmd("Use Selection for Find", "use-selection-find", "Command+Alt+E")] : []),
+        cmd("find"),
+        cmd("find-next"),
+        cmd("find-previous"),
+        ...(mac ? [cmd("use-selection-find")] : []),
         { type: "separator" },
-        cmd("Bold", "format-bold", "CommandOrControl+B"),
-        cmd("Italic", "format-italic", "CommandOrControl+I"),
-        cmd("Strikethrough", "format-strike", "CommandOrControl+Shift+X"),
-        cmd("Code", "format-code"),
-        cmd("Link", "format-link", "CommandOrControl+K"),
+        cmd("find-replace"),
+        cmd("go-to-line"),
+        { label: "Copy As", submenu: [cmd("copy-markdown"), cmd("copy-html"), cmd("copy-formatted")] },
+        cmd("paste-markdown"),
         { type: "separator" },
         {
-          label: "Spelling and Grammar",
+          id: "spelling", label: "Spelling and Grammar",
           type: "checkbox",
           checked: s.spellcheck,
           click: () => a.patch({ spellcheck: !s.spellcheck }),
         },
         {
-          label: "Vim Mode",
+          id: "vim", label: "Vim Mode",
           type: "checkbox",
           checked: s.vim,
           click: () => a.patch({ vim: !s.vim }),
         },
       ],
     },
+    // Writing commands stay together for the files-tabs integration.
+    { label: "Format", submenu: [
+        cmd("format-bold"),
+        cmd("format-italic"),
+        cmd("format-strike"),
+        cmd("format-code"),
+        cmd("format-link"),
+        { type: "separator" },
+        cmd("block-heading-1"),
+        cmd("block-heading-2"),
+        cmd("block-heading-3"),
+        cmd("block-heading-4"),
+        cmd("block-heading-5"),
+        cmd("block-heading-6"),
+        cmd("block-body"),
+        cmd("block-bullet-list"),
+        cmd("block-number-list"),
+        cmd("block-task-list"),
+        cmd("block-quote"),
+        cmd("block-code-block"),
+        cmd("block-rule"),
+        cmd("block-footnote"),
+        cmd("toggle-task"),
+        { type: "separator" },
+        cmd("insert-image"),
+        { label: "Table", submenu: [
+          cmd("table-row-above"),
+          cmd("table-row-below"),
+          cmd("table-column-left"),
+          cmd("table-column-right"),
+          cmd("table-delete-row"),
+          cmd("table-delete-column"),
+          cmd("table-row-up"),
+          cmd("table-row-down"),
+          cmd("table-align-left"),
+          cmd("table-align-center"),
+          cmd("table-align-right"),
+          cmd("table-align-none"),
+          cmd("table-insert-table"),
+        ] },
+      ] },
     {
       label: "View",
       submenu: [
-        { ...cmd("Zen Mode", "toggle-zen", "CommandOrControl+Shift+J"), type: "checkbox", checked: s.zenMode },
-        { ...cmd(a.tabPinned() ? "Unpin Tab" : "Pin Tab", "toggle-pin-tab"), enabled: a.hasDocumentPath() },
-        { ...cmd("Close Pinned Tab", "close-pinned-tab"), enabled: a.tabPinned() },
-        cmd(s.tabStyle === "sidebar" && !s.sidebarCollapsed ? "Hide Tab Sidebar" : "Show Tab Sidebar", "toggle-tab-sidebar", mac ? "Control+Command+S" : "Control+Alt+S"),
-        cmd("Split Side by Side", "split-panes", "CommandOrControl+\\"),
-        cmd("Split Stacked", "stack-panes", "CommandOrControl+Shift+\\"),
-        cmd("Focus Other Pane", "focus-pane", "CommandOrControl+Alt+Right"),
-        cmd("Next Tab", "next-tab", "CommandOrControl+Shift+]"),
-        cmd("Previous Tab", "previous-tab", "CommandOrControl+Shift+["),
-        { label: "Show Changes Since Last Commit", type: "checkbox", ...changes, click: item => { item.checked = changes.checked; a.command("toggle-head-changes"); } },
-        cmd("Mark Seen", "mark-seen", "CommandOrControl+Shift+M"),
-        cmd("Next Change", "next-change", "CommandOrControl+Alt+Down"),
-        cmd("Previous Change", "previous-change", "CommandOrControl+Alt+Up"),
+        { ...cmd("toggle-zen"), type: "checkbox", checked: s.zenMode },
+        { ...cmd("toggle-pin-tab", a.tabPinned() ? "Unpin Tab" : "Pin Tab"), enabled: a.hasDocumentPath() },
+        { ...cmd("close-pinned-tab"), enabled: a.tabPinned() },
+        cmd("toggle-tab-sidebar", s.tabStyle === "sidebar" && !s.sidebarCollapsed ? "Hide Tab Sidebar" : "Show Tab Sidebar"),
+        cmd("split-panes"),
+        cmd("stack-panes"),
+        cmd("focus-pane"),
+        cmd("next-tab"),
+        cmd("previous-tab"),
+        { id: "toggle-head-changes", type: "checkbox", ...changes, click: item => { item.checked = changes.checked; a.command("toggle-head-changes"); } },
+        cmd("mark-seen"),
+        cmd("next-change"),
+        cmd("previous-change"),
         { type: "separator" },
-        cmd("Read / Edit", "toggle-edit", "CommandOrControl+E"),
-        cmd("Read", "mode-read", "CommandOrControl+Alt+0"),
-        cmd("Back", "nav-back", mac ? "Cmd+[" : "Alt+Left"),
-        cmd("Forward", "nav-forward", mac ? "Cmd+]" : "Alt+Right"),
+        cmd("toggle-edit"),
+        cmd("mode-read"),
+        cmd("nav-back"),
+        cmd("nav-forward"),
         { type: "separator" },
         {
           label: "Document Mode",
-          submenu: (["live", "split", "source"] as const).map((m, i) =>
+          submenu: (["live", "split", "source"] as const).map((m) =>
             radio<ViewMode>(
-              { live: "Live Preview", split: "Side by side", source: "Source" }[m],
+              `mode-${m}`,
               a.mode(),
               m,
               (v) => a.command(v === "live" ? "mode-live" : v === "source" ? "mode-source" : "mode-split"),
-              `CommandOrControl+Alt+${i + 1}`,
+              commandAccelerator(commandDefinition(`mode-${m}`)!, mac),
             ),
           ),
         },
@@ -165,37 +218,58 @@ export function buildMenu(a: MenuActions): void {
         {
           label: "Appearance",
           submenu: (["system", "light", "dark"] as const).map((t) =>
-            radio<ThemeSetting>({ system: "System", light: "Light", dark: "Dark" }[t], s.theme, t, (v) => a.patch({ theme: v })),
+            radio<ThemeSetting>(`appearance-${t}`, s.theme, t, (v) => a.patch({ theme: v })),
           ),
         },
         {
-          label: "GitHub Style", type: "checkbox", checked: s.readingStyle === "github",
+          id: "github-style", type: "checkbox", checked: s.readingStyle === "github",
           click: () => a.patch({ readingStyle: s.readingStyle === "github" ? "editorial" : "github" }),
         },
         { type: "separator" },
-        cmd("Zoom In", "zoom-in", "CommandOrControl+="),
-        cmd("Zoom Out", "zoom-out", "CommandOrControl+-"),
-        cmd("Actual Size", "zoom-reset", "CommandOrControl+0"),
+        cmd("zoom-in"),
+        cmd("zoom-out"),
+        cmd("zoom-reset"),
         { type: "separator" },
-        cmd("Outline", "outline", "CommandOrControl+Alt+Shift+O"),
-        cmd("Command Palette…", "palette", "CommandOrControl+Shift+P"),
+        ...["fold", "unfold", "fold-all", "unfold-all"].map(id => cmd(id as Command)),
+        cmd("outline"),
+        cmd("palette"),
         { type: "separator" },
         {
-          label: "Autosave",
+          id: "autosave", label: "Autosave",
           type: "checkbox",
           checked: s.autosave,
           click: () => a.patch({ autosave: !s.autosave }),
         },
-        { role: "togglefullscreen" },
-        ...(app.isPackaged ? [] : [{ role: "toggleDevTools" } satisfies MenuItemConstructorOptions]),
+        { id: "togglefullscreen", role: "togglefullscreen" },
+        ...(app.isPackaged ? [] : [{ id: "toggleDevTools", role: "toggleDevTools" } satisfies MenuItemConstructorOptions]),
       ],
     },
     { role: "windowMenu" },
     ...(mac ? [] : [{ label: "Help", submenu: [
-      { label: "Check for Updates…", click: a.checkUpdates },
-      { label: "Restart to Install Update…", click: a.installUpdate },
+      cmd("default-markdown-app"),
+      { id: "check-updates", label: update.checkLabel, enabled: update.checkEnabled, click: a.checkUpdates },
+      { id: "install-update", enabled: update.installEnabled, click: a.installUpdate },
     ] } satisfies MenuItemConstructorOptions]),
   ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  const bind = (items: MenuItemConstructorOptions[]): void => {
+    for (const item of items) {
+      const definition = item.id ? commandDefinition(item.id) : undefined;
+      if (definition) {
+        item.accelerator = commandAccelerator(definition, mac);
+        if (!["toggle-pin-tab", "toggle-tab-sidebar", "quit", "check-updates"].includes(definition.id)) item.label = mac ? definition.macLabel ?? definition.label : definition.label;
+      }
+      if (Array.isArray(item.submenu)) bind(item.submenu);
+    }
+  };
+  bind(template);
+  const menu = Menu.buildFromTemplate(template);
+  const indexRoles = (native: Menu): void => {
+    for (const item of native.items) {
+      if (!item.id && item.role && commandDefinition(item.role)) item.id = item.role;
+      if (item.submenu) indexRoles(item.submenu);
+    }
+  };
+  indexRoles(menu);
+  Menu.setApplicationMenu(menu);
 }

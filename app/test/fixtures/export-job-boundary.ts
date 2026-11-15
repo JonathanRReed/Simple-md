@@ -35,7 +35,7 @@ class PrintWindow extends EventEmitter {
   isDestroyed() { return this.destroyed; }
   destroy() { this.destroyed = true; }
 }
-mock.module("electron", () => ({ BrowserWindow: PrintWindow }));
+mock.module("electron", () => ({ BrowserWindow: PrintWindow, app: { getSystemLocale: () => "en-US" } }));
 const { createExportJobs, printWaiters } = await import("../../src/main/export-job");
 
 test("print and HTML/PDF exports use the document title, with tagged PDF and outline options", async () => {
@@ -61,7 +61,10 @@ test("print and HTML/PDF exports use the document title, with tagged PDF and out
       expect(PrintWindow.last.pageTitle).toBe("Trip notes");
     });
     await jobs.makePdf(source);
-    expect(PrintWindow.last.pdfOptions).toMatchObject({ generateTaggedPDF: true, generateDocumentOutline: true });
+    expect(PrintWindow.last.pdfOptions).toMatchObject({ generateTaggedPDF: true, generateDocumentOutline: true, pageSize: "Letter" });
+    const a4 = createExportJobs(here, () => ({ ...DEFAULT_SETTINGS, paperSize: "a4" }), (text, file, mdx) => core.renderBlocks(text, file, false, mdx));
+    await a4.makePdf(source);
+    expect(PrintWindow.last.pdfOptions).toMatchObject({ pageSize: "A4" });
     const html = await jobs.makeHtml(source);
     expect(html).toContain("<title>Trip notes</title>");
     expect(html).not.toContain("<title>SimpleMD</title>");

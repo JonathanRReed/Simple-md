@@ -7,7 +7,8 @@ export const FRAME_CAP = 1024 * 1024;
 export const STDIN_CAP = 10 * 1024 * 1024;
 export type Location = DocumentLocation;
 export type CliRequest = { id: string } & (
-  | { command: "open"; path: string; location: Location; wait: boolean }
+  | { command: "open"; path: string; location: Location; wait: boolean; create?: boolean }
+  | { command: "open-many"; files: { path: string; location: Location; create: boolean }[]; wait: boolean }
   | { command: "stdin"; name: string; length: number; wait: boolean }
   | { command: "export"; path: string; output: string; format: "html" | "pdf"; overwrite: boolean }
 );
@@ -33,10 +34,18 @@ export function parseCliRequest(input: unknown, secret: string, bytes: number, p
   if (!("secret" in input) || typeof input.secret !== "string" || !/^[a-f0-9]{64}$/.test(input.secret) || !/^[a-f0-9]{64}$/.test(secret) || !timingSafeEqual(Buffer.from(input.secret), Buffer.from(secret))) throw new Error("Unauthorized request.");
   const id = input.id;
   if (!("command" in input)) throw new Error("Missing command.");
+  const openTarget = (value: unknown) => {
+    if (!value || typeof value !== "object" || !("path" in value) || "create" in value && typeof value.create !== "boolean") throw new Error("Invalid open target.");
+    return { path: localAbsolute(value.path, platform), create: "create" in value && value.create === true, location: location("line" in value ? value.line : null, "heading" in value ? value.heading : null) };
+  };
   switch (input.command) {
+    case "open-many": {
+      if (!("files" in input) || !Array.isArray(input.files) || !input.files.length || !("wait" in input) || typeof input.wait !== "boolean") throw new Error("Invalid multi-file request.");
+      return { id, command: "open-many", files: input.files.map(openTarget), wait: input.wait };
+    }
     case "open": {
       if (!("path" in input) || !("wait" in input) || typeof input.wait !== "boolean") throw new Error("Invalid open request.");
-      return { id, command: "open", path: localAbsolute(input.path, platform), wait: input.wait, location: location("line" in input ? input.line : null, "heading" in input ? input.heading : null) };
+      return { id, command: "open", ...openTarget(input), wait: input.wait };
     }
     case "stdin": {
       if (!("name" in input) || typeof input.name !== "string" || !input.name.length || input.name.length > 255 || /[/\\\0\r\n]/.test(input.name) || !("length" in input) || typeof input.length !== "number" || !Number.isSafeInteger(input.length) || input.length < 0 || input.length > STDIN_CAP || !("wait" in input) || typeof input.wait !== "boolean") throw new Error("Invalid stdin request.");
@@ -102,6 +111,7 @@ export class DocumentWaiters {
     const callbacks = this.tokens.get(id); this.tokens.delete(id);
     for (const callback of callbacks ?? []) callback();
   }
+  closeAll(): void { for (const id of this.tokens.keys()) this.closed(id); }
   clear(): void { this.tokens.clear(); }
   get size(): number { return [...this.tokens.values()].reduce((n, callbacks) => n + callbacks.size, 0); }
 }

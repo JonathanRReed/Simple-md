@@ -13,7 +13,8 @@ function makeControl(def: ConfigDefinition): HTMLInputElement | HTMLSelectElemen
     return select;
   }
   const input = document.createElement("input");
-  if (def.kind === "number") { input.type = "number"; input.min = String(def.min); input.max = String(def.max); input.step = String(def.step < 1 ? 0.01 : def.step); }
+  if (def.kind === "text") { input.type = "text"; input.maxLength = 160; }
+  else if (def.kind === "number") { input.type = "number"; input.min = String(def.min); input.max = String(def.max); input.step = String(def.step < 1 ? 0.01 : def.step); }
   else { input.type = "checkbox"; input.setAttribute("role", "switch"); }
   return input;
 }
@@ -90,7 +91,21 @@ configButton.setAttribute("aria-expanded", "false"); configButton.setAttribute("
 const configDetails = document.querySelector<HTMLElement>("footer")!;
 configDetails.id = "config-details"; configDetails.hidden = true;
 configButton.addEventListener("click", () => { configDetails.hidden = !configDetails.hidden; configButton.setAttribute("aria-expanded", String(!configDetails.hidden)); });
-advancedGroup.append(configButton, configDetails); advanced.append(advancedTitle, advancedGroup); form.append(advanced);
+const actionButton = (label: string, action: "default-app" | "open-config" | "reveal-config") => {
+  const button = document.createElement("button"); button.type = "button"; button.textContent = label;
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    const error = document.querySelector<HTMLElement>("#save-error")!;
+    try { await bridge.action(action); error.hidden = true; }
+    catch (cause) { error.textContent = cause instanceof Error ? cause.message : String(cause); error.hidden = false; }
+    finally { button.disabled = false; }
+  });
+  return button;
+};
+const configActions = document.createElement("span"); configActions.className = "config-actions";
+configActions.append(actionButton("Open Config File", "open-config"), actionButton("Reveal", "reveal-config"));
+configDetails.append(configActions);
+advancedGroup.append(actionButton("Make SimpleMD the Default Markdown App", "default-app"), configButton, configDetails); advanced.append(advancedTitle, advancedGroup); form.append(advanced);
 form.addEventListener("submit", event => event.preventDefault());
 bridge.subscribe(sync);
 void bridge.get().then(sync).catch(error => { const target = document.querySelector<HTMLElement>("#save-error")!; target.hidden = false; target.textContent = String(error); });

@@ -7,11 +7,11 @@ import { systemFonts } from "./system-fonts.js";
 export function systemAccent(): string {
   try { return `#${systemPreferences.getAccentColor()}`; } catch { return "Highlight"; }
 }
-export function createSettingsWindow(options: { here: string; config: ConfigStore; apply(patch: unknown): void }) {
+export function createSettingsWindow(options: { here: string; config: ConfigStore; apply(patch: unknown): void; login(): boolean; defaultApp(): Promise<void>; openConfig(): Promise<void>; revealConfig(): void }) {
   let win: BrowserWindow | undefined;
   const snapshot = async (): Promise<SettingsSnapshot> => {
     const fonts = await systemFonts();
-    return { settings: options.config.document.settings, file: options.config.file, issues: options.config.document.issues, accent: systemAccent(), ...fonts };
+    return { settings: { ...options.config.document.settings, launchAtLogin: options.login() }, file: options.config.file, issues: options.config.document.issues, accent: systemAccent(), ...fonts };
   };
   for (const action of ["get", "set"] as const) {
     ipcMain.handle(`smd:settings-window:${action}`, async (event, patch: unknown) => {
@@ -20,9 +20,18 @@ export function createSettingsWindow(options: { here: string; config: ConfigStor
       return snapshot();
     });
   }
+  ipcMain.handle("smd:settings-window:action", async (event, action: unknown) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error("Untrusted Settings sender.");
+    switch (action) {
+      case "default-app": await options.defaultApp(); break;
+      case "open-config": await options.openConfig(); break;
+      case "reveal-config": options.revealConfig(); break;
+      default: throw new Error("Unknown Settings action.");
+    }
+  });
   return {
     open(): void {
-      if (win && !win.isDestroyed()) { win.show(); win.focus(); return; }
+      if (win && !win.isDestroyed()) { win.show(); win.focus(); void snapshot().then(value => win?.webContents.send("smd:settings-window:changed", value)); return; }
       win = new BrowserWindow({ width: 540, height: 720, minWidth: 440, minHeight: 480, show: false, title: "Settings",
         backgroundColor: nativeTheme.shouldUseDarkColors ? "#242424" : "#f3f3f3", minimizable: false, maximizable: false, fullscreenable: false,
         webPreferences: { preload: path.join(options.here, "settings-preload.cjs"), sandbox: true, contextIsolation: true, nodeIntegration: false },

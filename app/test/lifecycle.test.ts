@@ -138,3 +138,51 @@ test("normal opens settle before refresh and present the refreshed disk payload"
   expect(await openPreparedDocument(a)).toBe(true);
   expect(events).toEqual(["prepare", "settle", "refresh", "present after"]);
 });
+
+for (const choice of ["saved", "discard", "cancel"] as const) test(`missing files offer recovery before closing: ${choice}`, async () => {
+  const missing = { ...dirty, unavailable: true, conflict: true };
+  let offered = 0;
+  const a = { ...actions([missing, choice === "saved" ? { ...dirty, dirty: false } : missing]),
+    resolveUnavailable: async () => { offered++; return choice; } };
+  expect(await settleDocument(a)).toBe(choice !== "cancel");
+  expect(offered).toBe(1);
+});
+test("deletion discovered during autosave offers recovery instead of silently refusing quit", async () => {
+  let offered = false;
+  const missing = { ...dirty, unavailable: true, conflict: true };
+  const a = { ...actions([dirty, missing, missing]), save: async () => false,
+    resolveUnavailable: async () => { offered = true; return "discard" as const; } };
+  expect(await settleDocument(a)).toBe(true); expect(offered).toBe(true);
+});
+test("edits entered during missing-file recovery block discard", async () => {
+  const missing = { ...dirty, unavailable: true, conflict: true };
+  let offered = false;
+  const a = { ...actions([missing, { ...missing, text: "new typing" }]), resolveUnavailable: async () => { offered = true; return "discard" as const; } };
+  expect(await settleDocument(a)).toBe(false); expect(offered).toBe(true);
+});
+
+
+test("Share and Move settle current bytes and stop when saving is cancelled or declined", async () => {
+  const documentId = makeDocumentId(0);
+  for (const choice of ["discard", "cancel"] as const) {
+    let saves = 0;
+    const result = await settleDocument({ documentId, autosave: false, hasPath: true, allowDiscard: false,
+      flush: async () => ({ documentId, revisionId: makeRevisionId(0), dirty: true, conflict: false, text: "current edits" }),
+      choose: async () => choice, save: async () => { saves++; return true; },
+    });
+    expect(result).toBe(false); expect(saves).toBe(0);
+  }
+  let dirty = true, saved: string | undefined;
+  expect(await settleDocument({ documentId, autosave: true, hasPath: true, allowDiscard: false,
+    flush: async () => ({ documentId, revisionId: makeRevisionId(0), dirty, conflict: false, text: "current edits\r\n" }),
+    choose: async () => "cancel", save: async text => { saved = text; dirty = false; return true; },
+  })).toBe(true);
+  expect(saved).toBe("current edits\r\n");
+});
+
+test("Share and Move name the action and offer only Save and Cancel", async () => {
+  const { saveChangesPrompt } = await import("../src/main/lifecycle");
+  expect(saveChangesPrompt("note.md", "move")).toMatchObject({ message: "Save “note.md” before moving?", buttons: ["Save", "Cancel"], cancelId: 1 });
+  expect(saveChangesPrompt("note.md", "share")).toMatchObject({ message: "Save “note.md” before sharing?", buttons: ["Save", "Cancel"], cancelId: 1 });
+  expect(saveChangesPrompt("note.md").buttons).toEqual(["Save", "Don't Save", "Cancel"]);
+});

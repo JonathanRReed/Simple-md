@@ -24,6 +24,7 @@ export function nativePlan(host, platform = process.platform, arch = process.arc
     platform,
     executable,
     cliExecutable: platform === "win32" ? "simplemd.exe" : "simplemd",
+    defaultAppBinary: path.join(targetDir, "release/simplemd-default-app"),
     cliBinary: path.join(targetDir, host, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
     cliDevelopmentBinary: path.join(targetDir, "release", platform === "win32" ? "simplemd.exe" : "simplemd"),
     args: ["build", "--locked", "--release", "--manifest-path", path.join(appDir, "native", "Cargo.toml"), "--target", host, "--target-dir", targetDir],
@@ -48,6 +49,7 @@ export function currentNativePlan() {
 
 export function buildNative(plan) {
   run("cargo", plan.args);
+  if (plan.platform === "darwin") run("bash", [path.join(appDir, "native/default-app/build-helper.sh"), plan.defaultAppBinary]);
   if (plan.platform === "win32") {
     run(process.execPath, ["run", "build/windows-preview.mjs"]);
     run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(appDir, "native/windows-preview/Cargo.toml"), "--target", plan.host]);

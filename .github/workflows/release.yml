@@ -4,6 +4,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      allow_unsigned_windows:
+        description: 'Build unsigned Windows artifacts instead of requesting SignPath signing'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,8 +22,28 @@ env:
   CARGO_BUILD_JOBS: '4'
 
 jobs:
+  qualify:
+    name: Require desktop checks for this commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Require successful desktop workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          count=$(gh api "repos/$GH_REPO/actions/workflows/desktop.yml/runs?head_sha=$CANDIDATE_SHA&status=success&event=push&per_page=1" --jq '.workflow_runs | length')
+          if [ "$count" -eq 0 ]; then
+            echo "Desktop checks must succeed for $CANDIDATE_SHA before a release build. Rerun Release after they pass." >&2
+            exit 1
+          fi
+
   build:
     name: Release ${{ matrix.platform }}
+    needs: qualify
     strategy:
       fail-fast: false
       matrix:
@@ -33,12 +58,25 @@ jobs:
       contents: read
       actions: read
     env:
+      ALLOW_UNSIGNED_WINDOWS_RELEASE: ${{ inputs.allow_unsigned_windows && 'true' || vars.ALLOW_UNSIGNED_WINDOWS_RELEASE || 'false' }}
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
       SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
       SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
       SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
       SIGNPATH_ARTIFACT_CONFIGURATION_SLUG: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
     steps:
+      - name: Validate Windows signing configuration
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ($env:ALLOW_UNSIGNED_WINDOWS_RELEASE -eq 'true') { exit 0 }
+          if ($env:ALLOW_UNSIGNED_WINDOWS_RELEASE -ne 'false') { throw 'ALLOW_UNSIGNED_WINDOWS_RELEASE must be true or false.' }
+          $required = @('SIGNPATH_API_TOKEN', 'SIGNPATH_ORGANIZATION_ID', 'SIGNPATH_PROJECT_SLUG', 'SIGNPATH_SIGNING_POLICY_SLUG', 'SIGNPATH_ARTIFACT_CONFIGURATION_SLUG')
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing $name. Configure SignPath or explicitly allow unsigned Windows releases."
+            }
+          }
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -54,7 +92,7 @@ jobs:
         working-directory: app
         run: bun build/release-ci.mjs
       - name: Stage installer for SignPath
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && env.ALLOW_UNSIGNED_WINDOWS_RELEASE != 'true'
         id: unsigned
         uses: actions/upload-artifact@v4
         with:
@@ -63,7 +101,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Sign Windows installer
-        if: runner.os == 'Windows' && env.SIGNPATH_API_TOKEN != '' && env.SIGNPATH_ORGANIZATION_ID != '' && env.SIGNPATH_PROJECT_SLUG != '' && env.SIGNPATH_SIGNING_POLICY_SLUG != '' && env.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG != ''
+        if: runner.os == 'Windows' && env.ALLOW_UNSIGNED_WINDOWS_RELEASE != 'true'
         uses: signpath/github-action-submit-signing-request@v3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -73,10 +111,22 @@ jobs:
           artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
           github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
           wait-for-completion: true
-          output-artifact-directory: app/release
+          output-artifact-directory: signed-installer
+      - name: Verify signed Windows installer
+        if: runner.os == 'Windows' && env.ALLOW_UNSIGNED_WINDOWS_RELEASE != 'true'
+        shell: pwsh
+        run: |
+          $original = @(Get-ChildItem app/release/*.exe)
+          $signed = @(Get-ChildItem signed-installer -Filter *.exe -Recurse)
+          if ($original.Count -ne 1 -or $signed.Count -ne 1 -or $original[0].Name -ne $signed[0].Name) {
+            throw 'Expected exactly one returned installer matching the original filename.'
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $signed[0].FullName
+          if ($signature.Status -ne 'Valid') { throw "Invalid installer signature: $($signature.Status)" }
+          Copy-Item -LiteralPath $signed[0].FullName -Destination $original[0].FullName -Force
       - name: Report unsigned fallback
-        if: runner.os == 'Windows' && (env.SIGNPATH_API_TOKEN == '' || env.SIGNPATH_ORGANIZATION_ID == '' || env.SIGNPATH_PROJECT_SLUG == '' || env.SIGNPATH_SIGNING_POLICY_SLUG == '' || env.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG == '')
-        run: echo "SignPath is not configured. Artifacts are unsigned; follow README SmartScreen steps."
+        if: runner.os == 'Windows' && env.ALLOW_UNSIGNED_WINDOWS_RELEASE == 'true'
+        run: echo "Unsigned Windows release explicitly enabled. Follow README SmartScreen steps."
       - name: Hash final bytes and refresh update metadata
         working-directory: app
         run: bun build/release-metadata.mjs release

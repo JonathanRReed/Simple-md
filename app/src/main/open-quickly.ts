@@ -111,11 +111,20 @@ export async function machineMarkdown(query: string, signal: AbortSignal, platfo
   }
   return [];
 }
+export function quicklyDisplayPath(file: string, root: string | undefined, home = os.homedir()): string {
+  if (root) {
+    const relative = path.relative(root, file);
+    if (relative && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)) return relative;
+  }
+  const relative = path.relative(home, file);
+  return relative === "" ? "~" : relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative) ? path.join("~", relative) : file;
+}
+
 export class QuicklySearch {
   private controller?: AbortController;
   private repo?: string[];
   private repoRoot?: string;
-  constructor(private readonly activeFile: string | null, private readonly sources = { repo: repoMarkdown, machine: machineMarkdown }) {}
+  constructor(private readonly activeFile: string | null, private readonly sources = { repo: repoMarkdown, machine: machineMarkdown }, private readonly history: Promise<QuicklyFile[]> = Promise.resolve([])) {}
   cancel(): void { this.controller?.abort(); this.controller = undefined; }
   close(): void { this.cancel(); this.repo = undefined; this.repoRoot = undefined; }
   async search(query: string, scope: QuicklyScope, instant: QuicklyFile[], publish: (matches: QuicklyMatch[]) => void = () => {}): Promise<QuicklyMatch[]> {
@@ -137,7 +146,7 @@ export class QuicklySearch {
         const root = this.repoRoot;
         const relative = root ? path.relative(root, file.path) : undefined;
         const inRepo = relative !== undefined && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-        const candidate = quicklyCandidate({ ...file, matchPath: inRepo ? relative : scope === "repo" ? path.basename(file.path) : file.path }, normalized, i);
+        const candidate = quicklyCandidate({ ...file, displayPath: quicklyDisplayPath(file.path, root), matchPath: inRepo ? relative : scope === "repo" ? path.basename(file.path) : file.path }, normalized, i);
         if (candidate) insertRankedSearchResult(ranked, candidate, QUICKLY_LIMIT);
       }
       return quicklyMatches(ranked, normalized);
@@ -146,7 +155,9 @@ export class QuicklySearch {
       const machinePromise = scope === "everywhere" ? this.sources.machine(query, signal).catch(() => []) : Promise.resolve([]);
       const repo = this.repo ?? await this.sources.repo(this.activeFile, signal, root => { this.repoRoot = root; });
       signal.throwIfAborted(); this.repo = repo;
-      const local: QuicklyFile[][] = [instant, repo.map(path => ({ path, source: "repo" }))];
+      const history = await this.history;
+      signal.throwIfAborted();
+      const local: QuicklyFile[][] = [instant, history, repo.map(path => ({ path, source: "repo" }))];
       const matches = await rank(local);
       if (scope === "repo") return matches;
       publish(matches);

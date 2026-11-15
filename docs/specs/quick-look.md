@@ -32,7 +32,7 @@ electron-builder skips `Contents/PlugIns` while signing (`app-builder-lib/out/ma
 Decided after the M0 spike (`app/native/quicklook/SPIKE.md`): a data-based preview.
 
 - `Info.plist` sets `QLIsDataBasedPreview = true`. A `QLPreviewProvider` returns an HTML `QLPreviewReply`, and Quick Look displays it. There is no WKWebView in the extension and no script in the page.
-- The extension evaluates the browser bundle of the render core in JavaScriptCore to produce HTML, including Shiki highlighting and KaTeX, then applies the author HTML policy before replying. JavaScriptCore has no DOM, so DOMPurify cannot run here. M4 must choose how to enforce the same policy (`docs/specs/sanitizer.md`) without a DOM, for example a policy walker over a pure-JS HTML tokenizer in the render-core bundle, and prove parity with DOMPurify's output on every sanitizer fixture with a differential test. CSP and Quick Look's script-free display are defense in depth, not the sanitizer. The spike measured about 7.5 ms per warm render and about 64 ms for context creation plus first render.
+- The extension evaluates the browser bundle of the render core in JavaScriptCore to produce HTML, including Shiki highlighting and KaTeX, then applies the author HTML policy before replying. JavaScriptCore has no DOM, so DOMPurify cannot run here. The static sanitizer uses parse5 and the shared policy (`docs/specs/sanitizer.md`), with differential tests against DOMPurify on the sanitizer fixtures. CSP and Quick Look's script-free display are defense in depth, not the sanitizer. The spike measured about 7.5 ms per warm render and about 64 ms for context creation plus first render.
 - The only entitlement is `com.apple.security.app-sandbox`. No network entitlement.
 - The reply's CSP denies scripts and remote loads. KaTeX fonts are embedded as data URLs with `font-src data:`.
 - Mermaid diagrams render as code blocks in Quick Look. If Pele can render SVG without a DOM later, inline that SVG.
@@ -41,7 +41,7 @@ Decided after the M0 spike (`app/native/quicklook/SPIKE.md`): a data-based previ
 - Shows local images only where the sandbox grants access. Otherwise it shows a placeholder.
 - Uses the system appearance with the default theme. It does not read the user config.
 - Declares UTIs for Markdown and for MDX. MDX needs its own exported or imported UTI in `extendInfo`. Other installed previewers (for example FluxMarkdown) may already claim `.md` and `.mdx`; document how to pick SimpleMD in System Settings > Login Items & Extensions.
-- Opening the file in the app works from Quick Look's standard "Open with SimpleMD" button.
+- Quick Look's open action follows the selected opener. Choose SimpleMD as the default for that extension to open previews in SimpleMD; a clean-install check must confirm the actual button and keyboard action.
 
 ### Render-core API
 
@@ -157,7 +157,7 @@ data URLs and replaces missing, denied, remote or unsupported images with escape
 alt text in an "Image unavailable" box. Picture sources cannot override that image.
 There is no native file bridge in JavaScript and no additional sandbox entitlement.
 
-The repository README is now 2,905 UTF-8 bytes. With a fixed `/project/` base, it produces a
+The README fixture retained for the October 29, 2026 M4 qualification was 2,905 UTF-8 bytes. With a fixed `/project/` base, it produced a
 13,705-byte page,
 compared with 382,425 bytes before conditional math assets. Absolute link lengths
 change the installed reply size. The math fixture keeps
@@ -167,6 +167,31 @@ page sizes and packaged runtime evidence.
 ## Thumbnail extension
 
 Uses `QLThumbnailProvider`, drawing a Core Text title card from the first heading and opening lines. No WebKit.
+
+Keep exact Markdown and MDX identifiers in `QLSupportedContentTypes`. Apple's
+[thumbnail extension documentation](https://developer.apple.com/documentation/quicklookthumbnailing/providing-thumbnails-of-your-custom-file-types)
+requires exact matches; listing `public.plain-text` alone is insufficient.
+The thumbnail extension point is `com.apple.quicklook.thumbnail`, its principal
+class is the Objective-C-visible `ThumbnailProvider`, and its minimum dimension
+is 32. The packaging verifier checks these declarations. SimpleMD imports
+Markdown and exports only its own MDX type, which retains `public.plain-text`
+conformance.
+
+On November 14, 2026, `qlmanage -t -x -s 256 -o` requests on macOS 27.2 selected
+the installed SimpleMD thumbnail extension for `.md` resolved as
+`net.daringfireball.markdown` and `.mdx` resolved as
+`com.jonathanreed.simplemd.mdx`. Daemon launch records, provider draw logs and
+the PNGs agree. A separately identified test extension also drew custom types
+conforming to `public.plain-text` and `public.utf8-plain-text` while TextEdit was
+their resolved opener. Plain-text conformance does not prevent custom thumbnails.
+
+The verified configuration had SimpleMD elected and resolved as the Markdown
+opener. FluxMarkdown was already in Trash and absent from PlugInKit. This proves
+supported thumbnail generation, not a guaranteed ordering among installed apps.
+Apple documents eligibility but no priority key that makes a third-party
+thumbnail provider always win over its built-in text provider. Finder's visible
+icons, existing caches and a configuration with active FluxMarkdown were not
+tested. See the [routing report](../../app/native/quicklook/evidence/thumbnails/REPORT.md).
 
 ## Removing the Accessibility hook
 
@@ -200,11 +225,13 @@ entitlement, with no network access or page scripts.
 
 
 The packaged rich preview passed the complete M4 fixture set in both ad-hoc and
-Developer ID runs on October 29, 2026, with the main app closed. Thumbnail routing
-remains unqualified. The final runs used Apple's text thumbnail provider for
-Markdown and MDX, despite matching declared UTIs. See the
+Developer ID runs on October 29, 2026, with the main app closed. Those runs used
+Apple's text thumbnail provider for Markdown and MDX, despite matching declared
+UTIs. See the
 [qualification report](../../app/native/quicklook/evidence/m4-final/REPORT.md)
 for screenshots, timing stages, declaration comparisons, and cleanup receipts.
+The November 14 routing check above supersedes the claim that SimpleMD has never
+drawn a Markdown thumbnail; it does not repeat the full preview fixture gate.
 
 ## Security limits
 
@@ -223,5 +250,7 @@ and thumbnail logs mark filenames and error descriptions private.
 The host exports only SimpleMD's MDX type. It does not import FluxMarkdown's MDX
 declaration. Both extensions still support that installed type in
 `QLSupportedContentTypes`, so files already classified by FluxMarkdown remain
-eligible. Final packaging verification runs after the build without depending on
-`afterSign`, and the full `SIMPLEMD_SIGN_IDENTITY` value selects extension signing.
+eligible. Local packaging verifies after the builder returns, independently of
+`afterSign`; the macOS release script verifies inside `afterSign`. Both check extension versions against the host bundle. The full `SIMPLEMD_SIGN_IDENTITY` value selects extension signing.
+
+The retained evidence reports contain historical paths to raw receipts held in a local archive. See the [archive record](../../app/native/quicklook/SPIKE.md) and [security report](../../app/native/quicklook/evidence/security/REPORT.md). A public clone does not contain those receipts.

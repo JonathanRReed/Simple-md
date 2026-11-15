@@ -55,10 +55,10 @@ test("folder fallback bounds depth and entries and never follows symlinks or hid
   for (const file of ["active.md", "d/ok.mdx", "d/deep/no.md", ".hidden/no.md", "node_modules/no.md"]) await writeFile(path.join(root, file), "# Note");
   await symlink(path.join(root, "d"), path.join(root, "link"), "dir");
   const files = await walkMarkdown(root, controller().signal, { depth: 1, entries: 20000 });
-  expect(files.map(x => path.relative(root, x)).sort()).toEqual(["active.md", "d/ok.mdx"]);
+  expect(files.map(x => path.relative(root, x)).sort()).toEqual(["active.md", path.join("d", "ok.mdx")]);
   expect((await walkMarkdown(root, controller().signal, { depth: 6, entries: 1 })).length).toBeLessThanOrEqual(1);
   const fallback = await repoMarkdown(path.join(root, "active.md"), controller().signal);
-  expect(fallback.map(x => path.relative(root, x)).sort()).toEqual(["active.md", "d/deep/no.md", "d/ok.mdx"]);
+  expect(fallback.map(x => path.relative(root, x)).sort()).toEqual(["active.md", path.join("d", "deep", "no.md"), path.join("d", "ok.mdx")]);
   const cancelled = controller(); cancelled.abort();
   await expect(walkMarkdown(root, cancelled.signal)).rejects.toThrow();
 }));
@@ -152,7 +152,7 @@ test("repo queries ignore the absolute parent path for repo files, tabs and rece
   const instant: QuicklyFile[] = [{ path: file, source: "tab" }];
   expect(await search.search(path.basename(root), "repo", instant)).toEqual([]);
   expect((await search.search("docs/active", "repo", instant)).map(file => file.path)).toEqual([file]);
-  expect((await search.search("active", "repo", instant))[0]?.parent).toBe(path.join(root, "docs"));
+  expect((await search.search("active", "repo", instant))[0]?.parent).toBe("docs");
   search.close();
 }));
 
@@ -161,4 +161,14 @@ test("indexed candidates support noncontiguous filename queries before ranking",
   const candidates = await machineMarkdown("btrhlp", controller().signal, "darwin", fakeSpawner(Buffer.from("/notes/BetterHelp.mdx\0"), calls));
   expect(calls[0]?.args.at(-1)).toContain('"*b*t*r*h*l*p*"cd');
   expect(rankQuicklyFiles(candidates.map(path => ({ path, source: "machine" })), "btrhlp").map(file => file.name)).toEqual(["BetterHelp.mdx"]);
+});
+
+test("picker reuses the checked history snapshot across keystrokes", async () => {
+  let checks = 0;
+  const history = Promise.resolve().then(() => { checks++; return [{ path: "/notes/history.md", source: "recent" as const }]; });
+  const search = new QuicklySearch(null, { repo: async () => [], machine: async () => [] }, history);
+  expect((await search.search("his", "repo", [])).some(file => file.path === "/notes/history.md")).toBe(true);
+  expect((await search.search("history", "repo", [])).some(file => file.path === "/notes/history.md")).toBe(true);
+  expect(checks).toBe(1);
+  search.close();
 });

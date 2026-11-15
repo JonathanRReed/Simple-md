@@ -9,6 +9,7 @@ export interface SettingsSnapshot {
   accent: string;
 }
 export interface SettingsBridge {
+  action(action: "default-app" | "open-config" | "reveal-config"): Promise<void>;
   get(): Promise<SettingsSnapshot>;
   set(patch: Partial<UserSettings>): Promise<SettingsSnapshot>;
   subscribe(callback: (snapshot: SettingsSnapshot) => void): () => void;

@@ -26,6 +26,7 @@ export async function runBatch(input: { html: string; css: string; text: string;
   let disk = input.text;
   const id = makeDocumentId(1), paneId = makePaneId(0);
   const api = {
+    writingContext() {}, proseCounts: async () => ({ document: { words: 0, characters: 0 }, minutes: 1 }), menuCommands: async () => [], invokeMenu: async () => {},
     perfMarker() {}, documentReady() {}, paneMode(_id: unknown, mode: string) { paneModes.push(mode); }, releaseView() {}, editing() {}, setDirty() {}, edit() {},
     changes: async () => ({ kind: null, generation: 0, changes: { changed: [], deleted: [] } }),
     renderBlocks: async () => input.rendered, renderFragment: async () => ({ html: "" }),
@@ -163,7 +164,7 @@ export async function runBatch(input: { html: string; css: string; text: string;
   await until(() => saves === 2, "Autosave did not resume after explicit save");
   restored.cmTile.root.view.dispatch({ changes: { from: 0, insert: "Local decision\n" } });
   const incoming = "# PLAN\n\nIncoming decision from disk.\n<script>throw new Error('unsafe')</script>\n";
-  pane.diskChanged(incoming, id); await paint();
+  pane.diskChanged({ kind: "text", text: incoming }, id); await paint();
   const banner = root.querySelector<HTMLElement>('[data-element="banner"]')!;
   const compare = [...banner.querySelectorAll("button")].find(node => node.textContent === "View incoming changes")!;
   assert(compare && ["Reload", "Keep mine", "Save mine as…"].every(label => banner.textContent!.includes(label)), "Conflict actions missing");
@@ -181,7 +182,7 @@ export async function runBatch(input: { html: string; css: string; text: string;
   dialog.dispatchEvent(new Event("cancel", { cancelable: true })); await paint();
   assert(!dialog.isConnected && pane.flush().conflict && document.activeElement === compare, "Closing comparison resolved the conflict or lost focus");
   compare.click(); await paint();
-  pane.diskChanged(incoming + "newer", id); await paint();
+  pane.diskChanged({ kind: "text", text: incoming + "newer" }, id); await paint();
   assert(!document.querySelector("dialog"), "A newer disk event left stale incoming text visible");
   [...banner.querySelectorAll("button")].find(node => node.textContent === "View incoming changes")!.click(); await paint();
   return { passed: true };

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { updateDecision, updateInterval, type UpdateGate } from "../src/shared/update-policy.js";
 import { parseConfig, serializeConfig } from "../src/shared/config.js";
 
-const release: UpdateGate = { packaged: true, platform: "darwin", signed: true, appImage: false,
+const release: UpdateGate = { packaged: true, metadata: true, platform: "darwin", signed: true, appImage: false,
   enabled: true, manual: false, now: updateInterval * 3, lastCheck: 0 };
 test("updates skip development and unsigned macOS, including manual requests", () => {
   for (const manual of [false, true]) {
@@ -28,4 +28,13 @@ test("auto-update is a schema-driven boolean with round-trip persistence", () =>
   expect(parseConfig("auto-update = false\n").settings.autoUpdate).toBe(false);
   expect(parseConfig("auto-update = never\n").issues).toHaveLength(1);
   expect(parseConfig(serializeConfig("# keep\n", { autoUpdate: false })).settings.autoUpdate).toBe(false);
+});
+
+test("packages without app-update.yml skip automatic and manual updates", () => {
+  for (const platform of ["darwin", "win32", "linux"] as const) {
+    for (const manual of [false, true]) {
+      expect(updateDecision({ ...release, platform, appImage: true, metadata: false, manual })).toBe("unsupported");
+      expect(updateDecision({ ...release, platform, appImage: true, metadata: true, manual })).toBe("check");
+    }
+  }
 });

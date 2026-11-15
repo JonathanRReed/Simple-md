@@ -67,11 +67,17 @@ export async function prepareCliRuntime(binary: string, profile?: string): Promi
   }
   if (process.platform === "win32" && !(await refused(endpoint))) throw new Error("The CLI endpoint is still accepting connections.");
   const secret = randomBytes(32).toString("hex");
-  const temporary = path.join(directory, `state-${process.pid}.tmp`);
-  try {
-    fs.writeFileSync(temporary, JSON.stringify({ version: 1, pid: process.pid, secret }), { flag: "wx", mode: 0o600 });
-    fs.renameSync(temporary, stateFile);
-  } finally { fs.rmSync(temporary, { force: true }); }
+  const state = JSON.stringify({ version: 1, pid: process.pid, secret });
+  if (process.platform === "win32") {
+    execFileSync(binary, ["--write-state"], { input: state, windowsHide: true, timeout: 5000, maxBuffer: 4096,
+      env: profile ? { ...process.env, SMD_CLI_RUNTIME: directory } : process.env });
+  } else {
+    const temporary = path.join(directory, `state-${process.pid}.tmp`);
+    try {
+      fs.writeFileSync(temporary, state, { flag: "wx", mode: 0o600 });
+      fs.renameSync(temporary, stateFile);
+    } finally { fs.rmSync(temporary, { force: true }); }
+  }
   let stateRemoved = false;
   return { directory, endpoint, secret, cleanup() {
     // A different server's state must never be removed during shutdown.

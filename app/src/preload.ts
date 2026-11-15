@@ -1,4 +1,4 @@
-import { isDocumentId, makeDocumentId, type DocumentId, type RevisionId, type RequestId } from "./shared/types.js";
+import { isDocumentId, makeDocumentId, type DiskChange, type DocumentId, type RevisionId, type RequestId } from "./shared/types.js";
 import { applyBlockDelta, isBlockDelta } from "./shared/block-delta.js";
 import type { RenderedBlock } from "./shared/render-core.js";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
@@ -16,6 +16,8 @@ const viewGenerations = new Map<DocumentId, number>();
 contextBridge.exposeInMainWorld("simplemd", {
   setChromeVisible: (visible: boolean) => ipcRenderer.send("smd:chrome-visible", visible),
   moveTab: (id: DocumentId, pinned: boolean, before?: DocumentId) => ipcRenderer.invoke("smd:move-tab", id, pinned, before),
+  // Known before the first message arrives, so panes created early still show this platform's shortcuts.
+  platform: process.platform,
   ready: () => ipcRenderer.invoke("smd:ready"),
 
   readFindText: () => ipcRenderer.invoke("smd:find-read"),
@@ -41,13 +43,13 @@ contextBridge.exposeInMainWorld("simplemd", {
   onDoc: (cb: (doc: { documentId: DocumentId }) => void) => on("smd:doc", (doc: { documentId: DocumentId }) => { activeDocumentId = doc.documentId; cb(doc); }),
   onSettings: (cb: (s: unknown) => void) => on("smd:settings", cb),
   onCommand: (cb: (cmd: string, id?: DocumentId) => void) => on("smd:cmd", cb),
-  onDiskChanged: (cb: (text: string, documentId: DocumentId, readOnlyReason?: string) => void) => on("smd:disk-changed", cb),
+  onDiskChanged: (cb: (change: DiskChange, documentId: DocumentId) => void) => on("smd:disk-changed", cb),
   onTransition: (cb: (busy: boolean) => void) => on("smd:transition", cb),
   onSaved: (cb: (result: unknown) => void) => on("smd:saved", cb),
   onFlushRequest: (cb: (id: RequestId, documentId: DocumentId) => void) => on("smd:flush-request", cb),
   onPrintDoc: (cb: (doc: unknown, settings: unknown) => void) => on("smd:print-doc", cb),
 
-  flushResponse: (id: RequestId, result: { dirty: boolean; text: string; documentId: DocumentId; revisionId: RevisionId; conflict: boolean }) =>
+  flushResponse: (id: RequestId, result: { dirty: boolean; text: string; documentId: DocumentId; revisionId: RevisionId; conflict: boolean; unavailable?: boolean }) =>
     ipcRenderer.send("smd:flush-response", id, result),
   setDirty: (dirty: boolean, documentId: DocumentId) => ipcRenderer.send("smd:dirty", dirty, documentId),
   edit: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.send("smd:edit", text, documentId, revisionId),
@@ -74,8 +76,15 @@ contextBridge.exposeInMainWorld("simplemd", {
     return result;
   },
   renderFragment: (text: string, documentId: DocumentId, revisionId: RevisionId) => ipcRenderer.invoke("smd:render-fragment", text, documentId, revisionId),
-  save: (text: string, forceDialog: boolean, documentId: DocumentId) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId),
+  save: (text: string, forceDialog: boolean, documentId: DocumentId, recreate = false) => ipcRenderer.invoke("smd:save", text, forceDialog, documentId, recreate),
   saveCopy: (text: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-copy", text, documentId),
+  proseCounts: (text: string, selection: { from: number; to: number } | undefined, mdx: boolean, id: DocumentId, revision: RevisionId, selectedText?: string) => ipcRenderer.invoke("smd:prose-counts", text, selection, mdx, id, revision, selectedText),
+  menuCommands: () => ipcRenderer.invoke("smd:menu-commands"),
+  invokeMenu: (id: string) => ipcRenderer.invoke("smd:invoke-menu", id),
+  renderClipboard: (text: string, id: DocumentId, revision: RevisionId) => ipcRenderer.invoke("smd:clipboard-render", text, id, revision),
+  pasteMarkdown: (id: DocumentId) => ipcRenderer.invoke("smd:paste-markdown", id),
+  writeClipboard: (text: string, html?: string) => ipcRenderer.invoke("smd:clipboard-write", text, html),
+  pickImage: (id: DocumentId) => ipcRenderer.invoke("smd:pick-image", id),
   saveImage: (bytes: Uint8Array, ext: string, documentId: DocumentId) => ipcRenderer.invoke("smd:save-image", bytes, ext, documentId),
   prepareDragExport: (text: string, documentId: DocumentId, revisionId: RevisionId, format: "html" | "pdf") => ipcRenderer.invoke("smd:prepare-drag-export", text, documentId, revisionId, format),
   startDragExport: (documentId: DocumentId, revisionId: RevisionId, token: string) => ipcRenderer.send("smd:start-drag-export", documentId, revisionId, token),

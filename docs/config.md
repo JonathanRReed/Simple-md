@@ -22,6 +22,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `content-width` | `66` | 40 to 160 |
 | `outline-rail` | `true` | true, false |
 | `outline-rail-levels` | `3` | 1 to 6 |
+| `image-folder` | `assets` | Relative folder beside the document, or public/subfolder in an Astro project |
 | `writing-font-family` | `system-ui` | Installed font family or CSS generic family |
 | `writing-font-size` | `17` | 10 to 40 |
 | `writing-line-height` | `1.65` | 1 to 2.5 |
@@ -30,6 +31,7 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 | `code-font-size` | `14` | 10 to 40 |
 | `code-line-height` | `1.55` | 1 to 2.5 |
 | `code-content-width` | `100` | 40 to 200 |
+| `paper-size` | `auto` | auto, a4, letter |
 | `mode` | `live` | live, split, source |
 | `open-quickly-scope` | `repo` | repo, everywhere |
 | `open-in` | `tab` | tab, window |
@@ -46,6 +48,8 @@ Settings preserves comments, unknown lines, line endings and ordering. Changing 
 
 The default appearance follows the system and selects the configured light or dark theme. Theme colors apply only to the document. Chrome, focus and selection use the system accent. GitHub style fixes reading typography at 16px system UI, line height 1.5 and a maximum width of 980px. Settings disables the reading font, size, line height and width controls while GitHub style is active, since those values have no effect. Config values remain saved and apply again when you switch back. Zoom still enlarges GitHub pages. Writing and code typography remain independent. Widths use characters of the selected font; code blocks scroll horizontally when needed. No fonts are bundled for these roles. KaTeX retains its math fonts.
 
+image-folder defaults to assets beside the document. A relative folder stays inside the document root. In an Astro project, public/subfolder copies into the existing public folder and inserts /subfolder/name. Existing project images selected through Insert Image are linked in place.
+
 Tabs appear across the top by default. Set tab-style = sidebar for a list of open documents on the leading edge. Drag its divider to resize, use Left and Right when the divider has focus, or double-click to reset to 180 px. sidebar-width clamps to 140 through 420 px. View > Show/Hide Tab Sidebar uses Control-Command-S on macOS and Control-Alt-S elsewhere, where Control-Shift-S remains Save As. sidebar-collapsed saves the hidden state. These settings apply to every open window without reloading documents. The search button before horizontal tabs and the field below the sidebar window controls open Open Quickly. View controls sit at the trailing end of the top row in both layouts.
 
 Open Quickly uses Command/Control-Shift-O. Tab cycles This repo and Everywhere; the choice lasts for the window session. open-quickly-scope sets the initial scope and defaults to repo. Enter opens a tab, even with open-in = window. Command/Control-Enter opens in the other pane. Existing files focus their tabs. Outline moves to Command/Control-Alt-Shift-O; Command/Control-P remains Print.
@@ -58,7 +62,7 @@ ui-motion = subtle enables brief chrome transitions after the first document pai
 
 Files open in Read unless they have no extension, are named COMMIT_EDITMSG, use --wait or target a :line. Those open in Source. The mode setting chooses the view when you deliberately start editing. For a file opened in Read, the first autosave waits for 12 changed characters, a second edit burst after a pause of at least 1.5 seconds, or an explicit Save. A tiny edit stays marked Edited and closing the file asks whether to save it. This guard lasts across tab switches. After the first save, autosave works normally. Files opened directly for editing keep normal autosave.
 
-On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, pinned paths, window bounds and zoom. Zoom remains transient application state and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
+On first run, existing settings.json preferences migrate to config if config does not exist. Explicit legacy sans/serif and narrow/normal/wide choices map to reading font and width. Existing config wins. After the next state save, settings.json contains only recent paths, pinned paths, window bounds and zoom. Zoom is persisted app state outside the config file and scales the configured font sizes. The earlier Simple-md profile migration still copies settings and recents, not caches. Launch at login changes system registration only in packaged builds, as before. The open-in setting is shared with the tabs milestone.
 
 ## Example
 
@@ -74,6 +78,7 @@ reading-line-height = 1.68
 content-width = 66
 outline-rail = true
 outline-rail-levels = 3
+image-folder = assets
 writing-font-family = system-ui
 writing-font-size = 17
 writing-line-height = 1.65
@@ -82,6 +87,7 @@ code-font-family = ui-monospace
 code-font-size = 14
 code-line-height = 1.55
 code-content-width = 100
+paper-size = auto
 mode = live
 open-quickly-scope = repo
 open-in = tab

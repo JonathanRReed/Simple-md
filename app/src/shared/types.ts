@@ -79,7 +79,13 @@ export interface DocPayload {
   baseUrl: string | null;
 }
 
+export type DiskChange =
+  | { kind: "text"; text: string; readOnlyReason?: string; message?: string }
+  | { kind: "permissions"; readOnlyReason?: string }
+  | { kind: "unavailable"; message: string; readOnlyReason?: string };
+
 export interface FlushResult {
+  unavailable?: boolean;
   revisionId: RevisionId;
   documentId: DocumentId;
   conflict: boolean;
@@ -88,6 +94,9 @@ export interface FlushResult {
 }
 
 export interface SaveResult {
+  moved?: boolean;
+  unavailableReason?: string;
+  metadataCopyFailed?: boolean;
   revisionId: RevisionId;
   documentId: DocumentId;
   path: string;
@@ -97,6 +106,48 @@ export interface SaveResult {
 }
 
 export type Command =
+  | "share" | "copy-path" | "copy-relative-path" | "duplicate-file" | "rename-move"
+  | "reopen-closed-tab" | "close-other-tabs" | "close-tabs-below" | "default-markdown-app"
+  // Writing commands.
+  | "find-replace"
+  | "go-to-line"
+  | "block-heading-1"
+  | "block-heading-2"
+  | "block-heading-3"
+  | "block-heading-4"
+  | "block-heading-5"
+  | "block-heading-6"
+  | "block-body"
+  | "block-bullet-list"
+  | "block-number-list"
+  | "block-task-list"
+  | "block-quote"
+  | "block-code-block"
+  | "block-rule"
+  | "block-footnote"
+  | "table-row-above"
+  | "table-row-below"
+  | "table-column-left"
+  | "table-column-right"
+  | "table-delete-row"
+  | "table-delete-column"
+  | "table-row-up"
+  | "table-row-down"
+  | "table-align-left"
+  | "table-align-center"
+  | "table-align-right"
+  | "table-align-none"
+  | "table-insert-table"
+  | "insert-image"
+  | "copy-markdown"
+  | "copy-html"
+  | "copy-formatted"
+  | "paste-markdown"
+  | "fold"
+  | "unfold"
+  | "fold-all"
+  | "unfold-all"
+
   | "open-quickly"
   | "toggle-zen"
   | "toggle-pin-tab"
@@ -124,6 +175,8 @@ export type Command =
   | "mode-source"
   | "undo"
   | "redo"
+  | "find-next"
+  | "find-previous"
   | "find"
   | "use-selection-find"
   | "palette"
@@ -146,5 +199,7 @@ export type Command =
 
 /** Above this many characters the Live Preview is switched off so typing stays instant. */
 export const LIVE_MAX_CHARS = 250_000;
+/** Above this size the footer shows no counts: a count is not worth parsing megabytes of text for. */
+export const PROSE_COUNT_MAX_CHARS = 2_000_000;
 
 export type DocumentLocation = { kind: "line"; line: number } | { kind: "heading"; heading: string } | { kind: "start" };
