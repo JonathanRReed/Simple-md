@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { moveDocumentFile, type Destination } from "./file-actions.js";
 import { FirstAutosave } from "../shared/first-autosave.js";
 import type { ChangeBaseline, GitChangesStatus } from "../shared/change-highlights.js";
@@ -6,6 +7,9 @@ import { pathToFileURL } from "node:url";
 import { makeRevisionId, type DiskChange, type DocumentId, type OpenIntent, type RevisionId, type SaveResult } from "../shared/types.js";
 import { DocumentQueue } from "./lifecycle.js";
 import { ENCODING_NOTICE, FileChangedDuringReadError, FileConflictError, readDocument, readDiskText, watchDocument, writeAtomic } from "./files.js";
+
+const missing = (error: unknown): boolean => error instanceof Error && "code" in error && ["ENOENT", "ENOTDIR"].includes(String(error.code));
+const exists = (file: string): Promise<boolean> => fs.promises.stat(file).then(() => true, () => false);
 
 export class DocumentSession {
   readonly firstAutosave: FirstAutosave;
@@ -96,8 +100,12 @@ export class DocumentSession {
       }).catch((err) => {
         if (generation !== this.watchGeneration || sequence !== checkSequence) return;
         // Another program is still writing. The file is there, so look again once it has had time to finish.
-        if (err instanceof FileChangedDuringReadError) this.retryTimer = setTimeout(check, 250);
-        else this.unavailable(err);
+        if (err instanceof FileChangedDuringReadError) { this.retryTimer = setTimeout(check, 250); return; }
+        // A read that began before a save or another program put the file back can still report it missing. Believe the disk.
+        void (missing(err) ? exists(file) : Promise.resolve(false)).then(back => {
+          if (generation !== this.watchGeneration || sequence !== checkSequence) return;
+          if (back) check(); else this.unavailable(err);
+        });
       });
     };
     try { this.watcher = watchDocument(file, check); check(); }
@@ -105,9 +113,8 @@ export class DocumentSession {
   }
 
   private unavailable(error: unknown): void {
-    const missing = error instanceof Error && "code" in error && ["ENOENT", "ENOTDIR"].includes(String(error.code));
     this.unavailableSequence++;
-    this.unavailableReason = missing ? "This file is missing or was moved." : "This file could not be read.";
+    this.unavailableReason = missing(error) ? "This file is missing or was moved." : "This file could not be read.";
     this.conflict = true;
     this.dirty = true;
     if (this.readOnlyReason !== ENCODING_NOTICE) this.readOnlyReason = undefined;
@@ -173,7 +180,8 @@ export class DocumentSession {
       this.firstAutosave.confirm();
       this.diskText = text;
       this.recoveryNotice = undefined;
-      if (moved || unavailableSequence === this.unavailableSequence) this.unavailableReason = undefined;
+      // A watcher read that began before this save published can report the file missing after it. Believe the disk.
+      if (moved || unavailableSequence === this.unavailableSequence || await exists(target)) this.unavailableReason = undefined;
       this.conflict = !!this.unavailableReason;
       this.dirty = !!this.unavailableReason || this.text !== text;
       if (moved && this.onDiskChanged) this.watch(this.onDiskChanged);

@@ -88,3 +88,34 @@ test("disappearance reported while a save finishes cannot mark the buffer clean"
     expect(doc.dirty).toBe(true); expect(doc.conflict).toBe(true); expect(doc.text).toBe("mine");
   } finally { hook.mockRestore(); }
 });
+
+test("a read that began while the file was missing cannot undo a successful recreation", async () => {
+  if (process.platform === "win32") return;
+  const { file, doc } = await fixture(), incoming: DiskChange[] = [];
+  doc.watch(change => incoming.push(change));
+  await fs.promises.unlink(file);
+  await until(() => incoming.some(change => change.kind === "unavailable"));
+  // Hold the next watcher read, then fail it as a read that started before the file came back.
+  let release!: () => void, held = false;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const open = fs.promises.open.bind(fs.promises);
+  const hook = spyOn(fs.promises, "open").mockImplementation(async (...args) => {
+    if (String(args[0]) === file && args[1] !== "wx" && !held && fs.existsSync(file)) {
+      held = true;
+      await gate;
+      throw Object.assign(new Error("ENOENT: no such file or directory"), { code: "ENOENT" });
+    }
+    return open(...args);
+  });
+  try {
+    expect(await doc.save(file, doc.revisionId, false, true)).not.toBeNull();
+    await until(() => held);
+    const reports = incoming.filter(change => change.kind === "unavailable").length;
+    release();
+    await Bun.sleep(300);
+    expect(incoming.filter(change => change.kind === "unavailable")).toHaveLength(reports);
+    expect(doc.unavailableReason).toBeUndefined();
+    expect(doc.dirty).toBe(false);
+    expect(await fs.promises.readFile(file, "utf8")).toBe("before");
+  } finally { hook.mockRestore(); }
+});
