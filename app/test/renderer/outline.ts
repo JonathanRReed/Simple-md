@@ -6,8 +6,8 @@ import type { RenderedBlocks } from "../../src/shared/render-core";
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const pause = (ms = 50) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate: () => boolean, message: string) {
-  // Hosted runners sometimes deliver frames slowly; the limit only has to catch a wait that never ends.
-  for (let i = 0; i < 800; i++) { if (predicate()) return; await pause(10); }
+  // Hosted runners sometimes go seconds between frames; the limit only has to catch a wait that never ends.
+  for (let i = 0; i < 2000; i++) { if (predicate()) return; await pause(10); }
   throw new Error(message);
 }
 
