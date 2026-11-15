@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import { createPane } from "../../src/renderer/pane";
 import { applyDocumentStyle } from "../../src/renderer/document-style";
 import { DEFAULT_SETTINGS, makeDocumentId, makePaneId, makeRevisionId, type Settings } from "../../src/shared/types";
@@ -15,7 +16,7 @@ function probe(phase: string, extra: unknown = {}) {
   const scroll = document.querySelector<HTMLElement>('[data-element="read-scroll"]');
   const article = document.querySelector<HTMLElement>('[data-element="doc"]');
   const heading = article?.querySelectorAll('h1,h2,h3')[20];
-  console.error("OUTLINE-PROBE", JSON.stringify({ phase, ms: performance.now() - probeStart, frames: probeFrames, lastFrame: probeLastFrame, frameGap: probeGap, visibility: document.visibilityState, hidden: document.hidden, top: scroll?.scrollTop, height: scroll?.scrollHeight, client: scroll?.clientHeight, articleHeight: article?.getBoundingClientRect().height, headingConnected: heading?.isConnected, headingOffset: heading && scroll ? heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top : null, extra }));
+  console.error("OUTLINE-PROBE", JSON.stringify({ phase, ms: performance.now() - probeStart, frames: probeFrames, lastFrame: probeLastFrame, frameGap: probeGap, visibility: document.visibilityState, hidden: document.hidden, top: scroll?.scrollTop, height: scroll?.scrollHeight, client: scroll?.clientHeight, articleHeight: article?.getBoundingClientRect().height, firstBlockVisible: article?.firstElementChild?.checkVisibility({ contentVisibilityAuto: true }), firstBlockIntrinsic: article?.firstElementChild ? getComputedStyle(article.firstElementChild).containIntrinsicSize : null, headingConnected: heading?.isConnected, headingOffset: heading && scroll ? heading.getBoundingClientRect().top - scroll.getBoundingClientRect().top : null, extra }));
 }
 const nativeObserver = window.ResizeObserver;
 window.ResizeObserver = class extends nativeObserver {
@@ -35,7 +36,8 @@ const pause = (ms = 50) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate: () => boolean, message: string) {
   probe("until " + message);
   // Hosted runners sometimes go seconds between frames; the limit only has to catch a wait that never ends.
-  for (let i = 0; i < 2000; i++) { if (predicate()) return; await pause(10); }
+  const deadline = performance.now() + 4000;
+  for (let i = 0; i < 2000 && performance.now() < deadline; i++) { if (predicate()) return; await pause(10); }
   probe("FAIL " + message);
   throw new Error(message);
 }

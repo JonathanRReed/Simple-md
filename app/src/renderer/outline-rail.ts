@@ -13,7 +13,7 @@ export function createOutlineRail<T>(options: {
 }) {
   const { host, scroller, content } = options;
   // OUTLINE-PROBE
-  const probe = (phase: string, extra: unknown = {}) => console.error("OUTLINE-RAIL-PROBE", JSON.stringify({ phase, ms: performance.now(), host: host.className, navigation, heldTop, heldHeight, top: scroller.scrollTop, height: scroller.scrollHeight, targets: items.map(item => { const element = options.element?.(item.target); return { key: item.key, connected: element?.isConnected, offset: options.offset(item.target) }; }), extra }));
+  const probe = (phase: string, extra: unknown = {}) => console.error("OUTLINE-RAIL-PROBE", JSON.stringify({ phase, ms: performance.now(), host: host.className, navigation, heldTop, heldHeight, top: scroller.scrollTop, height: scroller.scrollHeight, targets: items.map(item => { const element = options.element?.(item.target); return { key: item.key, connected: element?.isConnected }; }), extra }));
   const abort = new AbortController();
   const signal = abort.signal;
   const rail = document.createElement("nav");
